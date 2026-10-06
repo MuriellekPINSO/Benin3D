@@ -1,0 +1,1299 @@
+<title>Cotonou 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Concept : la ville en plein écran ; l'interface flotte dans des cartouches arrondis couleur sable, accent jaune zémidjan. */
+:root {
+  --bg: #e6dac3;
+  --ink: #1f1b16;
+  --ink-2: #625849;
+  --panel: rgba(255, 250, 240, 0.86);
+  --panel-solid: #fffaf0;
+  --line: rgba(74, 54, 24, 0.14);
+  --chip: rgba(74, 54, 24, 0.07);
+  --accent: #f2b705;
+  --accent-ink: #1f1b16;
+  --sea: #1f6f8b;
+  --shadow: 0 12px 32px rgba(48, 32, 10, 0.16);
+  --font-display: "Bricolage Grotesque", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r-lg: 22px;
+  --r-md: 14px;
+  --gutter: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e131b; --ink: #f3ecdf; --ink-2: #b6ab95; --panel: rgba(16, 21, 30, 0.84); --panel-solid: #141a25;
+    --line: rgba(255, 236, 200, 0.13); --chip: rgba(255, 236, 200, 0.08); --accent: #f5c21b; --accent-ink: #17130c;
+    --sea: #5fb3cf; --shadow: 0 12px 32px rgba(0, 0, 0, 0.45); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e131b; --ink: #f3ecdf; --ink-2: #b6ab95; --panel: rgba(16, 21, 30, 0.84); --panel-solid: #141a25;
+  --line: rgba(255, 236, 200, 0.13); --chip: rgba(255, 236, 200, 0.08); --accent: #f5c21b; --accent-ink: #17130c;
+  --sea: #5fb3cf; --shadow: 0 12px 32px rgba(0, 0, 0, 0.45); color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font-body); overflow: hidden; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#app { position: relative; height: 100%; overflow: hidden; }
+#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+#labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+
+.panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+}
+
+/* Colonne gauche : titre + lieux */
+.side { position: absolute; top: var(--gutter); left: var(--gutter); bottom: 96px; width: 300px; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.side > * { pointer-events: auto; }
+.brand { padding: 16px 18px 14px; }
+.brand h1 { margin: 0; font: 800 34px/0.95 var(--font-display); letter-spacing: -0.02em; text-wrap: balance; display: flex; align-items: baseline; gap: 10px; }
+.brand h1 .tag { font: 600 11px/1 var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); padding: 5px 8px; border-radius: 999px; transform: translateY(-5px); }
+.brand .sub { margin: 8px 0 0; color: var(--ink-2); font-size: 13px; }
+.brand .stats { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.brand .stats span { font: 500 11.5px/1 var(--font-mono); padding: 6px 8px; border-radius: 999px; background: var(--chip); font-variant-numeric: tabular-nums; }
+
+.places { display: flex; flex-direction: column; min-height: 0; flex: 0 1 auto; overflow: hidden; }
+.places h2 { margin: 0; padding: 14px 18px 8px; font: 600 11px/1 var(--font-body); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-2); }
+.places ul { list-style: none; margin: 0; padding: 0 8px 8px; overflow-y: auto; min-height: 0; }
+.place-btn { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 12px; cursor: pointer; }
+.place-btn:hover { background: var(--chip); }
+.place-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.place-btn .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--k, var(--ink-2)); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--k, var(--ink-2)) 22%, transparent); }
+.place-btn .nm { font-weight: 600; font-size: 13.5px; line-height: 1.2; min-width: 0; }
+.place-btn .kd { margin-left: auto; font-size: 11px; color: var(--ink-2); white-space: nowrap; }
+.place-btn[aria-pressed="true"] .kd { color: inherit; opacity: 0.75; }
+.places .help { margin: 0; padding: 10px 18px 14px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 12px; }
+.places .help b { color: var(--ink); font-weight: 600; }
+
+/* HUD droite */
+.hud { position: absolute; top: var(--gutter); right: var(--gutter); display: flex; align-items: center; gap: 12px; padding: 8px 14px 8px 8px; }
+.compass { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-solid); display: grid; place-items: center; cursor: pointer; padding: 0; flex: none; }
+.compass svg { width: 30px; height: 30px; transition: none; }
+.hud .readout { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.scale { display: flex; align-items: center; gap: 8px; font: 500 11px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.scale i { display: block; height: 6px; border: 2px solid var(--ink); border-top: 0; width: 80px; }
+.coords, .clock { font: 500 11px/1.2 var(--font-mono); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Fiche du lieu */
+.card { position: absolute; top: 88px; right: var(--gutter); width: 330px; padding: 18px 18px 16px; }
+.card .eyebrow { font: 600 11px/1 var(--font-body); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+.card .eyebrow .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--k, var(--accent)); }
+.card h3 { margin: 8px 0 6px; font: 800 24px/1.05 var(--font-display); letter-spacing: -0.01em; text-wrap: balance; padding-right: 26px; }
+.card p { margin: 0; color: var(--ink); font-size: 13.5px; line-height: 1.55; max-width: 60ch; }
+.card .meta { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.card .meta code { font: 500 11px/1.3 var(--font-mono); color: var(--ink-2); }
+.card .close { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--chip); cursor: pointer; display: grid; place-items: center; font-size: 16px; line-height: 1; }
+.btn-ghost { border: 1px solid var(--line); background: none; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.btn-ghost:hover { background: var(--chip); }
+
+/* Dock */
+.dock { position: absolute; left: 50%; bottom: var(--gutter); transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 7px; border-radius: 999px; flex-wrap: wrap; justify-content: center; max-width: calc(100% - 2 * var(--gutter)); }
+.seg { display: flex; background: var(--chip); border-radius: 999px; padding: 3px; gap: 2px; }
+.seg button, .tog { border: 0; background: none; padding: 9px 14px; border-radius: 999px; cursor: pointer; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--panel-solid); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.seg svg, .tog svg { width: 16px; height: 16px; flex: none; }
+.tog { color: var(--ink-2); }
+.tog[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); }
+.dock .sep { width: 1px; align-self: stretch; background: var(--line); margin: 6px 2px; }
+
+.credits { position: absolute; right: var(--gutter); bottom: var(--gutter); font-size: 11px; color: var(--ink-2); background: var(--panel); padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); max-width: 260px; text-align: right; }
+.credits a { color: inherit; }
+
+/* Étiquettes 3D */
+.lbl { position: absolute; left: 0; top: 0; pointer-events: auto; opacity: 0; transition: opacity .25s ease; will-change: transform; white-space: nowrap; }
+.lbl.on { opacity: 1; }
+.lbl.off { pointer-events: none; }
+.lbl-place { display: flex; flex-direction: column; align-items: center; cursor: pointer; border: 0; background: none; padding: 0; }
+.lbl-place .pill { display: flex; align-items: center; gap: 7px; padding: 6px 11px 6px 8px; border-radius: 999px; background: var(--panel-solid); color: var(--ink); font-weight: 600; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,.22); border: 1px solid var(--line); }
+.lbl-place .pill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--k, var(--accent)); }
+.lbl-place .stem { width: 2px; height: 16px; background: linear-gradient(var(--panel-solid), transparent); }
+.lbl-place:hover .pill, .lbl-place.sel .pill { background: var(--accent); color: var(--accent-ink); }
+.lbl-q { font: 700 10.5px/1 var(--font-body); letter-spacing: 0.16em; text-transform: uppercase; color: #fffaf0; text-shadow: 0 1px 2px rgba(0,0,0,.65), 0 0 8px rgba(0,0,0,.35); pointer-events: none; }
+.lbl-water { font: 600 italic 13px/1 var(--font-display); letter-spacing: 0.12em; color: #eaf6fa; text-shadow: 0 1px 3px rgba(0,30,50,.6); pointer-events: none; }
+
+/* Chargement */
+#loader { position: absolute; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 5; transition: opacity .9s ease; padding: 0 var(--gutter); }
+#loader.done { opacity: 0; pointer-events: none; }
+#loader .box { width: min(420px, 100%); }
+#loader h2 { margin: 0; font: 800 clamp(44px, 9vw, 72px)/0.9 var(--font-display); letter-spacing: -0.03em; }
+#loader p { margin: 14px 0 12px; color: var(--ink-2); min-height: 1.4em; }
+#loader .bar { height: 6px; border-radius: 99px; background: var(--chip); overflow: hidden; }
+#loader .bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .3s ease; }
+#loader .err { color: #b3261e; font-weight: 600; }
+
+/* Filtres de catégories */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
+.chip { border: 1px solid var(--line); background: none; border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.chip span { font: 500 10.5px/1 var(--font-mono); color: var(--ink-2); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip[aria-pressed="true"] span { color: inherit; opacity: .7; }
+.places li[hidden] { display: none; }
+.jouer { border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 800; font-size: 14px; padding: 10px 18px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 4px 14px rgba(242,183,5,.35); }
+.jouer svg { width: 16px; height: 16px; }
+.jouer-flottant { position: absolute; top: var(--gutter); left: 50%; transform: translateX(-50%); z-index: 2; font-size: 15px; padding: 12px 22px; }
+.mode-jeu .jouer-flottant, .mode-pres .jouer-flottant, .mode-jeu .side, .mode-jeu .hud, .mode-jeu .dock, .mode-jeu .credits, .mode-jeu .card, .mode-jeu #labels,
+.mode-pres .side, .mode-pres .hud, .mode-pres .dock, .mode-pres .credits, .mode-pres .card { display: none !important; }
+.mode-pres #labels { opacity: 0; }
+
+/* Zém Run */
+#jeu { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+#jeu > * { pointer-events: auto; }
+.jeu-menu { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(640px, calc(100% - 2 * var(--gutter))); max-height: calc(100% - 2 * var(--gutter)); overflow-y: auto; padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.jm-eyebrow { font: 700 11px/1 var(--font-body); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+.jm-tete h2 { margin: 6px 0 6px; font: 800 52px/.9 var(--font-display); letter-spacing: -.03em; }
+.jm-tete p { margin: 0; color: var(--ink-2); max-width: 56ch; }
+.jm-lignes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.jm-ligne { text-align: left; border: 1px solid var(--line); background: var(--panel-solid); border-radius: 16px; padding: 12px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.jm-ligne:hover, .jm-ligne:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+.jm-ligne b { font: 800 18px/1.1 var(--font-display); }
+.jm-ligne small { color: var(--ink-2); font-size: 12px; line-height: 1.35; }
+.jm-meta { font: 500 11px/1.2 var(--font-mono); color: var(--ink-2); }
+.jm-veh { align-self: flex-start; font: 700 10.5px/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; padding: 4px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
+.jm-veh.tokpa { background: #e9e6dc; color: #1f1b16; box-shadow: inset 0 -3px 0 #3d8f5a; }
+.jm-pied { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.jm-pied label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.jm-pied input { width: 80px; font: 700 15px/1 var(--font-mono); padding: 7px 9px; border-radius: 10px; border: 1px solid var(--line); background: #f2c21b; color: #1d5a2e; text-align: center; }
+.jm-aide { margin: 0; font-size: 12px; color: var(--ink-2); }
+.jm-aide b { color: var(--ink); }
+.jh-haut { position: absolute; top: var(--gutter); left: var(--gutter); right: var(--gutter); display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; pointer-events: none; }
+.jh-ligne { padding: 10px 14px; min-width: 0; width: min(460px, 60%); display: flex; flex-direction: column; gap: 4px; }
+.jh-ligne b { font: 800 16px/1.1 var(--font-display); }
+.jh-ligne span#jhProchain { font-size: 13px; color: var(--ink-2); }
+.jh-barre { position: relative; height: 8px; background: var(--chip); border-radius: 99px; margin-top: 4px; }
+.jh-barre > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 99px; }
+.jh-barre span i { position: absolute; top: -3px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--panel-solid); border: 3px solid var(--ink); }
+.jh-stats { padding: 10px 14px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-variant-numeric: tabular-nums; }
+.jh-stats b { font: 800 26px/1 var(--font-display); }
+.jh-stats span { font: 500 12px/1.2 var(--font-mono); color: var(--ink-2); }
+#jhVies { display: flex; gap: 4px; }
+#jhVies i { width: 18px; height: 14px; border-radius: 9px 9px 3px 3px; background: #1d2733; display: block; }
+#jhVies i.perdu { background: var(--chip); }
+.jh-quartier { position: absolute; left: 50%; top: 104px; transform: translateX(-50%); font: 700 12px/1 var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: #fffaf0; background: rgba(20, 24, 30, .7); padding: 8px 14px; border-radius: 999px; opacity: 0; pointer-events: none; }
+.jh-quartier.on { animation: apparait 3.2s ease forwards; }
+@keyframes apparait { 0% { opacity: 0; transform: translate(-50%, -8px); } 12%, 80% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+.jh-toast { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%) scale(.9); font: 800 30px/1.1 var(--font-display); color: #fffaf0; text-shadow: 0 2px 10px rgba(0,0,0,.55); opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; text-align: center; padding: 0 var(--gutter); }
+.jh-toast.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.jh-toast.bien { color: #ffe27a; } .jh-toast.mal { color: #ffb3a8; }
+.jh-carte { position: absolute; left: var(--gutter); bottom: 96px; width: min(340px, calc(100% - 2 * var(--gutter))); padding: 14px 16px; }
+.jh-carte small { font: 700 11px/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.jh-carte h3 { margin: 4px 0; font: 800 26px/1 var(--font-display); }
+.jh-carte p { margin: 0; font-size: 13.5px; }
+.jh-boutons { position: absolute; left: 50%; bottom: var(--gutter); transform: translateX(-50%); display: none; gap: 8px; }
+.jh-boutons button, .jh-coin button { border: 0; background: rgba(20,24,30,.72); color: #fffaf0; font-weight: 700; border-radius: 16px; padding: 14px 16px; font-size: 15px; touch-action: none; }
+.jh-boutons #jbF { background: #b3261e; } .jh-boutons #jbS { background: #2f6fb0; }
+.jh-coin { position: absolute; right: var(--gutter); bottom: var(--gutter); display: flex; gap: 8px; }
+.jh-coin button { padding: 10px 14px; font-size: 13px; cursor: pointer; }
+.jh-coin #jhSon[aria-pressed="false"] { opacity: .55; text-decoration: line-through; }
+@media (pointer: coarse), (max-width: 720px) { .jh-boutons { display: flex; } .jh-coin { bottom: auto; top: 130px; } .jh-coin button { padding: 8px 12px; font-size: 12px; } .jh-boutons button { padding: 13px 12px; } }
+.jeu-fin, .jeu-pause { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100% - 2 * var(--gutter))); max-height: calc(100% - 2 * var(--gutter)); overflow-y: auto; padding: 22px; }
+.jeu-fin h2, .jeu-pause h2 { margin: 0; font: 800 44px/.95 var(--font-display); letter-spacing: -.02em; }
+.jf-sous { margin: 6px 0 14px; color: var(--ink-2); }
+.jf-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.jf-stats div { background: var(--chip); border-radius: 12px; padding: 10px 12px; }
+.jf-stats small { display: block; font-size: 11px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .08em; }
+.jf-stats b { font: 800 22px/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+.jf-quiz { margin-top: 14px; }
+.jf-q { margin: 0 0 10px; font: 700 17px/1.3 var(--font-body); }
+.jf-q small { display: block; font-size: 11px; font-weight: 600; color: var(--ink-2); margin-bottom: 4px; }
+.jf-choix { display: grid; gap: 8px; }
+.jf-choix button { text-align: left; border: 1px solid var(--line); background: var(--panel-solid); border-radius: 12px; padding: 11px 14px; font-weight: 600; cursor: pointer; }
+.jf-choix button.bon { background: #2f8a4a; color: #fff; border-color: #2f8a4a; }
+.jf-choix button.faux { background: #b3261e; color: #fff; border-color: #b3261e; }
+.jf-total { margin: 0; font-size: 15px; } .jf-total b { font: 800 22px/1 var(--font-display); }
+.jf-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+
+/* Présentation */
+.pres { position: absolute; inset: 0; z-index: 4; cursor: pointer; }
+.pres .bande { position: absolute; left: 0; right: 0; height: 10%; background: #000; }
+.pres .haut { top: 0; } .pres .bas { bottom: 0; }
+.pres-titre { position: absolute; left: 6%; bottom: 15%; color: #fffaf0; text-shadow: 0 3px 18px rgba(0,0,0,.6); opacity: 0; }
+.pres-titre.on { animation: titre 5.5s ease forwards; }
+.pres-titre h2 { margin: 0; font: 800 clamp(40px, 8vw, 96px)/.9 var(--font-display); letter-spacing: -.03em; }
+.pres-titre p { margin: 10px 0 0; font: 600 clamp(15px, 2vw, 22px)/1.2 var(--font-body); letter-spacing: .04em; }
+@keyframes titre { 0% { opacity: 0; transform: translateY(14px); } 15%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+.pres-sortie { position: absolute; right: 16px; bottom: calc(10% + 10px); color: rgba(255,250,240,.6); font-size: 11px; }
+
+@media (max-width: 720px) {
+  :root { --gutter: 16px; }
+  .jm-lignes { grid-template-columns: 1fr; }
+  .jm-tete h2 { font-size: 40px; }
+  .jh-ligne { width: 62%; } .jh-stats b { font-size: 20px; }
+  .jh-carte { bottom: 90px; }
+  .chips { display: none; }
+  .jouer { padding: 9px 13px; }
+  .jouer-flottant { top: auto; left: auto; transform: none; right: var(--gutter); bottom: 132px; font-size: 14px; }
+  .side { position: static; width: auto; display: contents; }
+  .brand { position: absolute; top: var(--gutter); left: var(--gutter); right: calc(var(--gutter) + 86px); padding: 12px 14px; }
+  .brand h1 { font-size: 26px; }
+  .brand h1 .tag { display: none; }
+  .brand .sub { font-size: 12px; margin-top: 5px; }
+  .brand .stats { display: none; }
+  .hud { padding: 6px 6px 8px; gap: 6px; flex-direction: column; border-radius: 18px; }
+  .hud .coords, .hud .clock { display: none; }
+  .scale { flex-direction: column; gap: 4px; }
+  .scale i { width: 50px; }
+  .places { position: absolute; left: 0; right: 0; bottom: 76px; background: none; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; border-radius: 0; }
+  .places h2, .places .help { display: none; }
+  .places ul { display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 4px var(--gutter) 8px; scrollbar-width: none; }
+  .places li { flex: none; }
+  .place-btn { background: var(--panel-solid); border: 1px solid var(--line); border-radius: 999px; padding: 9px 13px; box-shadow: 0 4px 12px rgba(0,0,0,.14); }
+  .place-btn .kd { display: none; }
+  .card { top: auto; bottom: 132px; left: var(--gutter); right: var(--gutter); width: auto; }
+  .dock { left: var(--gutter); right: var(--gutter); transform: none; border-radius: 999px; justify-content: space-between; flex-wrap: nowrap; gap: 4px; padding: 6px; }
+  .dock .sep { display: none; }
+  .seg svg { display: none; }
+  .seg button { padding: 9px 12px; }
+  .tog { padding: 9px 10px; }
+  .lbl-place .pill { font-size: 11.5px; padding: 5px 9px 5px 7px; }
+  .tog .t-long { display: none; }
+  .credits { left: var(--gutter); right: auto; bottom: auto; top: 92px; max-width: 220px; text-align: left; font-size: 10px; padding: 4px 8px; background: none; border: 0; color: #fffaf0; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+}
+@media (prefers-reduced-motion: reduce) { .lbl, #loader, #loader .bar i { transition: none; } }
+</style>
+
+<div id="app">
+  <canvas id="scene" tabindex="0" aria-label="Maquette 3D de Cotonou. Glisser pour se déplacer, molette ou pincement pour zoomer."></canvas>
+  <div id="labels" aria-hidden="true"></div>
+
+  <div class="side">
+    <header class="brand panel">
+      <h1>Cotonou <span class="tag">3D</span></h1>
+      <p class="sub">Littoral, Bénin · 6°22′ N, 2°25′ E</p>
+      <p class="stats" id="stats"></p>
+    </header>
+    <nav class="places panel" aria-label="Lieux">
+      <h2>Aller à</h2>
+      <div class="chips" id="chips"></div>
+      <ul id="placeList"></ul>
+      <p class="help" id="help"><b>Glisser</b> pour se déplacer · <b>clic droit</b> pour pivoter · <b>molette</b> pour zoomer</p>
+    </nav>
+  </div>
+
+  <div class="hud panel">
+    <button class="compass" id="compass" type="button" title="Remettre le nord en haut" aria-label="Remettre le nord en haut">
+      <svg viewBox="0 0 30 30" id="needle" aria-hidden="true">
+        <path d="M15 3 L19.5 15 L15 13.4 L10.5 15 Z" fill="#d6452f"/>
+        <path d="M15 27 L10.5 15 L15 16.6 L19.5 15 Z" fill="currentColor" opacity=".35"/>
+        <text x="15" y="10.2" text-anchor="middle" font-size="5.5" font-weight="700" fill="#fff" font-family="system-ui">N</text>
+      </svg>
+    </button>
+    <div class="readout">
+      <div class="scale"><i id="scaleBar"></i><span id="scaleTxt">1 km</span></div>
+      <div class="coords" id="coords">6°22′00″ N · 2°24′54″ E</div>
+      <div class="clock" id="clock">Heure de Cotonou —</div>
+    </div>
+  </div>
+
+  <section class="card panel" id="card" hidden aria-live="polite">
+    <button class="close" id="cardClose" type="button" aria-label="Fermer la fiche">×</button>
+    <div class="eyebrow"><span class="dot" id="cardDot"></span><span id="cardKind"></span></div>
+    <h3 id="cardName"></h3>
+    <p id="cardText"></p>
+    <div class="meta"><code id="cardCoords"></code><button class="btn-ghost" id="cardGo" type="button">Recentrer</button></div>
+  </section>
+
+  <div class="dock panel" role="toolbar" aria-label="Réglages de la vue">
+    <div class="seg" role="group" aria-label="Moment de la journée">
+      <button type="button" data-mood="jour" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>Jour</button>
+      <button type="button" data-mood="soir" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 16a5.5 5.5 0 0 1 11 0"/><path d="M2.5 19.5h19M12 5v2.5M4.6 9.6l1.7 1.5M19.4 9.6l-1.7 1.5"/></svg>Soir</button>
+      <button type="button" data-mood="nuit" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10Z"/></svg>Nuit</button>
+    </div>
+    <span class="sep"></span>
+    <button class="tog" type="button" id="togZem" aria-pressed="true" title="Afficher les zémidjans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3"/><circle cx="18.5" cy="17" r="3"/><path d="M8.5 17h5l3-6h-4l-2-3H8M16.5 11l2 6"/></svg><span class="t-long">Zémidjans</span></button>
+    <button class="tog" type="button" id="togQ" aria-pressed="true" title="Afficher les noms des quartiers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg><span class="t-long">Quartiers</span></button>
+    <button class="tog" type="button" id="btnRadio" aria-pressed="false" title="Écouter la musique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><span class="t-long">Radio</span></button>
+    <button class="tog" type="button" id="btnPres" title="Lancer la visite de présentation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><span class="t-long">Présentation</span></button>
+    <button class="tog" type="button" id="togTour" aria-pressed="false" title="Faire tourner la caméra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4.5h-4.5"/></svg><span class="t-long">Survol</span></button>
+  </div>
+  <button class="jouer jouer-flottant" type="button" id="btnJouer"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Jouer à Zém Run</button>
+
+  <p class="credits">Données © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">contributeurs OpenStreetMap</a> · hauteurs estimées · monuments reconstitués d'après photos</p>
+
+  <section id="jeu" hidden>
+    <div class="jeu-menu panel" id="jeuMenu">
+      <div class="jm-tete">
+        <span class="jm-eyebrow">Mode jeu</span>
+        <h2>Zém Run</h2>
+        <p>Apprends les quartiers au guidon d'un zémidjan ou dans un tokpa-tokpa, sur les vraies rues de Cotonou et de Calavi. Arrête-toi aux arrêts, évite les nids-de-poule, ramasse les pièces.</p>
+      </div>
+      <div class="jm-lignes" id="jmLignes"></div>
+      <div class="jm-pied">
+        <label for="jmNumero">Numéro sur ta chemise jaune <input id="jmNumero" maxlength="5" inputmode="numeric" value="1234"></label>
+        <button type="button" class="btn-ghost" id="jmRetour">Retour à la carte</button>
+      </div>
+      <p class="jm-aide"><b>← →</b> changer de file · <b>↑</b> ou <b>espace</b> sauter · <b>↓</b> freiner pour s'arrêter dans la zone jaune · <b>H</b> klaxon · <b>Échap</b> pause. Sur téléphone : glisse ou utilise les boutons.</p>
+    </div>
+    <div class="jeu-hud" id="jeuHud" hidden>
+      <div class="jh-haut">
+        <div class="jh-ligne panel"><b id="jhNom"></b><span id="jhProchain"></span><div class="jh-barre"><i id="jhProg"></i><span id="jhArrets"></span></div></div>
+        <div class="jh-stats panel"><b id="jhArgent">0 F</b><span id="jhVies"></span><span id="jhVitesse">0 km/h</span><span id="jhPassagers"></span></div>
+      </div>
+      <div class="jh-quartier" id="jhQuartier"></div>
+      <div class="jh-toast" id="jhToast"></div>
+      <div class="jh-carte panel" id="jhCarte" hidden><small>Arrêt desservi</small><h3></h3><p></p></div>
+      <div class="jh-boutons">
+        <button type="button" id="jbG" aria-label="File de gauche">◀</button>
+        <button type="button" id="jbF" aria-label="Freiner">Frein</button>
+        <button type="button" id="jbS" aria-label="Sauter">Saut</button>
+        <button type="button" id="jbK" aria-label="Klaxon">Klaxon</button>
+        <button type="button" id="jbD" aria-label="File de droite">▶</button>
+      </div>
+      <div class="jh-coin"><button type="button" id="jhSon" aria-pressed="true" title="Couper les sons">Son</button><button type="button" id="jhPause">Pause</button></div>
+    </div>
+    <div class="jeu-fin panel" id="jeuFin" hidden>
+      <h2></h2><p class="jf-sous"></p>
+      <div class="jf-stats"></div>
+      <div class="jf-quiz"></div>
+      <div class="jf-actions"><button type="button" class="jouer" id="jfRejouer">Rejouer</button><button type="button" class="btn-ghost" id="jfLignes">Autre ligne</button><button type="button" class="btn-ghost" id="jfCarte">Revenir à la carte</button></div>
+    </div>
+    <div class="jeu-pause panel" id="jeuPause" hidden><h2>Pause</h2><div class="jf-actions"><button type="button" class="jouer" id="jpReprendre">Reprendre</button><button type="button" class="btn-ghost" id="jpQuitter">Quitter la course</button></div></div>
+  </section>
+
+  <div class="pres" id="pres" hidden><div class="bande haut"></div><div class="bande bas"></div><div class="pres-titre"><h2 id="presTitre"></h2><p id="presSous"></p></div><small class="pres-sortie">Cliquer ou Échap pour quitter</small></div>
+
+  <div id="loader">
+    <div class="box">
+      <h2>Cotonou</h2>
+      <p id="loadTxt">Préparation…</p>
+      <div class="bar"><i id="loadBar"></i></div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { MapControls } from 'three/addons/controls/MapControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const $ = s => document.querySelector(s);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const coarse = matchMedia('(pointer: coarse)').matches;
+const small = matchMedia('(max-width: 720px)').matches;
+const LITE = coarse || small;
+
+// Projection locale (mètres) autour de 6,37° N / 2,415° E : x vers l'est, z vers le sud
+const LAT0 = 6.37, LON0 = 2.415, KX = 111320 * Math.cos(LAT0 * Math.PI / 180), KZ = 110574;
+const toXZ = (lat, lon) => [(lon - LON0) * KX, (LAT0 - lat) * KZ];
+const toLL = (x, z) => [LAT0 - z / KZ, LON0 + x / KX];
+const dms = (v, pos, neg) => { const s = v >= 0 ? pos : neg; v = Math.abs(v); const d = Math.floor(v), mf = (v - d) * 60, m = Math.floor(mf), sec = Math.round((mf - m) * 60); return `${d}°${String(m).padStart(2, '0')}′${String(sec === 60 ? 59 : sec).padStart(2, '0')}″ ${s}`; };
+const fmtLL = (x, z) => { const [la, lo] = toLL(x, z); return `${dms(la, 'N', 'S')} · ${dms(lo, 'E', 'O')}`; };
+
+const KCOL = { savoir: '#e07b39', monument: '#d6452f', marche: '#f2b705', eau: '#2f8fb0', transport: '#5b6bd6', culte: '#8a5cc2', plage: '#e2a35a', institution: '#3d9a6a', quartier: '#c96f3b' };
+const PLACES = [
+  { id: 'etoile', name: "Place de l'Étoile Rouge", kind: 'Monument', k: 'monument', lat: 6.37149, lon: 2.40979, h: 52, view: [270, 1.08, 0.7],
+    text: "Le grand carrefour où se rejoignent cinq voies. Sur l'île centrale, deux étoiles rouges posées à plat, une flèche blanche et, au sommet, la statue de bronze d'un homme portant une houe et une gerbe. Le monument date du milieu des années 1970, sous Mathieu Kérékou." },
+  { id: 'dantokpa', name: 'Marché Dantokpa', kind: 'Marché', k: 'marche', lat: 6.3727, lon: 2.4352, h: 16, view: [400, 1.05, 2.3],
+    text: "« Tokpa » pour tout le monde : l'un des plus grands marchés à ciel ouvert d'Afrique de l'Ouest, sur la rive ouest de la lagune. Des parasols à perte de vue, des sacs d'oignons et de riz, des étals sous la tôle et le grand bâtiment à l'enseigne du marché." },
+  { id: 'amazone', name: "Place de l'Amazone", kind: 'Monument', k: 'monument', lat: 6.34895, lon: 2.40755, h: 36, view: [170, 1.2, 0.15],
+    text: "Statue de bronze de 30 mètres inaugurée en 2022, en hommage aux Agoodjié, les guerrières du royaume du Dahomey : fusil dressé, sabre à la main, sur un socle de pierre noire. L'esplanade dallée s'étend face à l'océan." },
+  { id: 'marina', name: 'Palais de la Marina', kind: 'Présidence', k: 'institution', lat: 6.35163, lon: 2.40908, h: 20, view: [300, 1.05, 2.9],
+    text: "Siège de la présidence de la République, le long du boulevard de la Marina : un long bâtiment beige sur piliers, ses bandeaux vitrés bleutés, ses drapeaux et ses palmiers royaux." },
+  { id: 'congres', name: 'Palais des Congrès', kind: 'Institution', k: 'institution', lat: 6.34775, lon: 2.40501, h: 26, view: [340, 1.02, 3.0],
+    text: "Inauguré en 2003 et inspiré des tata somba du nord du Bénin : des tambours blancs ceints d'une frise de triangles sombres, percés chacun d'un oculus doré, reliés par une aile basse à claustras." },
+  { id: 'cathedrale', name: 'Cathédrale Notre-Dame', kind: 'Lieu de culte', k: 'culte', lat: 6.35637, lon: 2.43917, h: 44, view: [150, 1.15, -1.25],
+    text: "La cathédrale Notre-Dame de Miséricorde, à Ganhi, rayée de rouge et de blanc de la base au pignon, avec son clocher carré planté à côté de la nef, à deux pas de l'ancien pont." },
+  { id: 'port', name: 'Port autonome', kind: 'Port', k: 'transport', lat: 6.3465, lon: 2.4235, h: 30, view: [1100, 0.98, 0.5],
+    text: "Le principal port du Bénin et la porte d'entrée maritime de pays sans accès à la mer comme le Niger et le Burkina Faso. Portiques à conteneurs le long du môle, grues mobiles, navires à quai et grandes pirogues peintes au port de pêche." },
+  { id: 'corniche', name: 'Corniche Est', kind: 'Promenade', k: 'plage', lat: 6.3555, lon: 2.4508, h: 10, view: [230, 1.15, 0.6],
+    text: "La Corniche Est d'Akpakpa : un trottoir pavé, une piste de jogging couleur brique, des lampadaires à double crosse, de jeunes cocotiers et des épis de roches noires qui s'avancent dans l'Atlantique." },
+  { id: 'aeroport', name: 'Aéroport Cardinal Bernardin Gantin', kind: 'Aéroport', k: 'transport', lat: 6.35421, lon: 2.38586, h: 18, view: [520, 1.02, 0.35],
+    text: "L'aéroport international, en pleine ville à Cadjèhoun : l'aérogare et sa grande enseigne jaune, les tentes blanches de l'entrée, les avions au stationnement et la piste 06/24 qui longe la côte." },
+  { id: 'stade', name: "Stade de l'Amitié", kind: 'Stade', k: 'institution', lat: 6.38614, lon: 2.3794, h: 30, view: [380, 0.95, 0.5],
+    text: "Le stade Général Mathieu Kérékou, à Kouhounou, terrain de l'équipe nationale, les Guépards : piste rouge, tribunes jaunes, vertes et rouges, tribune couverte et pylônes d'éclairage en treillis." },
+  { id: 'chenal', name: 'Chenal de Cotonou', kind: 'Lagune', k: 'eau', lat: 6.3665, lon: 2.4405, h: 8, view: [1300, 1.0, 0.9],
+    text: "Le bras de lagune qui coupe la ville en deux et relie le lac Nokoué à l'océan. Trois ponts le franchissent pour rejoindre Akpakpa ; les pirogues longent la rive de Dantokpa." },
+  { id: 'fidjrosse', name: 'Plage de Fidjrossè', kind: 'Plage', k: 'plage', lat: 6.3485, lon: 2.3665, h: 8, view: [300, 1.12, 0.15],
+    text: "La plage de l'ouest, le long de la route des Pêches : cocotiers, paillotes, buvettes et pirogues tirées sur le sable. La barre y est forte : la baignade est dangereuse." },
+  { id: 'haievive', name: 'Haie Vive', kind: 'Quartier', k: 'quartier', lat: 6.3552, lon: 2.3976, h: 10, view: [380, 1.0, 0.4],
+    text: "Le quartier des restaurants, des bars et des maquis, tout près de l'aéroport. Rues arborées et terrasses sous les parasols : c'est là que Cotonou sort le soir." },
+  { id: 'nokoue', name: 'Lac Nokoué', kind: 'Lagune', k: 'eau', lat: 6.432, lon: 2.425, h: 6, view: [3600, 1.08, 0.3],
+    text: "La grande lagune au nord de la ville. Les pêcheurs y plantent des acadjas, des enclos de branchages où le poisson vient se réfugier ; on les voit en lignes brunes à la surface de l'eau." },
+  { id: 'uac', name: "Université d'Abomey-Calavi", kind: 'Campus', k: 'savoir', lat: 6.4148, lon: 2.3428, h: 16, view: [380, 1.02, 0.6],
+    text: "La plus grande université publique du Bénin, née en 1970 sous le nom d'Université du Dahomey : l'entrée principale aux piliers orangés, les amphis, la bibliothèque centrale et l'École polytechnique." },
+  { id: 'seme', name: 'Sèmè One', kind: 'Innovation', k: 'savoir', lat: 6.35277, lon: 2.39503, h: 18, view: [190, 1.12, 0.3],
+    text: "Le premier campus de Sèmè City, la cité internationale de l'innovation et du savoir, ouvert en 2020 aux Cocotiers : façade ocre rythmée de lames colorées. Le grand campus est en construction à Ouidah." },
+  { id: 'calavi', name: 'Abomey-Calavi', kind: 'Ville', k: 'quartier', lat: 6.4476, lon: 2.3600, h: 12, view: [900, 1.0, 0.9],
+    text: "La grande ville voisine, au bord du lac Nokoué : le carrefour Kpota, le marché de Calavi-Tokpa et l'embarcadère d'où partent les pirogues pour Ganvié." },
+  { id: 'ganvie', name: 'Ganvié', kind: 'Cité lacustre', k: 'eau', lat: 6.4681, lon: 2.39, h: 12, view: [240, 1.12, 0.6],
+    text: "Le village sur pilotis du lac Nokoué, la « Venise de l'Afrique ». Plus de cinq mille maisons de planches sous la tôle ou la paille, des pirogues partout, des jacinthes d'eau et un marché flottant. On s'y rend en pirogue depuis Abomey-Calavi." },
+];
+const QUARTIERS = [
+  ['Akpakpa', 6.3712, 2.4600], ['Cadjèhoun', 6.3615, 2.3975], ['Fidjrossè', 6.3555, 2.3690], ['Agla', 6.3760, 2.3680], ['Gbégamey', 6.3640, 2.4130],
+  ['Zogbo', 6.3925, 2.3943], ['Ganhi', 6.3530, 2.4385], ['Jonquet', 6.3590, 2.4310], ['Sainte-Rita', 6.3795, 2.4132], ['Mènontin', 6.3885, 2.3736],
+  ['Houéyiho', 6.3724, 2.3935], ['Placodji', 6.3505, 2.4320], ['Missèbo', 6.3660, 2.4352], ['Fifadji', 6.3935, 2.4010], ['Vossa', 6.3890, 2.4170],
+  ['Ladji', 6.3910, 2.4300], ['Godomey', 6.3870, 2.3420], ['Les Cocotiers', 6.3520, 2.3900], ['Tokplégbé', 6.3660, 2.4905], ['Donaten', 6.3632, 2.4660],
+  ['Avotrou', 6.3790, 2.4720], ['Midombo', 6.3790, 2.4430], ['Kouhounou', 6.3830, 2.3830], ['Gbèdjromèdé', 6.3840, 2.4200], ['Aïbatin', 6.3640, 2.3790],
+  ['Abomey-Calavi', 6.4500, 2.3520], ['Zogbadjè', 6.4236, 2.3348], ['Togoudo', 6.4071, 2.3345], ['Kpota', 6.4440, 2.3560],
+];
+const WATER_LABELS = [['Océan Atlantique', 6.326, 2.40], ['Lagune', 6.3805, 2.4435]];
+
+// ---------- Chargement ----------
+const loadTxt = $('#loadTxt'), loadBar = $('#loadBar');
+const status = (t, p) => { loadTxt.textContent = t; if (p != null) loadBar.style.width = p + '%'; };
+const frame = () => new Promise(r => requestAnimationFrame(() => r()));
+async function decode() {
+  const b64 = document.getElementById('cotonou-data').textContent.replace(/\s+/g, '');
+  const bin = atob(b64); const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  if (!('DecompressionStream' in window)) throw new Error('Ce navigateur ne sait pas décompresser les données (DecompressionStream). Essayez une version récente de Chrome, Safari, Firefox ou Edge.');
+  const stream = new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(stream).text());
+}
+
+const hash = (i, s = 0) => { let h = Math.imul(i ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(s + 1, 0xc2b2ae35); h ^= h >>> 13; h = Math.imul(h, 0x27d4eb2f); h ^= h >>> 15; return (h >>> 0) / 4294967296; };
+const lin = hex => new THREE.Color(hex); // converti en linéaire par three
+const u8c = hex => { const c = lin(hex); return [Math.round(c.r * 255), Math.round(c.g * 255), Math.round(c.b * 255)]; };
+const pal = arr => arr.map(u8c);
+
+// ---------- Scène ----------
+const canvas = $('#scene');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+} catch (e) {
+  status('', 0);
+  loadTxt.innerHTML = '<span class="err">WebGL n\'a pas pu démarrer.</span> Activez l\'accélération matérielle du navigateur, puis rechargez la page.';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, LITE ? 1.5 : 2));
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.shadowMap.enabled = !LITE;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 2, 130000);
+const controls = new MapControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 40; controls.maxDistance = 32000;
+controls.maxPolarAngle = 1.38; controls.zoomToCursor = true;
+controls.screenSpacePanning = false; controls.autoRotateSpeed = -0.35;
+controls.listenToKeyEvents(window);
+if (coarse) $('#help').innerHTML = '<b>Un doigt</b> pour se déplacer · <b>deux doigts</b> pour pivoter et zoomer';
+
+// Uniformes partagés
+const U = { uRiseT: { value: reduceMotion ? 999 : 0 }, uRiseO: { value: new THREE.Vector2(...toXZ(6.366, 2.422)) }, uNight: { value: 0 }, uTime: { value: 0 } };
+
+// Ciel
+const skyMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false,
+  uniforms: { uTop: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() }, uGround: { value: new THREE.Color() }, uSunColor: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uGlow: { value: 0 } },
+  vertexShader: `varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `uniform vec3 uTop, uHorizon, uGround, uSunColor, uSunDir; uniform float uGlow; varying vec3 vDir;
+    void main(){ vec3 d = normalize(vDir); float h = d.y;
+      vec3 c = mix(uHorizon, uTop, pow(clamp(h, 0.0, 1.0), 0.55));
+      c = mix(uGround, c, smoothstep(-0.06, 0.0, h));
+      float s = max(dot(d, normalize(uSunDir)), 0.0);
+      c += uSunColor * (pow(s, 900.0) * 4.0 + pow(s, 10.0) * 0.45 * uGlow);
+      gl_FragColor = vec4(c, 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`,
+});
+const sky = new THREE.Mesh(new THREE.SphereGeometry(100000, 32, 16), skyMat);
+sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
+scene.fog = new THREE.Fog(0xffffff, 5000, 50000);
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0x888888, 1); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, 2.5); scene.add(sun, sun.target);
+sun.castShadow = !LITE;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.00003; sun.shadow.normalBias = 0.4;
+sun.shadow.camera.near = 100; sun.shadow.camera.far = 9000;
+
+// Sol sableux
+const flatMat = (hex, extra = {}) => new THREE.MeshLambertMaterial({ color: hex, depthWrite: false, ...extra });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(150000, 150000).rotateX(-Math.PI / 2), flatMat('#d8c7a3'));
+ground.renderOrder = 1; ground.receiveShadow = true; scene.add(ground);
+
+// ---------- Surfaces ----------
+const KIND_STYLE = [
+  { c: '#2a7896', o: 4, water: true }, { c: '#4e8c89', o: 4, water: true }, { c: '#4a8790', o: 4, water: true }, { c: '#8c9b62', o: 3 },
+  { c: '#eadab4', o: 3 }, { c: '#8db06a', o: 3 }, { c: '#5f8945', o: 3 }, { c: '#b9b87a', o: 3 }, { c: '#6dab58', o: 3 },
+  { c: '#a2ae88', o: 3 }, { c: '#cdc4b2', o: 2 }, { c: '#9b9b98', o: 5 }, { c: '#bdb98c', o: 2 }, { c: '#bdb6a8', o: 5 },
+];
+const waterMats = [];
+function waterMaterial(hex) {
+  const m = new THREE.MeshPhongMaterial({ color: hex, specular: 0x34444c, shininess: 110, depthWrite: false });
+  m.onBeforeCompile = s => {
+    s.uniforms.uTime = U.uTime;
+    s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWp;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWp; uniform float uTime;')
+      .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+        vec2 wp = vWp.xz;
+        float n1 = sin(wp.x * 0.043 + uTime * 0.9) + sin(wp.y * 0.061 - uTime * 1.1 + wp.x * 0.017) + 0.5 * sin((wp.x + wp.y) * 0.13 + uTime * 1.7);
+        float n2 = cos(wp.y * 0.052 + uTime * 0.8) + 0.7 * sin(wp.x * 0.071 + wp.y * 0.033 + uTime * 1.3);
+        normal = normalize(normal + (viewMatrix * vec4(n1 * 0.045, 0.0, n2 * 0.045, 0.0)).xyz);`);
+  };
+  waterMats.push(m);
+  return m;
+}
+let oceanRing = null;
+function buildSurfaces(S) {
+  const byKind = new Map();
+  let pi = 0, ri = 0;
+  for (let i = 0; i < S.k.length; i++) {
+    const k = S.k[i], rings = [];
+    for (let r = 0; r < S.r[i]; r++) {
+      const n = S.n[ri++]; const ring = []; let x = 0, z = 0;
+      for (let j = 0; j < n; j++) { x += S.p[pi++]; z += S.p[pi++]; ring.push(new THREE.Vector2(x / 10, z / 10)); }
+      rings.push(ring);
+    }
+    if (k === 1) rings.length = 1; // Ganvié : pilotis dans l'eau, pas sur des îlots
+    if (k === 0 && !oceanRing) oceanRing = rings[0];
+    if (!byKind.has(k)) byKind.set(k, []);
+    byKind.get(k).push(rings);
+  }
+  for (const [k, list] of byKind) {
+    const pos = [], idx = [];
+    for (const rings of list) {
+      const base = pos.length / 3;
+      const all = rings.flat();
+      for (const v of all) pos.push(v.x, 0, v.y);
+      let faces;
+      try { faces = THREE.ShapeUtils.triangulateShape(rings[0], rings.slice(1)); } catch (e) { faces = []; }
+      for (const [a, b, c] of faces) {
+        const A = all[a], B = all[b], C = all[c];
+        const up = (B.y - A.y) * (C.x - A.x) - (B.x - A.x) * (C.y - A.y) > 0;
+        idx.push(base + a, base + (up ? b : c), base + (up ? c : b));
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(pos.length).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
+    g.setIndex(idx);
+    const st = KIND_STYLE[k];
+    const m = new THREE.Mesh(g, st.water ? waterMaterial(st.c) : flatMat(st.c));
+    m.renderOrder = st.o; m.receiveShadow = true; m.frustumCulled = k !== 0;
+    scene.add(m);
+  }
+}
+
+// Écume le long de la côte
+let foamMat;
+function buildFoam() {
+  if (!oceanRing) return;
+  const pts = oceanRing.filter(v => Math.abs(v.x) < 40000 && v.y < 30000);
+  const pos = [], side = [], idx = [];
+  const W = 42;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    let dx = b.x - a.x, dz = b.y - a.y; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
+    let nx = -dz, nz = dx; if (nz < 0) { nx = -nx; nz = -nz; } // vers la mer (sud)
+    const p = pts[i];
+    pos.push(p.x - nx * 4, 0, p.y - nz * 4, p.x + nx * W, 0, p.y + nz * W); side.push(0, 1);
+    if (i > 0) { const o = (i - 1) * 2; idx.push(o, o + 2, o + 1, o + 1, o + 2, o + 3); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('side', new THREE.Float32BufferAttribute(side, 1));
+  g.setIndex(idx);
+  foamMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, fog: true, side: THREE.DoubleSide,
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uTime: { value: 0 }, uBright: { value: 1 } }]),
+    vertexShader: `attribute float side; varying float vSide; varying vec2 vW;
+      #include <fog_pars_vertex>
+      void main(){ vSide = side; vW = position.xz; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mvPosition;
+      #include <fog_vertex>
+      }`,
+    fragmentShader: `uniform float uTime, uBright; varying float vSide; varying vec2 vW;
+      #include <common>
+      #include <fog_pars_fragment>
+      void main(){
+        float band = sin(vSide * 15.0 + uTime * 1.5 + sin(vW.x * 0.012) * 2.5) * 0.5 + 0.5;
+        float a = smoothstep(0.6, 1.0, band) * (1.0 - vSide) * 0.7 + (1.0 - smoothstep(0.0, 0.2, vSide)) * 0.45;
+        gl_FragColor = vec4(vec3(uBright), a);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+        #include <fog_fragment>
+      }`,
+  });
+  const m = new THREE.Mesh(g, foamMat); m.renderOrder = 6; m.frustumCulled = false; scene.add(m);
+}
+
+// ---------- Routes ----------
+const ROAD_W = { 0: 17, 1: 13, 2: 10.5, 3: 8, 4: 6, 5: 4.2, 6: 2.2, 7: 3.2, 9: 9, 10: 45, 11: 22 };
+const ROAD_ORDER = { 6: 0, 5: 1, 4: 2, 9: 2, 7: 3, 3: 4, 2: 5, 1: 6, 0: 7, 11: 8, 10: 9 };
+const roadLines = [];
+function roadColor(cls, surf) {
+  if (cls === 7) return '#6b5e52';
+  if (cls === 9) return '#bab3a6';
+  if (cls === 10) return '#3e3f43';
+  if (cls === 11) return '#55565a';
+  if (cls === 6) return '#cbbd9f';
+  if (surf === 0) return cls <= 1 ? '#4b4c51' : '#5a5b5f';
+  if (surf === 1) return '#9f978a';
+  return '#c4a97f';
+}
+function ribbon(pts, w, pos, idx, col, rgb, y = 0) {
+  const n = pts.length, base = pos.length / 3;
+  for (let i = 0; i < n; i++) {
+    const p = pts[i];
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
+    let px, pz;
+    const d1x = p[0] - a[0], d1z = p[1] - a[1], d2x = b[0] - p[0], d2z = b[1] - p[1];
+    const l1 = Math.hypot(d1x, d1z), l2 = Math.hypot(d2x, d2z);
+    const n1x = l1 ? -d1z / l1 : 0, n1z = l1 ? d1x / l1 : 0, n2x = l2 ? -d2z / l2 : 0, n2z = l2 ? d2x / l2 : 0;
+    px = n1x + n2x; pz = n1z + n2z; const pl = Math.hypot(px, pz) || 1; px /= pl; pz /= pl;
+    const ref = l2 ? [n2x, n2z] : [n1x, n1z];
+    const sc = 1 / Math.max(0.4, px * ref[0] + pz * ref[1]);
+    const h = w / 2 * sc;
+    const yy = typeof y === 'function' ? y(i) : y;
+    pos.push(p[0] - px * h, yy, p[1] - pz * h, p[0] + px * h, yy, p[1] + pz * h);
+    col.push(...rgb, ...rgb);
+    if (i > 0) { const o = base + (i - 1) * 2; idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2); }
+  }
+}
+function buildRoads(R) {
+  let pi = 0;
+  for (let i = 0; i < R.c.length; i++) {
+    const n = R.n[i], pts = []; let x = 0, z = 0;
+    for (let j = 0; j < n; j++) { x += R.p[pi++]; z += R.p[pi++]; pts.push([x / 10, z / 10]); }
+    roadLines.push({ cls: R.c[i], surf: R.f[i] & 3, bridge: !!(R.f[i] & 4), pts });
+  }
+  const order = roadLines.map((_, i) => i).sort((a, b) => ROAD_ORDER[roadLines[a].cls] - ROAD_ORDER[roadLines[b].cls]);
+  const pos = [], idx = [], col = [];
+  const bpos = [], bidx = [], bcol = [];
+  for (const i of order) {
+    const L = roadLines[i], w = ROAD_W[L.cls], rgb = u8c(roadColor(L.cls, L.surf));
+    if (!L.bridge) { ribbon(L.pts, w, pos, idx, col, rgb); continue; }
+    // pont : tablier surélevé avec rampes
+    const dense = [];
+    for (let j = 1; j < L.pts.length; j++) { const a = L.pts[j - 1], b = L.pts[j]; const seg = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 12)); for (let s = 0; s < seg; s++) dense.push([a[0] + (b[0] - a[0]) * s / seg, a[1] + (b[1] - a[1]) * s / seg]); }
+    dense.push(L.pts[L.pts.length - 1]);
+    const cum = [0]; for (let j = 1; j < dense.length; j++) cum.push(cum[j - 1] + Math.hypot(dense[j][0] - dense[j - 1][0], dense[j][1] - dense[j - 1][1]));
+    const tot = cum[cum.length - 1] || 1, ramp = Math.min(60, tot * 0.3);
+    const hY = j => 0.3 + 4.2 * Math.min(1, cum[j] / ramp, (tot - cum[j]) / ramp);
+    const base0 = bpos.length / 3;
+    ribbon(dense, w, bpos, bidx, bcol, rgb, hY);
+    const side = u8c('#9c958a');
+    for (const s of [0, 1]) { // flancs du tablier
+      const sb = bpos.length / 3;
+      for (let j = 0; j < dense.length; j++) {
+        const vi = (base0 + j * 2 + s) * 3, x = bpos[vi], y = bpos[vi + 1], z = bpos[vi + 2];
+        bpos.push(x, y, z, x, y - 1.4, z); bcol.push(...side, ...side);
+        if (j > 0) { const o = sb + (j - 1) * 2; bidx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2); }
+      }
+    }
+  }
+  const mk = (p, ix, c, order, depthWrite) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(p.length).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
+    g.setAttribute('color', new THREE.Uint8BufferAttribute(c, 3, true));
+    g.setIndex(ix);
+    const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, depthWrite, side: depthWrite ? THREE.DoubleSide : THREE.FrontSide }));
+    m.renderOrder = order; m.receiveShadow = true; m.castShadow = depthWrite && !LITE; scene.add(m); return m;
+  };
+  mk(pos, idx, col, 7, false);
+  if (bpos.length) mk(bpos, bidx, bcol, 8, true);
+}
+
+// ---------- Bâtiments ----------
+const PAL = {
+  wall: [
+    pal(['#efe4cc', '#efe4cc', '#e8d2a4', '#e8d2a4', '#e2bd84', '#f3eee3', '#f3eee3', '#d9a275', '#c7d5d6', '#bccfae', '#e6bfb0', '#d6cfc0', '#cbb894']),
+    pal(['#f2f0ea', '#dde5e8', '#e9e0cd', '#d2dbe0']), pal(['#e8cf86', '#e4c27a']), pal(['#f4f1ea', '#efe6d6']),
+    pal(['#bdb9b0', '#c8c1b2', '#aeb0ad']), pal(['#7d5d3f', '#6f5139', '#8a6a48']), pal(['#f2f2ee']), pal(['#aaa69d', '#a19d94']),
+    pal(['#b9a58a', '#8fa6b0', '#c9b79c', '#a4b8a0', '#d1c2a6', '#7f98a8']), pal(['#d9c3a0', '#cdb791']), pal(['#d9c7b8', '#cbb6a6', '#c9b9a3']), pal(['#ecc58f', '#e9d3a3', '#f0dcb0', '#e3b07c']),
+  ],
+  tin: pal(['#8f979b', '#9fa6a8', '#a9653f', '#8c5b43', '#b8bec0', '#7d8b90', '#a07a5c']),
+  flat: pal(['#d7cfc0', '#cec5b3', '#e1dbcd', '#bfb6a5', '#c9bfae']),
+  roofCat: [null, pal(['#d7cfc0', '#c9c4ba']), pal(['#a9653f', '#9a5a3c']), pal(['#bdb6aa']), pal(['#9fa6a8', '#8f979b', '#b8bec0']), pal(['#a8946b', '#8f979b', '#9a8660']), pal(['#d7cfc0']), pal(['#9d998f']), pal(['#a9653f', '#8f979b', '#9fa6a8', '#8c5b43', '#b8bec0']), pal(['#e2ddd2']), pal(['#cfc8bb']), pal(['#b9654a', '#9fa6a8', '#d7cfc0'])],
+};
+const buildingMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+buildingMat.onBeforeCompile = s => {
+  s.uniforms.uRiseT = U.uRiseT; s.uniforms.uRiseO = U.uRiseO; s.uniforms.uNight = U.uNight;
+  s.vertexShader = s.vertexShader
+    .replace('#include <common>', '#include <common>\nattribute vec2 aw; varying vec2 vAw; varying float vY; uniform float uRiseT; uniform vec2 uRiseO;')
+    .replace('#include <begin_vertex>', `#include <begin_vertex>
+      float dR = length(position.xz - uRiseO);
+      float kR = clamp((uRiseT - dR / 3300.0) / 1.3, 0.0, 1.0);
+      kR = 1.0 - pow(1.0 - kR, 3.0);
+      transformed.y *= kR;
+      vAw = aw; vY = position.y;`);
+  s.fragmentShader = s.fragmentShader
+    .replace('#include <common>', `#include <common>
+      varying vec2 vAw; varying float vY; uniform float uNight;
+      float hh(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }`)
+    .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      if (vAw.x >= 0.0) {
+        vec2 g = vec2(vAw.x / 3.3, (vY - 0.25) / 3.15);
+        vec2 f = fract(g); vec2 cell = floor(g);
+        float win = step(0.3, f.x) * step(f.x, 0.7) * step(0.34, f.y) * step(f.y, 0.76);
+        float fw = length(fwidth(g));
+        float nearF = 1.0 - smoothstep(0.3, 0.85, fw);
+        float on = step(0.56, hh(vec3(cell, vAw.y)));
+        diffuseColor.rgb *= 1.0 - win * 0.3 * nearF * (1.0 - uNight);
+        vec3 warm = mix(vec3(1.0, 0.64, 0.3), vec3(0.82, 0.9, 1.0), step(0.92, hh(vec3(cell.yx, vAw.y + 3.1))));
+        float lit = mix(0.075, win * on, nearF);
+        totalEmissiveRadiance += warm * lit * uNight * 1.7;
+      }`);
+};
+const buildingMeshes = [];
+async function buildBuildings(B) {
+  const N = B.n.length, CELL = 1600;
+  const off = new Uint32Array(N + 1); for (let i = 0; i < N; i++) off[i + 1] = off[i] + B.n[i] * 2;
+  const roof = new Uint8Array(N), cellOf = new Int32Array(N);
+  const cellKeys = new Map(), cells = [];
+  for (let i = 0; i < N; i++) {
+    const key = Math.floor(B.x[i] / 10 / CELL) + ',' + Math.floor(B.z[i] / 10 / CELL);
+    let c = cellKeys.get(key); if (c === undefined) { c = cells.length; cellKeys.set(key, c); cells.push({ v: 0, ix: 0 }); }
+    cellOf[i] = c;
+    const n = B.n[i], cat = B.c[i], h = B.h[i] / 4;
+    roof[i] = (n === 4 && (cat === 0 || cat === 4 || cat === 5 || cat === 8) && h < 4.8 && hash(i, 3) < (cat === 8 ? 0.95 : 0.72)) ? 1 : 0;
+    cells[c].v += 4 * n + (roof[i] ? 14 : n);
+    cells[c].ix += 6 * n + (roof[i] ? 18 : 3 * (n - 2));
+  }
+  for (const c of cells) { c.pos = new Float32Array(c.v * 3); c.nrm = new Int8Array(c.v * 3); c.col = new Uint8Array(c.v * 3); c.aw = new Float32Array(c.v * 2); c.idx = new Uint32Array(c.ix); c.vi = 0; c.ii = 0; }
+  const xs = [], zs = [];
+  const v2 = [];
+  for (let i = 0; i < N; i++) {
+    if (i % 6000 === 0) { status('Construction des bâtiments…', 14 + Math.round(60 * i / N)); await frame(); }
+    const c = cells[cellOf[i]], n = B.n[i], cat = B.c[i], h = B.h[i] / 4, cx = B.x[i] / 10, cz = B.z[i] / 10;
+    const y0 = cat === 5 ? 1.3 : 0;
+    for (let j = 0; j < n; j++) { xs[j] = cx + B.p[off[i] + 2 * j] / 10; zs[j] = cz + B.p[off[i] + 2 * j + 1] / 10; }
+    const wl = PAL.wall[cat]; const wc = wl[Math.floor(hash(i, 1) * wl.length)];
+    const seed = hash(i, 9) * 97;
+    // murs
+    let u = 0;
+    for (let j = 0; j < n; j++) {
+      const ax = xs[j], az = zs[j], bx = xs[(j + 1) % n], bz = zs[(j + 1) % n];
+      const dx = bx - ax, dz = bz - az, L = Math.hypot(dx, dz) || 1;
+      const nx = Math.round(dz / L * 127), nz = Math.round(-dx / L * 127);
+      const v = c.vi;
+      const P = c.pos, o = v * 3;
+      P[o] = ax; P[o + 1] = y0; P[o + 2] = az;
+      P[o + 3] = bx; P[o + 4] = y0; P[o + 5] = bz;
+      P[o + 6] = bx; P[o + 7] = h; P[o + 8] = bz;
+      P[o + 9] = ax; P[o + 10] = h; P[o + 11] = az;
+      const shade = 0.93 + 0.07 * (j % 2);
+      for (let k = 0; k < 4; k++) {
+        c.nrm[o + k * 3] = nx; c.nrm[o + k * 3 + 1] = 0; c.nrm[o + k * 3 + 2] = nz;
+        c.col[o + k * 3] = wc[0] * shade; c.col[o + k * 3 + 1] = wc[1] * shade; c.col[o + k * 3 + 2] = wc[2] * shade;
+      }
+      const a2 = v * 2;
+      c.aw[a2] = u; c.aw[a2 + 1] = seed; c.aw[a2 + 2] = u + L; c.aw[a2 + 3] = seed; c.aw[a2 + 4] = u + L; c.aw[a2 + 5] = seed; c.aw[a2 + 6] = u; c.aw[a2 + 7] = seed;
+      u += L;
+      const I = c.idx, q = c.ii;
+      I[q] = v; I[q + 1] = v + 2; I[q + 2] = v + 1; I[q + 3] = v; I[q + 4] = v + 3; I[q + 5] = v + 2;
+      c.vi += 4; c.ii += 6;
+    }
+    // toit
+    let rc;
+    if (cat === 0) rc = (roof[i] || (h < 4.8 && hash(i, 5) < 0.5)) ? PAL.tin[Math.floor(hash(i, 2) * PAL.tin.length)] : PAL.flat[Math.floor(hash(i, 2) * PAL.flat.length)];
+    else { const rl = PAL.roofCat[cat]; rc = rl[Math.floor(hash(i, 2) * rl.length)]; }
+    if (roof[i]) addHip(c, xs, zs, h, rc, seed);
+    else addFlat(c, xs, zs, n, h, rc, seed, v2);
+  }
+  status('Assemblage…', 76); await frame();
+  for (const c of cells) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(c.pos, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(c.nrm, 3, true));
+    g.setAttribute('color', new THREE.BufferAttribute(c.col, 3, true));
+    g.setAttribute('aw', new THREE.BufferAttribute(c.aw, 2));
+    g.setIndex(new THREE.BufferAttribute(c.idx, 1));
+    g.computeBoundingSphere();
+    const m = new THREE.Mesh(g, buildingMat);
+    m.renderOrder = 10; m.receiveShadow = !LITE;
+    scene.add(m); buildingMeshes.push(m);
+    delete c.pos; delete c.nrm; delete c.col; delete c.aw; delete c.idx;
+  }
+}
+function putV(c, x, y, z, nx, ny, nz, rgb, seed) {
+  const v = c.vi++, o = v * 3;
+  c.pos[o] = x; c.pos[o + 1] = y; c.pos[o + 2] = z;
+  c.nrm[o] = nx; c.nrm[o + 1] = ny; c.nrm[o + 2] = nz;
+  c.col[o] = rgb[0]; c.col[o + 1] = rgb[1]; c.col[o + 2] = rgb[2];
+  c.aw[v * 2] = -1; c.aw[v * 2 + 1] = seed;
+  return v;
+}
+function addFlat(c, xs, zs, n, h, rgb, seed, v2) {
+  const base = c.vi;
+  for (let j = 0; j < n; j++) putV(c, xs[j], h, zs[j], 0, 127, 0, rgb, seed);
+  const need = 3 * (n - 2); let wrote = 0;
+  const tri = (a, b, cc) => {
+    const up = (zs[b] - zs[a]) * (xs[cc] - xs[a]) - (xs[b] - xs[a]) * (zs[cc] - zs[a]) > 0;
+    const I = c.idx, q = c.ii; I[q] = base + a; I[q + 1] = base + (up ? b : cc); I[q + 2] = base + (up ? cc : b); c.ii += 3; wrote += 3;
+  };
+  let convex = true, sign = 0;
+  for (let j = 0; j < n && convex; j++) {
+    const a = j, b = (j + 1) % n, d = (j + 2) % n;
+    const cr = (xs[b] - xs[a]) * (zs[d] - zs[b]) - (zs[b] - zs[a]) * (xs[d] - xs[b]);
+    if (Math.abs(cr) < 1e-6) continue; const s = Math.sign(cr); if (!sign) sign = s; else if (s !== sign) convex = false;
+  }
+  if (convex) for (let j = 1; j < n - 1; j++) tri(0, j, j + 1);
+  else {
+    v2.length = n; for (let j = 0; j < n; j++) v2[j] = new THREE.Vector2(xs[j], zs[j]);
+    let faces = []; try { faces = THREE.ShapeUtils.triangulateShape(v2.slice(0, n), []); } catch (e) { faces = []; }
+    for (const f of faces) { if (wrote >= need) break; tri(f[0], f[1], f[2]); }
+  }
+  while (wrote < need) { const I = c.idx, q = c.ii; I[q] = I[q + 1] = I[q + 2] = base; c.ii += 3; wrote += 3; }
+}
+function addHip(c, xs, zs, h, rgb, seed) {
+  const P = [0, 1, 2, 3].map(j => [xs[j], zs[j]]);
+  const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+  // côtés longs : (0,1)/(2,3) ou (1,2)/(3,0)
+  let p = P;
+  if (len(P[1], P[2]) + len(P[3], P[0]) > len(P[0], P[1]) + len(P[2], P[3])) p = [P[1], P[2], P[3], P[0]];
+  const m30 = [(p[3][0] + p[0][0]) / 2, (p[3][1] + p[0][1]) / 2], m12 = [(p[1][0] + p[2][0]) / 2, (p[1][1] + p[2][1]) / 2];
+  const w = (len(p[1], p[2]) + len(p[3], p[0])) / 2, L = len(m30, m12) || 1;
+  const dx = (m12[0] - m30[0]) / L, dz = (m12[1] - m30[1]) / L;
+  const inset = Math.min(w / 2, L / 2);
+  const ra = [m30[0] + dx * inset, m30[1] + dz * inset], rb = [m12[0] - dx * inset, m12[1] - dz * inset];
+  const rh = h + Math.min(2.4, w * 0.26);
+  const face = (pts) => { // pts : [[x,y,z]…] polygone convexe
+    const a = pts[0], b = pts[1], d = pts[2];
+    let nx = (b[1] - a[1]) * (d[2] - a[2]) - (b[2] - a[2]) * (d[1] - a[1]);
+    let ny = (b[2] - a[2]) * (d[0] - a[0]) - (b[0] - a[0]) * (d[2] - a[2]);
+    let nz = (b[0] - a[0]) * (d[1] - a[1]) - (b[1] - a[1]) * (d[0] - a[0]);
+    let flip = false; if (ny < 0) { nx = -nx; ny = -ny; nz = -nz; flip = true; }
+    const l = Math.hypot(nx, ny, nz) || 1;
+    const ids = pts.map(q => putV(c, q[0], q[1], q[2], Math.round(nx / l * 127), Math.round(ny / l * 127), Math.round(nz / l * 127), rgb, seed));
+    for (let j = 1; j < ids.length - 1; j++) {
+      const I = c.idx, q = c.ii;
+      I[q] = ids[0]; I[q + 1] = flip ? ids[j] : ids[j + 1]; I[q + 2] = flip ? ids[j + 1] : ids[j]; c.ii += 3;
+    }
+  };
+  const A = [p[0][0], h, p[0][1]], Bv = [p[1][0], h, p[1][1]], C = [p[2][0], h, p[2][1]], D = [p[3][0], h, p[3][1]];
+  const RA = [ra[0], rh, ra[1]], RB = [rb[0], rh, rb[1]];
+  face([A, Bv, RB, RA]); face([C, D, RA, RB]); face([Bv, C, RB]); face([D, A, RA]);
+}
+
+// ---------- Détails : palmiers, conteneurs, navires, pirogues, monuments ----------
+function mergeColored(parts) { // parts : [geometry, hex]
+  const pos = [], nrm = [], col = [];
+  for (const [g0, hex] of parts) {
+    const g = g0.index ? g0.toNonIndexed() : g0; g.computeVertexNormals();
+    const p = g.attributes.position.array, n = g.attributes.normal.array, c = u8c(hex);
+    for (let i = 0; i < p.length; i += 3) { pos.push(p[i], p[i + 1], p[i + 2]); nrm.push(n[i], n[i + 1], n[i + 2]); col.push(...c); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+  g.setAttribute('color', new THREE.Uint8BufferAttribute(col, 3, true));
+  return g;
+}
+function leaf(angle, len, droop) {
+  const g = new THREE.BufferGeometry();
+  const v = [0, 0, 0, len * 0.5, 0.35, 0.42, len, -droop, 0, 0, 0, 0, len, -droop, 0, len * 0.5, 0.35, -0.42];
+  g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+  g.rotateZ(0.1); g.rotateY(angle); return g;
+}
+function buildPalms(arr) {
+  const parts = [[new THREE.CylinderGeometry(0.17, 0.27, 9, 5, 1, true).translate(0, 4.5, 0), '#7c6449']];
+  for (let k = 0; k < 9; k++) parts.push([leaf(k * 0.7 + (k % 2) * 0.2, 3.6 + (k % 3) * 0.5, 1.6 + (k % 2) * 0.6).translate(0, 9, 0), k % 2 ? '#4d7a2c' : '#5f8c35']);
+  const g = mergeColored(parts);
+  const n = arr.length / 2;
+  const mesh = new THREE.InstancedMesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), n);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    const sc = 0.75 + hash(i, 21) * 0.6;
+    e.set((hash(i, 22) - 0.5) * 0.18, hash(i, 23) * 6.28, (hash(i, 24) - 0.5) * 0.18);
+    m.compose(p.set(arr[2 * i] / 10, 0, arr[2 * i + 1] / 10), q.setFromEuler(e), s.set(sc, sc, sc));
+    mesh.setMatrixAt(i, m);
+  }
+  mesh.castShadow = !LITE; mesh.renderOrder = 11; mesh.visible = false;
+  scene.add(mesh); return mesh;
+}
+function buildContainers(arr) {
+  const n = arr.length / 5;
+  const g = new THREE.BoxGeometry(12.2, 2.6, 2.44).translate(0, 1.3, 0);
+  const mesh = new THREE.InstancedMesh(g, new THREE.MeshLambertMaterial(), n);
+  const cols = ['#b5422d', '#2f5f8a', '#3c7a4f', '#d58a2a', '#8a9095', '#7a4a2c', '#e0d8c8'].map(h => new THREE.Color(h));
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
+  for (let i = 0; i < n; i++) {
+    const b = i * 5;
+    m.compose(p.set(arr[b] / 10, 0, arr[b + 1] / 10), q.setFromAxisAngle(Y, -arr[b + 2] / 1000), s.set(1, arr[b + 3], 1));
+    mesh.setMatrixAt(i, m); mesh.setColorAt(i, cols[arr[b + 4]]);
+  }
+  mesh.castShadow = !LITE; mesh.receiveShadow = !LITE; mesh.renderOrder = 11; mesh.visible = false;
+  scene.add(mesh); return mesh;
+}
+function buildShips() {
+  const group = new THREE.Group();
+  const hullShape = new THREE.Shape();
+  hullShape.moveTo(-80, -13); hullShape.lineTo(58, -13); hullShape.quadraticCurveTo(80, -10, 92, 0); hullShape.quadraticCurveTo(80, 10, 58, 13); hullShape.lineTo(-80, 13); hullShape.closePath();
+  const hull = new THREE.ExtrudeGeometry(hullShape, { depth: 11, bevelEnabled: false }).rotateX(-Math.PI / 2);
+  const hullCols = ['#8c2f2a', '#23384f', '#2b2b2e', '#1f4d4a'];
+  const spots = [[-1200, 6400, 3.6], [800, 5800, 3.5], [2600, 7200, 3.7], [4300, 6100, 3.5], [-2600, 7900, 3.6], [1700, 9100, 3.7], [5600, 8600, 3.55], [-300, 10400, 3.6]];
+  spots.forEach(([x, z, a], i) => {
+    const parts = [[hull, hullCols[i % hullCols.length]], [new THREE.BoxGeometry(16, 20, 24).translate(-66, 21, 0), '#efece4'], [new THREE.BoxGeometry(4, 10, 4).translate(-70, 35, 0), '#3a3a3a']];
+    const ccol = ['#b5422d', '#2f5f8a', '#3c7a4f', '#d58a2a', '#8a9095'];
+    for (let r = 0; r < 9; r++) { const hgt = 2.6 * (2 + ((i + r) % 3)); parts.push([new THREE.BoxGeometry(12, hgt, 22).translate(-44 + r * 13.5, 11 + hgt / 2, 0), ccol[(i * 3 + r) % ccol.length]]); }
+    const mesh = new THREE.Mesh(mergeColored(parts), new THREE.MeshLambertMaterial({ vertexColors: true }));
+    mesh.position.set(x, -2, z); mesh.rotation.y = a + (hash(i, 40) - 0.5) * 0.3; mesh.scale.setScalar(0.9 + hash(i, 41) * 0.3);
+    mesh.castShadow = !LITE; group.add(mesh);
+  });
+  group.renderOrder = 11; scene.add(group); return group;
+}
+let boats;
+function buildBoats(arr) {
+  const n = arr.length / 2;
+  const g = mergeColored([[new THREE.BoxGeometry(7.5, 0.7, 1.1).translate(0, 0.35, 0), '#5b3f28'], [new THREE.BoxGeometry(0.5, 0.9, 0.5).translate(1.8, 1.1, 0), '#2e5f8a']]);
+  boats = new THREE.InstancedMesh(g, new THREE.MeshLambertMaterial({ vertexColors: true }), n);
+  boats.userData.base = Array.from({ length: n }, (_, i) => ({ x: arr[2 * i] / 10, z: arr[2 * i + 1] / 10, a: hash(i, 50) * 6.28, r: 15 + hash(i, 51) * 50, w: 0.03 + hash(i, 52) * 0.05, ph: hash(i, 53) * 6.28 }));
+  boats.renderOrder = 11; boats.visible = false; scene.add(boats);
+}
+const monuments = {};
+function buildMonuments() {
+  // Étoile Rouge : colonne + étoile qui tourne lentement
+  const [ex, ez] = toXZ(6.37147, 2.40977);
+  const star = new THREE.Shape();
+  for (let k = 0; k < 10; k++) { const r = k % 2 ? 2.2 : 5.4, a = Math.PI / 2 + k * Math.PI / 5; const x = Math.cos(a) * r, y = Math.sin(a) * r; k ? star.lineTo(x, y) : star.moveTo(x, y); }
+  star.closePath();
+  const sg = new THREE.ExtrudeGeometry(star, { depth: 1.1, bevelEnabled: true, bevelSize: 0.2, bevelThickness: 0.2, bevelSegments: 1 }).translate(0, 0, -0.55);
+  const starMesh = new THREE.Mesh(sg, new THREE.MeshLambertMaterial({ color: '#c8231c', emissive: '#5a0806' }));
+  starMesh.position.set(ex, 20.5, ez); starMesh.castShadow = !LITE;
+  const col = new THREE.Mesh(mergeColored([[new THREE.CylinderGeometry(1.1, 1.6, 15, 12).translate(0, 7.5, 0), '#efe8da'], [new THREE.CylinderGeometry(9, 9.5, 1.2, 32).translate(0, 0.6, 0), '#b9b2a2']]), new THREE.MeshLambertMaterial({ vertexColors: true }));
+  col.position.set(ex, 0, ez); col.castShadow = !LITE;
+  scene.add(starMesh, col); monuments.star = starMesh; monuments.starCol = col;
+  // Amazone : socle + silhouette stylisée en bronze (30 m)
+  const [ax, az] = toXZ(6.34899, 2.40757);
+  const bronze = '#7b5634';
+  const am = mergeColored([
+    [new THREE.BoxGeometry(11, 7, 11).translate(0, 3.5, 0), '#d6cdbb'],
+    [new THREE.CylinderGeometry(1.7, 3.2, 9, 10).translate(0, 11.5, 0), bronze],
+    [new THREE.CylinderGeometry(1.9, 1.5, 8, 10).translate(0, 20, 0), bronze],
+    [new THREE.SphereGeometry(1.5, 12, 10).translate(0, 25.6, 0), bronze],
+    [new THREE.CylinderGeometry(0.45, 0.5, 6.5, 6).rotateZ(-0.55).translate(2.5, 25.2, 0), bronze],
+    [new THREE.BoxGeometry(0.25, 3.6, 0.7).rotateZ(-0.55).translate(4.6, 29, 0), '#a08a6a'],
+    [new THREE.CylinderGeometry(0.4, 0.45, 5, 6).rotateZ(0.9).translate(-2.3, 21, 0), bronze],
+  ]);
+  const amazone = new THREE.Mesh(am, new THREE.MeshLambertMaterial({ vertexColors: true }));
+  amazone.position.set(ax, 0, az); amazone.rotation.y = -0.4; amazone.castShadow = !LITE;
+  scene.add(amazone); monuments.amazone = amazone;
+  monuments.star.visible = monuments.starCol.visible = amazone.visible = false;
+}
+
+// ---------- Zémidjans ----------
+let zems, zemState = [], zemOn = true;
+function buildZems() {
+  const W = { 0: 4, 1: 3.4, 2: 2.6, 3: 1.6, 4: 0.45 };
+  const paths = [];
+  let total = 0;
+  for (const L of roadLines) {
+    if (L.bridge || W[L.cls] === undefined || L.pts.length < 2) continue;
+    const xz = new Float32Array(L.pts.length * 2), cum = new Float32Array(L.pts.length);
+    for (let j = 0; j < L.pts.length; j++) { xz[2 * j] = L.pts[j][0]; xz[2 * j + 1] = L.pts[j][1]; if (j) cum[j] = cum[j - 1] + Math.hypot(xz[2 * j] - xz[2 * j - 2], xz[2 * j + 1] - xz[2 * j - 1]); }
+    const len = cum[cum.length - 1]; if (len < 30) continue;
+    total += len * W[L.cls]; paths.push({ xz, cum, len, w: ROAD_W[L.cls], acc: total });
+  }
+  const n = LITE ? 1400 : 3000;
+  const g = mergeColored(partsZem({ passager: '#2f6fb0' }));
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .6, emissive: '#ffcf6a', emissiveIntensity: 0 });
+  zems = new THREE.InstancedMesh(g, mat, n);
+  zems.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  zems.frustumCulled = false; zems.renderOrder = 11; zems.visible = false;
+  for (let i = 0; i < n; i++) {
+    const r = hash(i, 60) * total; let lo = 0, hi = paths.length - 1;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (paths[mid].acc < r) lo = mid + 1; else hi = mid; }
+    const P = paths[lo];
+    zemState.push({ P, s: hash(i, 61) * P.len, v: 7 + hash(i, 62) * 7, dir: hash(i, 63) < 0.5 ? 1 : -1, seg: 0, lane: 0.8 + hash(i, 64) * (P.w * 0.3) });
+  }
+  scene.add(zems);
+}
+function updateZems(dt) {
+  const A = zems.instanceMatrix.array;
+  for (let i = 0; i < zemState.length; i++) {
+    const z = zemState[i], P = z.P;
+    z.s += z.v * dt * z.dir;
+    if (z.s >= P.len) { z.s = P.len - 0.01; z.dir = -1; } else if (z.s <= 0) { z.s = 0.01; z.dir = 1; }
+    const cum = P.cum; let k = z.seg;
+    while (k < cum.length - 2 && z.s > cum[k + 1]) k++;
+    while (k > 0 && z.s < cum[k]) k--;
+    z.seg = k;
+    const x0 = P.xz[2 * k], z0 = P.xz[2 * k + 1], x1 = P.xz[2 * k + 2], z1 = P.xz[2 * k + 3];
+    const sl = cum[k + 1] - cum[k] || 1, t = (z.s - cum[k]) / sl;
+    let dx = (x1 - x0) / sl * z.dir, dz = (z1 - z0) / sl * z.dir;
+    const x = x0 + (x1 - x0) * t + (-dz) * z.lane, zz = z0 + (z1 - z0) * t + dx * z.lane;
+    const th = Math.atan2(-dz, dx), c = Math.cos(th), s = Math.sin(th), o = i * 16;
+    A[o] = c; A[o + 1] = 0; A[o + 2] = -s; A[o + 3] = 0; A[o + 4] = 0; A[o + 5] = 1; A[o + 6] = 0; A[o + 7] = 0;
+    A[o + 8] = s; A[o + 9] = 0; A[o + 10] = c; A[o + 11] = 0; A[o + 12] = x; A[o + 13] = 0.15; A[o + 14] = zz; A[o + 15] = 1;
+  }
+  zems.instanceMatrix.needsUpdate = true;
+}
+
+// Lampadaires (nuit)
+let lamps;
+function buildLamps() {
+  const pos = [];
+  for (const L of roadLines) {
+    if (L.cls > 2) continue;
+    const w = ROAD_W[L.cls] / 2 + 1.5; let carry = 0, side = 1;
+    for (let j = 1; j < L.pts.length; j++) {
+      const a = L.pts[j - 1], b = L.pts[j]; const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz); if (!len) continue;
+      for (let d = carry; d < len; d += 32) { const t = d / len; side = -side; pos.push(a[0] + dx * t + (-dz / len) * w * side, L.bridge ? 12 : 8, a[1] + dz * t + (dx / len) * w * side); }
+      carry = (carry - len) % 32; if (carry < 0) carry += 32;
+    }
+  }
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const cx = cv.getContext('2d'); const gr = cx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,240,210,1)'); gr.addColorStop(0.18, 'rgba(255,190,110,0.85)'); gr.addColorStop(1, 'rgba(255,150,60,0)');
+  cx.fillStyle = gr; cx.fillRect(0, 0, 64, 64);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  lamps = new THREE.Points(g, new THREE.PointsMaterial({ size: 14, map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: '#ffc27a', opacity: 0, fog: true }));
+  lamps.renderOrder = 20; lamps.visible = false; scene.add(lamps);
+}
+
+// ---------- Ambiances ----------
+const MOODS = {
+  jour: { el: 50, az: 238, sun: '#fff1dc', sunI: 2.9, sky: '#cfe2f2', gnd: '#cbb993', hemiI: 1.25, top: '#3c7cc4', hor: '#d4e3ec', low: '#c9b99a', exp: 1.0, night: 0, glow: 0.25, foam: 1.0 },
+  soir: { el: 7, az: 262, sun: '#ffb47a', sunI: 2.2, sky: '#b9b3c9', gnd: '#4a4042', hemiI: 1.05, top: '#2e4677', hor: '#f4a96d', low: '#6d5444', exp: 1.05, night: 0.32, glow: 1.0, foam: 0.85 },
+  nuit: { el: 46, az: 140, sun: '#9db4e6', sunI: 0.38, sky: '#2a3d66', gnd: '#0b0e16', hemiI: 0.5, top: '#050914', hor: '#17233c', low: '#0b0f18', exp: 1.15, night: 1, glow: 0, foam: 0.32 },
+};
+const colorKeys = ['sun', 'sky', 'gnd', 'top', 'hor', 'low'];
+const toMood = m => { const o = { ...m }; for (const k of colorKeys) o[k] = new THREE.Color(m[k]); return o; };
+let moodCur = toMood(MOODS.jour), moodTgt = toMood(MOODS.jour);
+function setMood(name) {
+  moodTgt = toMood(MOODS[name]);
+  if (reduceMotion) moodCur = toMood(MOODS[name]);
+  document.querySelectorAll('[data-mood]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mood === name)));
+}
+const sunDir = new THREE.Vector3();
+function applyMood(dt) {
+  const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 2.2);
+  for (const key of ['el', 'az', 'sunI', 'hemiI', 'exp', 'night', 'glow', 'foam']) moodCur[key] += (moodTgt[key] - moodCur[key]) * k;
+  for (const key of colorKeys) moodCur[key].lerp(moodTgt[key], k);
+  const m = moodCur, el = m.el * Math.PI / 180, az = m.az * Math.PI / 180;
+  sunDir.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el));
+  sun.color.copy(m.sun); sun.intensity = m.sunI;
+  hemi.color.copy(m.sky); hemi.groundColor.copy(m.gnd); hemi.intensity = m.hemiI;
+  skyMat.uniforms.uTop.value.copy(m.top); skyMat.uniforms.uHorizon.value.copy(m.hor); skyMat.uniforms.uGround.value.copy(m.low);
+  skyMat.uniforms.uSunColor.value.copy(m.sun); skyMat.uniforms.uSunDir.value.copy(sunDir); skyMat.uniforms.uGlow.value = m.glow;
+  scene.fog.color.copy(m.hor);
+  renderer.toneMappingExposure = m.exp;
+  U.uNight.value = m.night;
+  if (foamMat) foamMat.uniforms.uBright.value = m.foam;
+  if (lamps) { lamps.material.opacity = Math.min(1, m.night * 1.15); lamps.visible = m.night > 0.05; }
+  if (zems) zems.material.emissiveIntensity = m.night * 0.9;
+}
+
+// ---------- Étiquettes ----------
+const labelsEl = $('#labels');
+const labels = [];
+let showQ = true, selected = null;
+function addLabel(el, x, y, z, prio, kind) { labelsEl.appendChild(el); labels.push({ el, pos: new THREE.Vector3(x, y, z), prio, kind, w: 0, h: 0, shown: false }); }
+function buildLabels() {
+  PLACES.forEach((p, i) => {
+    const [x, z] = toXZ(p.lat, p.lon); p.x = x; p.z = z;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'lbl lbl-place'; b.tabIndex = -1;
+    b.style.setProperty('--k', KCOL[p.k]);
+    b.innerHTML = `<span class="pill"><span class="dot"></span>${p.name}</span><span class="stem"></span>`;
+    b.addEventListener('click', () => select(p));
+    p.label = b; addLabel(b, x, p.h, z, 100 - i, 'p');
+  });
+  for (const [n, la, lo] of WATER_LABELS) { const [x, z] = toXZ(la, lo); const d = document.createElement('div'); d.className = 'lbl lbl-water'; d.textContent = n; addLabel(d, x, 0, z, 20, 'w'); }
+  for (const [n, la, lo] of QUARTIERS) { const [x, z] = toXZ(la, lo); const d = document.createElement('div'); d.className = 'lbl lbl-q'; d.textContent = n; addLabel(d, x, 4, z, 10, 'q'); }
+  labels.sort((a, b) => b.prio - a.prio);
+  const measure = () => { for (const L of labels) { L.w = L.el.offsetWidth; L.h = L.el.offsetHeight; } };
+  measure(); document.fonts?.ready.then(measure);
+}
+const vtmp = new THREE.Vector3();
+let obstacles = [];
+function measureObstacles() {
+  const app = $('#app').getBoundingClientRect();
+  obstacles = [...document.querySelectorAll('.brand, .places, .hud, .dock, .credits, .card')].filter(e => !e.hidden && e.offsetParent !== null)
+    .map(e => { const r = e.getBoundingClientRect(); return [r.left - app.left, r.top - app.top, r.right - app.left, r.bottom - app.top]; })
+    .filter(r => r[2] - r[0] > 0 && r[3] - r[1] > 0);
+  if (small) { const pl = $('#placeList').getBoundingClientRect(); obstacles.push([0, pl.top - app.top, app.width, pl.bottom - app.top]); }
+}
+function updateLabels(dist, W, H) {
+  if (frameN % 20 === 1) measureObstacles();
+  const placed = obstacles.slice();
+  for (const L of labels) {
+    let show = true;
+    if (L.kind === 'q' && (!showQ || dist > 6500)) show = false;
+    if (L.kind === 'w' && dist < 900) show = false;
+    let sx = 0, sy = 0;
+    if (show) {
+      vtmp.copy(L.pos).project(camera);
+      if (vtmp.z > 1 || vtmp.x < -1.15 || vtmp.x > 1.15 || vtmp.y < -1.15 || vtmp.y > 1.15) show = false;
+      else {
+        sx = (vtmp.x * 0.5 + 0.5) * W; sy = (-vtmp.y * 0.5 + 0.5) * H;
+        const anchorY = L.kind === 'p' ? 1 : 0.5;
+        const r = [sx - L.w / 2 - 4, sy - L.h * anchorY - 3, sx + L.w / 2 + 4, sy + L.h * (1 - anchorY) + 3];
+        const isSel = selected && L.el === selected.label;
+        if (!isSel && placed.some(o => r[0] < o[2] && r[2] > o[0] && r[1] < o[3] && r[3] > o[1])) show = false;
+        else { placed.push(r); L.el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) translate(-50%, ${L.kind === 'p' ? '-100%' : '-50%'})`; }
+      }
+    }
+    if (show !== L.shown) { L.shown = show; L.el.classList.toggle('on', show); L.el.classList.toggle('off', !show); }
+  }
+}
+
+// ---------- Interface ----------
+const list = $('#placeList');
+for (const p of PLACES) {
+  const li = document.createElement('li');
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'place-btn'; b.setAttribute('aria-pressed', 'false');
+  b.style.setProperty('--k', KCOL[p.k]);
+  b.innerHTML = `<span class="dot"></span><span class="nm">${p.name}</span><span class="kd">${p.kind}</span>`;
+  b.addEventListener('click', () => select(p));
+  p.btn = b; li.appendChild(b); list.appendChild(li);
+}
+const card = $('#card');
+function select(p) {
+  selected = p;
+  for (const q of PLACES) { q.btn.setAttribute('aria-pressed', String(q === p)); q.label?.classList.toggle('sel', q === p); }
+  $('#cardKind').textContent = p.kind; $('#cardName').textContent = p.name; $('#cardText').textContent = p.text;
+  $('#cardDot').style.setProperty('--k', KCOL[p.k]);
+  $('#cardCoords').textContent = fmtLL(p.x ?? toXZ(p.lat, p.lon)[0], p.z ?? toXZ(p.lat, p.lon)[1]);
+  card.hidden = false;
+  p.btn.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
+  flyTo(p.x, p.z, p.view);
+}
+$('#cardClose').addEventListener('click', () => { card.hidden = true; selected = null; for (const q of PLACES) { q.btn.setAttribute('aria-pressed', 'false'); q.label?.classList.remove('sel'); } });
+$('#cardGo').addEventListener('click', () => selected && flyTo(selected.x, selected.z, selected.view));
+document.querySelectorAll('[data-mood]').forEach(b => b.addEventListener('click', () => setMood(b.dataset.mood)));
+const toggle = (id, fn) => { const b = $(id); b.addEventListener('click', () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', String(on)); fn(on); }); };
+toggle('#togZem', on => { zemOn = on; });
+toggle('#togQ', on => { showQ = on; });
+toggle('#togTour', on => { controls.autoRotate = on; });
+$('#compass').addEventListener('click', () => { const t = controls.target; const sph = new THREE.Spherical().setFromVector3(camera.position.clone().sub(t)); startFlight(t.clone(), sph.radius, sph.phi, 0); });
+
+// ---------- Caméra : vols ----------
+let flight = null;
+const sph = new THREE.Spherical();
+function startFlight(target, radius, phi, theta, dur = 1.8) {
+  sph.setFromVector3(camera.position.clone().sub(controls.target));
+  let dTheta = theta - sph.theta; dTheta = Math.atan2(Math.sin(dTheta), Math.cos(dTheta));
+  const from = { t: controls.target.clone(), r: sph.radius, phi: sph.phi, theta: sph.theta };
+  const hop = from.t.distanceTo(target);
+  if (reduceMotion) dur = 0.001;
+  flight = { from, to: { t: target, r: radius, phi, theta: from.theta + dTheta }, t0: performance.now(), dur: dur * 1000, lift: Math.min(1.2, hop / Math.max(radius, from.r) * 0.6) };
+}
+function flyTo(x, z, [d, phi, theta]) {
+  startFlight(new THREE.Vector3(x, 0, z), d, phi, theta, 2.2);
+}
+const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function updateFlight(now) {
+  if (!flight) return;
+  let t = Math.min(1, (now - flight.t0) / flight.dur); const e = ease(t);
+  const a = flight.from, b = flight.to;
+  controls.target.lerpVectors(a.t, b.t, e);
+  const r = Math.exp(Math.log(a.r) + (Math.log(b.r) - Math.log(a.r)) * e) * (1 + flight.lift * Math.sin(Math.PI * e));
+  sph.set(r, a.phi + (b.phi - a.phi) * e, a.theta + (b.theta - a.theta) * e);
+  camera.position.setFromSpherical(sph).add(controls.target);
+  camera.lookAt(controls.target);
+  if (t >= 1) flight = null;
+}
+controls.addEventListener('start', () => { flight = null; });
+
+// ---------- HUD ----------
+const needle = $('#needle'), scaleBar = $('#scaleBar'), scaleTxt = $('#scaleTxt'), coordsEl = $('#coords'), clockEl = $('#clock');
+const clockFmt = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Africa/Porto-Novo', hour: '2-digit', minute: '2-digit' });
+function updateHud(dist, H) {
+  needle.style.transform = `rotate(${(controls.getAzimuthalAngle() * 180 / Math.PI).toFixed(1)}deg)`;
+  const mpp = 2 * dist * Math.tan(camera.fov * Math.PI / 360) / Math.max(1, H);
+  const steps = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
+  const target = (small ? 50 : 80) * mpp; let best = steps[0]; for (const s of steps) if (s <= target * 1.4) best = s;
+  scaleBar.style.width = (best / mpp).toFixed(0) + 'px';
+  scaleTxt.textContent = best >= 1000 ? `${best / 1000} km` : `${best} m`;
+  coordsEl.textContent = fmtLL(controls.target.x, controls.target.z);
+  clockEl.textContent = 'Heure de Cotonou ' + clockFmt.format(new Date());
+}
+
+// ---------- Boucle ----------
+let W = 1, H = 1;
+function resize() {
+  const r = $('#app').getBoundingClientRect(); W = Math.max(1, r.width); H = Math.max(1, r.height);
+  renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe($('#app'));
+resize();
+
+let last = performance.now(), frameN = 0, riseDone = reduceMotion, extras = [];
+let shadowSize = 0;
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now; frameN++;
+  U.uTime.value += dt;
+  if (!riseDone) {
+    U.uRiseT.value += dt;
+    if (U.uRiseT.value > 7.5) finishRise();
+  }
+  if (JEU.actif) majJeu(dt);
+  else { updateFlight(now); controls.update(dt); }
+  const t = controls.target;
+  if (Math.abs(t.x) > 16000 || t.z < -16000 || t.z > 9000) { t.x = THREE.MathUtils.clamp(t.x, -16000, 16000); t.z = THREE.MathUtils.clamp(t.z, -16000, 9000); }
+  const dist = camera.position.distanceTo(t);
+  applyMood(dt);
+  sun.position.copy(t).addScaledVector(sunDir, 4000); sun.target.position.copy(t);
+  const want = THREE.MathUtils.clamp(dist * 0.85, 300, 6000);
+  if (Math.abs(want - shadowSize) / want > 0.15) {
+    shadowSize = want; const c = sun.shadow.camera; c.left = c.bottom = -want; c.right = c.top = want; c.updateProjectionMatrix();
+  }
+  scene.fog.near = Math.min(dist * 1.3 + 1800, 26000); scene.fog.far = Math.min(dist * 4.2 + 9000, 62000);
+  sky.position.copy(camera.position);
+  if (foamMat) foamMat.uniforms.uTime.value = U.uTime.value;
+  if (frameN % 12 === 0) visibiliteLieux(camera.position);
+  animerLieux(U.uTime.value);
+  if (zems) { zems.visible = zemOn && riseDone && dist < 5000 && !JEU.actif; if (zems.visible) updateZems(dt); }
+  if (tokpas) { tokpas.visible = zemOn && riseDone && dist < 6000 && !JEU.actif; if (tokpas.visible) majTokpas(dt); }
+  if (boats && boats.visible && dist < 9000 && frameN % 2 === 0) {
+    const m = new THREE.Matrix4(); const base = boats.userData.base, tt = U.uTime.value;
+    base.forEach((b, i) => { const s = Math.sin(tt * b.w + b.ph) * b.r; m.makeRotationY(b.a); m.setPosition(b.x + Math.cos(b.a) * s, 0, b.z - Math.sin(b.a) * s); boats.setMatrixAt(i, m); });
+    boats.instanceMatrix.needsUpdate = true;
+  }
+  renderer.render(scene, camera);
+  if (!JEU.actif) updateLabels(dist, W, H);
+  if (frameN % 6 === 0) updateHud(dist, H);
+  requestAnimationFrame(loop);
+}
+function finishRise() {
+  riseDone = true; U.uRiseT.value = 999;
+  for (const m of buildingMeshes) m.castShadow = !LITE;
+  for (const e of extras) e.visible = true;
+}
+
+/*__LIEUX__*/
+/*__JEU__*/
+
+// ---------- Démarrage ----------
+async function main() {
+  status('Décompression des données OpenStreetMap…', 4); await frame();
+  const data = await decode();
+  $('#stats').innerHTML = `<span>${data.B.n.length.toLocaleString('fr-FR')} bâtiments</span><span>${data.R.c.length.toLocaleString('fr-FR')} voies</span><span>${(data.palms.length / 2).toLocaleString('fr-FR')} palmiers</span>`;
+  status('Mise en eau du lac Nokoué et de la lagune…', 8); await frame();
+  buildSurfaces(data.S); buildFoam();
+  status('Tracé des routes…', 12); await frame();
+  buildRoads(data.R);
+  await buildBuildings(data.B);
+  status('Cocotiers, conteneurs et pirogues…', 84); await frame();
+  extras.push(buildPalms(data.palms), buildContainers(data.containers), buildShips());
+  status('Monuments, Ganvié et marché de Dantokpa…', 90); await frame();
+  await construireLieux(data);
+  semeOne(data.L.semeOne); portailUAC(data.L.campus); construireTokpas();
+  buildZems(); buildLamps(); buildLabels();
+  initExplorer(); initJeu(data);
+  if (reduceMotion) finishRise();
+  status('Lever de la ville…', 100); await frame();
+  // Vue d'ensemble depuis le large, au sud-est
+  const target = new THREE.Vector3(600, 0, -900);
+  controls.target.copy(target);
+  camera.position.setFromSpherical(new THREE.Spherical(reduceMotion ? 12500 : 24000, reduceMotion ? 0.98 : 0.5, 0.42)).add(target);
+  camera.lookAt(target);
+  if (!reduceMotion) startFlight(target.clone(), 12500, 0.98, 0.42, 6.5);
+  requestAnimationFrame(t => { last = t; loop(t); });
+  setTimeout(() => $('#loader').classList.add('done'), 150);
+}
+main().catch(err => { console.error(err); loadTxt.innerHTML = `<span class="err">Impossible d'afficher la ville.</span> ${err.message || err}`; });
+</script>
+<script id="cotonou-data" type="application/octet-stream">__DATA__</script>
+<script id="amazone-glb" type="application/octet-stream">__GLB__</script>
+<script id="radio-mp3" type="application/octet-stream">__MP3__</script>

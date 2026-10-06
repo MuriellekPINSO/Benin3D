@@ -1,0 +1,10 @@
+import fs from 'fs';
+const t = fs.readFileSync('template.html', 'utf8');
+const d = fs.readFileSync('data.b64', 'utf8').replace(/(.{1,4000})/g, '$1\n');
+const glb = fs.readFileSync('amazone.glb').toString('base64').replace(/(.{1,4000})/g, '$1\n');
+const lieux = fs.readFileSync('lieux.js', 'utf8');
+const jeu = fs.readFileSync('jeu.js', 'utf8');
+const mp3 = fs.readFileSync('radio.mp3').toString('base64').replace(/(.{1,4000})/g, '$1\n');
+const out = t.replace('/*__LIEUX__*/', () => lieux).replace('/*__JEU__*/', () => jeu).replace('__MP3__', () => '\n' + mp3).replace('__DATA__', () => '\n' + d).replace('__GLB__', () => '\n' + glb);
+fs.writeFileSync('cotonou-3d.html', out);
+console.log('cotonou-3d.html', (out.length / 1e6).toFixed(2), 'Mo');
