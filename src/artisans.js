@@ -7,6 +7,7 @@ import { PLACES } from './donnees-lieux.js';
 import { groupeLieu } from './lieux.js';
 import { personne } from './discussions.js';
 import { JEU, fmtF, sauver } from './jeu.js';
+import { parler, voixDe } from './voix.js';
 
 // ---------- Marchés artisanaux des sites touristiques ----------
 // Des étals d'objets d'art (modèles 3D fournis, allégés par scripts/masques.mjs) près
@@ -60,7 +61,7 @@ function etal(nom, graine) {
   c.fillStyle = '#f4efe6'; c.fillRect(0, 0, 512, 128); c.fillStyle = '#7a1f2b'; c.font = '900 50px Impact, "Arial Black", sans-serif'; c.textAlign = 'center'; c.fillText('ART · SOUVENIRS', 256, 72); c.font = '700 26px system-ui, sans-serif'; c.fillStyle = '#1d1a16'; c.fillText(nom.toUpperCase(), 256, 110, 490);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
   const p = add(new THREE.PlaneGeometry(2.4, .6), new THREE.MeshBasicMaterial({ map: t }), 0, 2.25, .82); p.castShadow = false;
-  const v = personne(graine); v.position.set(.4, 0, -.95); g.add(v);
+  const v = personne(graine, { femme: true }); v.position.set(.4, 0, -.95); g.add(v);
   const e = { g, nom, vendeuse: v, nomVendeuse: VENDEUSES[graine % VENDEUSES.length], places: [], charge: false };
   // Emplacements des objets : sur la table, et les plus grands devant, au sol.
   e.places = [['tete-sculptee', -1.05, .86, .05], ['portrait-cubiste', -.35, .86, .1], ['sphere-rouge', .3, .86, .12], ['creature-paille', .95, .86, .05], ['statue', 2.1, 0, .6]];
@@ -109,7 +110,7 @@ export const sitesAvecEtal = () => new Set(ETALS.map(e => e.site));
 // ---------- La boutique : discuter, payer ----------
 const BQ = { etal: null, objet: null, rendu: null, scene: null, cam: null, vue: null, boucle: 0, parle: 0, apres: null };
 const arrondi = p => Math.round(p / 500) * 500;
-function dit(txt) { $('#bqDit').textContent = `« ${txt} »`; BQ.parle = 2; }
+function dit(txt) { $('#bqDit').textContent = `« ${txt} »`; BQ.parle = 2; parler(txt, voixDe(BQ.etal?.vendeuse), 2); }
 function choix(liste) {
   const box = $('#bqChoix'); box.innerHTML = '';
   liste.forEach(([t, f], k) => { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<kbd>${k + 1}</kbd>${t}`; b.addEventListener('click', f); box.append(b); });

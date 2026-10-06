@@ -8,15 +8,17 @@ import { PLACES } from './donnees-lieux.js';
 import { BORD } from './bordure.js';
 import { JEU, LANE, fmtF, pose, toast } from './jeu.js';
 import { progres } from './missions.js';
+import { parler, voixDe } from './voix.js';
 
 // ---------- Les gens parlent : Zém Run comme Danfo Run, version Cotonou ----------
 // Bulles au-dessus des têtes (les gens qui causent au bord de la route, les vendeuses
 // qui appellent, ceux qu'on klaxonne), et un vrai dialogue avec le client du zém : on
 // discute le prix, il fait la causette, il pose des questions sur la ville, il râle
 // quand on conduit mal… On répond avec les touches 1, 2, 3 ou en touchant la réponse.
+// Et ils parlent à voix haute (voix.js) : on entend ceux qui sont près du zém.
 
-export const DISC = { signes: [], groupes: [], ptr: 0, vivants: [], client: null, file: [], courant: null, klaxons: [], collecteur: null, appel: -1, causerie: 0 };
-const v = new THREE.Vector3();
+export const DISC = { signes: [], groupes: [], ptr: 0, vivants: [], client: null, file: [], courant: null, klaxons: [], collecteur: null, appel: -1, causerie: 0, parleur: null };
+const v = new THREE.Vector3(), vb = new THREE.Vector3(), vj = new THREE.Vector3();
 const choisir = l => l[Math.floor(Math.random() * l.length)];
 
 // ---------- Bulles ----------
@@ -28,7 +30,12 @@ export function bulle(ancre, texte, { duree = 2.8, ton = '', trad = '' } = {}) {
   const el = document.createElement('div'); el.className = `bulle ${ton}`;
   el.textContent = texte; if (trad) { const s = document.createElement('small'); s.textContent = trad; el.append(s); }
   box.append(el);
-  const b = { el, ancre, t: duree, d: duree }; BULLES.push(b); return b;
+  const b = { el, ancre, t: duree, d: duree }; BULLES.push(b);
+  // La voix : on n'entend que ceux qui sont près du zém ; le client et ceux qui crient passent devant les bavardages.
+  DISC.parleur = { voix: voixDe(ancre), t: performance.now() };
+  const ici = JEU.joueur ? JEU.joueur.getWorldPosition(vj) : camera.position;
+  if (tete(ancre, vb).distanceTo(ici) < 42) parler(texte, { ...DISC.parleur.voix, fort: ton === 'fort' }, ancre === DISC.client?.siege || ton === 'fort' ? 1 : 0);
+  return b;
 }
 function tete(a, out) {
   if (a.isVector3) return out.copy(a);
@@ -53,8 +60,8 @@ const PAGNES = ['#e2672a', '#2f6fb0', '#8e3c8f', '#2f8a4a', '#d9a521', '#c8382f'
 const PANTALONS = ['#2b2f3a', '#4a3b2a', '#1f3d5a', '#5e5e5e', '#3f4d2c'];
 const PEAUX = ['#4a2f22', '#5a3a28', '#3b261c', '#6b452f'];
 /** Une personne debout (face à +z) ou assise ; userData.tete pour les bulles, userData.anim(t, parle). */
-export function personne(i, { assise = false, gilet = null } = {}) {
-  const femme = hash(i, 71) < .5, c1 = PAGNES[Math.floor(hash(i, 72) * PAGNES.length)], c2 = PAGNES[Math.floor(hash(i, 73) * PAGNES.length)];
+export function personne(i, { assise = false, gilet = null, femme: genre = null } = {}) {
+  const femme = genre ?? hash(i, 71) < .5, c1 = PAGNES[Math.floor(hash(i, 72) * PAGNES.length)], c2 = PAGNES[Math.floor(hash(i, 73) * PAGNES.length)];
   const peau = PEAUX[Math.floor(hash(i, 74) * PEAUX.length)], bas = PANTALONS[Math.floor(hash(i, 75) * PANTALONS.length)];
   const P = [], add = (g, c) => P.push([g, c]);
   const y0 = assise ? -.82 : 0; // assis : le bassin est à l'origine
@@ -75,7 +82,7 @@ export function personne(i, { assise = false, gilet = null } = {}) {
   const t0 = new THREE.Object3D(); t0.position.set(0, y0 + 1.75, 0); g.add(t0);
   const ph = hash(i, 77) * 6;
   g.userData = {
-    tete: t0, bras,
+    tete: t0, bras, femme, graine: i,
     anim: (t, parle, signe) => {
       const [bg, bd] = bras;
       if (signe) { bd.rotation.x = -2.7 + Math.sin(t * 9 + ph) * .3; bd.rotation.z = .5 + Math.sin(t * 9 + ph) * .25; bg.rotation.x = 0; }
@@ -167,12 +174,12 @@ function tarifJuste(st, k) {
   const L = JEU.ligne, d = Math.max(200, (L.arretsJ[k]?.s ?? st.s) - st.s);
   return THREE.MathUtils.clamp(Math.round((150 + d / 1000 * 110) / 50) * 50, 150, 700);
 }
-function siege() { // le passager assis derrière le conducteur, ou à défaut le zém lui-même
+function siege(femme) { // le passager assis derrière le conducteur, ou à défaut le zém lui-même
   const j = JEU.joueur; if (!j) return null;
-  if (!j.userData.passager) { const p = personne(7 + Math.floor(Math.random() * 999), { assise: true }); p.position.set(-.72, .86, 0); p.rotation.y = Math.PI / 2; p.visible = false; j.add(p); j.userData.passager = p; }
+  if (!j.userData.passager) { const p = personne(7 + Math.floor(Math.random() * 999), { assise: true, femme }); p.position.set(-.72, .86, 0); p.rotation.y = Math.PI / 2; p.visible = false; j.add(p); j.userData.passager = p; }
   return j.userData.passager;
 }
-function nouveauPassager() { const j = JEU.joueur; if (j?.userData.passager) { j.remove(j.userData.passager); j.userData.passager.userData.liberer(); j.userData.passager = null; } return siege(); }
+function nouveauPassager(femme) { const j = JEU.joueur; if (j?.userData.passager) { j.remove(j.userData.passager); j.userData.passager.userData.liberer(); j.userData.passager = null; } return siege(femme); }
 function dit(texte, opts) { const s = DISC.client?.siege || siege(); return bulle(s, texte, opts); }
 function humeur(d) { const c = DISC.client; if (!c) return; c.humeur = THREE.MathUtils.clamp(c.humeur + d, 0, 1); }
 
@@ -222,8 +229,9 @@ export function causerGroupe(g) {
 /** Un client monte (zém) : on discute le prix jusqu'à l'arrêt `k`. */
 export function nouveauClient(st, k, { arrete = false } = {}) {
   const L = JEU.ligne, a = L.arretsJ[k]; if (!a) return;
-  const s = nouveauPassager(); s.visible = true;
   const juste = tarifJuste(st, k), [nom, femme] = choisir(NOMS);
+  const s = nouveauPassager(!!femme); s.visible = true;
+  s.userData.voix = { femme: !!femme, graine: nom, age: /vieux|mamie/i.test(nom) ? 'vieux' : /jeune|étudiant|fifamè|sèna/i.test(nom) ? 'jeune' : '' };
   DISC.client = { nom, femme, juste, tarif: 0, humeur: .6, vers: k, siege: s, accord: false, causerie: st.s + 220 + Math.random() * 300, dits: new Set() };
   st.passagers = 1;
   const accord = (tarif, dh, rep) => { const c = DISC.client; if (!c) return; c.tarif = tarif; c.accord = true; humeur(dh); dit(rep); if (tarif >= juste) progres('negos', 1); };
@@ -309,7 +317,7 @@ export function placerCollecteur(L, C) {
   const n = L.arretsJ.length; if (JEU.veh !== 'zem' || n < 4) return;
   const k = 1 + Math.floor(Math.random() * (n - 3)), a = L.arretsJ[k];
   const p = pose(C, a.s + 2, LANE * 2.6, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
-  const m = personne(4242, { gilet: '#f28c1b' }); m.position.set(p.x, p.y, p.z); m.rotation.y = p.a - Math.PI / 2; JEU.decor.add(m);
+  const m = personne(4242, { gilet: '#f28c1b', femme: false }); m.position.set(p.x, p.y, p.z); m.rotation.y = p.a - Math.PI / 2; JEU.decor.add(m);
   DISC.collecteur = { k, m, fait: false };
 }
 export function collecte(st) {
@@ -327,6 +335,7 @@ export function collecte(st) {
 function apprenti(texte) {
   const el = $('#jhApprenti'); if (!el) return;
   el.textContent = texte; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  parler(texte, { femme: false, graine: 'apprenti', age: 'jeune', fort: true }, 1);
 }
 export function appelApprenti(a) { apprenti(choisir([`${a.nom} ! ${a.nom} ! Qui descend ?`, `On arrive à ${a.nom} ! Préparez la monnaie !`, `${a.nom} ! Ceux qui descendent, levez la main !`])); }
 export function departApprenti() { apprenti(choisir(['On est au complet, on bouge !', 'Serrez-vous derrière, il y a encore de la place !', 'Chauffeur, on y va !'])); }
@@ -351,7 +360,17 @@ function suivant() {
   const box = el.querySelector('.choix'); box.innerHTML = '';
   d.choix.forEach(([t], k) => { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<kbd>${k + 1}</kbd>${t}`; b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); repondre(k); }); box.append(b); });
   el.hidden = false; son('arret');
+  if (d.texte.trim().startsWith('«')) parler(d.texte, d.voix || voixQui(d.qui), 2);
   if (d.bloquant && JEU.etat) JEU.etat.service = 99; // arrêté le temps de répondre (plein, client qui monte)
+}
+// Qui parle dans le dialogue : le client, un métier connu, sinon celui qui vient de parler dans sa bulle.
+function voixQui(qui) {
+  const c = DISC.client; if (c && qui.startsWith(c.nom)) return voixDe(c.siege);
+  const age = /vieux|vieille|mamie/i.test(qui) ? 'vieux' : '';
+  if (/^(la |une )|tanti|maman|mamie|sœur|vendeuse|momo|fifamè|rosine|adjoua|prudence|gisèle|bénédicte/i.test(qui)) return { femme: true, graine: qui, age };
+  if (/vulcanisateur|pompiste|collecteur|zémidjans|tonton|monsieur/i.test(qui)) return { femme: false, graine: qui, age };
+  if (DISC.parleur && performance.now() - DISC.parleur.t < 2500) return DISC.parleur.voix;
+  return { femme: hash(qui.length * 131 + qui.charCodeAt(0), 5) < .5, graine: qui, age };
 }
 export function repondre(k) {
   const d = DISC.courant; if (!d || !d.choix[k]) return;
@@ -370,6 +389,7 @@ export function klaxonner() {
   // Ceux qui traversent devant pressent le pas.
   for (const o of JEU.objets) {
     const ds = o.s - st.s; if (ds < 0 || ds > 45) continue;
+    if (o.mesh && !o.mesh.userData.voix) o.mesh.userData.voix = { femme: o.type !== 'egungun', graine: o.mesh.id, age: o.type === 'egungun' ? 'revenant' : '' };
     if (o.type === 'egungun' && !o.klaxonne) { o.klaxonne = true; bulle(o.mesh, 'On ne klaxonne pas les revenants !', { ton: 'fort' }); st.argent = Math.max(0, st.argent - 50); toast('Klaxonner un Egungun : −50 F', 1.4, 'mal'); continue; }
     if ((o.type === 'marchande' || o.type === 'chevre') && o.dirLat && !o.klaxonne && Math.abs(o.lat) < 6) {
       o.klaxonne = true; o.dirLat *= 2.6;
@@ -407,8 +427,8 @@ export function majDiscussions(st, C, dt) {
   DISC.vivants = DISC.vivants.filter(g => {
     const ds = g.s - st.s;
     if (ds < -30) { g.g.parent?.remove(g.g); for (const m of g.membres) m.userData.liberer(); return false; }
-    // La conversation se déroule quand on approche : une réplique toutes les 1,7 s.
-    if (ds < 70 && g.ligne < g.script.length && t >= g.prochaine) {
+    // La conversation se déroule quand on approche (assez près pour l'entendre) : une réplique toutes les 1,7 s.
+    if (ds < 50 && g.ligne < g.script.length && t >= g.prochaine) {
       const [qui, txt, trad] = g.script[g.ligne++], m = g.membres[qui % g.membres.length];
       bulle(m, txt, { duree: 2.4, ton: trad ? 'fon' : '', trad }); g.parle = qui; g.prochaine = t + 1.7;
     }

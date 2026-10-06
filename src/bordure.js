@@ -295,6 +295,7 @@ export function majBordure(st, C) {
     if (B.items[B.ptr].s < st.s - 30) { B.ptr++; continue; } // déjà dépassé (reprise, saut)
     const it = B.items[B.ptr++], p = pose(C, it.s, it.side * it.off, tmpPB);
     const o = FAB[it.type](it); o.s = it.s; o.type = it.type;
+    o.g.userData.voix ??= { femme: /vendeuse|kpayo|momo/.test(it.type), graine: Math.round(it.s * 10) };
     o.g.position.set(p.x, p.y, p.z);
     // Face à la route, légèrement tournée vers ceux qui arrivent.
     const nx = -it.side * -p.dz * .85 - p.dx * .5, nz = -it.side * p.dx * .85 - p.dz * .5;

@@ -70,6 +70,7 @@ npm run verifier   # ESLint sur src/
 | `src/monde-reel.js` | « Vue réelle » : la 3D Google sous la maquette, caméra Google calée sur la nôtre à chaque image (même position, cap, inclinaison et champ de vision) |
 | `src/altitude.js` | altitude du sol (tuiles Terrarium d'AWS, données ouvertes) pour caler la caméra Google |
 | `src/discussions.js` | Zém Run qui parle (à la Danfo Run) : bulles au-dessus des gens, groupes qui causent au bord de la route, vendeuses qui appellent, réactions au klaxon, client du zém avec qui l'on discute le prix et qui fait la causette (réponses 1, 2, 3), collecteur du syndicat, apprenti du tokpa-tokpa |
+| `src/voix.js` | Les personnages parlent à voix haute : synthèse vocale du navigateur (gratuite, sans clé), une voix de femme ou d'homme par personne, seulement ceux qui sont près du zém ; le dialogue passe devant les bavardages. Option « Voix des personnages » dans le menu du jeu |
 | `src/missions.js` | missions (3 à la fois), cagnotte, série de jours, garage (klaxons, casque neuf, super saut) |
 | `src/artisans.js` | marchés artisanaux (Porte du Non-Retour, Arène, Place de l'Amazone) : objets d'art 3D, discussion du prix avec la vendeuse, paiement avec la cagnotte, « Mes souvenirs » |
 | `src/publicites.js` | catalogue des campagnes publicitaires (panneaux de la ville et du jeu), affichages comptés, offre aux annonceurs |

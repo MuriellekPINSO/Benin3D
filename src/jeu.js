@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AUDIO, audioCtx, moteur, moteurMaj, moteurStop, radio, son } from './audio.js';
+import { VOIX, taire, voixActives, voixDispo } from './voix.js';
 import { $, LITE, hash, toXZ } from './base.js';
 import { QUARTIERS } from './donnees-lieux.js';
 import { E } from './etat.js';
@@ -265,7 +266,7 @@ export function virage(dir) {
   return true;
 }
 export function quitterJeu() {
-  JEU.actif = false; moteurStop(); nettoyerBordure(); nettoyerDiscussions(); remettreVegetation(); satelliteVisible(true); rueRouteJeu(null);
+  JEU.actif = false; moteurStop(); taire(); nettoyerBordure(); nettoyerDiscussions(); remettreVegetation(); satelliteVisible(true); rueRouteJeu(null);
   if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; }
   document.getElementById('app').classList.remove('mode-jeu');
   $('#jeu').hidden = true; controls.enabled = true; camera.near = 2; camera.fov = 45; camera.updateProjectionMatrix();
@@ -443,7 +444,7 @@ export function majHud(st, C, V) {
   $('#jhPassagers').textContent = JEU.veh === 'tokpa' ? `${st.passagers}/${V.places} passagers` : etiquetteClient();
 }
 export function finJeu(arrive) {
-  const st = JEU.etat; if (!st || JEU.fini) return; JEU.fini = true; JEU.pause = true; moteurMaj(0, false);
+  const st = JEU.etat; if (!st || JEU.fini) return; JEU.fini = true; JEU.pause = true; moteurMaj(0, false); taire();
   const L = JEU.ligne, el = $('#jeuFin');
   el.querySelector('h2').textContent = arrive ? 'Terminus !' : 'Fin de la course';
   el.querySelector('.jf-sous').textContent = arrive ? `${L.nom} : ${L.arretsJ[0].nom} → ${L.arretsJ[L.arretsJ.length - 1].nom}` : 'Trois accidents : le casque a servi. Repars quand tu veux.';
@@ -503,15 +504,15 @@ export function initJeu(data) {
   $('#jfCarte').addEventListener('click', quitterJeu);
   $('#jpReprendre').addEventListener('click', () => { JEU.pause = false; $('#jeuPause').hidden = true; });
   $('#jpQuitter').addEventListener('click', quitterJeu);
-  $('#jhPause').addEventListener('click', () => { if (JEU.fini) return; JEU.pause = true; moteurMaj(0, false); $('#jeuPause').hidden = false; });
-  $('#jhSon').addEventListener('click', e => { AUDIO.muet = !AUDIO.muet; e.currentTarget.setAttribute('aria-pressed', String(!AUDIO.muet)); if (AUDIO.muet) { moteurMaj(0, false); radio(false); } });
+  $('#jhPause').addEventListener('click', () => { if (JEU.fini) return; JEU.pause = true; moteurMaj(0, false); taire(); $('#jeuPause').hidden = false; });
+  $('#jhSon').addEventListener('click', e => { AUDIO.muet = !AUDIO.muet; e.currentTarget.setAttribute('aria-pressed', String(!AUDIO.muet)); if (AUDIO.muet) { moteurMaj(0, false); radio(false); taire(); } });
   const st = () => JEU.etat;
   const gauche = () => { if (!st() || virage(-1)) return; if (st().file > -2) st().file--; }, droite = () => { if (!st() || virage(1)) return; if (st().file < 2) st().file++; };
 
   window.addEventListener('keydown', e => {
     if (!JEU.actif || JEU.fini) return;
     const k = e.key.toLowerCase();
-    if (k === 'escape' || k === 'p') { JEU.pause = !JEU.pause; $('#jeuPause').hidden = !JEU.pause; e.preventDefault(); return; }
+    if (k === 'escape' || k === 'p') { JEU.pause = !JEU.pause; $('#jeuPause').hidden = !JEU.pause; if (JEU.pause) taire(); e.preventDefault(); return; }
     if (JEU.pause) return;
     if (e.repeat && k !== ' ') { e.preventDefault(); return; }
     if (k === 'arrowleft' || k === 'a' || k === 'q') gauche();
@@ -537,5 +538,6 @@ export function initJeu(data) {
   const maintenu = (id, cle) => { const b = $(id); b.addEventListener('pointerdown', e => { e.preventDefault(); if (st()) st()[cle] = true; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { if (st()) st()[cle] = false; }); };
   maintenu('#jbF', 'frein'); maintenu('#jbA', 'gaz');
   $('#jmAuto').checked = JEU.autoGaz; $('#jmAuto').addEventListener('change', e => { JEU.autoGaz = e.target.checked; sauver(); });
+  $('#jmVoix').checked = VOIX.on; $('#jmVoix').addEventListener('change', e => voixActives(e.target.checked)); $('#jmVoix').closest('label').hidden = !voixDispo();
 }
 
