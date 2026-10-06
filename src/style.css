@@ -247,6 +247,27 @@ button { font: inherit; color: inherit; }
 .jf-total { margin: 0; font-size: 15px; } .jf-total b { font: 800 22px/1 var(--font-display); }
 .jf-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 
+/* Accueil : la visite en musique, ou la ville tout de suite */
+.accueil { position: absolute; inset: 0; z-index: 5; display: grid; grid-template-columns: minmax(0, 460px); place-content: center; padding: 0 var(--gutter); background: radial-gradient(ellipse at center, rgba(14,19,27,.18), rgba(14,19,27,.62)); animation: acEntre .8s ease both; }
+.accueil.sort { animation: acSort .5s ease both; pointer-events: none; }
+@keyframes acEntre { from { opacity: 0; } } @keyframes acSort { to { opacity: 0; } }
+.ac-carte { box-sizing: border-box; width: 100%; max-height: calc(100dvh - 2 * var(--gutter)); overflow-y: auto; background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 28px 28px 20px; }
+.ac-sur { margin: 0 0 10px; color: var(--ink-2); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.ac-carte h1 { margin: 0; font: 800 clamp(38px, 8vw, 56px)/.92 var(--font-display); letter-spacing: -.03em; }
+.ac-texte { margin: 14px 0 20px; color: var(--ink-2); font-size: 15px; line-height: 1.5; }
+.ac-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ac-visite { font-size: 16px; padding: 14px 24px; }
+.ac-visite svg { width: 18px; height: 18px; }
+.ac-passer { border: 1px solid var(--line); background: var(--chip); padding: 13px 18px; border-radius: 999px; font-weight: 700; font-size: 14px; cursor: pointer; }
+.ac-passer:hover { background: var(--line); }
+.ac-visite:focus-visible, .ac-passer:focus-visible { outline: 3px solid var(--sea); outline-offset: 2px; }
+.ac-son { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; color: var(--ink-2); font-size: 12px; }
+.ac-son svg { width: 14px; height: 14px; flex: none; }
+@media (max-width: 480px) { .ac-carte { padding: 22px 20px 16px; } .ac-actions > button { flex: 1 1 100%; justify-content: center; } }
+.mode-accueil .side, .mode-accueil .hud, .mode-accueil .dock, .mode-accueil .card, .mode-accueil .jouer-flottant { display: none !important; }
+.mode-accueil #labels { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .accueil, .accueil.sort { animation: none; } }
+
 /* Présentation */
 .pres { position: absolute; inset: 0; z-index: 4; cursor: pointer; }
 .pres .bande { position: absolute; left: 0; right: 0; height: 10%; background: #000; }

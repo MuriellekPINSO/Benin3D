@@ -35,7 +35,7 @@ export function vibrer(type) {
 
 // Menus : la croix déplace le focus parmi les boutons visibles du panneau ouvert, A valide.
 function panneauOuvert() {
-  for (const s of ['#boutique', '#jeuPause', '#jeuFin', '#jeuMenu', '#offrePub', '#reel']) { const el = $(s); if (el && !el.hidden && el.offsetParent !== null) return el; }
+  for (const s of ['#accueil', '#boutique', '#jeuPause', '#jeuFin', '#jeuMenu', '#offrePub', '#reel']) { const el = $(s); if (el && !el.hidden && el.offsetParent !== null) return el; }
   return null;
 }
 function deplacerFocus(p, sens) {
@@ -65,7 +65,7 @@ export function majManette(dt) {
     if (appuye(13) || appuye(15) || (ly > .6 && M.lateral <= 0)) deplacerFocus(p, 1);
     M.lateral = ly < -.6 ? -1 : ly > .6 ? 1 : 0;
     if (appuye(0) && document.activeElement && p.contains(document.activeElement)) document.activeElement.click();
-    if (appuye(1)) (p.querySelector('.bq-x, .op-x, #reelFermer, #jpReprendre, #jmRetour') || {}).click?.();
+    if (appuye(1)) (p.querySelector('.bq-x, .op-x, #reelFermer, #jpReprendre, #jmRetour, #acPasser') || {}).click?.();
     if (appuye(9) && p.id === 'jeuPause') $('#jpReprendre').click();
   } else if (JEU.actif && JEU.etat && !JEU.fini) {
     const st = JEU.etat;

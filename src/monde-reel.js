@@ -15,7 +15,7 @@ import { batimentsGoogleVisibles } from './batiments-google.js';
 // bâtiments (si l'on veut), les monuments, la circulation, les étiquettes et tout
 // le jeu Zém Run, qui roule ainsi sur les vraies rues vues par Google.
 
-export const MR = { actif: false, m: null, alt: null, maquette: false, enJeu: false, ombre: null };
+export const MR = { actif: false, m: null, alt: null, maquette: false, enJeu: false, visite: false, ombre: null };
 const v = new THREE.Vector3(), deg = 180 / Math.PI;
 
 async function creerCarte() {
@@ -38,7 +38,7 @@ function appliquerVisibilite() {
   batimentsGoogleVisibles(maquette);
   for (const m of VEGETATION) m.visible = maquette;
   rueActive(maquette);
-  LIEUX.caches = !maquette; visibiliteLieux(camera.position);
+  LIEUX.caches = !maquette && !MR.visite; visibiliteLieux(camera.position); // la visite montre nos monuments
   if (MR.ombre) MR.ombre.visible = on && maquette;
 }
 /** Active ou coupe la vue réelle ; renvoie un message d'erreur, ou null. */
@@ -57,6 +57,8 @@ export async function basculerMondeReel(on) {
   appliquerVisibilite();
   return null;
 }
+/** Pendant la visite : les monuments dessinés (Porte du Non-Retour, Arène, BCEAO…) restent sur les images Google. */
+export function monumentsEnVisite(on) { MR.visite = on; appliquerVisibilite(); }
 /** Maquette (bâtiments et rues dessinés) au-dessus des images Google, ou Google seul. */
 export function maquetteVisible(on) { MR.maquette = on; appliquerVisibilite(); }
 

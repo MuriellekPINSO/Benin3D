@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import { dureeVisite, musiqueVisite, radio } from './audio.js';
+import { dureeVisite, musiqueVisite, prechargerMusique, radio } from './audio.js';
 import { $ } from './base.js';
 import { PLACES } from './donnees-lieux.js';
 import { E } from './etat.js';
 import { startFlight } from './interface.js';
+import { monumentsEnVisite } from './monde-reel.js';
 import { camera, controls } from './scene.js';
 
 // ---------- Explorer : catégories, radio, présentation ----------
@@ -22,7 +23,7 @@ export const attendre = ms => new Promise(r => setTimeout(r, ms));
 export const finVol = () => new Promise(r => { const chk = () => (!E.flight || !PRES.actif) ? r() : requestAnimationFrame(chk); chk(); });
 export async function presentation() {
   if (PRES.actif) return; PRES.actif = true;
-  const app = document.getElementById('app'); app.classList.add('mode-pres'); $('#pres').hidden = false;
+  const app = document.getElementById('app'); app.classList.add('mode-pres'); $('#pres').hidden = false; monumentsEnVisite(true);
   const titre = (h, p) => { const t = $('#presTitre'), s = $('#presSous'); t.textContent = h; s.textContent = p; const box = $('#pres .pres-titre'); box.classList.remove('on'); void box.offsetWidth; box.classList.add('on'); };
   // La radio s'efface : la visite se fait sur « Agolo » d'Angélique Kidjo.
   const ancien = $('#btnRadio').getAttribute('aria-pressed') === 'true'; if (ancien) await radio(false);
@@ -48,9 +49,25 @@ export async function presentation() {
 }
 export function finPresentation(remettreRadio) {
   if (!PRES.actif) return; PRES.actif = false; controls.autoRotate = $('#togTour').getAttribute('aria-pressed') === 'true'; controls.autoRotateSpeed = -.35;
-  document.getElementById('app').classList.remove('mode-pres'); $('#pres').hidden = true;
+  document.getElementById('app').classList.remove('mode-pres'); $('#pres').hidden = true; monumentsEnVisite(false);
   musiqueVisite(false);
   if (remettreRadio) radio(true);
+}
+/** Accueil : on propose d'abord la visite. Le clic sur « Lancer la visite » autorise aussi le son
+ *  (les navigateurs refusent de jouer de la musique avant un geste). « Explorer librement » ou Échap : la ville tout de suite. */
+export function accueil() {
+  const el = $('#accueil'), app = document.getElementById('app'); if (!el) return;
+  app.classList.add('mode-accueil'); el.hidden = false; prechargerMusique();
+  const clavier = e => { if (e.key === 'Escape') fermer(); };
+  const fermer = () => {
+    if (el.hidden || el.classList.contains('sort')) return;
+    window.removeEventListener('keydown', clavier); app.classList.remove('mode-accueil'); el.classList.add('sort');
+    setTimeout(() => { el.hidden = true; el.classList.remove('sort'); }, 500);
+  };
+  $('#acVisite').addEventListener('click', () => { fermer(); presentation(); }, { once: true });
+  $('#acPasser').addEventListener('click', fermer, { once: true });
+  window.addEventListener('keydown', clavier);
+  $('#acVisite').focus({ preventScroll: true });
 }
 export function initExplorer() {
   initCategories();

@@ -15,11 +15,12 @@ export async function radio(on) {
 // Musique de la visite (mode Présentation) : « Agolo » d'Angélique Kidjo.
 const VISITE = { el: null, fondu: 0 };
 export function dureeVisite() { const d = VISITE.el?.duration; return Number.isFinite(d) ? d : 248; }
+/** Commence à charger le morceau, pour que la visite démarre sans attendre. */
+export function prechargerMusique() { if (!VISITE.el) { VISITE.el = new Audio(import.meta.env.BASE_URL + 'audio/agolo.mp3'); VISITE.el.preload = 'auto'; } return VISITE.el; }
 export async function musiqueVisite(on) {
   clearInterval(VISITE.fondu);
   if (on) {
-    if (!VISITE.el) { VISITE.el = new Audio(import.meta.env.BASE_URL + 'audio/agolo.mp3'); VISITE.el.preload = 'auto'; }
-    const a = VISITE.el; a.currentTime = 0; a.volume = .9;
+    const a = prechargerMusique(); a.currentTime = 0; a.volume = .9;
     try { await a.play(); return true; } catch (e) { console.warn('musique', e); return false; }
   }
   const a = VISITE.el; if (!a || a.paused) return false;

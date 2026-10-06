@@ -4,7 +4,7 @@ import { applyMood, sunDir } from './ambiances.js';
 import { $, LITE, reduceMotion } from './base.js';
 import { decode, frame, loadTxt, status } from './chargement.js';
 import { E } from './etat.js';
-import { initExplorer } from './explorer.js';
+import { accueil, initExplorer } from './explorer.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
 import { JEU, initJeu, majJeu } from './jeu.js';
 import { VEGETATION, animerLieux, construireLieux, portailUAC, semeOne, visibiliteLieux } from './lieux.js';
@@ -123,6 +123,7 @@ async function main() {
   if (!reduceMotion) startFlight(target.clone(), 12500, 0.98, 0.42, 6.5);
   requestAnimationFrame(t => { last = t; loop(t); });
   setTimeout(() => $('#loader').classList.add('done'), 150);
+  accueil(); // d'abord la visite en musique, ou la ville tout de suite
   // Le temps qu'il faisait la dernière fois.
   try { const m = localStorage.getItem('cotonou3d.meteo'); if (m && m !== 'soleil') changerMeteo(m); } catch { }
   // La vue réelle Google est la vue par défaut (sauf si on l'a coupée la dernière fois).
