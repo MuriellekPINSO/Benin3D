@@ -9,9 +9,9 @@ ou dans un tokpa-tokpa.
 
 ## Tester
 
-**En ligne, sans rien installer** : https://benin3d.vercel.app (republier avec `npm run vercel`, qui
-construit le site sans la clé Google ni les musiques). Aussi prévu sur GitHub Pages
-(https://muriellekpinso.github.io/Benin3D/, voir `.github/workflows/pages.yml`).
+**En ligne, sans rien installer** : https://tours-two-ashen.vercel.app — projet Vercel « tours », relié
+à ce dépôt : chaque envoi sur `main` le republie. La clé Google y est une variable d'environnement
+du projet (`VITE_GOOGLE_MAPS_KEY`), à restreindre au domaine dans la console Google Cloud.
 
 **Sur son ordinateur** (Node.js 20 ou plus) :
 
@@ -24,8 +24,8 @@ npm run dev          # puis ouvrir http://localhost:5173
 
 Tout ce qu'il faut est dans le dépôt : données de la ville, bâtiments, modèles 3D, photos et
 vidéos. Pour la vue réelle Google et Street View, copier `.env.example` en `.env.local` et y mettre
-une clé Google Maps (facultatif). Les musiques (radio, « Agolo ») ne sont pas dans le dépôt : le site
-fonctionne sans.
+une clé Google Maps (facultatif). La visite se fait sur « Agolo » d'Angélique Kidjo (`public/audio/agolo.mp3`) : œuvre protégée, dont
+les droits restent à obtenir pour une diffusion publique.
 
 À essayer : la visite (bouton Présentation), la vue réelle, les fiches « Sur place », la météo
 (touche M), et Zém Run — ↑ accélérer, ↓ freiner, E interagir, au carrefour ralentir puis ← ou →
@@ -34,8 +34,6 @@ pour tourner, manette Xbox ou PlayStation acceptée.
 ## Fichiers non versionnés
 
 - `.env.local` : la clé Google Maps (voir plus bas).
-- `public/audio/radio.mp3` et `public/audio/agolo.mp3` : musiques protégées (radio, visite sur
-  « Agolo » d'Angélique Kidjo). Sans elles, le site fonctionne, sans musique.
 - `sources/masques/` et `sources/art/` : modèles 3D d'origine (Tripo, 60 à 72 Mo chacun) ;
   les versions allégées utilisées par le site sont dans `public/modeles/`.
 - `osm/` : extraits OpenStreetMap et Google Open Buildings bruts (`npm run donnees` les lit).

@@ -10,9 +10,6 @@ osm/
 # légères de public/modeles, qui sont versionnées.
 sources/masques/
 sources/art/
-# Musiques protégées par le droit d'auteur (« Agolo » d'Angélique Kidjo, radio) : à déposer
-# localement dans public/audio/ (agolo.mp3, radio.mp3), pas dans un dépôt public.
-public/audio/*.mp3
 # Ancienne version en un fichier : elle embarque la musique de la radio (droits non vérifiés)
 artefact/cotonou-3d.html
 
