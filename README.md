@@ -9,8 +9,9 @@ ou dans un tokpa-tokpa.
 
 ## Tester
 
-**En ligne, sans rien installer** : https://muriellekpinso.github.io/Benin3D/ (publié automatiquement
-à chaque envoi sur `main`, voir `.github/workflows/pages.yml`).
+**En ligne, sans rien installer** : https://benin3d.vercel.app (republier avec `npm run vercel`, qui
+construit le site sans la clé Google ni les musiques). Aussi prévu sur GitHub Pages
+(https://muriellekpinso.github.io/Benin3D/, voir `.github/workflows/pages.yml`).
 
 **Sur son ordinateur** (Node.js 20 ou plus) :
 

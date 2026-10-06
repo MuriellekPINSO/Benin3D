@@ -15,3 +15,6 @@ sources/art/
 public/audio/*.mp3
 # Ancienne version en un fichier : elle embarque la musique de la radio (droits non vérifiés)
 artefact/cotonou-3d.html
+
+# Lien du projet Vercel (local)
+.vercel/

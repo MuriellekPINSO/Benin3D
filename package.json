@@ -12,6 +12,7 @@
     "modeles": "node scripts/modeles.mjs",
     "masques": "node scripts/masques.mjs",
     "photos": "node scripts/photos.mjs",
+    "vercel": "node scripts/vercel.mjs",
     "verifier": "eslint src"
   },
   "dependencies": {
