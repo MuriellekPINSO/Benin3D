@@ -237,7 +237,7 @@ export function preparerBordure(L, C, arrets) {
     ...EXTRA.map(([nom, kind, la, lo]) => { const [x, z] = toXZ(la, lo); return { nom, kind, x, z }; })];
   B.reperes = lieux.map(l => ({ ...l, ...projeter(C, l.x, l.z) })).filter(r => r.d < 300 && r.s > 20 && r.s < C.L - 10).sort((a, b) => a.s - b.s);
   // Noms de rues.
-  B.rues = (L.rues || []).map(r => ({ nom: r.nom, s: projeter(C, r.x, r.z).s })).sort((a, b) => a.s - b.s);
+  B.rues = (L.rues || []).map(r => { const p = projeter(C, r.x, r.z); return { nom: r.nom, s: p.s, d: p.d }; }).filter(r => r.d < 30).sort((a, b) => a.s - b.s); // après un virage, seules les rues encore sur le trajet
   B.ruePtr = 0;
   const ponts = [];
   B.rues.forEach((r, i) => { if (/^Pont/i.test(r.nom)) ponts.push([r.s - 30, (B.rues[i + 1]?.s ?? r.s + 300) + 30]); });

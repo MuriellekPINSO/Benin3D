@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { $ } from './base.js';
 import { E } from './etat.js';
 import { camera, controls } from './scene.js';
-import { JEU, sauter } from './jeu.js';
+import { JEU, sauter, virage } from './jeu.js';
 import { DISC, klaxonner, repondre } from './discussions.js';
 import { interagir } from './interactions.js';
 import { changerMeteo } from './meteo.js';
@@ -73,9 +73,9 @@ export function majManette(dt) {
       st.gazM = rt > .15; st.freinM = lt > .15; // à côté du clavier, sans l'écraser
       // Changement de file : un coup de stick ou de croix = une file.
       const dir = lx > .55 ? 1 : lx < -.55 ? -1 : 0;
-      if (dir && dir !== M.lateral) st.file = Math.max(-2, Math.min(2, st.file + dir));
+      if (dir && dir !== M.lateral && !virage(dir)) st.file = Math.max(-2, Math.min(2, st.file + dir));
       M.lateral = dir;
-      if (appuye(5)) st.file = Math.min(2, st.file + 1); if (appuye(4)) st.file = Math.max(-2, st.file - 1);
+      if (appuye(5) && !virage(1)) st.file = Math.min(2, st.file + 1); if (appuye(4) && !virage(-1)) st.file = Math.max(-2, st.file - 1);
       const dialogue = !!DISC.courant;
       if (appuye(0)) { if (dialogue) repondre(0); else sauter(); }
       if (appuye(1)) { if (dialogue) repondre(1); else klaxonner(); }

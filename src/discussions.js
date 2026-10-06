@@ -119,8 +119,8 @@ const APPELS = {
   zems: ['Zém ! Zém !', 'On va où, tanti ?'],
 };
 
-export function preparerDiscussions(L, C, arrets) {
-  nettoyerDiscussions();
+export function preparerDiscussions(L, C, arrets, garderClient = false) {
+  nettoyerDiscussions(garderClient);
   const ponts = BORD.ponts || [], surPont = s => ponts.some(([a, b]) => s > a && s < b);
   const g = [];
   for (let s = 90 + Math.random() * 60; s < C.L - 60; s += 130 + Math.random() * 130) {
@@ -139,10 +139,11 @@ export function preparerDiscussions(L, C, arrets) {
     DISC.signes.push({ s, side, graine: Math.floor(Math.random() * 1e5), m: null, etat: 'attend' });
   }
 }
-export function nettoyerDiscussions() {
+export function nettoyerDiscussions(garderClient = false) {
   for (const v2 of DISC.vivants) { v2.g.parent?.remove(v2.g); for (const m of v2.membres) m.userData.liberer(); }
   for (const h of DISC.signes) if (h.m) { h.m.parent?.remove(h.m); h.m.userData.liberer(); }
   DISC.signes = [];
+  if (garderClient) { DISC.vivants = []; DISC.groupes = []; DISC.collecteur = null; return; } // virage : le client reste à bord
   DISC.vivants = []; DISC.groupes = []; DISC.file = []; DISC.courant = null; DISC.client = null; DISC.klaxons = []; DISC.collecteur = null;
   fermerDialogue(); viderBulles();
 }

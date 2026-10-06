@@ -7,6 +7,29 @@ les rues d'OpenStreetMap (12 000 voies), le lac Nokoué et le littoral. Les gran
 d'après des photos, et le jeu **Zém Run** fait découvrir les quartiers au guidon d'un zémidjan
 ou dans un tokpa-tokpa.
 
+## Tester
+
+**En ligne, sans rien installer** : https://muriellekpinso.github.io/Benin3D/ (publié automatiquement
+à chaque envoi sur `main`, voir `.github/workflows/pages.yml`).
+
+**Sur son ordinateur** (Node.js 20 ou plus) :
+
+```bash
+git clone https://github.com/MuriellekPINSO/Benin3D.git
+cd Benin3D
+npm install
+npm run dev          # puis ouvrir http://localhost:5173
+```
+
+Tout ce qu'il faut est dans le dépôt : données de la ville, bâtiments, modèles 3D, photos et
+vidéos. Pour la vue réelle Google et Street View, copier `.env.example` en `.env.local` et y mettre
+une clé Google Maps (facultatif). Les musiques (radio, « Agolo ») ne sont pas dans le dépôt : le site
+fonctionne sans.
+
+À essayer : la visite (bouton Présentation), la vue réelle, les fiches « Sur place », la météo
+(touche M), et Zém Run — ↑ accélérer, ↓ freiner, E interagir, au carrefour ralentir puis ← ou →
+pour tourner, manette Xbox ou PlayStation acceptée.
+
 ## Fichiers non versionnés
 
 - `.env.local` : la clé Google Maps (voir plus bas).

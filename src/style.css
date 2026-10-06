@@ -409,3 +409,11 @@ button { font: inherit; color: inherit; }
 .manette-info { position: absolute; left: 50%; top: 18px; transform: translate(-50%, -12px); z-index: 40; background: rgba(20,24,30,.85); color: #fffaf0; padding: 9px 16px; border-radius: 999px; font: 600 13px/1.2 var(--font-body); opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; }
 .manette-info.on { opacity: 1; transform: translate(-50%, 0); }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Carrefour devant : flèches pour tourner */
+.jh-carrefour { position: absolute; left: 50%; top: 212px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-radius: 14px; background: rgba(20, 24, 30, .78); color: #fffaf0; font: 700 14px/1.1 var(--font-body); pointer-events: none; }
+.jh-carrefour[hidden] { display: none; }
+.jh-carrefour span { font: 900 26px/1 var(--font-display); color: #f2c21b; }
+.jh-carrefour span.non { opacity: .2; }
+.jh-carrefour.maintenant { background: #f2c21b; color: #1d1a16; }
+.jh-carrefour.maintenant span { color: #1d1a16; }

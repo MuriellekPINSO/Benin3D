@@ -19,6 +19,7 @@ import { essenceDepart, facteurEssence, majEssence } from './essence.js';
 import { interagir, majInteractions } from './interactions.js';
 import { METEO } from './meteo.js';
 import { vibrer } from './manette.js';
+import { carrefoursDe, construireReseau, itineraire } from './carrefours.js';
 import { ouvrirOffre } from './publicites.js';
 import { rueRouteJeu } from './rue.js';
 
@@ -137,10 +138,10 @@ export function creerObjet(type, s, file) {
 }
 export function retirerObjet(o) { JEU.decor.remove(o.mesh); }
 
-export function construireDecorLigne(L, C) {
+export function construireDecorLigne(L, C, debut = 1) {
   // Arrêts : zone jaune sur la file de droite, panneau au nom du quartier, passagers qui attendent.
   const g = JEU.decor;
-  for (let k = 1; k < L.arrets.length; k++) {
+  for (let k = Math.max(1, debut); k < L.arrets.length; k++) {
     const a = L.arrets[k], s = a.s;
     const z = new THREE.Mesh(new THREE.PlaneGeometry(30, LANE * .9).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#f2c21b', transparent: true, opacity: .55, depthWrite: false }));
     const p = pose(C, s - 12, LANE); z.position.set(p.x, p.y + .12, p.z); z.rotation.y = p.a; g.add(z);
@@ -187,20 +188,11 @@ export function lancerLigne(L, veh) {
   // Recale les arrêts sur le chemin lissé.
   const tot = L.arrets[L.arrets.length - 1].s || 1; L.arretsJ = L.arrets.map(a => ({ ...a, s: Math.min(C.L - 2, a.s / tot * C.L) }));
   L.arretsJ[0].s = 0;
+  L.arretsXZ = L.arretsJ.map(a => { const p = pose(C, a.s, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }); return [p.x, p.z]; });
   if (JEU.decor) scene.remove(JEU.decor);
   JEU.decor = new THREE.Group(); JEU.decor.renderOrder = 11; scene.add(JEU.decor);
-  JEU.objets = [];
-  construireDecorLigne({ arrets: L.arretsJ }, C);
-  preparerBordure(L, C, L.arretsJ); satelliteVisible(false);
-  preparerDiscussions(L, C, L.arretsJ);
-  // Les murs et portails de la ville s'écartent des boutiques-conteneurs et des stations du jeu.
-  const occupees = [];
-  for (const it of BORD.items) {
-    if (it.type === 'station') { const p = pose(C, it.s, it.side * (it.off + 6), { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); occupees.push([p.x, p.z, 10]); }
-    else if (it.type === 'enseigne' && /mode|coiffure|telephone|boutique|quincaillerie|garage/.test(it.t)) { const p = pose(C, it.s, it.side * (it.off + 3.4), { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); occupees.push([p.x, p.z, 4.6]); }
-  }
-  rueRouteJeu(C, occupees);
-  degagerVegetation(C);
+  satelliteVisible(false);
+  installerTrajet(L, C, 1, false);
   const V = VEH[veh];
   // Zém du joueur : moto-taxi détaillée de 3D monde (conducteur au gilet jaune), sinon le modèle en code.
   const detaille = veh === 'zem' && ZEMS_3D.moto;
@@ -226,11 +218,51 @@ export function lancerLigne(L, veh) {
   document.getElementById('app').classList.add('mode-jeu');
   $('#jeuMenu').hidden = true; $('#jeuFin').hidden = true; $('#jeuHud').hidden = false; $('#jeuPause').hidden = true;
   $('#jhNom').textContent = `${L.nom} · ${V.nom}`;
-  const bar = $('#jhArrets'); bar.innerHTML = L.arretsJ.map(a => `<i style="left:${(a.s / C.L * 100).toFixed(2)}%" title="${a.nom}"></i>`).join('');
   audioCtx(); moteur(veh); if (AUDIO.radio) radio(true);
   const p = pose(C, 0); camera.position.set(p.x - p.dx * 30, 14, p.z - p.dz * 30); JEU.regard = new THREE.Vector3(p.x, 1, p.z);
   if (METEO.pluie > .3) setTimeout(() => toast('Il pleut : la route glisse, freine plus tôt', 2.4, 'mal'), 3200);
   toast(JEU.autoGaz ? `Départ : ${L.arretsJ[0].nom}` : `${L.arretsJ[0].nom} · ↑ accélérer, ↓ freiner, E interagir`, 3);
+}
+// Tout ce qui dépend du trajet : arrêts, bord de route, gens, habillage des rues, végétation, carrefours.
+function installerTrajet(L, C, debut, garderClient) {
+  for (const o of [...JEU.decor.children]) if (o !== JEU.joueur) JEU.decor.remove(o);
+  JEU.objets = [];
+  construireDecorLigne({ arrets: L.arretsJ }, C, debut);
+  preparerBordure(L, C, L.arretsJ);
+  preparerDiscussions(L, C, L.arretsJ, garderClient);
+  // Les murs et portails de la ville s'écartent des boutiques-conteneurs et des stations du jeu.
+  const occupees = [];
+  for (const it of BORD.items) {
+    if (it.type === 'station') { const p = pose(C, it.s, it.side * (it.off + 6), { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); occupees.push([p.x, p.z, 10]); }
+    else if (it.type === 'enseigne' && /mode|coiffure|telephone|boutique|quincaillerie|garage/.test(it.t)) { const p = pose(C, it.s, it.side * (it.off + 3.4), { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); occupees.push([p.x, p.z, 4.6]); }
+  }
+  rueRouteJeu(C, occupees);
+  degagerVegetation(C);
+  const bar = $('#jhArrets'); if (bar) bar.innerHTML = L.arretsJ.map((a, k) => k < debut && k ? '' : `<i style="left:${(a.s / C.L * 100).toFixed(2)}%" title="${a.nom}"></i>`).join('');
+  try { construireReseau(); JEU.carrefours = carrefoursDe(C); } catch (e) { console.warn('carrefours', e); JEU.carrefours = []; }
+}
+/** Au carrefour, ← ou → (ralenti) : on prend la rue de ce côté et le GPS recalcule jusqu'aux arrêts suivants. */
+export function virage(dir) {
+  const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || !JEU.carrefours || JEU.pause) return false;
+  if (st.v > 12) return false; // à plus de 43 km/h, les flèches changent de file
+  const j = JEU.carrefours.find(c => c.s - st.s > -4 && c.s - st.s < 18), br = j && (dir < 0 ? j.gauche : j.droite);
+  if (!br || st.prochain >= L.arretsJ.length) return false;
+  const p = pose(C, st.s, st.lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  const pts = itineraire(p.x, p.z, j.n, br.m, L.arretsXZ.slice(st.prochain));
+  if (!pts || pts.length < 3) { toast('Pas de route par là', 1.2, 'mal'); return false; }
+  const C2 = cheminDe(pts); C2.H = calerSurPonts(C2);
+  let depuis = 0;
+  L.arretsJ = L.arretsJ.map((a, k) => {
+    if (k < st.prochain) return { ...a, s: 0 };
+    const [x, z] = L.arretsXZ[k]; let best = depuis, bd = 1e18;
+    for (let i = depuis; i < C2.n; i += 2) { const d = (C2.X[i] - x) ** 2 + (C2.Z[i] - z) ** 2; if (d < bd) { bd = d; best = i; } }
+    depuis = best; return { ...a, s: Math.min(C2.L - 2, best) };
+  });
+  L.arretsJ[L.arretsJ.length - 1].s = C2.L - 2;
+  JEU.chemin = C2; st.s = 1; st.spawn = 40; st.lat = 0; st.file = 0; st.plein = -1;
+  installerTrajet(L, C2, st.prochain, true);
+  son('piece'); toast(`${dir < 0 ? '↰ À gauche' : '↱ À droite'} · itinéraire recalculé`, 1.6, 'bien');
+  return true;
 }
 export function quitterJeu() {
   JEU.actif = false; moteurStop(); nettoyerBordure(); nettoyerDiscussions(); remettreVegetation(); satelliteVisible(true); rueRouteJeu(null);
@@ -366,6 +398,16 @@ export function majJeu(dt) {
   // Bord de route, monuments, plaques de rue, mini-carte.
   const rep = majBordure(st, C);
   majDiscussions(st, C, dt);
+  // Carrefour devant : « ← / → pour tourner » (ralentir d'abord).
+  const cf = JEU.carrefours?.find(c => c.s - st.s > -4 && c.s - st.s < 70), elC = $('#jhCarrefour');
+  if (elC) {
+    elC.hidden = !cf;
+    if (cf) {
+      const d = Math.max(0, Math.round(cf.s - st.s)), lent = st.v <= 12, ici = cf.s - st.s < 18;
+      elC.className = 'jh-carrefour' + (ici && lent ? ' maintenant' : '');
+      elC.innerHTML = `<span class="${cf.gauche ? '' : 'non'}">↰</span><b>${ici ? (lent ? 'Tourne maintenant' : 'Ralentis pour tourner') : `Carrefour · ${d} m`}</b><span class="${cf.droite ? '' : 'non'}">↱</span>`;
+    }
+  }
   majInteractions(st, C, dt);
   if (st.pneus > 0) st.pneus -= dt;
   if (JEU.fini !== true && Math.floor(st.temps * 20) !== Math.floor((st.temps - dt) * 20)) majMiniCarte(st, C);
@@ -464,7 +506,7 @@ export function initJeu(data) {
   $('#jhPause').addEventListener('click', () => { if (JEU.fini) return; JEU.pause = true; moteurMaj(0, false); $('#jeuPause').hidden = false; });
   $('#jhSon').addEventListener('click', e => { AUDIO.muet = !AUDIO.muet; e.currentTarget.setAttribute('aria-pressed', String(!AUDIO.muet)); if (AUDIO.muet) { moteurMaj(0, false); radio(false); } });
   const st = () => JEU.etat;
-  const gauche = () => { if (st() && st().file > -2) st().file--; }, droite = () => { if (st() && st().file < 2) st().file++; };
+  const gauche = () => { if (!st() || virage(-1)) return; if (st().file > -2) st().file--; }, droite = () => { if (!st() || virage(1)) return; if (st().file < 2) st().file++; };
 
   window.addEventListener('keydown', e => {
     if (!JEU.actif || JEU.fini) return;

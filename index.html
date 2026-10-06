@@ -101,7 +101,7 @@
         <button type="button" class="btn-ghost" id="jmPub">Annonceurs</button>
         <button type="button" class="btn-ghost" id="jmRetour">Retour à la carte</button>
       </div>
-      <p class="jm-aide"><b>↑</b> accélérer · <b>↓</b> freiner (tu t'arrêtes où tu veux) · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
+      <p class="jm-aide"><b>↑</b> accélérer · <b>↓</b> freiner (tu t'arrêtes où tu veux) · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner (le GPS recalcule la route) · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
       <label class="jm-option"><input type="checkbox" id="jmAuto"> Accélération automatique (plus facile)</label>
     </div>
     <div class="jeu-hud" id="jeuHud" hidden>
@@ -110,6 +110,7 @@
         <div class="jh-stats panel"><b id="jhArgent">0 F</b><span id="jhVies"></span><span id="jhVitesse">0 km/h</span><span id="jhPassagers"></span><span class="jh-essence" id="jhEssence" title="Essence"><i></i></span></div>
       </div>
       <div class="jh-quartier" id="jhQuartier"></div>
+      <div class="jh-carrefour" id="jhCarrefour" hidden></div>
       <div class="jh-rue" id="jhRue"><small>Vous roulez sur</small><b></b></div>
       <div class="jh-repere" id="jhRepere"><div class="jh-photo" id="jhRepPhoto" hidden></div><small></small><b></b></div>
       <canvas class="jh-mini" id="jhMini" width="360" height="360" aria-label="Mini-carte du trajet"></canvas>
