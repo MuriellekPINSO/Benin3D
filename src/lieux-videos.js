@@ -343,23 +343,33 @@ function rondPointAeroport(cx, cz, r) {
   bake(g);
 }
 
-// ---------- Mosquée de Zongo : salle blanche à baies en arc, deux minarets ----------
+K.motif('domeZongo', (c, t) => { // coupole : bleu ardoise, losanges blancs, croissants et étoiles dorés (photos Commons)
+  c.fillStyle = '#5a6f9a'; c.fillRect(0, 0, t, t);
+  for (let i = 0; i < 4; i++) { const x = (i + .5) * t / 4, y = t * .32; c.fillStyle = '#eef0ea'; c.beginPath(); c.moveTo(x, y - t * .13); c.lineTo(x + t * .09, y); c.lineTo(x, y + t * .13); c.lineTo(x - t * .09, y); c.closePath(); c.fill();
+    c.fillStyle = '#d9b44a'; c.beginPath(); c.arc(x, y, t * .035, 0, Math.PI * 2); c.fill(); c.fillStyle = '#eef0ea'; c.beginPath(); c.arc(x + t * .012, y - t * .006, t * .03, 0, Math.PI * 2); c.fill(); }
+  c.fillStyle = '#4b5f88'; c.fillRect(0, t * .62, t, t * .03);
+});
+// ---------- Mosquée de Zongo : salle blanche à baies en arc, bandeaux bleus, coupole bleue à losanges, deux minarets ----------
 function mosqueeZongo(ring) {
   const c = centroide(ring), g = groupeLieu('zongo', c[0], c[1]);
   K.into(g, () => {
     const loc = ring.map(([x, z]) => [x - c[0], z - c[1]]);
     mursPoly(loc, 0, 10, K.tex('mosquee', 1, 1), 5, 10, undefined, K.mat('#ecebe6'));
+    mursPoly(loc.map(([x, z]) => [x * 1.004, z * 1.004]), 9.3, 10, K.mat('#3f6fb0', { rugosite: .6 }), 5, .7); // bandeau bleu en haut du mur
+    mursPoly(loc.map(([x, z]) => [x * 1.004, z * 1.004]), 3.9, 4.4, K.mat('#3f6fb0', { rugosite: .6 }), 5, .5); // bandeau bleu au-dessus des arcades
     let best = null, bl = 0;
     for (let i = 0; i < loc.length; i++) { const a = loc[i], b = loc[(i + 1) % loc.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L > bl) { bl = L; best = [a, b]; } }
     const [a, b] = best, ux = (b[0] - a[0]) / bl, uz = (b[1] - a[1]) / bl;
     for (const f of [.3, .7]) {
-      const x = a[0] + ux * bl * f, z = a[1] + uz * bl * f, blanc = K.mat('#f4f2ec'), vert = K.mat('#3f7a5a', { rugosite: .4 });
+      const x = a[0] + ux * bl * f, z = a[1] + uz * bl * f, blanc = K.mat('#f4f2ec'), vert = K.mat('#5a6f9a', { rugosite: .45 });
       K.cyl(1.7, 1.9, 30, 8, blanc, x, 15, z);
       for (const y of [16, 26]) { K.cyl(2.5, 2.3, .6, 8, blanc, x, y, z); K.cyl(2.4, 2.4, 1.1, 8, K.mat('#d8d4ca'), x, y + .9, z, undefined, true); }
       K.cyl(1.3, 1.5, 4, 8, blanc, x, 32, z); K.cyl(1.45, 1.45, .8, 8, vert, x, 34.4, z);
       K.cone(1.4, 4.2, 8, vert, x, 36.9, z); K.cyl(.05, .05, 1.4, 6, '#c8a468', x, 39.5, z);
     }
-    K.sphere(5, K.mat('#3f7a5a', { rugosite: .4 }), 0, 10, 0).scale.set(1, .7, 1);
+    K.cyl(5.2, 5.2, 2.2, 32, K.mat('#f4f2ec'), 0, 10.6, 0); // tambour de la coupole
+    K.sphere(5, K.tex('domeZongo', 4, 1), 0, 11.6, 0).scale.set(1, .8, 1);
+    K.cyl(.06, .06, 2.4, 6, '#d9b44a', 0, 16.6, 0); K.maillage(new THREE.TorusGeometry(.42, .07, 6, 16, Math.PI * 1.45), K.mat('#d9b44a'), 0, 17.6, 0).rotation.z = -.4;
   });
   bake(g);
 }

@@ -42,13 +42,13 @@ export const K = (() => {
     roche(c, t) { c.fillStyle = '#a89a83'; c.fillRect(0, 0, t, t); for (let i = 0; i < 100; i++) { c.fillStyle = ['#b6a992', '#9a8c76', '#c2b6a0', '#8d8070'][Math.floor(alea() * 4)]; const w = t * .09 + alea() * t * .17; c.fillRect(alea() * t, alea() * t, w, w * .7); } },
     // Cathédrale Notre-Dame : rayures rouges et blanches, baies en plein cintre cernées de rouge.
     rayures(c, t) {
-      for (let i = 0; i < 16; i++) { c.fillStyle = i % 2 ? '#f1ece4' : '#b8352c'; c.fillRect(0, i * t / 16, t, t / 16 + 1); }
+      for (let i = 0; i < 10; i++) { c.fillStyle = i % 2 ? '#f1ece4' : '#b8352c'; c.fillRect(0, i * t / 10, t, t / 10 + 1); }
       const bx = t * .3, bw = t * .4, by = t * .22, bh = t * .5;
       c.fillStyle = '#9d2a22'; c.beginPath(); c.moveTo(bx - 6, by + bh); c.lineTo(bx - 6, by + bw / 2); c.arc(t / 2, by + bw / 2, bw / 2 + 6, Math.PI, 0); c.lineTo(bx + bw + 6, by + bh); c.closePath(); c.fill();
       c.fillStyle = '#2b2a2c'; c.beginPath(); c.moveTo(bx, by + bh); c.lineTo(bx, by + bw / 2); c.arc(t / 2, by + bw / 2, bw / 2, Math.PI, 0); c.lineTo(bx + bw, by + bh); c.closePath(); c.fill();
       grain(c, t, 300, ['#e6dfd4', '#a93029']);
     },
-    rayuresPleines(c, t) { for (let i = 0; i < 16; i++) { c.fillStyle = i % 2 ? '#f1ece4' : '#b8352c'; c.fillRect(0, i * t / 16, t, t / 16 + 1); } grain(c, t, 300, ['#e6dfd4', '#a93029']); },
+    rayuresPleines(c, t) { for (let i = 0; i < 10; i++) { c.fillStyle = i % 2 ? '#f1ece4' : '#b8352c'; c.fillRect(0, i * t / 10, t, t / 10 + 1); } grain(c, t, 300, ['#e6dfd4', '#a93029']); },
     // Planches de Ganvié : lames verticales de bois gris, joints sombres.
     planches(c, t) { for (let i = 0; i < 12; i++) { c.fillStyle = ['#cfc6b6', '#bdb3a2', '#d8d0c2', '#c4baa8'][Math.floor(alea() * 4)]; c.fillRect(i * t / 12, 0, t / 12 - 2, t); } c.fillStyle = '#5b5247'; for (let i = 0; i < 12; i++) c.fillRect(i * t / 12 + t / 12 - 2, 0, 2, t); grain(c, t, 600, ['#a99f8e', '#e2dbcf'], 2); },
     paille(c, t) { c.fillStyle = '#a88d5c'; c.fillRect(0, 0, t, t); for (let i = 0; i < 900; i++) { c.strokeStyle = ['#bfa46d', '#8e7447', '#c9b27c', '#9b8150'][Math.floor(alea() * 4)]; c.lineWidth = 1 + alea() * 2; const x = alea() * t, y = alea() * t; c.beginPath(); c.moveTo(x, y); c.lineTo(x + (alea() - .5) * 6, y + 10 + alea() * 18); c.stroke(); } for (let j = 0; j < 6; j++) { c.fillStyle = 'rgba(70,52,30,.35)'; c.fillRect(0, j * t / 6, t, 3); } },
@@ -557,7 +557,7 @@ export function cathedrale(ring) {
       const x0 = Math.min(...xs) - 7.5, x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
       poserTripo('cathedrale', g, { largeur: Math.max(x1 - x0, z1 - z0), x: (x0 + x1) / 2, z: (z0 + z1) / 2 });
     } else {
-    nefEglise(nx0, nx1 + 6, nz0, nz1, 10, 7, true);
+    nefEglise(nx0, nx1 + 6, nz0, nz1, 10.9, 6.1, true, false, 'textures/cathedrale-facade.jpg');
     const pE = loc(E), pF = loc(F), pG = loc(Gp), pC = loc(C);
     const ax0 = Math.min(pC[0], pG[0]), ax1 = Math.max(pE[0], pF[0]), az0 = Math.min(pC[1], pE[1]), az1 = Math.max(pF[1], pG[1]);
     nefEglise(ax0, ax1, az0, az1, 9, 5.5, false, true);
@@ -574,7 +574,7 @@ export function cathedrale(ring) {
   });
   bake(g);
 }
-export function nefEglise(x0, x1, z0, z1, hMur, hToit, facade = false, axeZ = false) {
+export function nefEglise(x0, x1, z0, z1, hMur, hToit, facade = false, axeZ = false, photo = null) {
   const L = axeZ ? z1 - z0 : x1 - x0, W = axeZ ? x1 - x0 : z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   const g = new THREE.Group(); g.position.set(cx, 0, cz); if (axeZ) g.rotation.y = Math.PI / 2; K.racine.add(g);
   K.boite(L, hMur, W, K.tex('rayures', Math.max(1, Math.round(L / 4.5)), 2), 0, hMur / 2, 0, g);
@@ -587,7 +587,15 @@ export function nefEglise(x0, x1, z0, z1, hMur, hToit, facade = false, axeZ = fa
   const pente = Math.atan2(hToit, W / 2), rampant = Math.hypot(hToit, W / 2) + .8;
   for (const s of [-1, 1]) { const v = K.boite(L + 1.2, .25, rampant, K.tex('tole', 6, 2, '#9b6a52'), 0, hMur + hToit / 2, s * W / 4, g); v.rotation.x = s * pente; }
   K.boite(L + 1.2, .4, .5, '#7c4f3c', 0, hMur + hToit + .1, 0, g);
-  if (facade) {
+  if (facade && photo) {
+    // La vraie façade (photo libre redressée, scripts : redresser.mjs), découpée au gabarit du pignon ; la croix reste en volume.
+    const sh = new THREE.Shape(); sh.moveTo(-W / 2, 0); sh.lineTo(W / 2, 0); sh.lineTo(W / 2, hMur); sh.lineTo(0, hMur + hToit); sh.lineTo(-W / 2, hMur); sh.closePath();
+    const geo = new THREE.ShapeGeometry(sh), uv = geo.attributes.uv, p = geo.attributes.position;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (p.getX(i) + W / 2) / W, p.getY(i) / (hMur + hToit));
+    const tex = new THREE.TextureLoader().load(import.meta.env.BASE_URL + photo); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: .9 })); m.position.set(-L / 2 - .25, 0, 0); m.rotation.y = -Math.PI / 2; m.userData.garder = true; m.receiveShadow = true; m.castShadow = false; g.add(m);
+    K.boite(.3, 2.6, .3, '#efe9de', -L / 2, hMur + hToit + 1.3, 0, g); K.boite(.3, .3, 1.4, '#efe9de', -L / 2, hMur + hToit + 1.8, 0, g);
+  } else if (facade) {
     // Rosace et croix sur le pignon ouest, portail en plein cintre.
     K.cyl(1.7, 1.7, .3, 24, '#7a2a22', -L / 2 - .25, hMur + hToit * .42, 0, g).rotation.z = Math.PI / 2;
     K.cyl(1.2, 1.2, .35, 24, '#2b3a4a', -L / 2 - .3, hMur + hToit * .42, 0, g).rotation.z = Math.PI / 2;
@@ -785,6 +793,10 @@ export function dantokpa(B, M) {
       for (const r of [0, Math.PI]) { const t = panneauTexte(['MARCHÉ DANTOKPA'], 36, 4.2, 0, h + 4.2, r ? -.05 : .05, r, { fond: '#efe2c4', encre: '#2a2015', px: 1536, py: 180, police: '800 130px system-ui, sans-serif' }); t.material.side = THREE.FrontSide; }
       for (const x of [-15, 0, 15]) K.boite(.3, 3, .3, '#555', x, h + 1.5, -.3);
       K.boite(.4, .3, 36, '#555', 0, h + 1.9, 0).rotation.y = Math.PI / 2;
+      // La vraie façade (photo jbdodane, CC BY 2.0, vue depuis la lagune) sur les deux longs côtés ; le motif se répète si le bâtiment est plus long que la photo.
+      const Lb = Math.max(ob.L, ob.W), Wb = Math.min(ob.L, ob.W);
+      const tex = new THREE.TextureLoader().load(import.meta.env.BASE_URL + 'textures/dantokpa-facade.jpg'); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.wrapS = THREE.RepeatWrapping; tex.repeat.x = Math.max(1, (Lb / h) / 3.6);
+      for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(Lb - .3, h), new THREE.MeshStandardMaterial({ map: tex, roughness: .9 })); p.position.set(0, h / 2, s * (Wb / 2 + .08)); if (s < 0) p.rotation.y = Math.PI; p.userData.garder = true; p.receiveShadow = true; K.racine.add(p); }
     });
     bake(g);
   }

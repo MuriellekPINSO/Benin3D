@@ -165,8 +165,16 @@ publique demande l'accord de l'annonceur. Les affichages sont comptés par campa
 
 `public/textures/erevan-facade.jpg` : bandeau haut de la façade du centre commercial Erevan, tiré de la
 photo « Centre commercial Erevan de Cotonou 08 » d'Alex Ahdn (Wikimedia Commons, CC BY-SA 4.0), redressée,
-recadrée et nettoyée des poteaux et drapeaux. Crédit affiché dans le bandeau du site. Même licence pour
-toute réutilisation de cette texture.
+recadrée et nettoyée des poteaux et drapeaux.
+`public/textures/cathedrale-facade.jpg` : pignon de la Cathédrale Notre-Dame, tiré de la photo « Cathédrale
+Notre-Dame-de-misericordes à Cotonou » de Saliousoft (Wikimedia Commons, CC BY-SA 4.0), redressée par homographie,
+le bas caché par la clôture recomposé à partir des rayures.
+`public/textures/dantokpa-facade.jpg` : façade du grand bâtiment du marché Dantokpa vue de la lagune, photo
+« Marché Dantokpa (vue arrière) » de jbdodane (Wikimedia Commons, CC BY 2.0).
+`public/textures/porte-facade.jpg` + `porte-alpha.jpg` : la Porte du Non-Retour, photo « Porte du non-retour au
+Benin » de Borisghost (Wikimedia Commons, CC0), vides découpés par le masque d'alpha.
+Crédits affichés dans le bandeau du site. Même licence (CC BY-SA 4.0, CC BY 2.0) pour toute réutilisation des
+textures qui en relèvent.
 
 ## D'où viennent les données
 

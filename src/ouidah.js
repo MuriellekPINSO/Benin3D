@@ -249,6 +249,7 @@ function captif(c, x, y, h, sens, pose = 0) { // de profil : 0 en marche, 1 bras
   c.stroke();
 }
 const ocre = (c, x0, y0, x1, y1) => { const g = c.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, '#f4cf5a'); g.addColorStop(.55, '#d9a12c'); g.addColorStop(1, '#9a6a1a'); return g; };
+const PHOTO_PORTE = true; // vraie façade d'après photo (public/textures/porte-facade.jpg)
 function porte() {
   const G = new THREE.Group();
   const add = (m, cast = true) => { m.castShadow = cast && !LITE; m.receiveShadow = true; G.add(m); return m; };
@@ -289,8 +290,21 @@ function porte() {
     const p = arche.attributes.position, uv = arche.attributes.uv, n = arche.attributes.normal;
     for (let i = 0; i < p.count; i++) { const ax = Math.abs(n.getX(i)) > .5 ? p.getZ(i) : p.getX(i), ay = Math.abs(n.getY(i)) > .5 ? p.getZ(i) : p.getY(i); uv.setXY(i, ax / 6, ay / 6); }
   }
-  // Modèle Tripo (d'après photo) s'il existe, sinon l'arche dessinée à la main.
+  // Modèle Tripo (d'après photo) s'il existe ; sinon la vraie structure habillée de la photo libre (Borisghost, CC0) ; sinon l'arche dessinée.
   if (tripoDispo('porte')) poserTripo('porte', G, { largeur: W + 1.2 });
+  else if (PHOTO_PORTE) {
+    // Mesures prises sur la photo (90 px/m) : bloc de frise de 10 à 15,7 m, quatre piliers de 1,6 m, arche de 9,55 m entre les piliers intérieurs.
+    const Ht = 15.7, yB = 10, blanc = std({ color: '#f3efe6', roughness: .85 });
+    add(new THREE.Mesh(new THREE.BoxGeometry(23.2, Ht - yB, D), blanc)).position.set(-.2, (Ht + yB) / 2, 0); // largeur du bloc lue sur la photo
+    for (const x of [-9.28, -5.78, 5.33, 9.0]) add(new THREE.Mesh(new THREE.BoxGeometry(1.6, yB, D), blanc)).position.set(x, yB / 2, 0); // positions lues sur la photo
+    const sp = new THREE.Shape(); sp.moveTo(-4.75, 6.1); sp.lineTo(-4.75, yB); sp.lineTo(4.75, yB); sp.lineTo(4.75, 6.1); sp.absellipse(0, 6.1, 4.75, 2.8, 0, Math.PI, false); sp.closePath();
+    add(new THREE.Mesh(new THREE.ExtrudeGeometry(sp, { depth: D, bevelEnabled: false, curveSegments: 24 }).translate(0, 0, -D / 2), blanc));
+    // Les deux grandes faces : la photo, avec les vides (baies, arche) découpés par un masque d'alpha.
+    const charge = f => { const t = new THREE.TextureLoader().load(import.meta.env.BASE_URL + f); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+    const alpha = charge('textures/porte-alpha.jpg'); alpha.colorSpace = THREE.NoColorSpace;
+    const mPhoto = new THREE.MeshStandardMaterial({ map: charge('textures/porte-facade.jpg'), alphaMap: alpha, alphaTest: .5, roughness: .8 });
+    for (const s of [-1, 1]) { const p = add(new THREE.Mesh(new THREE.PlaneGeometry(W, 16.2), mPhoto), false); p.position.set(0, 7.6, s * (D / 2 + .05)); if (s < 0) p.rotation.y = Math.PI; p.userData.garder = true; }
+  }
   else {
   add(new THREE.Mesh(arche, betonM));
   // Cintre de la baie souligné de jaune et de rouge.
