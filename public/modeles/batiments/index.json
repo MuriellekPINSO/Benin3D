@@ -1,0 +1,30 @@
+{
+ "congres": {
+  "triangles": 79998,
+  "octets": 1305140
+ },
+ "etoile": {
+  "triangles": 79998,
+  "octets": 1453408
+ },
+ "porte": {
+  "triangles": 80000,
+  "octets": 1310192
+ },
+ "cathedrale": {
+  "triangles": 80000,
+  "octets": 1880916
+ },
+ "dome": {
+  "triangles": 79998,
+  "octets": 1390792
+ },
+ "bioguera": {
+  "triangles": 80000,
+  "octets": 1326184
+ },
+ "dantokpa": {
+  "triangles": 80000,
+  "octets": 1484372
+ }
+}

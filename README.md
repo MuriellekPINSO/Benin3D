@@ -181,6 +181,16 @@ entrée du Sofitel, photo « Sofitel Cotonou Marina Hôtel & Spa » de Freed Arm
 Crédits affichés dans le bandeau du site. Même licence (CC BY-SA 4.0, CC BY 2.0) pour toute réutilisation des
 textures qui en relèvent.
 
+## Bâtiments reconnaissables : modèles 3D générés d'après photos
+
+`public/modeles/batiments/<id>.glb` (liste dans `index.json`) : Palais des Congrès, Cathédrale, Porte du Non-Retour,
+colonne de l'Étoile Rouge, cavalier de Bio Guéra, Le Dôme. Générés avec l'API Tripo (`npm run tripo -- <id> <photo>`,
+clé `TRIPO_API_KEY` dans `.env.local`, ~40 crédits par modèle) à partir de photos libres de Wikimedia Commons
+(`scripts/tripo-photos.json` : auteur, licence, page), puis allégés à 80 000 triangles (`alleger`). Les retouches de
+couleur par modèle sont dans `scripts/tripo-reglages.json`, la pose dans la ville (rotation, décalage) dans
+`src/batiments-tripo.js` (`REGLAGES`). Les modèles d'origine (50 Mo chacun) restent dans `sources/tripo/`, non versionné.
+Ces modèles dérivent de photos CC BY / CC BY-SA / CC0 : crédits dans le bandeau du site, même licence pour les réutiliser.
+
 ## D'où viennent les données
 
 - **Google (Maps JavaScript API)** : la vue réelle (images satellite, relief, bâtiments 3D là où Google en a),

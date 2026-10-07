@@ -1,0 +1,7 @@
+{
+ "dome": {
+  "saturation": 0.2,
+  "luminosite": 1.6
+ },
+ "_aide": "saturation 0..1, luminosite (1 = inchang\u00e9), teinte en degr\u00e9s, gris '#rrggbb' = teinte appliqu\u00e9e (sharp tint)"
+}

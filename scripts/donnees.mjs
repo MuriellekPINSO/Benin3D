@@ -104,7 +104,7 @@ const ZONES_MARINA = { poly: [418092822, 1475569343, 1475569350, 824888822, 8249
 }
 const inMarina = (x, z) => ZONES_MARINA.cercles.some(([cx, cz, r]) => (x - cx) ** 2 + (z - cz) ** 2 < r * r) || ZONES_MARINA.poly.some(r => pip([x, z], r));
 // Bâtiments vus dans les vidéos de drone, reconstruits en détail : Sofitel, tour BCEAO, Erevan, mosquée de Zongo.
-const DETAILLES = { 272739400: 'sofitel', 539986464: 'bceao', 81766299: 'erevan', 361292644: 'zongo' };
+const DETAILLES = { 272739400: 'sofitel', 539986464: 'bceao', 81766299: 'erevan', 361292644: 'zongo', 274955299: 'dantokpaHall' };
 const ringsDetailles = {};
 const ETOILE_C = (() => { const r = lmRing(264916649); return [r.reduce((s, p) => s + p[0], 0) / r.length, r.reduce((s, p) => s + p[1], 0) / r.length]; })();
 const PITCH = lmRing(815467297), PITCH_C = [PITCH.reduce((s, p) => s + p[0], 0) / 4, PITCH.reduce((s, p) => s + p[1], 0) / 4];

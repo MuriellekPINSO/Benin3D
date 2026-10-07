@@ -797,7 +797,7 @@ export function dantokpa(B, M) {
   let best = -1, bestA = 0, off = 0; const offs = [];
   for (let i = 0; i < B.n.length; i++) { offs.push(off); off += B.n[i] * 2; }
   for (let i = 0; i < B.n.length; i++) if (B.c[i] === 10) { let A = 0; const n = B.n[i], o = offs[i]; for (let j = 0; j < n; j++) { const k = (j + 1) % n; A += B.p[o + 2 * j] * B.p[o + 2 * k + 1] - B.p[o + 2 * k] * B.p[o + 2 * j + 1]; } A = Math.abs(A) / 200; if (A > bestA && B.x[i] / 10 > 1800) { bestA = A; best = i; } }
-  if (best >= 0) {
+  if (best >= 0 && !tripoDispo('dantokpa')) { // sinon, le modèle Tripo du bâtiment (lieux-videos.js) porte déjà l'enseigne
     const n = B.n[best], o = offs[best], ring = []; for (let j = 0; j < n; j++) ring.push([(B.x[best] + B.p[o + 2 * j]) / 10, (B.z[best] + B.p[o + 2 * j + 1]) / 10]);
     const ob = obb(ring), h = B.h[best] / 4;
     const g = groupeLieu('dantokpa-enseigne', ob.cx, ob.cz, ob.L >= ob.W ? ob.ang : ob.ang + Math.PI / 2);

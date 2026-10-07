@@ -435,5 +435,7 @@ export function construireLieuxVideos(data) {
   marcheGanhi();
   placeMartyrs();
   if (D.zongo) mosqueeZongo(D.zongo);
+  // Grand bâtiment du marché Dantokpa : modèle Tripo (photo jbdodane, CC BY 2.0) posé sur l'emprise OSM.
+  if (D.dantokpaHall && tripoDispo('dantokpa')) { const o = obb(D.dantokpaHall); const g = groupeLieu('dantokpa-hall', o.cx, o.cz, o.L >= o.W ? o.ang : o.ang + Math.PI / 2); poserTripo('dantokpa', g, { largeur: Math.max(o.L, o.W) + 4 }); }
   tombes(data.tombes || []);
 }
