@@ -311,6 +311,73 @@ function pushLine(cls, flags, pts, tol = 5) {
 }
 const roadSeen = new Set(), roadsAll = [];
 for (const f of ['roads', 'roads2', 'ouidah_r']) for (const e of load(f)) if (!roadSeen.has(e.id)) { roadSeen.add(e.id); roadsAll.push(e); }
+// ---------- Boulevards à deux chaussées, calés sur la vue satellite Google (oct. 2026) ----------
+// OSM trace chaque moitié d'un boulevard (chaussée à sens unique) mais les place souvent trop loin l'une
+// de l'autre. Sur Google, les terre-pleins de Cotonou sont presque tous étroits : séparateur en béton de
+// 1,5 à 2,5 m (Marina, Route des Pêches, Saint-Michel), voire aucun (Steinmetz). On rapproche donc les deux
+// chaussées jusqu'à la largeur réelle du terre-plein, puis on calcule ce terre-plein. Au-delà de 10 m
+// d'écart, on garde le tracé d'OSM (vrai terre-plein large, planté). Unités : décimètres.
+const BOULEVARDS = {
+  'Boulevard de la Marina': { voies: 3, tp: 1.5 },        // 2 × 3 voies, séparateur béton (Google, vidéo du port)
+  'Route des Pêches': { tp: 1.5 },                          // séparateur béton avec lampadaires
+  'Boulevard Saint-Michel': { tp: 2.5 },                    // séparateur béton surélevé
+  'Avenue Monseigneur François Steinmetz': { tp: .8 },      // pas de terre-plein visible : simple marquage
+};
+const TP_DEFAUT = 2, TP_LARGE = 100; // m ; dm
+const largeurVoie = cls => cls <= 1 ? 3.5 : 3.3; // même formule dans src/ville.js
+const voiesDe = t => BOULEVARDS[t.name]?.voies ?? (Math.min(7, parseInt(t.lanes) || 0));
+const largeurSens = (voies, cls) => (Math.max(2, voies || 2) * largeurVoie(cls) + 1.2) * 10;
+const sensUniqueTags = t => t.oneway === 'yes' || t.oneway === '1' || t.oneway === '-1';
+const ptsOrientes = e => { const p = e.geometry.map(q => P(q.lat, q.lon)); return e.tags.oneway === '-1' ? p.reverse() : p; };
+/** Apparie chaque chaussée à sens unique d'un grand axe avec la moitié opposée du même boulevard. */
+function apparier(chaussees) {
+  const CG = 500, grille = new Map(), cleG = (x, z) => Math.floor(x / CG) + ',' + Math.floor(z / CG);
+  chaussees.forEach((c, ci) => { for (let i = 1; i < c.pts.length; i++) { const [ax, az] = c.pts[i - 1], [bx, bz] = c.pts[i]; for (const q of new Set([cleG(ax, az), cleG(bx, bz), cleG((ax + bx) / 2, (az + bz) / 2)])) { if (!grille.has(q)) grille.set(q, []); grille.get(q).push([ci, ax, az, bx, bz]); } } });
+  return chaussees.map((A, ci) => {
+    const ech = [];
+    for (let i = 1; i < A.pts.length; i++) {
+      const [ax, az] = A.pts[i - 1], [bx, bz] = A.pts[i], L = Math.hypot(bx - ax, bz - az); if (L < 1) continue;
+      for (let s = 0; s < L; s += 80) ech.push({ x: ax + (bx - ax) * s / L, z: az + (bz - az) * s / L, dx: (bx - ax) / L, dz: (bz - az) / L, paire: null });
+    }
+    for (const e of ech) {
+      const cx = Math.floor(e.x / CG), cz = Math.floor(e.z / CG);
+      for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const [bi, ax, az, bx, bz] of grille.get((cx + i) + ',' + (cz + j)) || []) {
+        if (bi === ci) continue; const B = chaussees[bi];
+        if (!A.nom || A.nom !== B.nom) continue; // les deux moitiés d'un même boulevard portent le même nom
+        const sx = bx - ax, sz = bz - az, l = Math.hypot(sx, sz); if (l < 1) continue;
+        if ((sx * e.dx + sz * e.dz) / l > -.85) continue; // même sens : pas l'autre moitié
+        const t = Math.max(0, Math.min(1, ((e.x - ax) * sx + (e.z - az) * sz) / (l * l))), px = ax + sx * t, pz = az + sz * t, d = Math.hypot(px - e.x, pz - e.z);
+        const ecart = d - (A.w + B.w) / 2;
+        if (ecart < -20 || ecart > 250 || Math.abs((px - e.x) * e.dx + (pz - e.z) * e.dz) > 120) continue;
+        if (!e.paire || d < e.paire.d) e.paire = { d, ecart, bi, ux: (px - e.x) / d, uz: (pz - e.z) / d };
+      }
+    }
+    return ech;
+  });
+}
+const chausseesDe = geom => { const out = []; roadsAll.forEach((e, idx) => {
+  const t = e.tags, cls = CLS[t.highway];
+  if (cls === undefined || cls > 3 || t.bridge || t.junction === 'roundabout' || !sensUniqueTags(t)) return;
+  out.push({ id: e.id, idx, pts: geom(e), w: largeurSens(voiesDe(t), cls), nom: t.name || '' });
+}); return out; };
+// 1. Rapprochement des deux chaussées jusqu'au terre-plein réel.
+const deplaces = new Map();
+{
+  const ch = chausseesDe(ptsOrientes), app = apparier(ch);
+  ch.forEach((A, ci) => {
+    const ech = app[ci].filter(e => e.paire); if (!ech.length) return;
+    const cible = (BOULEVARDS[A.nom]?.tp ?? TP_DEFAUT) * 10;
+    let bouge = false;
+    const pts = A.pts.map(([x, z]) => {
+      let best = null, bd = 150; for (const e of ech) { const d = Math.hypot(e.x - x, e.z - z); if (d < bd) { bd = d; best = e; } }
+      if (!best || best.paire.ecart > TP_LARGE || best.paire.ecart <= cible) return [x, z];
+      const k = (best.paire.ecart - cible) / 2; bouge = true;
+      return [x + best.paire.ux * k, z + best.paire.uz * k];
+    });
+    if (bouge) deplaces.set(A.id, pts);
+  });
+  console.log(`boulevards : ${deplaces.size} chaussées rapprochées pour suivre la vue Google`);
+}
 for (const e of roadsAll) {
   const t = e.tags; let cls;
   if (t.railway === 'rail') cls = 7; else cls = CLS[t.highway]; if (cls === undefined) continue;
@@ -319,58 +386,29 @@ for (const e of roadsAll) {
   if (/asphalt|concrete|paved$|chipseal/.test(s)) surf = 0; else if (/paving_stones|sett|cobblestone/.test(s)) surf = 1;
   else if (s) surf = 2; else surf = cls <= 2 ? 0 : cls === 3 ? 1 : 2;
   // Sens unique (chaussées séparées des boulevards) et nombre de voies : la largeur réelle en dépend.
-  const sensUnique = t.oneway === 'yes' || t.oneway === '1' || t.oneway === '-1', voies = Math.min(7, parseInt(t.lanes) || 0);
-  const flags = surf | (t.bridge ? 4 : 0) | (sensUnique ? 8 : 0) | (voies << 4);
-  let pts = e.geometry.map(p => P(p.lat, p.lon)); if (t.oneway === '-1') pts = pts.reverse();
+  const voies = voiesDe(t);
+  const flags = surf | (t.bridge ? 4 : 0) | (sensUniqueTags(t) ? 8 : 0) | (voies << 4);
+  const pts = deplaces.get(e.id) ?? ptsOrientes(e);
   pushLine(cls, flags, pts);
   roadLines.push({ cls, pts });
 }
-// Terre-pleins centraux : entre deux chaussées à sens unique opposées d'un même boulevard (2 × N voies),
-// la bande qui sépare leurs bords est un terre-plein (vidéos 2025 : gazon, bordures blanches, haies,
-// lampadaires, drapeaux sur la Marina). Largeur d'une chaussée à sens unique : voies × 3,3 m + 1,2 m
-// (même formule dans src/ville.js). Unités : décimètres ici, mètres dans le fichier produit.
-const largeurSens = voies => (Math.max(2, voies || 2) * 3.3 + 1.2) * 10;
+// 2. Terre-pleins centraux, sur le tracé rapproché.
 const terrePleins = [];
 {
-  const chaussees = [];
-  roadsAll.forEach((e, idx) => {
-    const t = e.tags, cls = CLS[t.highway];
-    if (cls === undefined || cls > 3 || t.bridge || t.junction === 'roundabout') return;
-    if (!(t.oneway === 'yes' || t.oneway === '1' || t.oneway === '-1')) return;
-    let pts = e.geometry.map(p => P(p.lat, p.lon)); if (t.oneway === '-1') pts = pts.reverse();
-    chaussees.push({ idx, pts, w: largeurSens(parseInt(t.lanes)), nom: t.name || '' });
-  });
-  const CG = 500, grille = new Map(), cleG = (x, z) => Math.floor(x / CG) + ',' + Math.floor(z / CG);
-  chaussees.forEach((c, ci) => { for (let i = 1; i < c.pts.length; i++) { const [ax, az] = c.pts[i - 1], [bx, bz] = c.pts[i]; const k = new Set([cleG(ax, az), cleG(bx, bz), cleG((ax + bx) / 2, (az + bz) / 2)]); for (const q of k) { if (!grille.has(q)) grille.set(q, []); grille.get(q).push([ci, ax, az, bx, bz]); } } });
-  for (const [ci, A] of chaussees.entries()) {
-    const ech = []; // échantillons tous les 8 m le long de A
-    for (let i = 1; i < A.pts.length; i++) {
-      const [ax, az] = A.pts[i - 1], [bx, bz] = A.pts[i], L = Math.hypot(bx - ax, bz - az); if (L < 1) continue;
-      for (let s = 0; s < L; s += 80) ech.push([ax + (bx - ax) * s / L, az + (bz - az) * s / L, (bx - ax) / L, (bz - az) / L]);
-    }
+  const ch = chausseesDe(e => deplaces.get(e.id) ?? ptsOrientes(e)), app = apparier(ch);
+  ch.forEach((A, ci) => {
     let chaine = [];
     const fermer = () => { if (chaine.length >= 3) terrePleins.push({ nom: A.nom, p: chaine.map(([x, z, w]) => [Math.round(x) / 10, Math.round(z) / 10, Math.round(w) / 10]) }); chaine = []; };
-    for (const [x, z, dx, dz] of ech) {
-      let best = null;
-      const cx = Math.floor(x / CG), cz = Math.floor(z / CG);
-      for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const [bi, ax, az, bx, bz] of grille.get((cx + i) + ',' + (cz + j)) || []) {
-        if (bi === ci) continue; const B = chaussees[bi];
-        if (!A.nom || A.nom !== B.nom) continue; // les deux moitiés d'un même boulevard portent le même nom
-        const sx = bx - ax, sz = bz - az, l = Math.hypot(sx, sz); if (l < 1) continue;
-        if ((sx * dx + sz * dz) / l > -.85) continue; // même sens : pas l'autre moitié du boulevard
-        const t = Math.max(0, Math.min(1, ((x - ax) * sx + (z - az) * sz) / (l * l))), px = ax + sx * t, pz = az + sz * t, d = Math.hypot(px - x, pz - z);
-        const ecart = d - (A.w + B.w) / 2;
-        if (ecart < 5 || ecart > 250 || Math.abs((px - x) * dx + (pz - z) * dz) > 120) continue; // terre-plein de 0,5 à 25 m
-        if (!best || d < best.d) best = { d, ecart, bi, ux: (px - x) / d, uz: (pz - z) / d, B };
-      }
-      if (!best || chaussees[best.bi].idx < A.idx) { fermer(); continue; } // chaque terre-plein n'est produit qu'une fois
-      const ex = x + best.ux * A.w / 2, ez = z + best.uz * A.w / 2; // bord intérieur de A
-      const p = [ex + best.ux * best.ecart / 2, ez + best.uz * best.ecart / 2, best.ecart];
+    for (const e of app[ci]) {
+      const pr = e.paire;
+      if (!pr || pr.ecart < 4 || ch[pr.bi].idx < A.idx) { fermer(); continue; } // chaque terre-plein n'est produit qu'une fois
+      const ex = e.x + pr.ux * A.w / 2, ez = e.z + pr.uz * A.w / 2; // bord intérieur de A
+      const p = [ex + pr.ux * pr.ecart / 2, ez + pr.uz * pr.ecart / 2, pr.ecart];
       const q = chaine[chaine.length - 1]; if (q && Math.hypot(q[0] - p[0], q[1] - p[1]) > 200) fermer();
       chaine.push(p);
     }
     fermer();
-  }
+  });
   console.log(`terre-pleins : ${terrePleins.length} bandes, ${Math.round(terrePleins.reduce((s, t) => s + t.p.length * 8, 0) / 1000)} km`);
 }
 // Lignes aéroportuaires et jetées

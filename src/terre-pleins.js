@@ -5,9 +5,10 @@ import { COUCHES_SOL, grainSol, scene } from './scene.js';
 
 // ---------- Terre-pleins centraux des boulevards ----------
 // Entre les deux chaussées à sens unique d'un même boulevard (calculé par scripts/donnees.mjs,
-// L.terrePleins : [{ nom, p: [[x, z, largeur], …] }]). D'après les vidéos de drone 2025 :
-// gazon bordé de bordures blanches, blocs de haie taillée, lampadaires solaires à double crosse,
-// et sur le boulevard de la Marina, des drapeaux du Bénin sur mâts.
+// L.terrePleins : [{ nom, p: [[x, z, largeur], …] }]). D'après la vue satellite Google et les vidéos :
+// moins de 1 m, un simple double trait (Steinmetz) ; de 1 à 4,5 m, un séparateur en béton surélevé
+// bordé de blanc, avec des lampadaires à double crosse (Marina, Route des Pêches, Saint-Michel) ;
+// au-delà, un terre-plein de gazon avec blocs de haie taillée et lampadaires.
 
 export const TP = { bandes: [], grille: new Map(), decor: [] };
 const CASE = 40, cle = (x, z) => Math.floor(x / CASE) + ',' + Math.floor(z / CASE);
@@ -49,17 +50,20 @@ export function construireTerrePleins() {
   if (!TP.bandes.length) return;
   const gaz = { pos: [], col: [], idx: [] }, bord = { pos: [], idx: [] };
   const haies = [], lampes = [], drapeaux = [];
-  const vert = ['#5c8a3f', '#557f3a', '#64924a', '#5a8740'].map(h => new THREE.Color(h));
+  const vert = ['#5c8a3f', '#557f3a', '#64924a', '#5a8740'].map(h => new THREE.Color(h)), beton = ['#c9c6be', '#c3c0b8', '#cfccc4'].map(h => new THREE.Color(h)), blanc = new THREE.Color('#ecebe4');
   for (const [bi, b] of TP.bandes.entries()) {
-    const p = b.p, n = p.length, base = gaz.pos.length / 3, marina = /Marina/i.test(b.nom);
-    // Gazon : ruban entre les bordures, légèrement surélevé.
+    const p = b.p, n = p.length, base = gaz.pos.length / 3;
+    const wm = p.map(q => q[2]).sort((u, v) => u - v)[Math.floor(n / 2)], type = wm < 1 ? 'peint' : wm < 4.5 ? 'beton' : 'gazon';
+    // Surface : gazon ou béton entre les bordures, légèrement surélevé ; double trait blanc si moins de 1 m.
     for (let i = 0; i < n; i++) {
-      const [x, z, w] = p[i], [nx, nz] = normale(p, i), h = Math.max(.1, w / 2 - .3), c = vert[Math.floor(hash(bi * 31 + i, 7) * vert.length)];
-      gaz.pos.push(x - nx * h, .16, z - nz * h, x + nx * h, .16, z + nz * h); gaz.col.push(c.r, c.g, c.b, c.r, c.g, c.b);
+      const [x, z, w] = p[i], [nx, nz] = normale(p, i), h = type === 'peint' ? Math.max(.08, w / 2) : Math.max(.1, w / 2 - .3);
+      const c = type === 'gazon' ? vert[Math.floor(hash(bi * 31 + i, 7) * vert.length)] : type === 'beton' ? beton[Math.floor(hash(bi * 31 + i, 7) * beton.length)] : blanc;
+      const y = type === 'peint' ? .03 : .16;
+      gaz.pos.push(x - nx * h, y, z - nz * h, x + nx * h, y, z + nz * h); gaz.col.push(c.r, c.g, c.b, c.r, c.g, c.b);
       if (i) { const o = base + (i - 1) * 2; gaz.idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2); }
     }
-    // Bordures blanches : dessus (30 cm) et face côté chaussée, des deux côtés.
-    for (const s of [-1, 1]) {
+    // Bordures blanches : dessus (30 cm) et face côté chaussée, des deux côtés (pas pour un simple marquage).
+    if (type !== 'peint') for (const s of [-1, 1]) {
       const b0 = bord.pos.length / 3;
       for (let i = 0; i < n; i++) {
         const [x, z, w] = p[i], [nx, nz] = normale(p, i), e = w / 2, d = Math.max(.05, w / 2 - .3);
@@ -75,9 +79,8 @@ export function construireTerrePleins() {
       for (let d = 0; d < L; d += 1) {
         const s = cum + d, x = ax + (bx - ax) * d / L, z = az + (bz - az) * d / L;
         if (s < 6) continue;
-        if (wa >= 3 && s % 7 < 1) haies.push([x, z, ang, Math.min(1.5, wa - 1.6), hash(bi * 97 + Math.round(s), 3)]);
-        if (wa >= 1.2 && (s + 16) % 32 < 1) lampes.push([x, z, ang]);
-        if (marina && wa >= 2 && (s + 4) % 24 < 1) drapeaux.push([x, z, ang]);
+        if (type === 'gazon' && s % 7 < 1) haies.push([x, z, ang, Math.min(1.5, wa - 1.6), hash(bi * 97 + Math.round(s), 3)]);
+        if (type !== 'peint' && (s + 16) % 32 < 1) lampes.push([x, z, ang]);
       }
       cum += L;
     }

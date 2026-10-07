@@ -42,9 +42,9 @@ K.motif('mosquee', (c, t) => { // enduit blanc, baies en arc vert bouteille
   for (const x of [.15, .55]) { c.fillStyle = '#2f5d4a'; c.beginPath(); c.moveTo(t * x, t * .82); c.lineTo(t * x, t * .45); c.arc(t * (x + .15), t * .45, t * .15, Math.PI, 0); c.lineTo(t * (x + .3), t * .82); c.closePath(); c.fill(); }
   c.fillStyle = '#d8d4ca'; c.fillRect(0, t * .9, t, t * .1); c.fillRect(0, 0, t, t * .06);
 });
-K.motif('triangles', (c, t) => { // dalles grises en triangles séparées de larges bandes beige clair (photos sur place, drone 2025)
+K.motif('triangles', (c, t) => { // dalles beige rosé en triangles séparées de bandes claires (couleurs relevées sur la vue satellite Google, éclaircies)
   const W = t, H = c.canvas.height;
-  const vert = ['#a3a09a', '#9c9993', '#a7a49e', '#9f9c96'];
+  const vert = ['#bda898', '#b8a393', '#c1ac9c', '#b5a090'];
   for (let r = 0; r < 2; r++) for (let k = -1; k < 3; k++) {
     const y0 = r * H / 2, y1 = y0 + H / 2, x0 = k * W + (r % 2 ? W / 2 : 0);
     c.fillStyle = vert[(k + r * 2 + 4) % 4]; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + W, y0); c.lineTo(x0 + W / 2, y1); c.closePath(); c.fill();
@@ -54,7 +54,7 @@ K.motif('triangles', (c, t) => { // dalles grises en triangles séparées de lar
   c.strokeStyle = 'rgba(70,66,60,.16)'; c.lineWidth = 1;
   for (let x = 0; x <= W; x += W / 32) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
   for (let y = 0; y <= H; y += W / 64) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
-  c.strokeStyle = '#dcd1bc'; c.lineWidth = t * .055;
+  c.strokeStyle = '#e4d8ca'; c.lineWidth = t * .055;
   for (const y of [0, H / 2, H]) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
   for (let k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(k * W, 0); c.lineTo(k * W + W, H); c.stroke(); c.beginPath(); c.moveTo(k * W, 0); c.lineTo(k * W - W, H); c.stroke(); }
 }, 256, Math.round(256 * Math.sqrt(3)));

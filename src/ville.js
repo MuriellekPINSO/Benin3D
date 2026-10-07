@@ -170,8 +170,8 @@ function texMarquageSens(n) {
   for (let k = 1; k < n; k++) { const u = .05 + .9 * k / n; c.fillRect(u * 128 - 1.5, 0, 3, 80); }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
 }
-/** Largeur d'une chaussée : à sens unique, voies × 3,3 m + 1,2 m (même formule que scripts/donnees.mjs). */
-export const largeurRoute = L => L.sens && L.cls <= 3 ? Math.max(2, L.voies || 2) * 3.3 + 1.2 : ROAD_W[L.cls];
+/** Largeur d'une chaussée : à sens unique, voies × 3,5 m (grands axes) ou 3,3 m + 1,2 m (même formule que scripts/donnees.mjs). */
+export const largeurRoute = L => L.sens && L.cls <= 3 ? Math.max(2, L.voies || 2) * (L.cls <= 1 ? 3.5 : 3.3) + 1.2 : ROAD_W[L.cls];
 function rubanUV(pts, w, pos, uv, idx) {
   const n = pts.length, base = pos.length / 3; let v = 0;
   for (let i = 0; i < n; i++) {
