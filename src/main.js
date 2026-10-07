@@ -76,7 +76,7 @@ function image(now) {
   majMondeReel(JEU.actif && JEU.joueur ? JEU.joueur.position : t, JEU.actif);
   majMeteo(dt);
   renderer.render(scene, camera);
-  if (!JEU.actif) updateLabels(dist, W, H);
+  updateLabels(dist, W, H, JEU.actif && JEU.joueur ? JEU.joueur.position : null); // en jeu : les lieux proches du zém, pour se repérer
   if (E.frameN % 6 === 0) updateHud(dist, H);
 }
 function finishRise() {

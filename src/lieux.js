@@ -86,6 +86,18 @@ export const K = (() => {
       }
       return mats.get(cle);
     },
+    /** Matériau à partir d'une photo (public/textures/…), répétée `rx` × `ry` fois ; `alpha` : masque de transparence. */
+    photo(fichier, o = {}) {
+      const cle = `p${fichier}|${o.rx}|${o.ry}|${o.alpha}`;
+      if (!mats.has(cle)) {
+        const ch = f => { const t = new THREE.TextureLoader().load(import.meta.env.BASE_URL + f); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(o.rx ?? 1, o.ry ?? 1); t.anisotropy = 8; return t; };
+        const map = ch(fichier); map.colorSpace = THREE.SRGBColorSpace;
+        const m = new THREE.MeshStandardMaterial({ map, roughness: o.rugosite ?? .85, metalness: o.metal ?? 0, side: o.face2 ? THREE.DoubleSide : THREE.FrontSide });
+        if (o.alpha) { m.alphaMap = ch(o.alpha); m.alphaTest = .5; }
+        mats.set(cle, m);
+      }
+      return mats.get(cle);
+    },
     maillage(g, c, x, y, z, parent) { const m = new THREE.Mesh(g, typeof c === 'string' ? K.mat(c) : c); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; (parent ?? cible).add(m); return m; },
     boite(w, h, d, c, x, y, z, parent) { return K.maillage(K.geo(`b${w},${h},${d}`, () => new THREE.BoxGeometry(w, h, d)), c, x, y, z, parent); },
     cyl(rH, rB, h, seg, c, x, y, z, parent, ouvert = false) { return K.maillage(K.geo(`c${rH},${rB},${h},${seg},${ouvert}`, () => new THREE.CylinderGeometry(rH, rB, h, seg, 1, ouvert)), c, x, y, z, parent); },
@@ -431,7 +443,7 @@ export function palaisMarina(ring) {
   K.into(g, () => {
     const beige = K.mat('#cdbb9a');
     mursPoly(loc, 0, 4, K.tex('vitrageSombre', 1, 1, '#ffffff', { rugosite: .3, metal: .3 }), 5, 4);
-    mursPoly(loc, 4, 12.4, K.tex('facadeMarina', 1, 1), 5.2, 4.2, undefined, K.tex('beton', 1, 1, '#d8ccb3'));
+    mursPoly(loc, 4, 12.4, K.photo('textures/marina-facade.jpg'), 22.3, 8.4, undefined, K.tex('beton', 1, 1, '#d8ccb3')); // photo de la façade (Adoscam, CC BY-SA 4.0)
     // Piliers du rez-de-chaussée, posés un peu en avant des façades.
     let A = 0; for (let i = 0; i < loc.length; i++) { const a = loc[i], b = loc[(i + 1) % loc.length]; A += a[0] * b[1] - b[0] * a[1]; }
     const s = A > 0 ? 1 : -1;
@@ -618,7 +630,7 @@ export function stade(L) {
     // Gradins : anneau incliné du bord de piste jusqu'à 18 m de haut.
     gradinsAnneau(48.5, 80, 42.2, 2, 19);
     // Tribune principale couverte, à l'ouest : façade beige à lames, auvent à bord vert.
-    K.boite(120, 22, 5, K.tex('facadeStade', 12, 2), 0, 11, -84);
+    K.boite(120, 22, 5, K.photo('textures/stade-lames.jpg', { rx: 2 }), 0, 11, -84); // photo de la tribune (Adoscam, CC BY-SA 4.0)
     const auvent = K.boite(124, .9, 32, '#e7e2d6', 0, 25.5, -66); auvent.rotation.x = -.06;
     K.boite(124, 1.6, .6, '#2f7a52', 0, 25, -50);
     for (let x = -56; x <= 56; x += 14) K.boite(1.2, 25, 1.2, '#d9d2c2', x, 12.5, -82);

@@ -33,33 +33,40 @@ export const vtmp = new THREE.Vector3();
 export let obstacles = [];
 export function measureObstacles() {
   const app = $('#app').getBoundingClientRect();
-  obstacles = [...document.querySelectorAll('.brand, .places, .hud, .dock, .credits, .card')].filter(e => !e.hidden && e.offsetParent !== null)
+  obstacles = [...document.querySelectorAll('.brand, .places, .hud, .dock, .credits, .card, #jeuHud .panel, .jh-mini, .jh-dialogue, .jh-coin, .jh-boutons, .jh-rue, .jh-repere, .jh-carrefour, .jh-action')].filter(e => !e.hidden && e.offsetParent !== null)
     .map(e => { const r = e.getBoundingClientRect(); return [r.left - app.left, r.top - app.top, r.right - app.left, r.bottom - app.top]; })
     .filter(r => r[2] - r[0] > 0 && r[3] - r[1] > 0);
   if (small) { const pl = $('#placeList').getBoundingClientRect(); obstacles.push([0, pl.top - app.top, app.width, pl.bottom - app.top]); }
 }
-export function updateLabels(dist, W, H) {
+const avantCam = new THREE.Vector3();
+export function updateLabels(dist, W, H, joueur = null) {
   if (E.frameN % 20 === 1) measureObstacles();
+  if (joueur) camera.getWorldDirection(avantCam);
   const placed = obstacles.slice();
+  const dbg = import.meta.env.DEV && joueur ? { total: 0, loin: 0, derriere: 0, hors: 0, cache: 0, ok: [] } : null;
   for (const L of labels) {
     let show = true;
+    if (joueur) { show = L.kind === 'p' && L.pos.distanceTo(joueur) < 1600; if (dbg && L.kind === 'p') { dbg.total++; if (!show) dbg.loin++; } } // en jeu : seulement les lieux à moins de 1,6 km
     if (L.kind === 'q' && (!E.showQ || dist > 6500)) show = false;
     if (L.kind === 'w' && dist < 900) show = false;
     let sx = 0, sy = 0;
     if (show) {
+      // En jeu, la caméra a un plan lointain court : on teste « devant la caméra » plutôt que la profondeur projetée.
+      const devant = joueur ? vtmp.copy(L.pos).sub(camera.position).dot(avantCam) > 0 : true;
       vtmp.copy(L.pos).project(camera);
-      if (vtmp.z > 1 || vtmp.x < -1.15 || vtmp.x > 1.15 || vtmp.y < -1.15 || vtmp.y > 1.15) show = false;
+      if (!devant || (!joueur && vtmp.z > 1) || vtmp.x < -1.15 || vtmp.x > 1.15 || vtmp.y < -1.15 || vtmp.y > 1.15) { show = false; if (dbg) { if (!devant) dbg.derriere++; else dbg.hors++; } }
       else {
         sx = (vtmp.x * 0.5 + 0.5) * W; sy = (-vtmp.y * 0.5 + 0.5) * H;
         const anchorY = L.kind === 'p' ? 1 : 0.5;
         const r = [sx - L.w / 2 - 4, sy - L.h * anchorY - 3, sx + L.w / 2 + 4, sy + L.h * (1 - anchorY) + 3];
         const isSel = E.selected && L.el === E.selected.label;
-        if (!isSel && placed.some(o => r[0] < o[2] && r[2] > o[0] && r[1] < o[3] && r[3] > o[1])) show = false;
-        else { placed.push(r); L.el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) translate(-50%, ${L.kind === 'p' ? '-100%' : '-50%'})`; }
+        if (!isSel && placed.some(o => r[0] < o[2] && r[2] > o[0] && r[1] < o[3] && r[3] > o[1])) { show = false; if (dbg) dbg.cache++; }
+        else { if (dbg) dbg.ok.push(L.el.textContent); placed.push(r); L.el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) translate(-50%, ${L.kind === 'p' ? '-100%' : '-50%'})`; }
       }
     }
     if (show !== L.shown) { L.shown = show; L.el.classList.toggle('on', show); L.el.classList.toggle('off', !show); }
   }
+  if (dbg) E.debugLabels = dbg;
 }
 
 // ---------- Interface ----------

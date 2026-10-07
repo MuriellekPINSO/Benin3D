@@ -388,6 +388,14 @@ export function majMiniCarte(st, C) {
     if (sx < 0 || sx > w || sy < 0 || sy > h) continue;
     c.lineWidth = 4; c.strokeStyle = '#ffffff'; c.strokeText(a.nom, sx, sy - 10); c.fillStyle = '#1d1a16'; c.fillText(a.nom, sx, sy - 10);
   }
+  // Les lieux connus dans le cercle : point coloré et nom (pour se repérer, comme le demande la joueuse).
+  c.font = `600 ${Math.round(w / 19)}px "Plus Jakarta Sans", system-ui, sans-serif`;
+  const proches = PLACES.filter(q => q.x !== undefined && Math.hypot(q.x - p.x, q.z - p.z) < (w / 2) / echelle * MPX * 1.05).sort((q1, q2) => Math.hypot(q1.x - p.x, q1.z - p.z) - Math.hypot(q2.x - p.x, q2.z - p.z)).slice(0, 7);
+  for (const q of proches) {
+    const dx = (q.x - p.x) / MPX * echelle, dz = (q.z - p.z) / MPX * echelle, sx = w / 2 + dx * cs - dz * sn, sy = h * .62 + dx * sn + dz * cs;
+    c.fillStyle = '#2a6f8f'; c.beginPath(); c.arc(sx, sy, 5, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke();
+    c.lineWidth = 3; c.strokeStyle = 'rgba(255,255,255,.9)'; c.strokeText(q.name, sx, sy - 8); c.fillStyle = '#1d1a16'; c.fillText(q.name, sx, sy - 8);
+  }
   c.restore();
   // Joueur.
   c.save(); c.translate(w / 2, h * .62); c.fillStyle = '#f2b705'; c.strokeStyle = '#1d1a16'; c.lineWidth = 3;

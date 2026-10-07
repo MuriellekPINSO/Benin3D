@@ -28,7 +28,7 @@ une clé Google Maps (facultatif). La visite se fait sur « Agolo » d'Angéliqu
 les droits restent à obtenir pour une diffusion publique.
 
 À essayer : la visite (bouton Présentation), la vue réelle, les fiches « Sur place », la météo
-(touche M), et Zém Run — ↑ accélérer, ↓ freiner, E interagir, au carrefour ralentir puis ← ou →
+(touche M), et Zém Run — ↑ accélérer, ↓ freiner, E interagir, au carrefour ralentir puis ← ou → (T : tout droit)
 pour tourner, manette Xbox ou PlayStation acceptée.
 
 ## Fichiers non versionnés
@@ -173,6 +173,11 @@ le bas caché par la clôture recomposé à partir des rayures.
 « Marché Dantokpa (vue arrière) » de jbdodane (Wikimedia Commons, CC BY 2.0).
 `public/textures/porte-facade.jpg` + `porte-alpha.jpg` : la Porte du Non-Retour, photo « Porte du non-retour au
 Benin » de Borisghost (Wikimedia Commons, CC0), vides découpés par le masque d'alpha.
+`public/textures/bceao-face.jpg` : face de la tour BCEAO (cauris compris), photo « BCEAO tower Cotonou, Benin2 »
+d'Adoscam (CC BY-SA 4.0), redressée, étages du bas recomposés. `marina-facade.jpg` : étages du Palais de la
+Marina, photo « Palais de la Marina… 01 » d'Adoscam (CC BY-SA 4.0). `stade-lames.jpg` : tribune du Stade de
+l'Amitié, photo « Vue de côté du stade… » d'Adoscam (CC BY-SA 4.0). `sofitel-facade.jpg` + `sofitel-alpha.jpg` :
+entrée du Sofitel, photo « Sofitel Cotonou Marina Hôtel & Spa » de Freed Armel (CC BY-SA 4.0), ciel détouré.
 Crédits affichés dans le bandeau du site. Même licence (CC BY-SA 4.0, CC BY 2.0) pour toute réutilisation des
 textures qui en relèvent.
 

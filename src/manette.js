@@ -10,13 +10,13 @@ import { changerMeteo } from './meteo.js';
 // ---------- Manettes (Xbox, PlayStation, génériques), API Gamepad ----------
 // Reprise de 3D monde (Manette.ts) : lecture normalisée (PlayStation en mode brut
 // remappée, zone morte), vibrations. Dans Zém Run :
-//   gâchette droite (RT/R2) : gaz · gâchette gauche (LT/L2) : frein · stick gauche / croix : files
+//   gâchette droite (RT/R2) : gaz · gâchette gauche (LT/L2) : frein · stick gauche / croix : files ou virage, haut : tout droit
 //   A/✕ : sauter · B/○ : klaxon · X/□ : interagir (plein, vendeuse…) · Y/△ : interagir
 //   pendant un dialogue : A/✕ = réponse 1, B/○ = 2, X/□ = 3 · Start : pause · Select : météo
 // Dans la ville : stick gauche pour se déplacer, stick droit pour tourner et incliner,
 // gâchettes pour zoomer, Start pour jouer. Dans les menus : croix ou stick pour choisir, A pour valider.
 
-const M = { index: null, prec: [], dernier: null, lateral: 0, roulement: 0, nom: '' };
+const M = { index: null, prec: [], dernier: null, lateral: 0, haut: false, roulement: 0, nom: '' };
 const zone = (v, s = .16) => { const a = Math.abs(v); return a <= s ? 0 : Math.sign(v) * Math.min(1, (a - s) / (1 - s)); };
 function manette() {
   const l = navigator.getGamepads?.(); if (!l) return null;
@@ -76,6 +76,8 @@ export function majManette(dt) {
       if (dir && dir !== M.lateral && !virage(dir)) st.file = Math.max(-2, Math.min(2, st.file + dir));
       M.lateral = dir;
       if (appuye(5) && !virage(1)) st.file = Math.min(2, st.file + 1); if (appuye(4) && !virage(-1)) st.file = Math.max(-2, st.file - 1);
+      // Stick ou croix vers le haut : continuer tout droit au carrefour où l'itinéraire tourne.
+      const haut = ly < -.6; if (haut && !M.haut) virage(0); M.haut = haut;
       const dialogue = !!DISC.courant;
       if (appuye(0)) { if (dialogue) repondre(0); else sauter(); }
       if (appuye(1)) { if (dialogue) repondre(1); else klaxonner(); }

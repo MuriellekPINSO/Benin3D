@@ -87,7 +87,8 @@ function suivre(n, m, dist) {
   return chemin;
 }
 
-/** Carrefours le long d'un chemin C : position s, et la branche possible à gauche / à droite. */
+/** Carrefours le long d'un chemin C : position s, les branches possibles à gauche / à droite, et « tout droit »
+ *  (`droit`) quand l'itinéraire prévu tourne là (`sens` : +1 s'il tourne à droite, −1 à gauche). */
 export function carrefoursDe(C) {
   if (!R.pret) return [];
   const out = [], vus = new Set(), dir = (i, j) => { const dx = C.X[j] - C.X[i], dz = C.Z[j] - C.Z[i], l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
@@ -95,14 +96,17 @@ export function carrefoursDe(C) {
     for (const [n] of noeudsPres(C.X[i], C.Z[i], 4)) {
       if (vus.has(n) || R.adj[n].length < 3) continue; vus.add(n);
       const dIn = dir(i - 12, i), dOut = dir(i, i + 12), cotes = {};
+      // L'itinéraire tourne-t-il ici ? (plus de 35° entre l'arrivée et la sortie)
+      const tourne = dIn[0] * dOut[0] + dIn[1] * dOut[1] < .82, sens = dIn[0] * dOut[1] - dIn[1] * dOut[0] > 0 ? 1 : -1;
       for (const [m, , cls] of R.adj[n]) {
         const ch = suivre(n, m, 16), f = ch[ch.length - 1], ex = R.X[f] - R.X[n], ez = R.Z[f] - R.Z[n], el = Math.hypot(ex, ez); if (el < 6) continue;
-        const ux = ex / el, uz = ez / el;
-        if (ux * dOut[0] + uz * dOut[1] > .82 || -(ux * dIn[0] + uz * dIn[1]) > .82) continue; // la route suivie, ou celle d'où l'on vient
-        const cote = dIn[0] * uz - dIn[1] * ux > 0 ? 'droite' : 'gauche', score = cls * 2 + Math.abs(ux * dIn[0] + uz * dIn[1]);
+        const ux = ex / el, uz = ez / el, dot = ux * dIn[0] + uz * dIn[1], croix = dIn[0] * uz - dIn[1] * ux;
+        if (ux * dOut[0] + uz * dOut[1] > .82 || -dot > .82) continue; // la route suivie, ou celle d'où l'on vient
+        // Angle par rapport à l'arrivée : à moins de 35°, c'est « tout droit » (proposé seulement si la route, elle, tourne).
+        const cote = tourne && dot > .82 ? 'droit' : croix > 0 ? 'droite' : 'gauche', score = cls * 2 + Math.abs(dot);
         if (!cotes[cote] || score < cotes[cote].score) cotes[cote] = { m, cls, score };
       }
-      if (cotes.gauche || cotes.droite) out.push({ s: i, n, ...cotes });
+      if (cotes.gauche || cotes.droite || cotes.droit) out.push({ s: i, n, tourne, sens, ...cotes });
     }
   }
   return out.sort((a, b) => a.s - b.s);

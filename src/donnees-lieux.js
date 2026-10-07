@@ -59,6 +59,8 @@ export const PLACES = [
     text: "L'ancien Centre international de conférences de 1995, rénové par le Sofitel : un grand cône à facettes couleur bronze, illuminé le soir. À côté, le Pavillon, aux ailettes dorées et à la verrière bleue, abrite deux salles de cinéma, un casino et un club. Une allée de nuages blancs les relie à l'hôtel." },
   { id: 'superu', name: 'Erevan · Super U', kind: 'Centre commercial', k: 'marche', lat: 6.34895, lon: 2.38694, h: 12, view: [220, 1.05, 3.0],
     text: "Le centre commercial Erevan, au carrefour Bio Guéra : une grande boîte orange brûlé, « SUPER » en lettres bleues et le logo U, un grand parking devant et le totem « EREVAN » au bord de la route." },
+  { id: 'martyrs', name: 'Place des Martyrs', kind: 'Monument', k: 'monument', lat: 6.35385, lon: 2.40458, h: 12, view: [170, 1.1, 2.6],
+    text: "Le monument aux martyrs du 16 janvier 1977 : trois combattants de bronze, dont un porte-drapeau, au sommet d'un grand escalier blanc bordé de murs de pierre. Depuis la rénovation du boulevard de la Marina, une esplanade de granit gris bordée de mâts aux couleurs du Bénin." },
   { id: 'ganhi', name: 'Marché Ganhi', kind: 'Marché', k: 'marche', lat: 6.35453, lon: 2.43723, h: 10, view: [170, 1.1, 2.3],
     text: "Le marché de Ganhi, reconstruit en 2023 au cœur du quartier des banques : un long hall sur socle de briques ajourées, cinq travées de toits gris couverts de panneaux solaires et une rosace blanche au centre. « MARCHE GANHI » au pochoir, motos garées tout autour." },
   { id: 'murport', name: 'Mur des fresques du port', kind: 'Art urbain', k: 'monument', lat: 6.35010, lon: 2.41600, h: 8, view: [140, 1.2, 2.9],

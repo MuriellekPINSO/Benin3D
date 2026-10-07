@@ -86,7 +86,7 @@ const lakeRel = load('rels').find(e => e.id === 3971451);
 const lakeOuter = assemble(lakeRel.members.filter(m => m.role === 'outer' && m.geometry).map(m => m.geometry.map(p => P(p.lat, p.lon))));
 const lakeBB = lakeOuter.map(bbox);
 const inLake = (x, z) => lakeOuter.some((r, i) => { const b = lakeBB[i]; return x > b[0] && x < b[2] && z > b[1] && z < b[3] && pip([x, z], r); });
-const EXCLUDE = new Set([520665863, 443576927, 272739399, 418388596, 418074887]); // + marché Ganhi (hall et ancien toit rond) // étoile, cathédrale, Marina : reconstruits en détail
+const EXCLUDE = new Set([520665863, 443576927, 272739399, 418388596, 418074887, 824788826]); // + marché Ganhi (hall et ancien toit rond), monument des Martyrs // étoile, cathédrale, Marina : reconstruits en détail
 // Boulevard de la Marina : bâtiments reconstruits en détail (src/lieux-marina.js), d'après les photos
 // et les relevés sur images satellite (osm/marina.json : emprises extraites d'OSM pour ces lieux).
 const MAR = fs.existsSync('osm/marina.json') ? new Map(JSON.parse(fs.readFileSync('osm/marina.json', 'utf8')).elements.map(e => [e.id, e])) : new Map();

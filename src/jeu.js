@@ -242,11 +242,15 @@ function installerTrajet(L, C, debut, garderClient) {
   const bar = $('#jhArrets'); if (bar) bar.innerHTML = L.arretsJ.map((a, k) => k < debut && k ? '' : `<i style="left:${(a.s / C.L * 100).toFixed(2)}%" title="${a.nom}"></i>`).join('');
   try { construireReseau(); JEU.carrefours = carrefoursDe(C); } catch (e) { console.warn('carrefours', e); JEU.carrefours = []; }
 }
-/** Au carrefour, ← ou → (ralenti) : on prend la rue de ce côté et le GPS recalcule jusqu'aux arrêts suivants. */
+/** Au carrefour, ← ou → (ralenti) : on prend la rue de ce côté et le GPS recalcule jusqu'aux arrêts suivants.
+ *  Quand l'itinéraire tourne et qu'on veut continuer tout droit (passer le pont, par exemple), la flèche opposée au
+ *  virage prévu prend la rue d'en face, s'il n'y a pas de vraie rue de ce côté-là. */
 export function virage(dir) {
   const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || !JEU.carrefours || JEU.pause) return false;
   if (st.v > 12) return false; // à plus de 43 km/h, les flèches changent de file
-  const j = JEU.carrefours.find(c => c.s - st.s > -4 && c.s - st.s < 18), br = j && (dir < 0 ? j.gauche : j.droite);
+  const j = JEU.carrefours.find(c => c.s - st.s > -4 && c.s - st.s < 18);
+  let br = j && (dir === 0 ? j.droit : dir < 0 ? j.gauche : j.droite), droit = dir === 0;
+  if (j && !br && j.droit && dir === -j.sens) { br = j.droit; droit = true; }
   if (!br || st.prochain >= L.arretsJ.length) return false;
   const p = pose(C, st.s, st.lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   const pts = itineraire(p.x, p.z, j.n, br.m, L.arretsXZ.slice(st.prochain));
@@ -262,7 +266,7 @@ export function virage(dir) {
   L.arretsJ[L.arretsJ.length - 1].s = C2.L - 2;
   JEU.chemin = C2; st.s = 1; st.spawn = 40; st.lat = 0; st.file = 0; st.plein = -1;
   installerTrajet(L, C2, st.prochain, true);
-  son('piece'); toast(`${dir < 0 ? '↰ À gauche' : '↱ À droite'} · itinéraire recalculé`, 1.6, 'bien');
+  son('piece'); toast(`${droit ? '↑ Tout droit' : dir < 0 ? '↰ À gauche' : '↱ À droite'} · itinéraire recalculé`, 1.6, 'bien');
   return true;
 }
 export function quitterJeu() {
@@ -406,7 +410,12 @@ export function majJeu(dt) {
     if (cf) {
       const d = Math.max(0, Math.round(cf.s - st.s)), lent = st.v <= 12, ici = cf.s - st.s < 18;
       elC.className = 'jh-carrefour' + (ici && lent ? ' maintenant' : '');
-      elC.innerHTML = `<span class="${cf.gauche ? '' : 'non'}">↰</span><b>${ici ? (lent ? 'Tourne maintenant' : 'Ralentis pour tourner') : `Carrefour · ${d} m`}</b><span class="${cf.droite ? '' : 'non'}">↱</span>`;
+      // La flèche opposée au virage prévu sert à continuer tout droit quand il n'y a pas de rue de ce côté.
+      const gDroit = cf.droit && !cf.gauche && cf.sens > 0, dDroit = cf.droit && !cf.droite && cf.sens < 0;
+      const titre = ici ? (lent ? 'À toi de choisir' : 'Ralentis pour choisir') : `Carrefour · ${d} m`;
+      // C'est le joueur qui décide : ← / → pour les rues de côté, T (ou manette ↑) pour continuer tout droit quand le GPS voulait tourner.
+      const aide = cf.droit ? (gDroit ? ' · ← ou T : tout droit' : dDroit ? ' · → ou T : tout droit' : ' · T : tout droit') : '';
+      elC.innerHTML = `<span class="${cf.gauche || gDroit ? '' : 'non'}">${gDroit ? '↑' : '↰'}</span><b>${titre}${aide}</b><span class="${cf.droite || dDroit ? '' : 'non'}">${dDroit ? '↑' : '↱'}</span>`;
     }
   }
   majInteractions(st, C, dt);
@@ -517,6 +526,7 @@ export function initJeu(data) {
     if (e.repeat && k !== ' ') { e.preventDefault(); return; }
     if (k === 'arrowleft' || k === 'a' || k === 'q') gauche();
     else if (k === 'arrowright' || k === 'd') droite();
+    else if (k === 't') virage(0); // tout droit au carrefour où l'itinéraire tourne
     else if (k === 'arrowup' || k === 'w' || k === 'z') st().gaz = true;
     else if (k === ' ') sauter();
     else if (k === 'arrowdown' || k === 's') st().frein = true;

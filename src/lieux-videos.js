@@ -108,6 +108,9 @@ function sofitel(ring0) {
     }
     // Enseigne en haut de la façade nord, et l'entrée sur le boulevard : auvent blanc, bassin.
     const zn = Math.min(...ring.map(p => p[1] - c[1]));
+    // La vraie façade d'entrée, côté boulevard (photo Freed Armel, CC BY-SA 4.0) : 75 m × 25 m, ciel détouré par un masque.
+    { const f = new THREE.Mesh(new THREE.PlaneGeometry(75, 25.1), K.photo('textures/sofitel-facade.jpg', { alpha: 'textures/sofitel-alpha.jpg', rugosite: .8 }));
+      f.name = 'photo-sofitel'; f.position.set(0, 12.55, zn - .5); f.rotation.y = Math.PI; f.userData.garder = true; f.receiveShadow = true; f.castShadow = false; K.racine.add(f); }
     panneauTexte(['SOFITEL'], 22, 3, 0, 23.4, zn + 6 * 1.25 - .35, Math.PI, { fond: '#e3d8c3', encre: '#1d1a16', px: 1024, py: 140, police: '400 104px Georgia, "Times New Roman", serif' });
     const [gx, gz] = toXZ(6.35105, 2.39373);
     K.boite(18, .5, 9, '#f6f5f1', gx - c[0], 5, gz - c[1]); for (const dx of [-7, 7]) K.boite(.8, 5, .8, '#f6f5f1', gx - c[0] + dx, 2.5, gz - c[1]);
@@ -154,6 +157,7 @@ K.motif('bceaoSocle', (c, t) => { // socle : marbre blanc, pilastres, fenêtres 
   c.fillStyle = '#c9a24a'; c.beginPath(); c.ellipse(t * .5, t * .45, t * .05, t * .09, 0, 0, Math.PI * 2); c.fill(); c.beginPath(); c.moveTo(t * .46, t * .36); c.lineTo(t * .43, t * .26); c.lineTo(t * .48, t * .34); c.fill(); c.beginPath(); c.moveTo(t * .54, t * .36); c.lineTo(t * .57, t * .26); c.lineTo(t * .52, t * .34); c.fill();
   c.fillStyle = '#d8d2c6'; c.fillRect(0, t * .9, t, t * .1);
 });
+const PHOTO_BCEAO = true; // faces de la tour d'après photo (public/textures/bceao-face.jpg) ; sinon dessin + cauris en relief
 function tourBceao(podium, tourRing) {
   const [tx, tz] = tourRing ? centroide(tourRing) : toXZ(6.353497, 2.4267);
   const g = groupeLieu('bceao', tx, tz);
@@ -165,13 +169,15 @@ function tourBceao(podium, tourRing) {
     const or = K.mat('#c8a65a', { metal: .65, rugosite: .32 }), fente = K.mat('#3a2a18');
     const cauri = K.geo('cauri', () => new THREE.SphereGeometry(1, 14, 10)), fenteG = K.geo('cauriFente', () => new THREE.BoxGeometry(.14, 1.25, .1));
     for (const [fx, fz, w, rot] of faces) {
-      const p = K.maillage(K.geo(`pl${w.toFixed(1)},${H}`, () => new THREE.PlaneGeometry(w, H)), faceBceao(w), fx, H / 2, fz); p.rotation.y = rot;
+      const p = K.maillage(K.geo(`pl${w.toFixed(1)},${H}`, () => new THREE.PlaneGeometry(w, H)), PHOTO_BCEAO ? K.photo('textures/bceao-face.jpg', { rugosite: .7 }) : faceBceao(w), fx, H / 2, fz); p.rotation.y = rot;
       // Cauris : 4 lignes de 13 (un par étage) et 5 au dernier étage, en relief.
       const ux = Math.cos(rot), uz = -Math.sin(rot), nx = Math.sin(rot), nz = Math.cos(rot), etage = H / 17;
       const pose = (u, y) => { const x = fx + ux * u + nx * .35, z = fz + uz * u + nz * .35; const m = K.maillage(cauri, or, x, y, z); m.scale.set(.55, .9, .32); m.rotation.y = rot; const s = K.maillage(fenteG, fente, x + nx * .3, y, z + nz * .3); s.rotation.y = rot; };
       const a1 = F_BCEAO[0] * w, b1 = a1 + F_BCEAO[1] * w, a2 = b1 + F_BCEAO[2] * w, b2 = a2 + F_BCEAO[3] * w;
+      if (!PHOTO_BCEAO) { // les cauris sont déjà sur la photo
       for (const c of [(a1 + b1) / 2, (a2 + b2) / 2]) for (const s of [-1, 1]) for (let k = 0; k < 13; k++) pose(s * (w / 2 - c), (k + 2.6) * etage);
       for (let k = 0; k < 5; k++) pose(-w / 2 + b2 + (k + .5) * (w - 2 * b2) / 5, 15.55 * etage);
+      }
     }
     for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const p = K.maillage(K.geo(`pl${(ch * Math.SQRT2).toFixed(2)},${H}`, () => new THREE.PlaneGeometry(ch * Math.SQRT2, H)), marbre, sx * (a - ch / 2), H / 2, sz * (b - ch / 2)); p.rotation.y = Math.atan2(sx, sz); }
     const plan = [[a - ch, b], [-(a - ch), b], [-a, b - ch], [-a, -(b - ch)], [-(a - ch), -b], [a - ch, -b], [a, -(b - ch)], [a, b - ch]];
@@ -349,6 +355,34 @@ K.motif('domeZongo', (c, t) => { // coupole : bleu ardoise, losanges blancs, cro
     c.fillStyle = '#d9b44a'; c.beginPath(); c.arc(x, y, t * .035, 0, Math.PI * 2); c.fill(); c.fillStyle = '#eef0ea'; c.beginPath(); c.arc(x + t * .012, y - t * .006, t * .03, 0, Math.PI * 2); c.fill(); }
   c.fillStyle = '#4b5f88'; c.fillRect(0, t * .62, t, t * .03);
 });
+// ---------- Place des Martyrs : monument aux victimes du 16 janvier 1977 ----------
+// D'après les photos (Fawaz.tairou, Alex Ahdn, Commons) : grand escalier blanc des deux côtés,
+// parapets de pierre, socle sombre, trois combattants de bronze dont un porte-drapeau ; depuis la
+// rénovation, esplanade de granit gris bordée de mâts à drapeaux. Emprise OSM 824788826.
+function placeMartyrs() {
+  const g = groupeLieu('place-martyrs', -1126.5, 1805, Math.atan2(11, 81));
+  K.into(g, () => {
+    K.sol(130, 64, K.tex('paves', 16, 8, '#8f8d88'), 0, 0, .05);
+    const pierre = K.tex('pyramides', 6, 1), blanc = K.mat('#ece8dc', { rugosite: .9 }), bronze = K.mat('#4a5547', { rugosite: .5, metal: .4 });
+    // Plate-forme et parapets.
+    K.boite(24, 5.2, 15, pierre, 0, 2.6, 0);
+    for (const s of [-1, 1]) K.boite(24.4, 1, .6, pierre, 0, 5.7, s * 7.5);
+    // Escaliers des deux côtés : 14 marches de 1,7 m, bordées de murs de pierre.
+    for (const s of [-1, 1]) for (let k = 0; k < 14; k++) { const h = 5.2 - k * .37, x = s * (12 + (k + .5) * 1.7); K.boite(1.7, h, 13, blanc, x, h / 2, 0); }
+    for (const s of [-1, 1]) for (const z of [-7.2, 7.2]) { const m = K.boite(24, .9, .6, pierre, s * 24, 3.1, z); m.rotation.z = -s * Math.atan2(5.2, 24); }
+    // Socle sombre, plaque, et les trois combattants : fusil, drapeau levé.
+    K.boite(6, 4.4, 5, K.mat('#3a3d3c', { rugosite: .6 }), 0, 7.4, 0); K.boite(3.6, 1.2, .08, '#b9a46a', 0, 7.6, 2.55);
+    const corps = (x, z, h) => { K.cyl(.55, .62, h, 10, bronze, x, 9.6 + h / 2, z); K.sphere(.42, bronze, x, 9.6 + h + .35, z); K.cyl(.5, .5, .5, 10, bronze, x, 9.6 + h + .9, z); };
+    corps(-1.4, .3, 4.4); corps(0, -.5, 4.8); corps(1.4, .3, 4.4);
+    K.cyl(.07, .07, 8.5, 6, bronze, .5, 15.5, -.6); K.boite(2.8, 2, .12, K.mat('#5a6350', { rugosite: .5, metal: .4 }), 1.9, 18.2, -.6);
+    for (const [x, z, r] of [[-1.9, .9, .5], [2.1, .9, -.5]]) { const f = K.boite(.12, 3.2, .12, bronze, x, 12.4, z); f.rotation.z = r; }
+    // Mâts à drapeaux en deux rangs le long de l'esplanade, lampadaires.
+    for (const s of [-1, 1]) for (let x = -48; x <= 48; x += 8) K.drapeauBenin(x, s * 24, 12, s > 0 ? 0 : Math.PI);
+    for (const [x, z] of [[-60, -28], [60, -28], [-60, 28], [60, 28]]) K.lampadaireSimple(x, z, 1);
+  });
+  bake(g);
+}
+
 // ---------- Mosquée de Zongo : salle blanche à baies en arc, bandeaux bleus, coupole bleue à losanges, deux minarets ----------
 function mosqueeZongo(ring) {
   const c = centroide(ring), g = groupeLieu('zongo', c[0], c[1]);
@@ -399,6 +433,7 @@ export function construireLieuxVideos(data) {
   const [ax, az] = toXZ(6.35231, 2.38605);
   rondPointAeroport(ax, az, 17);
   marcheGanhi();
+  placeMartyrs();
   if (D.zongo) mosqueeZongo(D.zongo);
   tombes(data.tombes || []);
 }
