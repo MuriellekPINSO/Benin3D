@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { dansTerrePlein } from './terre-pleins.js';
 import { LITE, hash, toXZ } from './base.js';
 import { camera, controls, scene } from './scene.js';
 import { ROAD_W, roadLines } from './ville.js';
@@ -35,7 +36,7 @@ function indexer(data) {
   const gr = new Map();
   roadLines.forEach((L, li) => {
     if (L.cls > 6 && L.cls !== 9) return;
-    const hw = (ROAD_W[L.cls] || 4) / 2;
+    const hw = (L.w ?? ROAD_W[L.cls] ?? 4) / 2;
     for (let i = 1; i < L.pts.length; i++) {
       const a = L.pts[i - 1], b = L.pts[i];
       for (let cx = Math.floor((Math.min(a[0], b[0]) - hw) / CR); cx <= Math.floor((Math.max(a[0], b[0]) + hw) / CR); cx++)
@@ -102,7 +103,7 @@ function presAutreRoute(x, z, li, marge) {
   }
   return false;
 }
-const zoneLibre = (x, z) => R.zonesLibres.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || R.zonesJeu.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r);
+const zoneLibre = (x, z) => dansTerrePlein(x, z, .6) || R.zonesLibres.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || R.zonesJeu.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r);
 
 // ---------- Matières ----------
 function toile(w, h, f) { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; f(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; }
@@ -231,7 +232,7 @@ function genererCarre(cx, cz) {
     if (L.bridge || L.cls > 5 || L.pts.length < 2) return;
     let lx0 = 1e9, lx1 = -1e9, lz0 = 1e9, lz1 = -1e9; for (const [x, z] of L.pts) { lx0 = Math.min(lx0, x); lx1 = Math.max(lx1, x); lz0 = Math.min(lz0, z); lz1 = Math.max(lz1, z); }
     if (lx1 < x0 - 20 || lx0 > x1 + 20 || lz1 < z0 - 20 || lz0 > z1 + 20) return;
-    const hw = ROAD_W[L.cls] / 2, route = !!R.routeJeu?.has(li);
+    const hw = (L.w ?? ROAD_W[L.cls]) / 2, route = !!R.routeJeu?.has(li);
     const front = route ? Math.max(hw + TROTTOIR[L.cls], 9.8) : hw + TROTTOIR[L.cls];
     const sw = front - hw; // trottoir : de la chaussée jusqu'aux murs
     const grand = L.cls <= 3;

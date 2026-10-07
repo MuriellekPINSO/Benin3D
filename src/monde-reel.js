@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { TP } from './terre-pleins.js';
 import { $, toLL } from './base.js';
 import { COUCHES_SOL, camera, scene, sky, sun } from './scene.js';
 import { chargerGoogle } from './google.js';
@@ -37,6 +38,7 @@ function appliquerVisibilite() {
   for (const b of buildingMeshes) b.visible = maquette;
   batimentsGoogleVisibles(maquette);
   for (const m of VEGETATION) m.visible = maquette;
+  for (const m of TP.decor) m.visible = maquette; // haies, lampadaires et drapeaux des terre-pleins
   rueActive(maquette);
   LIEUX.caches = !maquette && !MR.visite; visibiliteLieux(camera.position); // la visite montre nos monuments
   if (MR.ombre) MR.ombre.visible = on && maquette;

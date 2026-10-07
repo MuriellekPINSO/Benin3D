@@ -159,6 +159,19 @@ function texMarquage(files) {
   else c.fillRect(64 - 1.5, 0, 3, 96);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
 }
+// Chaussée à sens unique de `n` voies (moitié d'un boulevard) : lignes de rive continues, voies séparées
+// par des tirets, pas de ligne centrale.
+function texMarquageSens(n) {
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 256; const c = cv.getContext('2d');
+  c.fillStyle = '#56585c'; c.fillRect(0, 0, 128, 256);
+  for (let i = 0; i < 900; i++) { c.fillStyle = Math.random() < .5 ? '#5f6165' : '#4e5054'; c.fillRect(Math.random() * 128, Math.random() * 256, 2, 2); }
+  c.fillStyle = '#ecebe4';
+  for (const u of [.05, .95]) c.fillRect(u * 128 - 1.5, 0, 3, 256);
+  for (let k = 1; k < n; k++) { const u = .05 + .9 * k / n; c.fillRect(u * 128 - 1.5, 0, 3, 80); }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
+}
+/** Largeur d'une chaussée : à sens unique, voies × 3,3 m + 1,2 m (même formule que scripts/donnees.mjs). */
+export const largeurRoute = L => L.sens && L.cls <= 3 ? Math.max(2, L.voies || 2) * 3.3 + 1.2 : ROAD_W[L.cls];
 function rubanUV(pts, w, pos, uv, idx) {
   const n = pts.length, base = pos.length / 3; let v = 0;
   for (let i = 0; i < n; i++) {
@@ -177,14 +190,16 @@ export function buildRoads(R) {
   for (let i = 0; i < R.c.length; i++) {
     const n = R.n[i], pts = []; let x = 0, z = 0;
     for (let j = 0; j < n; j++) { x += R.p[pi++]; z += R.p[pi++]; pts.push([x / 10, z / 10]); }
-    roadLines.push({ cls: R.c[i], surf: R.f[i] & 3, bridge: !!(R.f[i] & 4), pts });
+    const L = { cls: R.c[i], surf: R.f[i] & 3, bridge: !!(R.f[i] & 4), sens: !!(R.f[i] & 8), voies: (R.f[i] >> 4) & 7, pts };
+    L.w = largeurRoute(L); roadLines.push(L);
   }
   const order = roadLines.map((_, i) => i).sort((a, b) => ROAD_ORDER[roadLines[a].cls] - ROAD_ORDER[roadLines[b].cls]);
   const pos = [], idx = [], col = [];
   const bpos = [], bidx = [], bcol = [];
-  const marq4 = { pos: [], uv: [], idx: [], files: 4 }, marq2 = { pos: [], uv: [], idx: [], files: 2 };
+  const marq4 = { pos: [], uv: [], idx: [], files: 4 }, marq2 = { pos: [], uv: [], idx: [], files: 2 }, marqSens = {};
   for (const i of order) {
-    const L = roadLines[i], w = ROAD_W[L.cls], rgb = u8c(roadColor(L.cls, L.surf));
+    const L = roadLines[i], w = L.w, rgb = u8c(roadColor(L.cls, L.surf));
+    if (!L.bridge && L.sens && L.cls <= 3 && L.surf === 0) { const n = Math.max(2, Math.min(4, L.voies || 2)), M = marqSens[n] ??= { pos: [], uv: [], idx: [], sens: n }; rubanUV(L.pts, w, M.pos, M.uv, M.idx); continue; }
     if (!L.bridge && L.cls <= 2 && L.surf === 0) { const M = L.cls <= 1 ? marq4 : marq2; rubanUV(L.pts, w, M.pos, M.uv, M.idx); continue; }
     if (!L.bridge) { ribbon(L.pts, w, pos, idx, col, rgb); continue; }
     // pont : tablier surélevé avec rampes
@@ -219,13 +234,13 @@ export function buildRoads(R) {
     m.renderOrder = order; m.receiveShadow = true; m.castShadow = depthWrite && !LITE; scene.add(m); return m;
   };
   const routes = mk(pos, idx, col, 7, false); grainSol(routes.material); routes.userData.route = true; COUCHES_SOL.push(routes);
-  for (const M of [marq2, marq4]) {
+  for (const M of [marq2, marq4, ...Object.values(marqSens)]) {
     if (!M.pos.length) continue;
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(M.pos, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(M.pos.length).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(M.uv, 2)); g.setIndex(M.idx);
-    const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: texMarquage(M.files), depthWrite: false }));
+    const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: M.sens ? texMarquageSens(M.sens) : texMarquage(M.files), depthWrite: false }));
     m.renderOrder = M.files === 4 ? 7.6 : 7.5; m.receiveShadow = true; m.userData.route = true; scene.add(m); COUCHES_SOL.push(m);
   }
   if (bpos.length) mk(bpos, bidx, bcol, 8, true);

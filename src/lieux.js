@@ -1149,7 +1149,7 @@ export function terrasses(centre) {
     for (let i = 1; i < L.pts.length; i++) {
       const a = L.pts[i - 1], b = L.pts[i], dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz); if (!len) continue;
       for (let t = 6; t < len; t += 18) { const x = a[0] + dx * t / len, z = a[1] + dz * t / len; if (Math.hypot(x - centre[0], z - centre[1]) > 380 || hash(Math.round(x * 7 + z), 41) > .3) continue;
-        if (Math.hypot(x - BIO[0], z - BIO[1]) < 60) continue; const sg = hash(Math.round(x + z * 3), 42) < .5 ? -1 : 1; pos.push(x - dz / len * (ROAD_W[L.cls] / 2 + 3) * sg, z + dx / len * (ROAD_W[L.cls] / 2 + 3) * sg); }
+        if (Math.hypot(x - BIO[0], z - BIO[1]) < 60) continue; const sg = hash(Math.round(x + z * 3), 42) < .5 ? -1 : 1; const hw = (L.w ?? ROAD_W[L.cls]) / 2 + 3; pos.push(x - dz / len * hw * sg, z + dx / len * hw * sg); }
     }
   }
   const n = pos.length / 2; if (!n) return;

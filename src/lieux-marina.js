@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { toXZ } from './base.js';
 import { fresque, kobra } from './fresques.js';
-import { K, bake, centroide, groupeLieu, mursPoly, obb, ruban, solPoly } from './lieux.js';
+import { K, bake, barrieres, centroide, groupeLieu, mursPoly, obb, ruban, solPoly } from './lieux.js';
 
 // ---------- Boulevard de la Marina, de l'Amazone à Bio Guéra ----------
 // D'après des photos (Wikimedia Commons 2019–2026, gouv.bj, Accor) et des relevés sur
@@ -330,6 +330,13 @@ function murDuPort(pts) {
         const t = (k + .5) / nb, px = a[0] + dx * t + nx * .17 - c[0], pz = a[1] + dz * t + nz * .17 - c[1];
         const p = K.maillage(K.geo(`fr${lc.toFixed(1)}`, () => new THREE.PlaneGeometry(lc, 4.4)), fresque(n++, a[0] + dx * t < xk0), px, 2.25, pz); p.rotation.y = Math.atan2(nx, nz); p.castShadow = false;
       }
+      // Devant les fresques (vidéo 2025) : trottoir clair de 3 m, barrières galvanisées au pied du mur,
+      // lampadaires à drapeau du Bénin tous les ~36 m.
+      K.boite(L + .3, .08, 3, '#d9d4c8', mx + nx * 1.7 - c[0], .04, (a[1] + b[1]) / 2 + nz * 1.7 - c[1]).rotation.y = -ang;
+      const nbar = Math.floor(L / 2.1);
+      if (nbar >= 1) { const g2 = barrieres(mx + nx * 1.1 - c[0], (a[1] + b[1]) / 2 + nz * 1.1 - c[1], -ang, nbar); }
+      for (let d = 18; d < L; d += 36) { const lx = a[0] + dx * d / L + nx * 2.9 - c[0], lz = a[1] + dz * d / L + nz * 2.9 - c[1];
+        K.lampadaireSimple(lx, lz, 1, Math.atan2(-nz, nx)); K.drapeauBenin(lx + nx * .15, lz + nz * .15, 7, -ang); }
     }
     // « Coexistence » : mur de 53 m sur 8,8 m, panneau central jusqu'à 14 m.
     const [k0x, k0z] = toXZ(6.350114, 2.417934), [k1x, k1z] = toXZ(6.35018, 2.41875), kd = [k1x - k0x, k1z - k0z], kl = Math.hypot(...kd), ka = Math.atan2(kd[1], kd[0]);

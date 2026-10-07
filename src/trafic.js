@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { dansTerrePlein } from './terre-pleins.js';
 import { LITE, hash } from './base.js';
 import { E } from './etat.js';
 import { camera, scene } from './scene.js';
@@ -15,7 +16,7 @@ export function buildZems() {
     const xz = new Float32Array(L.pts.length * 2), cum = new Float32Array(L.pts.length);
     for (let j = 0; j < L.pts.length; j++) { xz[2 * j] = L.pts[j][0]; xz[2 * j + 1] = L.pts[j][1]; if (j) cum[j] = cum[j - 1] + Math.hypot(xz[2 * j] - xz[2 * j - 2], xz[2 * j + 1] - xz[2 * j - 1]); }
     const len = cum[cum.length - 1]; if (len < 30) continue;
-    total += len * W[L.cls]; paths.push({ xz, cum, len, w: ROAD_W[L.cls], acc: total });
+    total += len * W[L.cls]; paths.push({ xz, cum, len, w: L.w ?? ROAD_W[L.cls], sens: L.sens && L.cls <= 3, acc: total });
   }
   const n = LITE ? 1400 : 3000;
   const g = mergeColored(partsZem({ passager: '#2f6fb0' }));
@@ -27,7 +28,8 @@ export function buildZems() {
     const r = hash(i, 60) * total; let lo = 0, hi = paths.length - 1;
     while (lo < hi) { const mid = (lo + hi) >> 1; if (paths[mid].acc < r) lo = mid + 1; else hi = mid; }
     const P = paths[lo];
-    E.zemState.push({ P, s: hash(i, 61) * P.len, v: 7 + hash(i, 62) * 7, dir: hash(i, 63) < 0.5 ? 1 : -1, seg: 0, lane: 0.8 + hash(i, 64) * (P.w * 0.3) });
+    // Chaussée à sens unique (moitié de boulevard) : tout le monde roule dans le même sens, réparti sur la largeur.
+    E.zemState.push({ P, s: hash(i, 61) * P.len, v: 7 + hash(i, 62) * 7, dir: P.sens ? 1 : hash(i, 63) < 0.5 ? 1 : -1, seg: 0, lane: P.sens ? (hash(i, 64) - .5) * (P.w - 2) : 0.8 + hash(i, 64) * (P.w * 0.3) });
   }
   scene.add(E.zems);
 }
@@ -48,7 +50,8 @@ export function updateZems(dt) {
   for (let i = 0; i < E.zemState.length; i++) {
     const z = E.zemState[i], P = z.P;
     z.s += z.v * dt * z.dir;
-    if (z.s >= P.len) { z.s = P.len - 0.01; z.dir = -1; } else if (z.s <= 0) { z.s = 0.01; z.dir = 1; }
+    if (P.sens) { if (z.s >= P.len) z.s = 0.01; } // sens unique : pas de demi-tour, on repart du début
+    else if (z.s >= P.len) { z.s = P.len - 0.01; z.dir = -1; } else if (z.s <= 0) { z.s = 0.01; z.dir = 1; }
     const cum = P.cum; let k = z.seg;
     while (k < cum.length - 2 && z.s > cum[k + 1]) k++;
     while (k > 0 && z.s < cum[k]) k--;
@@ -76,10 +79,10 @@ export function buildLamps() {
   const pos = [];
   for (const L of roadLines) {
     if (L.cls > 2) continue;
-    const w = ROAD_W[L.cls] / 2 + 1.5; let carry = 0, side = 1;
+    const w = (L.w ?? ROAD_W[L.cls]) / 2 + 1.5; let carry = 0, side = 1;
     for (let j = 1; j < L.pts.length; j++) {
       const a = L.pts[j - 1], b = L.pts[j]; const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz); if (!len) continue;
-      for (let d = carry; d < len; d += 32) { const t = d / len; side = -side; pos.push(a[0] + dx * t + (-dz / len) * w * side, L.bridge ? 12 : 8, a[1] + dz * t + (dx / len) * w * side); }
+      for (let d = carry; d < len; d += 32) { const t = d / len; side = -side; if (dansTerrePlein(a[0] + dx * t + (-dz / len) * w * side, a[1] + dz * t + (dx / len) * w * side, 1)) continue; pos.push(a[0] + dx * t + (-dz / len) * w * side, L.bridge ? 12 : 8, a[1] + dz * t + (dx / len) * w * side); }
       carry = (carry - len) % 32; if (carry < 0) carry += 32;
     }
   }
@@ -103,7 +106,7 @@ export function construireTokpas() {
     if (!(m[0] < -5200 || (m[1] < -2800 && m[0] < -1500) || m[0] > 8000)) continue;
     const xz = new Float32Array(L.pts.length * 2), cum = new Float32Array(L.pts.length);
     for (let j = 0; j < L.pts.length; j++) { xz[2 * j] = L.pts[j][0]; xz[2 * j + 1] = L.pts[j][1]; if (j) cum[j] = cum[j - 1] + Math.hypot(xz[2 * j] - xz[2 * j - 2], xz[2 * j + 1] - xz[2 * j - 1]); }
-    const len = cum[cum.length - 1]; if (len < 60) continue; total += len; paths.push({ xz, cum, len, w: ROAD_W[L.cls], acc: total });
+    const len = cum[cum.length - 1]; if (len < 60) continue; total += len; paths.push({ xz, cum, len, w: L.w ?? ROAD_W[L.cls], acc: total });
   }
   if (!paths.length) return;
   const n = LITE ? 70 : 160;

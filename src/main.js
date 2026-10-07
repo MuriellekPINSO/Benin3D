@@ -1,4 +1,5 @@
 import './style.css';
+import { construireTerrePleins, initTerrePleins } from './terre-pleins.js';
 import * as THREE from 'three';
 import { applyMood, sunDir } from './ambiances.js';
 import { $, LITE, reduceMotion } from './base.js';
@@ -98,6 +99,7 @@ async function main() {
   buildSurfaces(data.S); buildFoam();
   status('Tracé des routes…', 12); await frame();
   buildRoads(data.R);
+  initTerrePleins(data.L.terrePleins); construireTerrePleins(); // terre-plein central des boulevards (gazon, haies, lampadaires)
   await buildBuildings(data.B);
   initRue(data);
   const nGoogle = await initBatimentsGoogle();
