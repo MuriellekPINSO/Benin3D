@@ -161,6 +161,13 @@ catalogue `CAMPAGNES` de `src/publicites.js` (MTN MoMo, Moov Money, Vodun Days, 
 Les affiches dessinées n'utilisent pas les logos des marques ; afficher une marque réelle dans une version
 publique demande l'accord de l'annonceur. Les affichages sont comptés par campagne (sur l'appareil du joueur).
 
+## Façades d'après photos
+
+`public/textures/erevan-facade.jpg` : bandeau haut de la façade du centre commercial Erevan, tiré de la
+photo « Centre commercial Erevan de Cotonou 08 » d'Alex Ahdn (Wikimedia Commons, CC BY-SA 4.0), redressée,
+recadrée et nettoyée des poteaux et drapeaux. Crédit affiché dans le bandeau du site. Même licence pour
+toute réutilisation de cette texture.
+
 ## D'où viennent les données
 
 - **Google (Maps JavaScript API)** : la vue réelle (images satellite, relief, bâtiments 3D là où Google en a),

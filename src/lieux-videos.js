@@ -209,17 +209,28 @@ function erevan(ring, versRondPoint) {
     const d = [versRondPoint[0] - c[0], versRondPoint[1] - c[1]], l = Math.hypot(...d) || 1, ux = d[0] / l, uz = d[1] / l;
     // Façade la plus proche du rond-point : enseigne sur le bandeau rouge.
     let best = null, bd = -1e9;
-    for (let i = 0; i < loc.length; i++) { const a = loc[i], b = loc[(i + 1) % loc.length], mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, s = mx * ux + mz * uz, L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L > 25 && s > bd) { bd = s; best = [mx, mz, Math.atan2(b[1] - a[1], b[0] - a[0])]; } }
+    for (let i = 0; i < loc.length; i++) { const a = loc[i], b = loc[(i + 1) % loc.length], mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, s = mx * ux + mz * uz, L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L > 25 && s > bd) { bd = s; best = [mx, mz, Math.atan2(b[1] - a[1], b[0] - a[0]), L]; } }
     if (best) {
       // Façade : « Centre Commercial EREVAN » à gauche, « SUPER » et le logo U à droite (vus du rond-point).
-      const [mx, mz, a] = best, nx = ux * .4, nz = uz * .4, ex = Math.cos(a), ez = Math.sin(a), sens = (Math.sin(-a) * ux + Math.cos(-a) * uz) < 0 ? Math.PI : 0;
+      const [mx, mz, a, Lf] = best, nx = ux * .4, nz = uz * .4, ex = Math.cos(a), ez = Math.sin(a), sens = (Math.sin(-a) * ux + Math.cos(-a) * uz) < 0 ? Math.PI : 0;
       const pose = (p, d) => { p.position.x += ex * d; p.position.z += ez * d; p.rotation.y = -a + sens; p.material.side = THREE.FrontSide; return p; };
       const g2 = sens ? -1 : 1; // à gauche ou à droite selon le sens de la façade
-      pose(panneauTexte(['Centre Commercial EREVAN'], 30, 2.6, mx + nx, 7.2, mz + nz, -a, { fond: '#ba5b31', encre: '#1c699d', px: 1536, py: 132, police: '800 96px system-ui, sans-serif' }), -g2 * 24);
-      pose(panneauTexte(['SUPER'], 16, 3.4, mx + nx, 7, mz + nz, -a, { fond: '#ba5b31', encre: '#1c699d', px: 1024, py: 218, police: '900 190px system-ui, sans-serif' }), g2 * 20);
-      const logo = pose(panneauTexte(['U'], 4, 4, mx + nx * 1.2, 7.2, mz + nz * 1.2, -a, { fond: '#ffffff', encre: '#d61f26', px: 256, py: 256, police: '900 200px system-ui, sans-serif' }), g2 * 32);
-      logo.scale.set(1, 1, 1);
-      pose(panneauTexte(['Cotonou'], 6, 1.1, mx + nx, 4.6, mz + nz, -a, { fond: '#ba5b31', encre: '#1c699d', px: 512, py: 94, police: 'italic 700 70px system-ui, sans-serif' }), g2 * 32);
+      // La vraie façade : bandeau haut tiré d'une photo (Alex Ahdn, CC BY-SA 4.0, Wikimedia Commons), redressée et recadrée (scripts/photos-facades.mjs).
+      const photo = new THREE.TextureLoader().load(import.meta.env.BASE_URL + 'textures/erevan-facade.jpg'); photo.colorSpace = THREE.SRGBColorSpace; photo.anisotropy = 8;
+      // La photo couvre ~38 m de façade (bande de 4,3 m de haut) : on la pose à sa vraie taille, au milieu, le reste de la façade reste en enduit orange.
+      const bande = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(Lf - .4, 4.3 * 3640 / 410), 4.3), new THREE.MeshStandardMaterial({ map: photo, roughness: .85 }));
+      bande.position.set(mx + nx * .3, 6.75, mz + nz * .3); bande.rotation.y = Math.atan2(ux, uz); // face au rond-point
+      bande.userData.garder = true; bande.receiveShadow = true; K.racine.add(bande);
+      // Devant : muret terre cuite à grilles noires, guérite blanche « BIENVENUE · Entrée », drapeaux « SUPER U », bordures rouge et blanc.
+      const dm = 22, terre = K.mat('#b04e2a', { rugosite: .9 }), noir = K.mat('#1f2326', { rugosite: .6, metal: .3 });
+      for (let k = -1; k <= 1; k += 2) { const l = Lf * .36; K.boite(l, 1.1, .4, terre, mx + ux * dm + ex * k * (l / 2 + 4), .55, mz + uz * dm + ez * k * (l / 2 + 4)).rotation.y = -a; for (let j = -l / 2; j <= l / 2; j += 1.6) K.boite(.08, 2.1, .08, noir, mx + ux * dm + ex * (k * (l / 2 + 4) + j), 1.6, mz + uz * dm + ez * (k * (l / 2 + 4) + j)); K.boite(l, .08, .08, noir, mx + ux * dm + ex * k * (l / 2 + 4), 2.55, mz + uz * dm + ez * k * (l / 2 + 4)).rotation.y = -a; }
+      for (const k of [-1, 1]) K.boite(1.4, 2.4, 1.4, terre, mx + ux * dm + ex * k * 3.6, 1.2, mz + uz * dm + ez * k * 3.6);
+      const gx = mx + ux * (dm - 3), gz = mz + uz * (dm - 3);
+      K.boite(3.2, 3.2, 2.4, K.mat('#f1f0ec'), gx, 1.6, gz).rotation.y = -a; K.boite(4.2, .35, 3.2, '#2a2d30', gx, 3.35, gz).rotation.y = -a;
+      pose(panneauTexte(['BIENVENUE'], 3.6, .7, gx + nx * 3, 2.9, gz + nz * 3, -a, { fond: '#f1f0ec', encre: '#1c699d', px: 512, py: 100, police: '800 70px system-ui, sans-serif' }), 0);
+      pose(panneauTexte(['Entrée →'], 2.2, .6, gx + nx * 3, 1.1, gz + nz * 3, -a, { fond: '#1c699d', encre: '#ffffff', px: 384, py: 104, police: '700 64px system-ui, sans-serif' }), 0);
+      for (const k of [-1, 1]) { const fx = mx + ux * (dm + 2) + ex * k * 16, fz = mz + uz * (dm + 2) + ez * k * 16; K.cyl(.06, .08, 7, 6, '#dcdcd6', fx, 3.5, fz); const dr = K.boite(.9, 3.4, .04, K.mat('#8fb6c6', { face2: true }), fx + ex * .5, 5.2, fz + ez * .5); dr.rotation.y = -a; }
+      for (const k of [-1, 1]) for (let j = 0; j < 6; j++) K.boite(1.2, .25, .5, j % 2 ? '#c8382f' : '#f2f2ee', mx + ux * (dm + 4) + ex * (k * 8 + j * 1.2), .12, mz + uz * (dm + 4) + ez * (k * 8 + j * 1.2)).rotation.y = -a;
       // Poteaux décoratifs inclinés, jaune-vert, le long de la façade.
       for (let k = -8; k <= 8; k++) { const p = K.cyl(.12, .12, 6, 6, '#b5c43a', mx + nx * 3 + ex * k * 7, 3, mz + nz * 3 + ez * k * 7); p.rotation.z = .25; }
       // Totem noir surmonté d'un tambour blanc « EREVAN ».
