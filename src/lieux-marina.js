@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { toXZ } from './base.js';
 import { fresque, kobra } from './fresques.js';
 import { K, bake, centroide, groupeLieu, mursPoly, obb, ruban, solPoly } from './lieux.js';
@@ -50,16 +51,22 @@ K.motif('nigeria', (c, t) => { // enduit blanc, fenêtres en bandeau derrière d
   c.fillStyle = '#f0f0ec'; c.fillRect(0, 0, t, t); c.fillStyle = '#3c4a52'; c.fillRect(0, t * .32, t, t * .36);
   c.fillStyle = '#f4f4f0'; for (let i = 0; i < 16; i++) c.fillRect(i * t / 16, t * .32, 3, t * .36); c.fillRect(0, t * .48, t, 3);
 });
-K.motif('bronzeDome', (c, t) => { c.fillStyle = '#4e3d2c'; c.fillRect(0, 0, t, t); for (let i = 0; i < 900; i++) { c.fillStyle = ['#5d4a36', '#433426', '#6a553e'][i % 3]; c.fillRect(Math.random() * t, Math.random() * t, 3, 2); } c.fillStyle = 'rgba(255,236,190,.35)'; for (let i = 0; i < 4; i++) c.fillRect(i * t / 4 + t / 8, 0, 2, t); });
+// Le Dôme : revêtement gris argent (vidéos de drone 2025 : gris clair au soleil, doré seulement de nuit).
+K.motif('argentDome', (c, t) => { c.fillStyle = '#a9adaf'; c.fillRect(0, 0, t, t); for (let i = 0; i < 900; i++) { c.fillStyle = ['#b4b8ba', '#9ea2a5', '#babdbf'][i % 3]; c.fillRect(Math.random() * t, Math.random() * t, 3, 2); } c.fillStyle = 'rgba(70,74,78,.35)'; for (let i = 0; i < 4; i++) c.fillRect(i * t / 4 + t / 8, 0, 2, t); });
 K.motif('ailettes', (c, t) => { // Pavillon : ailettes verticales bronze et or olive
   c.fillStyle = '#3a3f35'; c.fillRect(0, 0, t, t);
   for (let i = 0; i < 24; i++) { const g = c.createLinearGradient(i * t / 24, 0, (i + 1) * t / 24, 0); g.addColorStop(0, '#b3a26a'); g.addColorStop(1, '#6f6340'); c.fillStyle = g; c.fillRect(i * t / 24 + 2, 0, t / 24 - 5, t); }
 });
 K.motif('verreBleu', (c, t) => { const g = c.createLinearGradient(0, 0, t, t); g.addColorStop(0, '#4f86a6'); g.addColorStop(1, '#25506b'); c.fillStyle = g; c.fillRect(0, 0, t, t); grille(c, t, 'rgba(0,0,0,0)', '#1f3c50', 3, 2, 3); });
-K.motif('citeFacade', (c, t) => { // Cité ministérielle : bandeau de travertin, fenêtres en ruban vert-bleu, un étage par tuile
-  c.fillStyle = '#e8e5dd'; c.fillRect(0, 0, t, t); c.fillStyle = '#2f6e6a'; c.fillRect(0, t * .38, t, t * .44);
-  c.fillStyle = '#d2ccc0'; for (let i = 0; i <= 8; i++) c.fillRect(i * t / 8 - 2, t * .38, 4, t * .44); c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(0, t * .38, t, t * .06);
-  c.fillStyle = '#d8d3c8'; c.fillRect(0, t * .82, t, t * .05);
+K.motif('citeFacade', (c, t) => { // Cité ministérielle (drone 2025) : épais bandeau blanc en saillie, vitrage sombre en retrait, jardinière en nez de dalle ; un étage par tuile
+  c.fillStyle = '#f1efea'; c.fillRect(0, 0, t, t);
+  c.fillStyle = '#e4e1da'; c.fillRect(0, t * .3, t, t * .03); c.fillRect(0, t * .06, t, t * .015); // joints du bandeau
+  c.fillStyle = '#26363a'; c.fillRect(0, t * .36, t, t * .5); // vitrage en retrait, dans l'ombre du bandeau
+  const om = c.createLinearGradient(0, t * .36, 0, t * .5); om.addColorStop(0, 'rgba(0,0,0,.45)'); om.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = om; c.fillRect(0, t * .36, t, t * .14);
+  c.fillStyle = '#b9c7c9'; for (let i = 0; i <= 10; i++) c.fillRect(i * t / 10 - 1, t * .36, 2, t * .5);
+  c.fillStyle = 'rgba(190,220,225,.22)'; for (let i = 0; i < 10; i++) if (i % 3 === 1) c.fillRect(i * t / 10 + 3, t * .4, t / 10 - 6, t * .42);
+  c.fillStyle = '#4f7a3c'; c.fillRect(0, t * .86, t, t * .05); c.fillStyle = '#6d9a52'; for (let i = 0; i < 30; i++) c.fillRect((i * 37) % t, t * .85 + (i % 3) * 2, 6, 5); // jardinière plantée
+  c.fillStyle = '#e9e6df'; c.fillRect(0, t * .91, t, t * .09);
 });
 K.motif('citePignon', (c, t) => { c.fillStyle = '#d8d4cb'; c.fillRect(0, 0, t, t); c.fillStyle = '#8f9496'; for (let i = 0; i < 18; i++) c.fillRect(0, i * t / 18, t, t / 40); });
 K.motif('parking', (c, t) => { c.fillStyle = '#f2f0ea'; c.fillRect(0, 0, t, t); c.fillStyle = '#4a4f52'; c.fillRect(0, t * .2, t, t * .62); c.fillStyle = '#e8e6e0'; for (let i = 0; i < 6; i++) c.fillRect(i * t / 6, t * .2, t / 30, t * .62); });
@@ -261,19 +268,20 @@ function nigeria(ring) {
 function dome() {
   const [x, z] = toXZ(6.34980, 2.39668), g = groupeLieu('le-dome', x, z);
   K.into(g, () => {
-    // Cône à facettes, revêtement bronze, nervures rayonnantes ; brèche en V tournée vers le boulevard.
-    const cone = K.maillage(K.geo('domeCone', () => new THREE.CylinderGeometry(2.5, 24, 22, 14, 1)), K.tex('bronzeDome', 6, 2), 0, 11, 0);
-    cone.rotation.y = .1;
+    // Cône à facettes, revêtement gris argent, nervures rayonnantes ; brèche en V tournée vers le boulevard.
+    const dessine = !tripoDispo('dome'); if (!dessine) poserTripo('dome', g, { hauteur: 26 });
+    const cone = dessine && K.maillage(K.geo('domeCone', () => new THREE.CylinderGeometry(2.5, 24, 22, 14, 1)), K.tex('argentDome', 6, 2, '#ffffff', { metal: .35 }), 0, 11, 0);
+    if (cone) cone.rotation.y = .1;
     const cap = 25 * Math.PI / 180, ux = Math.sin(cap), uz = -Math.cos(cap); // direction NNE
     // Nervures en dents de scie sur la moitié est, du pied vers le sommet.
     const pente = (a, r0, y0, r1, y1, ep, m) => { const b = new THREE.Vector3(Math.cos(a) * r0, y0, Math.sin(a) * r0), t = new THREE.Vector3(Math.cos(a) * r1, y1, Math.sin(a) * r1), mid = b.clone().add(t).multiplyScalar(.5); const n = K.boite(ep, ep, b.distanceTo(t), m, mid.x, mid.y, mid.z); n.lookAt(t.clone().add(g.position)); return n; };
-    for (let i = 0; i < 12; i++) pente(Math.atan2(uz, ux) + Math.PI * .45 + i * .14, 24.3, .5, 3.2, 21.6, .7, '#5d4a36');
-    const sable = K.mat('#c9b48f', { rugosite: .8 });
-    for (const s of [-1, 1]) { const a = Math.atan2(uz, ux) + s * .32, p = K.boite(.8, 21, 14, sable, Math.cos(a) * 17, 10.5, Math.sin(a) * 17); p.rotation.y = -a; }
-    K.boite(16, .5, 7, '#f6f5f1', ux * 25, 4.4, uz * 25).rotation.y = -Math.atan2(uz, ux) + Math.PI / 2;
+    if (dessine) for (let i = 0; i < 12; i++) pente(Math.atan2(uz, ux) + Math.PI * .45 + i * .14, 24.3, .5, 3.2, 21.6, .7, '#80868a');
+    const sable = K.mat('#bdb9b0', { rugosite: .8 });
+    if (dessine) for (const s of [-1, 1]) { const a = Math.atan2(uz, ux) + s * .32, p = K.boite(.8, 21, 14, sable, Math.cos(a) * 17, 10.5, Math.sin(a) * 17); p.rotation.y = -a; }
+    if (dessine) K.boite(16, .5, 7, '#f6f5f1', ux * 25, 4.4, uz * 25).rotation.y = -Math.atan2(uz, ux) + Math.PI / 2;
     for (let i = 0; i < 10; i++) K.drapeauBenin(ux * 42 + (-uz) * (i - 4.5) * 5, uz * 42 + ux * (i - 4.5) * 5, 8);
     // Guirlandes de lumière le long des pentes.
-    for (let i = 0; i < 14; i++) pente(i / 14 * Math.PI * 2 + .2, 24.5, .3, 2.9, 22, .14, K.mat('#fff3d6', { emissif: '#6b5a3a' })).castShadow = false;
+    if (dessine) for (let i = 0; i < 14; i++) pente(i / 14 * Math.PI * 2 + .2, 24.5, .3, 2.9, 22, .14, K.mat('#fff3d6', { emissif: '#a8874a' })).castShadow = false;
   });
   bake(g);
 }

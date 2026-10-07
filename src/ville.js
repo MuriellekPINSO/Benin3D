@@ -9,7 +9,8 @@ import { COUCHES_SOL, U, flatMat, grainSol, scene } from './scene.js';
 
 // ---------- Surfaces ----------
 export const KIND_STYLE = [
-  { c: '#2a7896', o: 4, water: true }, { c: '#4e8c89', o: 4, water: true }, { c: '#4a8790', o: 4, water: true }, { c: '#8c9b62', o: 3 },
+  // Mer ; lac Nokoué et lagune, gris-vert et troubles (couleurs relevées sur les vidéos de drone) ; autres eaux.
+  { c: '#2a7896', o: 4, water: true }, { c: '#56665f', o: 4, water: true }, { c: '#526664', o: 4, water: true }, { c: '#8c9b62', o: 3 },
   { c: '#eadab4', o: 3 }, { c: '#8db06a', o: 3 }, { c: '#5f8945', o: 3 }, { c: '#b9b87a', o: 3 }, { c: '#6dab58', o: 3 },
   { c: '#a2ae88', o: 3 }, { c: '#cdc4b2', o: 2 }, { c: '#9b9b98', o: 5 }, { c: '#bdb98c', o: 2 }, { c: '#bdb6a8', o: 5 },
 ];
@@ -234,15 +235,16 @@ export function buildRoads(R) {
 const VILLAS = [[6.3545, 2.3935, 1150], [6.3565, 2.3700, 1350], [6.3605, 2.3960, 650], [6.3625, 2.4650, 1300], [6.3500, 2.3480, 1200]].map(([la, lo, r]) => [...toXZ(la, lo), r]);
 export const PAL = {
   wall: [
-    pal(['#f2efe8', '#f2efe8', '#f4f1ea', '#ebe7df', '#e6e2da', '#dfe3e2', '#efe4d2', '#e9dcc6', '#d9ddd9', '#e6d3bd', '#cfdadd', '#efe0d6', '#e8e9df', '#d7d2c6']),
+    // Quartiers ordinaires, d'après le drone (2026) : béton gris brut (maisons inachevées), crème, saumon, bleu pâle, ocre, vert d'eau.
+    pal(['#f2efe8', '#ebe7df', '#efe4d2', '#e6e2da', '#b6b3ab', '#a8a69f', '#c3c0b7', '#9d9b94', '#b0aea6', '#e2b6a0', '#d9a28c', '#e9c4b2', '#b7cfd8', '#9fbecb', '#dcb57c', '#c9d2bb']),
     pal(['#f2f0ea', '#dde5e8', '#e9e0cd', '#d2dbe0']), pal(['#e8cf86', '#e4c27a']), pal(['#f4f1ea', '#efe6d6']),
     pal(['#bdb9b0', '#c8c1b2', '#aeb0ad']), pal(['#7d5d3f', '#6f5139', '#8a6a48']), pal(['#f2f2ee']), pal(['#aaa69d', '#a19d94']),
-    pal(['#b9a58a', '#8fa6b0', '#c9b79c', '#a4b8a0', '#d1c2a6', '#7f98a8']), pal(['#d9c3a0', '#cdb791']), pal(['#d9c7b8', '#cbb6a6', '#c9b9a3']), pal(['#ecc58f', '#e9d3a3', '#f0dcb0', '#e3b07c']),
+    pal(['#b9a58a', '#8fa6b0', '#c9b79c', '#a4b8a0', '#d1c2a6', '#7f98a8']), pal(['#f1f0eb', '#e8e7e1']), pal(['#d9c7b8', '#cbb6a6', '#c9b9a3']), pal(['#ecc58f', '#e9d3a3', '#f0dcb0', '#e3b07c']),
   ],
-  tin: pal(['#9aa1a4', '#8c9396', '#a8aeb0', '#b3b8ba', '#7f878b', '#a0684a', '#8f5f47', '#6f8fa8']),
-  tuile: pal(['#c8553a', '#d0603f', '#b94a34', '#cf6a45', '#bd5a3c', '#c4502f']),
-  flat: pal(['#e6e3dc', '#dcd8cf', '#efece6', '#cfcac0', '#d9d4ca', '#c6c2b9']),
-  roofCat: [null, pal(['#d7cfc0', '#c9c4ba']), pal(['#a9653f', '#9a5a3c']), pal(['#bdb6aa']), pal(['#9fa6a8', '#8f979b', '#b8bec0']), pal(['#a8946b', '#8f979b', '#9a8660']), pal(['#d7cfc0']), pal(['#9d998f']), pal(['#a9653f', '#8f979b', '#9fa6a8', '#8c5b43', '#b8bec0']), pal(['#b5583f', '#a94f3a']), pal(['#cfc8bb']), pal(['#b9654a', '#9fa6a8', '#d7cfc0'])],
+  tin: pal(['#9aa1a4', '#8c9396', '#777e82', '#6b7275', '#b3b8ba', '#a0684a', '#8f5f47', '#7a4a36', '#4f7fae', '#5f86a8']),
+  tuile: pal(['#a8503a', '#9c4b37', '#b25a40', '#8f4632', '#a4563f', '#bd6346']),
+  flat: pal(['#b9b5ab', '#aba79e', '#c4c0b6', '#9f9c94', '#b0ada5', '#c9c5bc']),
+  roofCat: [null, pal(['#d7cfc0', '#c9c4ba']), pal(['#a9653f', '#9a5a3c']), pal(['#bdb6aa']), pal(['#9fa6a8', '#8f979b', '#b8bec0']), pal(['#a8946b', '#8f979b', '#9a8660']), pal(['#d7cfc0']), pal(['#9d998f']), pal(['#a9653f', '#8f979b', '#9fa6a8', '#8c5b43', '#b8bec0']), pal(['#e6e5df', '#dcdbd4']), pal(['#cfc8bb']), pal(['#b9654a', '#9fa6a8', '#d7cfc0'])],
 };
 export const buildingMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 buildingMat.onBeforeCompile = s => {
@@ -347,9 +349,10 @@ function ajouterBatiment(c, B, L, i, k) {
   let rc;
   if (cat === 0) {
     const pick = l => l[Math.floor(hash(k, 2) * l.length)];
-    if (L.roof[i]) rc = hash(k, 6) < (L.villa[i] ? 0.78 : 0.32) ? pick(PAL.tuile) : pick(PAL.tin);
-    else if (L.surf[i] < 650 && hash(k, 7) < (L.villa[i] ? 0.55 : 0.18)) rc = pick(PAL.tuile);
-    else rc = h < 4.8 && hash(k, 5) < 0.45 ? pick(PAL.tin) : pick(PAL.flat);
+    // Vu du drone : surtout de la tôle grise ou rouillée et des dalles de béton ; la tuile reste rare hors des quartiers de villas.
+    if (L.roof[i]) rc = hash(k, 6) < (L.villa[i] ? 0.7 : 0.16) ? pick(PAL.tuile) : pick(PAL.tin);
+    else if (L.surf[i] < 650 && hash(k, 7) < (L.villa[i] ? 0.45 : 0.06)) rc = pick(PAL.tuile);
+    else rc = h < 4.8 && hash(k, 5) < 0.55 ? pick(PAL.tin) : pick(PAL.flat);
   }
   else { const rl = PAL.roofCat[cat]; rc = rl[Math.floor(hash(k, 2) * rl.length)]; }
   if (L.roof[i]) addHip(c, xs, zs, h, rc, seed);

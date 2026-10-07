@@ -5,6 +5,7 @@ import { $, LITE, reduceMotion } from './base.js';
 import { decode, frame, loadTxt, status } from './chargement.js';
 import { E } from './etat.js';
 import { accueil, initExplorer } from './explorer.js';
+import { chargerIndexTripo } from './batiments-tripo.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
 import { JEU, initJeu, majJeu } from './jeu.js';
 import { VEGETATION, animerLieux, construireLieux, portailUAC, semeOne, visibiliteLieux } from './lieux.js';
@@ -104,6 +105,7 @@ async function main() {
   status('Cocotiers, conteneurs et pirogues…', 84); await frame();
   extras.push(buildPalms(data.palms), buildContainers(data.containers), buildShips());
   status('Monuments, Ganvié et marché de Dantokpa…', 90); await frame();
+  await chargerIndexTripo(); // bâtiments reconnaissables générés par Tripo, s'il y en a
   await construireLieux(data);
   construireLieuxVideos(data); construireOuidah(data.L); construireEtals(data.L);
   semeOne(data.L.semeOne); portailUAC(data.L.campus, data.L.lignes?.find(l => l.id === 'calavi')?.pts); construireTokpas();

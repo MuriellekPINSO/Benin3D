@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { LITE } from './base.js';
 import { groupeLieu } from './lieux.js';
 import { chargerMasques, creerEgungun, creerZangbeto, masque } from './egungun.js';
@@ -288,6 +289,9 @@ function porte() {
     const p = arche.attributes.position, uv = arche.attributes.uv, n = arche.attributes.normal;
     for (let i = 0; i < p.count; i++) { const ax = Math.abs(n.getX(i)) > .5 ? p.getZ(i) : p.getX(i), ay = Math.abs(n.getY(i)) > .5 ? p.getZ(i) : p.getY(i); uv.setXY(i, ax / 6, ay / 6); }
   }
+  // Modèle Tripo (d'après photo) s'il existe, sinon l'arche dessinée à la main.
+  if (tripoDispo('porte')) poserTripo('porte', G, { largeur: W + 1.2 });
+  else {
   add(new THREE.Mesh(arche, betonM));
   // Cintre de la baie souligné de jaune et de rouge.
   for (const [r0, r1, m, z] of [[ow / 2, ow / 2 + .45, jauneM, D / 2 + .03], [ow / 2 + .45, ow / 2 + .8, rougeM, D / 2 + .03]]) for (const s of [-1, 1]) {
@@ -309,6 +313,7 @@ function porte() {
   for (const s of [-1, 1]) {
     for (const x of [-1, 1]) add(new THREE.Mesh(new THREE.BoxGeometry((W - ow) / 2, .5, .1), rougeM), false).position.set(x * (ow / 2 + (W - ow) / 4), .25, s * (D / 2 + .03));
     add(new THREE.Mesh(new THREE.BoxGeometry(.1, .5, D + .1), rougeM), false).position.set(s * (W / 2 + .03), .25, 0);
+  }
   }
   // Esplanade pavée et marches vers la plage.
   const pave = tex(512, 512, (c, w, h) => {

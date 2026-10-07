@@ -12,7 +12,8 @@
     "modeles": "node scripts/modeles.mjs",
     "masques": "node scripts/masques.mjs",
     "photos": "node scripts/photos.mjs",
-    "verifier": "eslint src"
+    "verifier": "eslint src",
+    "tripo": "node scripts/tripo.mjs"
   },
   "dependencies": {
     "three": "0.180.0"

@@ -86,7 +86,7 @@ const lakeRel = load('rels').find(e => e.id === 3971451);
 const lakeOuter = assemble(lakeRel.members.filter(m => m.role === 'outer' && m.geometry).map(m => m.geometry.map(p => P(p.lat, p.lon))));
 const lakeBB = lakeOuter.map(bbox);
 const inLake = (x, z) => lakeOuter.some((r, i) => { const b = lakeBB[i]; return x > b[0] && x < b[2] && z > b[1] && z < b[3] && pip([x, z], r); });
-const EXCLUDE = new Set([520665863, 443576927, 272739399]); // étoile, cathédrale, Marina : reconstruits en détail
+const EXCLUDE = new Set([520665863, 443576927, 272739399, 418388596, 418074887]); // + marché Ganhi (hall et ancien toit rond) // étoile, cathédrale, Marina : reconstruits en détail
 // Boulevard de la Marina : bâtiments reconstruits en détail (src/lieux-marina.js), d'après les photos
 // et les relevés sur images satellite (osm/marina.json : emprises extraites d'OSM pour ces lieux).
 const MAR = fs.existsSync('osm/marina.json') ? new Map(JSON.parse(fs.readFileSync('osm/marina.json', 'utf8')).elements.map(e => [e.id, e])) : new Map();
@@ -154,6 +154,8 @@ const CAT = t => {
 };
 const B = { n: [], h: [], c: [], x: [], z: [], p: [] };
 const ringsExclus = [];
+// Palais des Congrès dessiné à la main, avec son parvis et son parking au nord (unités : dm) : Google n’y ajoute rien.
+const CONGRES_BB = bbox(congresOuter.flat()), dansCongres = (x, z) => x > CONGRES_BB[0] - 300 && x < CONGRES_BB[2] + 300 && z > CONGRES_BB[1] - 600 && z < CONGRES_BB[3] + 200;
 const bIndex = new Map(); // grille 100 m -> boîtes englobantes (pour éviter de planter des palmiers dans les maisons)
 let stats = { levels: 0 };
 for (const e of bRaw) {
@@ -271,6 +273,7 @@ if (fs.existsSync(GOB)) {
     if (dansOSM(qx, qz) || couvreOSM(r, bb)) { doublons++; continue; }
     if (ringsExclus.some(([er, eb]) => qx > eb[0] && qx < eb[2] && qz > eb[1] && qz < eb[3] && pip([qx, qz], er)) || ringsExclus.some(([er, eb]) => { const ec = [(eb[0] + eb[2]) / 2, (eb[1] + eb[3]) / 2]; return ec[0] > bb[0] && ec[0] < bb[2] && ec[1] > bb[1] && ec[1] < bb[3] && pip(ec, r); })) { doublons++; continue; }
     const id = 10000000 + gardes, u = rnd(id), v = rnd(id, 7);
+    if (dansCongres(qx, qz)) { gardes++; continue; } // après la numérotation : les autres bâtiments gardent leur graine
     let cat = m2 > 1500 ? 4 : 0, h;
     if (marketRings.some(mr => pip([qx, qz], mr))) { cat = m2 > 1200 ? 10 : 8; h = cat === 10 ? 9.5 + u * 3 : 3 + u * 1.6; }
     else if (pip([qx, qz], campusUAC)) { cat = 11; h = m2 < 60 ? 3.4 : 6.6 + Math.floor(u * 3) * 3.2; }

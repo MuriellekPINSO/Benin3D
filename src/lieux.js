@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -33,6 +34,8 @@ export const K = (() => {
     chevrons(c, t) { c.fillStyle = '#cfc8ba'; c.fillRect(0, 0, t, t); const u = t / 8; for (let i = -2; i < 10; i++) for (let j = -2; j < 10; j++) { c.fillStyle = ['#e4ddd0', '#ddd6c8', '#e8e2d6', '#d8d1c2'][Math.floor(alea() * 4)]; const x = i * u * 2, y = j * u * 2; c.fillRect(x + (j % 2) * u + 1, y + 1, u * 2 - 2, u - 2); c.fillRect(x + (j % 2) * u + 1, y + u + 1, u - 2, u * 2 - 2); } grain(c, t, 500, ['#d2cbbd', '#ece6db']); },
     // Tambours du Palais des Congrès : enduit blanc, frise de triangles des tata somba.
     tata(c, t) { c.fillStyle = '#f2f0ea'; c.fillRect(0, 0, t, t); grain(c, t, 160, ['#ebe8e0', '#f7f5f0']); const haut = t * .3, bas = t * .46, n = 6; c.fillStyle = '#e4e0d6'; c.fillRect(0, haut - t * .025, t, t * .012); c.fillRect(0, bas + t * .012, t, t * .012); c.fillStyle = '#3b3935'; for (let i = 0; i < n; i++) { const x = i * t / n, w = t / n; c.beginPath(); c.moveTo(x + w * .08, bas); c.lineTo(x + w * .5, haut); c.lineTo(x + w * .92, bas); c.closePath(); c.fill(); } c.fillStyle = '#e9e6de'; for (let i = 0; i < 4; i++) c.fillRect(0, t * (.62 + i * .09), t, t * .006); },
+    // Frise des tambours : zigzag blanc sur fond sombre (triangles évidés).
+    friseTata(c, t) { c.fillStyle = '#f2f0ea'; c.fillRect(0, 0, t, t); c.fillStyle = '#2f3134'; const w = t / 2, y0 = t * .14, y1 = t * .86, m = t * .035; for (let i = 0; i < 2; i++) { const x = i * w; c.beginPath(); c.moveTo(x + m * 1.6, y1 - m); c.lineTo(x + w / 2, y0 + m * 1.6); c.lineTo(x + w - m * 1.6, y1 - m); c.closePath(); c.fill(); c.beginPath(); c.moveTo(x + w / 2 + m * 1.6, y0 + m); c.lineTo(x + w, y1 - m * 1.6); c.lineTo(x + w * 1.5 - m * 1.6, y0 + m); c.closePath(); c.fill(); if (i === 1) { c.beginPath(); c.moveTo(-w / 2 + m * 1.6, y0 + m); c.lineTo(0, y1 - m * 1.6); c.lineTo(w / 2 - m * 1.6, y0 + m); c.closePath(); c.fill(); } } },
     claustra(c, t) { c.fillStyle = '#f1ece0'; c.fillRect(0, 0, t, t); for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { c.fillStyle = '#5d6b64'; c.fillRect(i * t / 8 + t / 34, j * t / 8 + t / 34, t / 8 - t / 17, t / 8 - t / 17); } },
     tole(c, t) { c.fillStyle = '#8c857a'; c.fillRect(0, 0, t, t); for (let i = 0; i < 32; i++) { c.fillStyle = i % 2 ? '#999287' : '#7b756b'; c.fillRect(i * t / 32, 0, t / 64, t); } grain(c, t, 400, ['#7a6f60', '#9d958a', '#6f6458']); },
     drapeau(c, t) { c.fillStyle = '#008751'; c.fillRect(0, 0, t * .38, t); c.fillStyle = '#fcd116'; c.fillRect(t * .38, 0, t * .62, t / 2); c.fillStyle = '#e8112d'; c.fillRect(t * .38, t / 2, t * .62, t / 2); },
@@ -328,11 +331,14 @@ export function etoileRouge(L) {
     K.cyl(4.4, 5, 1.6, 5, '#e6e1d4', 0, sol + .8, 0).rotation.y = Math.PI / 10;
     K.cyl(3.6, 4.4, .7, 5, '#d8d2c2', 0, sol + 1.95, 0).rotation.y = Math.PI / 10;
     const blanc = K.mat('#eeebe2', { rugosite: .55 }), pied = sol + 2.3, H = 36;
+    if (tripoDispo('etoile')) poserTripo('etoile', g, { hauteur: H + 9, y: pied });
+    else {
     K.cyl(1.3, 2.4, H, 4, blanc, 0, pied + H / 2, 0).rotation.y = Math.PI / 4;
     for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; K.boite(3.2, 9, .45, blanc, Math.cos(a) * 2.6, pied + 4.5, Math.sin(a) * 2.6).rotation.y = -a; K.boite(1.6, 3.6, .45, blanc, Math.cos(a) * 2.1, pied + 10.4, Math.sin(a) * 2.1).rotation.y = -a; }
     K.cyl(1.8, 1.45, 2.1, 10, blanc, 0, pied + H + 1, 0);
     K.maillage(new THREE.TorusGeometry(1.85, .16, 5, 20), '#d6d1c4', 0, pied + H + 2, 0).rotation.x = Math.PI / 2;
     statueEtoile(0, pied + H + 2.1, 0);
+    }
     // Massifs de grands arbres dans les creux, mâts d'éclairage et bancs aux pointes.
     for (let i = 0; i < 5; i++) {
       const a = tete + Math.PI / 5 + i * Math.PI * 2 / 5;
@@ -369,7 +375,7 @@ export async function amazone(L) {
   const o = obb(L.place);
   const g = groupeLieu('amazone', L.pt[0], L.pt[1]);
   K.into(g, () => {
-    // Vue zénithale des vidéos de drone : pelouses triangulaires séparées d'allées blanches.
+    // Esplanade dallée de gris, en grands triangles séparés de bandes beige clair (photos sur place et drone).
     solPoly([L.place.map(([x, z]) => local(g, x, z))], K.tex('triangles', 1, 256 / 443), .06, 21);
     // Parvis dallé sombre autour du socle.
     K.cyl(15, 15, .1, 48, K.tex('paves', 6, 6, '#9b9890'), 0, .08, 0).castShadow = false;
@@ -454,14 +460,18 @@ export function palaisCongres(L) {
   const g = groupeLieu('congres', c[0], c[1]);
   K.into(g, () => {
     const blanc = K.mat('#f1efe8', { rugosite: .9 });
+    // Modèle Tripo (d'après photo) s'il existe, sinon tambours et hall dessinés à la main.
+    if (tripoDispo('congres')) poserTripo('congres', g, { largeur: 165, z: -8 });
+    else {
     for (const r of L.outer) mursPoly(r.map(([x, z]) => [x - c[0], z - c[1]]), 0, 7, K.tex('claustra', 1, 1, '#f0ebdf'), 3, 3.5, undefined, K.mat('#f5f3ee'));
     for (const r of L.inner) solPoly([r.map(([x, z]) => [x - c[0], z - c[1]])], K.tex('gazon', 1, 1), 7.05, 4);
     // Tambours ajustés sur les arcs du contour OSM : deux salles latérales,
     // la grande salle au sud et une rotonde d'accueil plus basse au nord.
-    tambour(-64, -39, 12.2, 14.5, 15);
-    tambour(65, -37, 12.2, 14.5, 15);
-    tambour(0, 27, 21.5, 25.7, 20);
-    tambour(-5, -43, 19.5, 23, 11);
+    tambour(-64, -39, 13, 25);
+    tambour(65, -37, 13, 25);
+    tambour(0, 27, 21.5, 33, { haut: .66 });
+    hallCongres(-5, -43, 19, 11);
+    }
     // Entrée au nord, vers le boulevard : marches, chapiteau, mâts et parking.
     const zn = Math.min(...all.map(p => p[1] - c[1]));
     for (let m = 0; m < 4; m++) K.boite(30 - m * 3, .3 * (m + 1), 2.2, '#e3ddd0', 0, .15 * (m + 1), zn - 1 - m * 2.2);
@@ -483,19 +493,50 @@ export function palaisCongres(L) {
   });
   bake(g);
 }
-export function tambour(x, z, rBas, rHaut, h) {
+// Tambour (d'après le drone, 2026) : tronc de cône blanc qui se resserre, coupé en biais vers l'entrée,
+// gros bourrelet autour de l'oculus, verrière intérieure, une seule frise de triangles (tata somba)
+// au tiers de la hauteur, socle vitré bleu entre des piliers blancs.
+export function tambour(x, z, rBas, h, { haut = .72, pente = .22 } = {}) {
   const g = new THREE.Group(); g.position.set(x, 0, z); K.racine.add(g);
-  const blanc = K.mat('#f1efe8', { rugosite: .9 }), verre = K.mat('#5b6f74', { rugosite: .25, metal: .3 }), bord = K.mat('#f1efe8', { rugosite: .9, face2: true });
-  const socle = 3.2, mur = h - socle;
-  K.cyl(rBas * .96, rBas * .96, socle, 48, verre, 0, socle / 2, 0, g);
-  for (let i = 0; i < 32; i++) { const a = i * Math.PI / 16; K.boite(.3, socle, .3, blanc, Math.cos(a) * rBas * .97, socle / 2, Math.sin(a) * rBas * .97, g); }
-  K.cyl(rBas * 1.01, rBas * 1.01, .45, 48, blanc, 0, socle + .1, 0, g);
-  K.cyl(rHaut, rBas, mur, 56, K.tex('tata', 9, 1), 0, socle + mur / 2, 0, g);
-  K.cyl(rHaut + 1.2, rHaut + .2, 1.8, 56, bord, 0, h + .9, 0, g, true);
-  const lisse = new THREE.RingGeometry(rHaut, rHaut + 1.2, 56); lisse.rotateX(-Math.PI / 2); K.maillage(lisse, blanc, 0, h + 1.8, 0, g);
-  K.cyl(rHaut + .1, rHaut + .1, .25, 56, '#e8e5dd', 0, h + 1.5, 0, g);
-  const an = new THREE.RingGeometry(rHaut * .3, rHaut * .44, 48); an.rotateX(-Math.PI / 2); K.maillage(an, K.mat('#c8a468', { rugosite: .5 }), 0, h + 1.65, 0, g);
-  K.cyl(rHaut * .3, rHaut * .3, .15, 48, '#4a4f4c', 0, h + 1.55, 0, g);
+  const blanc = K.mat('#f3f1ec', { rugosite: .88, face2: true }), verre = K.mat('#3f6a8c', { rugosite: .18, metal: .35 }), sombre = K.mat('#2c3a42', { rugosite: .2, metal: .4 });
+  const socle = 3.4, H = h - socle, rHaut = rBas * haut, seg = 64;
+  K.cyl(rBas * .95, rBas * .95, socle, 48, verre, 0, socle / 2, 0, g);
+  for (let i = 0; i < 28; i++) { const a = i * Math.PI * 2 / 28; K.boite(.4, socle, .4, blanc, Math.cos(a) * rBas * .97, socle / 2, Math.sin(a) * rBas * .97, g); }
+  // Coupe plane en biais : plus basse côté nord (−z, vers l'entrée et le boulevard).
+  const sommet = a => H * (1 - pente * (1 - Math.sin(a)) / 2);
+  const paroi = (t0, t1, dr, segH) => {
+    const geo = new THREE.CylinderGeometry(1, 1, 1, seg, segH, true), p = geo.attributes.position;
+    for (let k = 0; k < p.count; k++) {
+      const a = Math.atan2(p.getZ(k), p.getX(k)), t = t0 + (p.getY(k) + .5) * (t1 - t0), r = rBas + (rHaut - rBas) * t + dr;
+      p.setXYZ(k, Math.cos(a) * r, socle + t * sommet(a), Math.sin(a) * r);
+    }
+    geo.computeVertexNormals(); return geo;
+  };
+  K.maillage(paroi(0, 1, 0, 8), blanc, 0, 0, 0, g);
+  K.maillage(paroi(.24, .33, .08, 1), K.tex('friseTata', 16, 1, '#ffffff', { face2: true }), 0, 0, 0, g);
+  // Bourrelet de l'oculus.
+  const bord = []; for (let i = 0; i < seg; i++) { const a = i * Math.PI * 2 / seg; bord.push(new THREE.Vector3(Math.cos(a) * (rHaut + .3), socle + sommet(a) + .2, Math.sin(a) * (rHaut + .3))); }
+  K.maillage(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bord, true), seg, 1.1, 10, true), blanc, 0, 0, 0, g);
+  // Verrière qu'on voit par l'oculus : lanterne vitrée à meneaux blancs, toit plat.
+  const bas = socle + H * (1 - pente) - 7, rl = rHaut * .8;
+  K.cyl(rl, rl, 5.5, 32, sombre, 0, bas + 2.75, 0, g);
+  for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; K.boite(.25, 5.5, .25, blanc, Math.cos(a) * rl, bas + 2.75, Math.sin(a) * rl, g); }
+  K.cyl(rl + .4, rl + .4, .5, 32, blanc, 0, bas + 5.7, 0, g);
+  K.cyl(rHaut * .98, rHaut * .98, .3, 48, '#e9e6df', 0, bas, 0, g);
+}
+// Hall d'accueil : colonnade blanche en arc, bandeau de claustras, dalle de toit débordante.
+function hallCongres(x, z, r, h) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); K.racine.add(g);
+  const blanc = K.mat('#f3f1ec', { rugosite: .88 });
+  for (let i = 0; i <= 18; i++) { const a = Math.PI + i * Math.PI / 18; K.boite(.9, h - 1.2, .9, blanc, Math.cos(a) * r, (h - 1.2) / 2, Math.sin(a) * r, g); }
+  const claustra = new THREE.CylinderGeometry(r - .3, r - .3, 3.2, 48, 1, true, -Math.PI / 2, Math.PI);
+  K.maillage(claustra, K.tex('claustra', 12, 1, '#ffffff', { face2: true }), 0, h - 2.8, 0, g);
+  const dalle = new THREE.CylinderGeometry(r + 2.2, r + 2.2, .6, 48, 1, false, -Math.PI / 2, Math.PI);
+  K.maillage(dalle, blanc, 0, h - .9, 0, g);
+  K.cyl(r - 1, r - 1, h - 1.2, 40, K.mat('#7d97a3', { rugosite: .2, metal: .3 }), 0, (h - 1.2) / 2, 0, g);
+  // Parvis circulaire à rosace, devant l'entrée.
+  K.cyl(r * 1.3, r * 1.3, .1, 48, '#d9d3c6', 0, .05, -r * 1.25, g);
+  K.cyl(r * .45, r * .45, .12, 40, '#b5643c', 0, .07, -r * 1.25, g); K.cyl(r * .3, r * .3, .14, 40, '#e8e2d4', 0, .08, -r * 1.25, g);
 }
 export function voiture(x, z, couleur, r = 0) { const g = new THREE.Group(); g.position.set(x, .05, z); g.rotation.y = r; K.racine.add(g); K.boite(1.8, .75, 4.3, couleur, 0, .7, 0, g); K.boite(1.6, .6, 2.2, '#3c4a4f', 0, 1.35, -.2, g); for (const dx of [-.9, .9]) for (const dz of [-1.4, 1.4]) K.cyl(.33, .33, .2, 10, '#222', dx, .33, dz, g).rotation.z = Math.PI / 2; return g; }
 
@@ -511,6 +552,11 @@ export function cathedrale(ring) {
   K.into(g, () => {
     const nefA = loc(A), nefB = loc(B), nefI = loc(I), nefH = loc(H);
     const nx0 = Math.min(nefA[0], nefI[0]), nx1 = Math.max(nefB[0], nefH[0]), nz0 = Math.min(nefA[1], nefB[1]), nz1 = Math.max(nefI[1], nefH[1]);
+    if (tripoDispo('cathedrale')) {
+      const xs = [nx0, nx1 + 6, ...[C, E, F, Gp].map(p => loc(p)[0])], zs = [nz0, nz1, ...[C, E, F, Gp].map(p => loc(p)[1])];
+      const x0 = Math.min(...xs) - 7.5, x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+      poserTripo('cathedrale', g, { largeur: Math.max(x1 - x0, z1 - z0), x: (x0 + x1) / 2, z: (z0 + z1) / 2 });
+    } else {
     nefEglise(nx0, nx1 + 6, nz0, nz1, 10, 7, true);
     const pE = loc(E), pF = loc(F), pG = loc(Gp), pC = loc(C);
     const ax0 = Math.min(pC[0], pG[0]), ax1 = Math.max(pE[0], pF[0]), az0 = Math.min(pC[1], pE[1]), az1 = Math.max(pF[1], pG[1]);
@@ -521,6 +567,7 @@ export function cathedrale(ring) {
     for (const [dx, dz, ry] of [[0, 3.02, 0], [0, -3.02, 0], [3.02, 0, Math.PI / 2], [-3.02, 0, Math.PI / 2]]) for (let y = 8; y < Ht - 4; y += 7) K.boite(1, 2.6, .12, '#2b2a2c', tx + dx, y, tz + dz).rotation.y = ry;
     K.cone(4.6, 6, 4, '#c8bfb2', tx, Ht + 3, tz).rotation.y = Math.PI / 4;
     K.boite(.35, 3, .35, '#efe9de', tx, Ht + 7.5, tz); K.boite(1.6, .35, .35, '#efe9de', tx, Ht + 8.2, tz);
+    }
     // Parvis et murets bleus devant la façade.
     K.sol(16, nz1 - nz0 + 10, K.tex('beton', 4, 6, '#cfc9bd'), nx0 - 9, (nz0 + nz1) / 2, .06);
     for (const z of [nz0 - 6, nz1 + 6]) K.boite(40, .9, .4, '#5f9bc2', nx0 + 12, .45, z);
@@ -676,6 +723,14 @@ export function aeroport(L) {
     // Enseigne jaune et tentes blanches devant l'entrée.
     const rot = Math.atan2(lx, lz);
     panneauTexte(['AÉROPORT INTERNATIONAL CARDINAL BERNARDIN GANTIN'], 40, 2.4, lx * prof, 10.5, lz * prof, rot, { fond: '#f2c21b', encre: '#1d1a16', px: 2048, py: 123, police: '800 78px system-ui, sans-serif' });
+    // Grand portail blanc en ogive au centre du terminal, côté ville (vidéo de drone 2025).
+    { const blanc = K.mat('#f3f2ee', { rugosite: .8 }), H = 22;
+      for (const s of [-1, 1]) { const b = K.boite(2.2, H, 1.4, blanc, lx * (prof + 1) + lz * s * 4.6, H / 2 - .4, lz * (prof + 1) - lx * s * 4.6); b.rotation.y = rot; b.rotateZ(-s * .34); }
+      const v = K.boite(7.5, 15, .3, K.mat('#3f5a66', { rugosite: .2, metal: .3 }), lx * prof, 7.5, lz * prof); v.rotation.y = rot;
+      const c = K.boite(44, .5, 7, blanc, lx * (prof + 3), 8.2, lz * (prof + 3)); c.rotation.y = rot; }
+    // L'ancienne aérogare, deux niveaux saumon à bandeaux blancs, à gauche de l'esplanade.
+    { const o = K.boite(26, 8.4, 14, K.mat('#d9a28c', { rugosite: .85 }), lx * (prof + 30) - lz * 42, 4.2, lz * (prof + 30) + lx * 42); o.rotation.y = rot;
+      for (const y of [3.9, 8.6]) { const b = K.boite(26.4, .5, 14.4, '#f1efe8', lx * (prof + 30) - lz * 42, y, lz * (prof + 30) + lx * 42); b.rotation.y = rot; } }
     for (const s of [-1, 0, 1]) { const ox = lx * (prof + 12) + lz * s * 14, oz = lz * (prof + 12) - lx * s * 14; const tente = K.cone(6, 8, 8, K.mat('#f4f2ec', { face2: true }), ox, 6.5, oz); tente.castShadow = true; for (let k = 0; k < 4; k++) K.cyl(.1, .1, 3, 6, '#ccc', ox + Math.cos(k * 1.57) * 4.5, 1.5, oz + Math.sin(k * 1.57) * 4.5); }
     for (let k = -5; k <= 5; k++) { const ox = lx * (prof + 24) + lz * k * 2.4, oz = lz * (prof + 24) - lx * k * 2.4; K.boite(1.8, .8, .5, k % 2 ? '#c8382f' : '#f2f2ee', ox, .4, oz).rotation.y = rot; }
   });
@@ -733,23 +788,33 @@ export function dantokpa(B, M) {
     });
     bake(g);
   }
-  // Parasols de tissu, sacs d'oignons et de riz.
-  const n = M.par.length / 2;
+  // Parasols de tissu, hangars de tôle et bâches bleues (vus du drone : une mer de tôles), sacs d'oignons et de riz.
+  const n = M.par.length / 2, estHangar = i => hash(i, 80) < .45, nh = Array.from({ length: n }, (_, i) => estHangar(i)).filter(Boolean).length;
   const parasolG = new THREE.ConeGeometry(1.6, .7, 10, 1, true).translate(0, 2.35, 0);
   const pied = new THREE.CylinderGeometry(.03, .03, 2.2, 4).translate(0, 1.1, 0);
-  const par = new THREE.InstancedMesh(mergeGeometries([parasolG.toNonIndexed(), pied.toNonIndexed()]), new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), n);
+  const par = new THREE.InstancedMesh(mergeGeometries([parasolG.toNonIndexed(), pied.toNonIndexed()]), new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), n - nh);
+  const hangarG = mergeGeometries([new THREE.BoxGeometry(3.8, .07, 3.2).rotateX(.12).translate(0, 2.75, 0).toNonIndexed(), ...[[-1.7, -1.4], [1.7, -1.4], [-1.7, 1.4], [1.7, 1.4]].map(([x, z]) => new THREE.BoxGeometry(.08, 2.7 - z * .1, .08).translate(x, (2.7 - z * .1) / 2, z).toNonIndexed())]);
+  const toleTex = new THREE.CanvasTexture(K.toile('tole')); toleTex.colorSpace = THREE.SRGBColorSpace; toleTex.wrapS = toleTex.wrapT = THREE.RepeatWrapping; toleTex.repeat.set(2, 1);
+  const hangars = new THREE.InstancedMesh(hangarG, new THREE.MeshLambertMaterial({ map: toleTex, side: THREE.DoubleSide }), nh);
+  const toleC = ['#a0603f', '#8c5236', '#c9c6c0', '#b9bcbd', '#d6d3cc', '#3f74b8', '#2f62a8', '#c9a27a'].map(h => new THREE.Color(h));
   const sacs = new THREE.InstancedMesh(new THREE.BoxGeometry(1.4, .7, 1).translate(0, .35, 0), new THREE.MeshLambertMaterial(), n);
   const cols = ['#e6dcc4', '#d9e6d2', '#f2f0ea', '#2f6f8f', '#c0392b', '#e9b949', '#5a8f3a', '#e8d9b0'].map(h => new THREE.Color(h));
   const sacC = ['#b8323a', '#c9473c', '#f0ebe0', '#d9c79e', '#7a8f3a'].map(h => new THREE.Color(h));
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3();
+  let ip = 0, ih = 0;
   for (let i = 0; i < n; i++) {
     const x = M.par[2 * i] / 10, z = M.par[2 * i + 1] / 10;
-    m4.compose(p.set(x, 0, z), q.setFromEuler(e.set((hash(i, 70) - .5) * .12, hash(i, 71) * 6.28, (hash(i, 72) - .5) * .12)), s.setScalar(.85 + hash(i, 73) * .4));
-    par.setMatrixAt(i, m4); par.setColorAt(i, cols[Math.floor(hash(i, 74) * cols.length)]);
+    if (estHangar(i)) {
+      m4.compose(p.set(x, 0, z), q.setFromEuler(e.set(0, Math.round(hash(i, 71) * 4) * Math.PI / 2 + (hash(i, 72) - .5) * .2, 0)), s.set(.8 + hash(i, 73) * .6, .9 + hash(i, 81) * .25, .8 + hash(i, 82) * .5));
+      hangars.setMatrixAt(ih, m4); hangars.setColorAt(ih++, toleC[Math.floor(hash(i, 74) * toleC.length)]);
+    } else {
+      m4.compose(p.set(x, 0, z), q.setFromEuler(e.set((hash(i, 70) - .5) * .12, hash(i, 71) * 6.28, (hash(i, 72) - .5) * .12)), s.setScalar(.85 + hash(i, 73) * .4));
+      par.setMatrixAt(ip, m4); par.setColorAt(ip++, cols[Math.floor(hash(i, 74) * cols.length)]);
+    }
     m4.compose(p.set(x + (hash(i, 75) - .5) * 2.4, 0, z + (hash(i, 76) - .5) * 2.4), q.setFromEuler(e.set(0, hash(i, 77) * 3, 0)), s.set(1, .6 + hash(i, 78), 1));
     sacs.setMatrixAt(i, m4); sacs.setColorAt(i, sacC[Math.floor(hash(i, 79) * sacC.length)]);
   }
-  for (const m of [par, sacs]) { m.castShadow = !LITE; m.receiveShadow = true; m.userData.proche = 2600; detailsProches.push(m); scene.add(m); }
+  for (const m of [par, hangars, sacs]) { m.castShadow = !LITE; m.receiveShadow = true; m.userData.proche = 2600; detailsProches.push(m); scene.add(m); }
   foule(M.ppl, 0);
 }
 
@@ -778,7 +843,8 @@ export function ganvie(G) {
   const n = G.length / 6;
   const murs = { pos: [], uv: [], col: [] }, toles = { pos: [], uv: [], col: [] }, pailles = { pos: [], uv: [], col: [] }, planchers = { pos: [], uv: [], col: [] };
   const peints = ['#d8cfc0', '#d8cfc0', '#d8cfc0', '#d8cfc0', '#8fb3cf', '#e5c564', '#9ccf9a', '#b9a0d6', '#f1ede4', '#7fb0c9'].map(u8c);
-  const toleC = ['#a9653f', '#8f979b', '#9fa6a8', '#5f86a8', '#b94a3c', '#6f9a7a', '#c08a4a'].map(u8c);
+  // Toits vus du drone : surtout de la tôle, rouillée, grise, bleue ou blanche.
+  const toleC = ['#9a5a3a', '#a9653f', '#7e4a33', '#8f979b', '#9fa6a8', '#b7bcbd', '#d9dcdc', '#4f7fae', '#5f86a8', '#b94a3c', '#c08a4a'].map(u8c);
   const quad = (o, a, b, c, d, col, uL, vL) => { for (const [P, U] of [[a, [0, 0]], [b, [uL, 0]], [c, [uL, vL]], [a, [0, 0]], [c, [uL, vL]], [d, [0, vL]]]) { o.pos.push(...P); o.uv.push(...U); o.col.push(...col); } };
   const tri = (o, a, b, c, col, s) => { for (const [P, U] of [[a, [0, 0]], [b, [s, 0]], [c, [s / 2, s * .6]]]) { o.pos.push(...P); o.uv.push(...U); o.col.push(...col); } };
   const pil = [];
@@ -792,7 +858,7 @@ export function ganvie(G) {
     const cs = [P(-hl, 0, -hw), P(hl, 0, -hw), P(hl, 0, hw), P(-hl, 0, hw)];
     for (let k = 0; k < 4; k++) { const A = cs[k], Bq = cs[(k + 1) % 4], len = Math.hypot(Bq[0] - A[0], Bq[2] - A[2]); quad(murs, [A[0], y0, A[2]], [Bq[0], y0, Bq[2]], [Bq[0], y1, Bq[2]], [A[0], y1, A[2]], col, len / 3, (y1 - y0) / 3); }
     // Toit à quatre pans : tôle colorée (souvent) ou paille (plus pentu, plus débordant).
-    const paille = r < .28, ov = paille ? 1.1 : .5, hr = paille ? Math.min(3.4, W * .55) : Math.min(1.8, W * .3);
+    const paille = r < .08, ov = paille ? 1.1 : .5, hr = paille ? Math.min(3.4, W * .55) : Math.min(1.8, W * .3);
     const tgt = paille ? pailles : toles, tc = paille ? [235, 225, 205] : toleC[Math.floor(hash(sd, 3) * toleC.length)];
     const e0 = P(-hl - ov, y1, -hw - ov), e1 = P(hl + ov, y1, -hw - ov), e2 = P(hl + ov, y1, hw + ov), e3 = P(-hl - ov, y1, hw + ov);
     const inset = Math.min(hw, hl * .9), r0 = P(-hl + inset, y1 + hr, 0), r1 = P(hl - inset, y1 + hr, 0);
@@ -809,6 +875,23 @@ export function ganvie(G) {
   mk(toles, K.tex('tole', 1, 1, '#ffffff', { vc: true, face2: true, metal: .2 }));
   mk(pailles, K.tex('paille', 1, 1, '#ffffff', { vc: true, face2: true }));
   mk(planchers, K.tex('planches', 1, 1, '#a99a86', { vc: true, face2: true }));
+  // Herbiers flottants entre les maisons (vus du drone : des îlots verts partout dans le village).
+  const herb = [];
+  for (let i = 0; i < n; i++) {
+    const sd = G[6 * i + 5]; if (hash(sd, 4) > .24) continue;
+    const a = hash(sd, 5) * 6.28, r = 3 + hash(sd, 6) * 7, d = Math.min(G[6 * i + 3] / 10, 14) / 2 + r * .8;
+    herb.push([G[6 * i] / 10 + Math.cos(a) * d, G[6 * i + 1] / 10 + Math.sin(a) * d, r, hash(sd, 7)]);
+  }
+  if (herb.length) {
+    const forme = new THREE.CircleGeometry(1, 14); const fp = forme.attributes.position;
+    for (let k = 1; k < fp.count; k++) { const f = .72 + hash(k, 9) * .5; fp.setXY(k, fp.getX(k) * f, fp.getY(k) * f); }
+    forme.rotateX(-Math.PI / 2);
+    const verts = ['#5f8a3e', '#6f9a48', '#4f7a35', '#7aa556', '#587f3a'].map(h => new THREE.Color(h));
+    const ilots = new THREE.InstancedMesh(forme, new THREE.MeshLambertMaterial({ color: '#ffffff' }), herb.length);
+    const m5 = new THREE.Matrix4(), q5 = new THREE.Quaternion(), s5 = new THREE.Vector3(), p5 = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
+    herb.forEach(([x, z, r, h], k) => { m5.compose(p5.set(x, .06, z), q5.setFromAxisAngle(Y, h * 6.28), s5.set(r * (.8 + h * .6), 1, r * (1.3 - h * .5))); ilots.setMatrixAt(k, m5); ilots.setColorAt(k, verts[Math.floor(h * verts.length)]); });
+    ilots.receiveShadow = true; ilots.renderOrder = 6; ilots.userData.proche = 4000; detailsProches.push(ilots); scene.add(ilots);
+  }
   const pilotis = new THREE.InstancedMesh(new THREE.CylinderGeometry(.09, .11, 2.2, 5).translate(0, .6, 0), new THREE.MeshLambertMaterial({ color: '#5b4a3a' }), pil.length);
   const m4 = new THREE.Matrix4(); pil.forEach((p, i) => { m4.makeTranslation(p[0], 0, p[2]); pilotis.setMatrixAt(i, m4); });
   pilotis.userData.proche = 2500; detailsProches.push(pilotis); scene.add(pilotis);

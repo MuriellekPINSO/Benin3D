@@ -59,6 +59,8 @@ export const PLACES = [
     text: "L'ancien Centre international de conférences de 1995, rénové par le Sofitel : un grand cône à facettes couleur bronze, illuminé le soir. À côté, le Pavillon, aux ailettes dorées et à la verrière bleue, abrite deux salles de cinéma, un casino et un club. Une allée de nuages blancs les relie à l'hôtel." },
   { id: 'superu', name: 'Erevan · Super U', kind: 'Centre commercial', k: 'marche', lat: 6.34895, lon: 2.38694, h: 12, view: [220, 1.05, 3.0],
     text: "Le centre commercial Erevan, au carrefour Bio Guéra : une grande boîte orange brûlé, « SUPER » en lettres bleues et le logo U, un grand parking devant et le totem « EREVAN » au bord de la route." },
+  { id: 'ganhi', name: 'Marché Ganhi', kind: 'Marché', k: 'marche', lat: 6.35453, lon: 2.43723, h: 10, view: [170, 1.1, 2.3],
+    text: "Le marché de Ganhi, reconstruit en 2023 au cœur du quartier des banques : un long hall sur socle de briques ajourées, cinq travées de toits gris couverts de panneaux solaires et une rosace blanche au centre. « MARCHE GANHI » au pochoir, motos garées tout autour." },
   { id: 'murport', name: 'Mur des fresques du port', kind: 'Art urbain', k: 'monument', lat: 6.35010, lon: 2.41600, h: 8, view: [140, 1.2, 2.9],
     text: "Le long du port, côté boulevard de la Marina : un kilomètre et demi de fresques. À l'ouest, « The New Bénin » du festival Effet Graff (2022) ; sur l'ancien Hôtel du Port, « Coexistence » du Brésilien Eduardo Kobra (2023) ; puis la Marina Boulev'art Gallery, où 27 artistes de 13 pays ont peint depuis 2024." },
   { id: 'agl', name: 'Siège d’AGL', kind: 'Logistique', k: 'transport', lat: 6.35085, lon: 2.41977, h: 32, view: [200, 1.05, 2.8],

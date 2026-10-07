@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { LITE, hash, toXZ } from './base.js';
 import { scene } from './scene.js';
 import { K, bake, centroide, detailsProches, groupeLieu, local, mursPoly, obb, panneauTexte, solPoly, voiture } from './lieux.js';
@@ -25,6 +26,11 @@ K.motif('tourBceao', (c, t) => { // béton beige, colonnes de fenêtres étroite
   c.fillStyle = '#3b4a52'; for (let i = 0; i < 8; i++) c.fillRect(i * t / 8 + t / 32, t * .2, t / 16, t * .62);
   c.fillStyle = '#cbbd9f'; c.fillRect(0, t * .9, t, t * .1);
 });
+K.motif('briquesAjourees', (c, t) => { // marché Ganhi : briques de terre cuite, claustras ajourés
+  c.fillStyle = '#b5532f'; c.fillRect(0, 0, t, t);
+  for (let j = 0; j < 16; j++) for (let i = -1; i < 9; i++) { c.fillStyle = ['#bc5a35', '#ad4c2b', '#c26238', '#a84827'][(i + j * 3 + 8) % 4]; c.fillRect(i * t / 8 + (j % 2) * t / 16 + 1, j * t / 16 + 1, t / 8 - 2, t / 16 - 2); }
+  c.fillStyle = '#3a2a24'; for (let j = 1; j < 16; j += 2) for (let i = 0; i < 16; i++) if ((i + j) % 2) c.fillRect(i * t / 16 + t / 64, j * t / 16 + t / 64, t / 32, t / 32);
+});
 K.motif('erevan', (c, t) => { // centre commercial Erevan (Super U) : enduit orange brûlé, vitrines au rez-de-chaussée
   c.fillStyle = '#ba5b31'; c.fillRect(0, 0, t, t);
   c.fillStyle = '#a6421a'; c.fillRect(0, t * .92, t, t * .08);
@@ -36,15 +42,19 @@ K.motif('mosquee', (c, t) => { // enduit blanc, baies en arc vert bouteille
   for (const x of [.15, .55]) { c.fillStyle = '#2f5d4a'; c.beginPath(); c.moveTo(t * x, t * .82); c.lineTo(t * x, t * .45); c.arc(t * (x + .15), t * .45, t * .15, Math.PI, 0); c.lineTo(t * (x + .3), t * .82); c.closePath(); c.fill(); }
   c.fillStyle = '#d8d4ca'; c.fillRect(0, t * .9, t, t * .1); c.fillRect(0, 0, t, t * .06);
 });
-K.motif('triangles', (c, t) => { // pelouses triangulaires séparées d'allées blanches (vue zénithale)
+K.motif('triangles', (c, t) => { // dalles grises en triangles séparées de larges bandes beige clair (photos sur place, drone 2025)
   const W = t, H = c.canvas.height;
-  const vert = ['#5f8f45', '#4f7f3a', '#6a9a4c', '#567f3f'];
+  const vert = ['#a3a09a', '#9c9993', '#a7a49e', '#9f9c96'];
   for (let r = 0; r < 2; r++) for (let k = -1; k < 3; k++) {
     const y0 = r * H / 2, y1 = y0 + H / 2, x0 = k * W + (r % 2 ? W / 2 : 0);
     c.fillStyle = vert[(k + r * 2 + 4) % 4]; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + W, y0); c.lineTo(x0 + W / 2, y1); c.closePath(); c.fill();
     c.fillStyle = vert[(k + r * 2 + 5) % 4]; c.beginPath(); c.moveTo(x0 + W / 2, y1); c.lineTo(x0 + W * 1.5, y1); c.lineTo(x0 + W, y0); c.closePath(); c.fill();
   }
-  c.strokeStyle = '#f2efe6'; c.lineWidth = t * .03;
+  // Joints des pavés, très fins.
+  c.strokeStyle = 'rgba(70,66,60,.16)'; c.lineWidth = 1;
+  for (let x = 0; x <= W; x += W / 32) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
+  for (let y = 0; y <= H; y += W / 64) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
+  c.strokeStyle = '#dcd1bc'; c.lineWidth = t * .055;
   for (const y of [0, H / 2, H]) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
   for (let k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(k * W, 0); c.lineTo(k * W + W, H); c.stroke(); c.beginPath(); c.moveTo(k * W, 0); c.lineTo(k * W - W, H); c.stroke(); }
 }, 256, Math.round(256 * Math.sqrt(3)));
@@ -225,12 +235,27 @@ function erevan(ring, versRondPoint) {
 function bioGuera(cx, cz, rIle) {
   const g = groupeLieu('bio-guera', cx, cz);
   K.into(g, () => {
-    K.cyl(rIle, rIle, .35, 64, '#4c4d4f', 0, .17, 0).castShadow = false;
+    // D'après le drone (2025) : île dallée de granit gris clair, bordure de gazon et haie taillée en couronne.
+    K.cyl(rIle, rIle, .35, 64, K.tex('paves', 10, 10, '#c4c1ba'), 0, .17, 0).castShadow = false;
     K.cyl(rIle + .5, rIle + .5, .45, 64, '#e8e5dc', 0, .2, 0, undefined, true);
-    K.cyl(rIle * .45, rIle * .45, .5, 48, K.tex('gazon', 6, 6), 0, .25, 0).castShadow = false;
-    // Socle de pierre noire, plaque, puis le cavalier de bronze sur son cheval cabré.
-    K.boite(8, 4.6, 4.8, '#26282a', 0, 2.3, 0); K.boite(8.6, .4, 5.4, '#3a3c3e', 0, 4.8, 0);
-    K.boite(3.4, 1, .08, '#b98a3d', 0, 2.4, 2.43);
+    const bordure = new THREE.RingGeometry(rIle - 2.4, rIle - .1, 64); bordure.rotateX(-Math.PI / 2);
+    K.maillage(bordure, K.tex('gazon', 8, 1), 0, .37, 0).castShadow = false;
+    const haie = new THREE.TorusGeometry(rIle - 1.3, .5, 6, 72); haie.rotateX(Math.PI / 2); haie.scale(1, 1.5, 1);
+    K.maillage(haie, '#3d6a33', 0, .7, 0);
+    // Bannières verticales vert, jaune, rouge sur mâts, et deux lampadaires sur l'île.
+    for (let i = 0; i < 6; i++) {
+      const a = i * Math.PI / 3 + .3, x = Math.cos(a) * (rIle - 3.4), z = Math.sin(a) * (rIle - 3.4);
+      K.cyl(.08, .1, 9, 8, '#5d6266', x, 4.5, z);
+      const tx = -Math.sin(a), tz = Math.cos(a); // le long du bord de l'île
+      for (const [k, col] of ['#1d8a4b', '#f2c318', '#d42a2f'].entries()) { const o = .38 + k * .52; K.boite(.5, 3.6, .04, col, x + tx * o, 6.6, z + tz * o).rotation.y = -a - Math.PI / 2; }
+    }
+    for (const a of [Math.PI * .75, -Math.PI * .25]) { K.cyl(.08, .11, 7, 8, '#4b5054', Math.cos(a) * 9, 3.5, Math.sin(a) * 9); K.sphere(.28, K.mat('#fff4d0', { emissif: '#6b5a3a' }), Math.cos(a) * 9, 7.1, Math.sin(a) * 9); }
+    // Socle trapézoïdal de granit noir poli, plaque, puis le cavalier de bronze sur son cheval cabré.
+    if (tripoDispo('bioguera')) poserTripo('bioguera', g, { hauteur: 10.5 });
+    else {
+    const socle = K.maillage(K.geo('socleBio', () => new THREE.CylinderGeometry(4.2, 5.4, 4.6, 4, 1).rotateY(Math.PI / 4)), K.mat('#1b1c1e', { rugosite: .22, metal: .3 }), 0, 2.3, 0); socle.scale.set(1, 1, .62);
+    K.boite(6.4, .4, 4.4, '#2a2c2e', 0, 4.8, 0);
+    K.boite(3.4, 1, .08, '#b98a3d', 0, 2.4, 2.32);
     const st = new THREE.Group(); st.position.set(0, 5, 0); st.rotation.y = .6; st.scale.setScalar(3.6); K.racine.add(st);
     const bronze = K.mat('#3f3a33', { rugosite: .55, metal: .35 });
     const caps = (r, l, x, y, z, rx = 0, rz = 0) => { const m = K.maillage(K.geo(`cap${r},${l}`, () => new THREE.CapsuleGeometry(r, l, 4, 10)), bronze, x, y, z, st); m.rotation.set(rx, 0, rz); return m; };
@@ -244,7 +269,53 @@ function bioGuera(cx, cz, rIle) {
     K.sphere(.11, bronze, .08, 2.25, 0, st);
     for (const z of [.17, -.17]) caps(.055, .4, .12, 1.45, z, 0, 1.2);  // jambes
     const bras = caps(.045, .42, .25, 2.2, -.16, 0, -1); bras.rotation.x = .4;
-    K.boite(.04, .75, .02, bronze, .55, 2.55, -.25, st).rotation.z = -.5; // sabre levé
+    K.cyl(.018, .018, 1.9, 6, bronze, .62, 2.28, -.2, st).rotation.z = -1.3;   // longue lance pointée vers l'avant
+    const cape = caps(.15, .5, -.2, 1.85, 0, 0, 1.15); cape.scale.set(1, 1, .3);     // cape au vent
+    K.sphere(.13, bronze, .08, 2.36, 0, st).scale.set(1, .6, 1);                    // turban
+    }
+  });
+  bake(g);
+}
+
+// ---------- Marché Ganhi (reconstruit en 2023), d'après le drone 2025 ----------
+// Long hall sur socle de briques de terre cuite ajourées, cinq travées de toits gris à
+// deux pans couverts de panneaux solaires, rosace blanche à douze pétales au centre,
+// « MARCHE GANHI » au pochoir, portails coulissants gris, motos garées tout autour.
+function marcheGanhi() {
+  const cx = 2440, cz = 1693, ang = Math.atan2(-76.2, 98.1), L = 110, W = 46;
+  const g = groupeLieu('marche-ganhi', cx, cz, ang);
+  K.into(g, () => {
+    K.sol(L + 18, W + 18, K.tex('paves', 14, 7, '#bfbab0'), 0, 0, .04);
+    const brique = K.tex('briquesAjourees', L / 8, 1), acier = K.mat('#6f7378', { rugosite: .5, metal: .35 }), blanc = K.mat('#f1f0ec', { rugosite: .8 });
+    K.boite(L, 4.6, W, brique, 0, 2.3, 0);
+    K.boite(L - 1.6, 2.2, W - 1.6, K.tex('claustra', L / 4, 1, '#9aa0a4'), 0, 5.7, 0); // bandeau de persiennes grises
+    K.boite(L + .6, .35, W + .6, acier, 0, 4.75, 0);
+    // Cinq travées de toits à deux pans, faîtages en travers du hall.
+    const n = 5, bw = L / n, hr = 3.2, pente = Math.atan2(hr, bw / 2), ramp = Math.hypot(hr, bw / 2) + .4;
+    for (let i = 0; i < n; i++) {
+      const x = -L / 2 + (i + .5) * bw;
+      for (const s of [-1, 1]) {
+        const v = K.boite(ramp, .16, W + 1.2, K.tex('tole', 3, 8, '#b9bcbe'), x + s * bw / 4, 6.8 + hr / 2, 0); v.rotation.z = -s * pente;
+        if (s > 0) { const p = K.boite(ramp * .78, .1, W * .82, K.mat('#1e3558', { rugosite: .25, metal: .4 }), x + s * bw / 4, 6.95 + hr / 2, 0); p.rotation.z = -s * pente; }
+      }
+      K.boite(.5, .3, W + 1.2, acier, x, 6.8 + hr + .1, 0);
+      // Pignons gris aux deux bouts de chaque travée.
+      for (const s of [-1, 1]) { const tri = new THREE.Shape(); tri.moveTo(-bw / 2, 0); tri.lineTo(bw / 2, 0); tri.lineTo(0, hr); tri.closePath(); const m = K.maillage(new THREE.ExtrudeGeometry(tri, { depth: .3, bevelEnabled: false }), K.mat('#a7acb0', { face2: true }), x, 6.8, s * (W / 2 - .15)); }
+    }
+    // Rosace blanche à douze pétales, surélevée au centre, avec son oculus.
+    const ros = new THREE.Shape(); for (let k = 0; k < 24; k++) { const a = k * Math.PI / 12, r = k % 2 ? 5.2 : 8.5; k ? ros.lineTo(Math.cos(a) * r, Math.sin(a) * r) : ros.moveTo(r, 0); } ros.closePath();
+    const rg = new THREE.ExtrudeGeometry(ros, { depth: 3.6, bevelEnabled: false }); rg.rotateX(-Math.PI / 2);
+    K.maillage(rg, blanc, 0, 6.8 + hr - .4, 0);
+    K.cyl(2.6, 2.6, .5, 24, K.mat('#1b2a30'), 0, 6.8 + hr + 3.3, 0);
+    // Enseigne au pochoir sur les deux longs côtés, portails coulissants gris.
+    for (const s of [-1, 1]) {
+      const t = panneauTexte(['MARCHE GANHI'], 22, 3.4, 0, 2.5, s * (W / 2 + .06), s > 0 ? 0 : Math.PI, { fond: '#b5532f', encre: '#f4efe6', px: 1024, py: 160, police: '900 118px Impact, "Arial Black", sans-serif' });
+      for (const x of [-L * .36, L * .36]) K.boite(7, 4.2, .3, acier, x, 2.1, s * (W / 2 + .1));
+    }
+    // Motos garées en rangs devant les deux façades.
+    const cols = ['#1f2326', '#c8382f', '#2f6fb0', '#e6e3dc', '#3c7a4f'];
+    for (const s of [-1, 1]) for (let x = -L * .42; x <= L * .42; x += 1.25) if (K.alea() < .8) { const m = K.boite(.5, .95, 1.9, cols[Math.floor(K.alea() * 5)], x, .5, s * (W / 2 + 5.5)); m.rotation.y = (K.alea() - .5) * .3; }
+    for (const s of [-1, 1]) for (let x = -L / 2; x <= L / 2; x += 18) K.lampadaireSimple(x, s * (W / 2 + 10), s);
   });
   bake(g);
 }
@@ -306,6 +377,7 @@ export function construireLieuxVideos(data) {
   bioGuera(bx, bz, 19);
   const [ax, az] = toXZ(6.35231, 2.38605);
   rondPointAeroport(ax, az, 17);
+  marcheGanhi();
   if (D.zongo) mosqueeZongo(D.zongo);
   tombes(data.tombes || []);
 }

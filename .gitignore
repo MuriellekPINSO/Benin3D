@@ -10,6 +10,7 @@ osm/
 # légères de public/modeles, qui sont versionnées.
 sources/masques/
 sources/art/
+sources/tripo/
 # Ancienne version en un fichier : elle embarque la musique de la radio (droits non vérifiés)
 artefact/cotonou-3d.html
 
