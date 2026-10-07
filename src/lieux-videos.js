@@ -90,7 +90,9 @@ function sofitel(ring0) {
   K.into(g, () => {
     let r = ring.map(([x, z]) => [x - c[0], z - c[1]]);
     const verre = K.tex('balcons', 1, 1), terrasse = K.tex('terrasse', 1, 1);
-    for (let n = 0; n < 7; n++) {
+    const tripo = tripoDispo('sofitel');
+    if (tripo) poserTripo('sofitel', g, { largeur: 118 });
+    else for (let n = 0; n < 7; n++) {
       mursPoly(r, n * 3.6, (n + 1) * 3.6, verre, 7, 3.6);
       solPoly([r], terrasse, (n + 1) * 3.6 + .02, 6);
       r = retrait(r, 1.25);
@@ -109,9 +111,9 @@ function sofitel(ring0) {
     // Enseigne en haut de la façade nord, et l'entrée sur le boulevard : auvent blanc, bassin.
     const zn = Math.min(...ring.map(p => p[1] - c[1]));
     // La vraie façade d'entrée, côté boulevard (photo Freed Armel, CC BY-SA 4.0) : 75 m × 25 m, ciel détouré par un masque.
-    { const f = new THREE.Mesh(new THREE.PlaneGeometry(75, 25.1), K.photo('textures/sofitel-facade.jpg', { alpha: 'textures/sofitel-alpha.jpg', rugosite: .8 }));
+    if (!tripo) { const f = new THREE.Mesh(new THREE.PlaneGeometry(75, 25.1), K.photo('textures/sofitel-facade.jpg', { alpha: 'textures/sofitel-alpha.jpg', rugosite: .8 }));
       f.name = 'photo-sofitel'; f.position.set(0, 12.55, zn - .5); f.rotation.y = Math.PI; f.userData.garder = true; f.receiveShadow = true; f.castShadow = false; K.racine.add(f); }
-    panneauTexte(['SOFITEL'], 22, 3, 0, 23.4, zn + 6 * 1.25 - .35, Math.PI, { fond: '#e3d8c3', encre: '#1d1a16', px: 1024, py: 140, police: '400 104px Georgia, "Times New Roman", serif' });
+    if (!tripo) panneauTexte(['SOFITEL'], 22, 3, 0, 23.4, zn + 6 * 1.25 - .35, Math.PI, { fond: '#e3d8c3', encre: '#1d1a16', px: 1024, py: 140, police: '400 104px Georgia, "Times New Roman", serif' });
     const [gx, gz] = toXZ(6.35105, 2.39373);
     K.boite(18, .5, 9, '#f6f5f1', gx - c[0], 5, gz - c[1]); for (const dx of [-7, 7]) K.boite(.8, 5, .8, '#f6f5f1', gx - c[0] + dx, 2.5, gz - c[1]);
     for (const dx of [-3.2, 3.2]) K.boite(5.8, 2.4, .15, K.mat('#c9bba0', { metal: .4, rugosite: .4 }), gx - c[0] + dx, 1.2, gz - c[1]);
@@ -168,6 +170,8 @@ function tourBceao(podium, tourRing) {
     const faces = [[0, b, 2 * (a - ch), 0], [0, -b, 2 * (a - ch), Math.PI], [a, 0, 2 * (b - ch), Math.PI / 2], [-a, 0, 2 * (b - ch), -Math.PI / 2]]; // x, z, largeur, orientation (normale)
     const or = K.mat('#c8a65a', { metal: .65, rugosite: .32 }), fente = K.mat('#3a2a18');
     const cauri = K.geo('cauri', () => new THREE.SphereGeometry(1, 14, 10)), fenteG = K.geo('cauriFente', () => new THREE.BoxGeometry(.14, 1.25, .1));
+    if (tripoDispo('bceao')) poserTripo('bceao', g, { hauteur: H + 1.5 });
+    else {
     for (const [fx, fz, w, rot] of faces) {
       const p = K.maillage(K.geo(`pl${w.toFixed(1)},${H}`, () => new THREE.PlaneGeometry(w, H)), PHOTO_BCEAO ? K.photo('textures/bceao-face.jpg', { rugosite: .7 }) : faceBceao(w), fx, H / 2, fz); p.rotation.y = rot;
       // Cauris : 4 lignes de 13 (un par étage) et 5 au dernier étage, en relief.
@@ -183,6 +187,7 @@ function tourBceao(podium, tourRing) {
     const plan = [[a - ch, b], [-(a - ch), b], [-a, b - ch], [-a, -(b - ch)], [-(a - ch), -b], [a - ch, -b], [a, -(b - ch)], [a, b - ch]];
     solPoly([plan], K.mat('#cdc7ba'), H, 4); mursPoly(plan, H, H + 1, marbre, 4, 1);
     K.boite(6, 3, 5, '#d8d2c4', -4, H + 1.5, 2); K.cyl(.12, .12, 10, 6, '#c9ccd0', 5, H + 5, -3);
+    }
     // L'écriteau (position à confirmer sur photo) : lettres dorées au-dessus de l'entrée du socle,
     // et le monolithe de marbre à la grille d'entrée sur l'avenue Jean-Paul II.
     const [ex, ez] = toXZ(6.35328, 2.42685);

@@ -21,7 +21,7 @@ export async function chargerIndexTripo() {
 export const tripoDispo = id => TRIPO.dispo.has(id);
 
 // Réglages fins par bâtiment (rotation en radians, ajoutée à celle du lieu ; décalage local en mètres).
-export const REGLAGES = { congres: {}, cathedrale: { rot: -Math.PI / 2 }, porte: {}, etoile: {}, bioguera: {}, dome: { dy: -6, mat: { couleur: '#b7bbbe', rugosite: .5, metal: .25 } }, dantokpa: { rot: Math.PI / 2 } }; // dantokpa : enseigne et étals vers la lagune // dome : photo de nuit, on garde le volume et une teinte argent // dome : le socle (parvis photographié) s'enfonce dans le sol
+export const REGLAGES = { congres: {}, cathedrale: { rot: -Math.PI / 2 }, porte: {}, etoile: {}, bioguera: {}, dome: { dy: -6, mat: { couleur: '#b7bbbe', rugosite: .5, metal: .25 } }, dantokpa: { rot: Math.PI / 2 }, bceao: {}, sofitel: { rot: Math.PI / 2 } }; // sofitel : façade courbe et auvent vers le boulevard // dantokpa : enseigne et étals vers la lagune // dome : photo de nuit, on garde le volume et une teinte argent // dome : le socle (parvis photographié) s'enfonce dans le sol
 const chargeur = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 /**
  * Pose le modèle `id` dans `parent` (repère local du lieu) : posé au sol, centré en (x, z),

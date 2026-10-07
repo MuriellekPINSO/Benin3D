@@ -26,5 +26,13 @@
  "dantokpa": {
   "triangles": 80000,
   "octets": 1484372
+ },
+ "sofitel": {
+  "triangles": 80000,
+  "octets": 1434968
+ },
+ "bceao": {
+  "triangles": 80000,
+  "octets": 1819568
  }
 }

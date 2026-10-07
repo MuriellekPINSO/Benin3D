@@ -184,7 +184,7 @@ textures qui en relèvent.
 ## Bâtiments reconnaissables : modèles 3D générés d'après photos
 
 `public/modeles/batiments/<id>.glb` (liste dans `index.json`) : Palais des Congrès, Cathédrale, Porte du Non-Retour,
-colonne de l'Étoile Rouge, cavalier de Bio Guéra, Le Dôme. Générés avec l'API Tripo (`npm run tripo -- <id> <photo>`,
+colonne de l'Étoile Rouge, cavalier de Bio Guéra, Le Dôme, grand bâtiment de Dantokpa, Tour BCEAO, Sofitel. Générés avec l'API Tripo (`npm run tripo -- <id> <photo>`,
 clé `TRIPO_API_KEY` dans `.env.local`, ~40 crédits par modèle) à partir de photos libres de Wikimedia Commons
 (`scripts/tripo-photos.json` : auteur, licence, page), puis allégés à 80 000 triangles (`alleger`). Les retouches de
 couleur par modèle sont dans `scripts/tripo-reglages.json`, la pose dans la ville (rotation, décalage) dans
