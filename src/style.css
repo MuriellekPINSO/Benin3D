@@ -469,6 +469,9 @@ button { font: inherit; color: inherit; }
 .jm-duo b { font-weight: 800; margin-right: 4px; }
 .jm-duo input { width: 74px; padding: 8px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-solid); color: var(--ink); font: 700 14px var(--font-mono); text-transform: uppercase; letter-spacing: .12em; }
 .jm-duo span { flex: 1 1 100%; color: var(--ink-2); font-size: 12.5px; }
+.jm-duo .jm-inviter { background: var(--accent); color: #1d1a16; border-color: transparent; font-weight: 800; }
+/* À deux : l'écart avec l'ami, sous le haut de l'écran. */
+.jh-duo { position: absolute; left: var(--gutter); top: 104px; padding: 6px 12px; border-radius: 999px; background: #1f3d6b; color: #fffaf0; font: 700 13px/1.2 var(--font-body); box-shadow: 0 6px 18px rgba(0,0,0,.25); pointer-events: none; }
 
 /* Événement : fenêtre d'entrée et bouton pour quitter le concert. */
 .evenement { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 30; width: min(440px, calc(100% - 2 * var(--gutter))); padding: 22px 22px 18px; border-radius: var(--r-lg); }

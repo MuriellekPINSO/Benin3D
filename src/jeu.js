@@ -4,6 +4,7 @@ import { AUDIO, audioCtx, moteur, moteurMaj, moteurStop, radio, son } from './au
 import { VOIX, taire, voixActives, voixDispo } from './voix.js';
 import { accident, majFeux, preparerFeux } from './regles.js';
 import { majPietons, marchandeReelle, preparerPietons, regarder, viderPietons } from './pietons.js';
+import { annoncerDepart, arriveeDuo } from './multijoueur.js';
 import { arreterMusique, demarrerMusique, musiqueQuartier } from './musique.js';
 import { $, LITE, hash, toXZ } from './base.js';
 import { QUARTIERS } from './donnees-lieux.js';
@@ -541,6 +542,7 @@ export function finJeu(arrive) {
   el.querySelector('h2').textContent = arrive ? 'Terminus !' : 'Fin de la course';
   el.querySelector('.jf-sous').textContent = arrive ? `${L.nom} : ${L.arretsJ[0].nom} → ${L.arretsJ[L.arretsJ.length - 1].nom}` : 'Trois accidents : le casque a servi. Repars quand tu veux.';
   const stats = [['Recette', fmtF(st.argent)], ['Arrêts desservis', `${st.servis}/${L.arretsJ.length - 1}`], ['Frôlements', st.frolements], ['Distance', `${(st.s / 1000).toFixed(1)} km`]];
+  const duo = arriveeDuo(arrive); if (duo) stats.push(['Course à deux', duo]); // qui est arrivé le premier au terminus
   el.querySelector('.jf-stats').innerHTML = stats.map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('');
   const qz = el.querySelector('.jf-quiz'), Q = QUIZ[L.id] || []; let i = 0, bonus = 0;
   const finir = () => {
@@ -573,7 +575,7 @@ export function remplirLignes() {
     const km = (L.arrets[L.arrets.length - 1].s / 1000).toFixed(1);
     const veh = L.veh === 'zem' && JEU.prog?.voiture && JEU.prog.vehicule === 'voiture' ? 'voiture' : L.veh;
     b.innerHTML = `<span class="jm-veh ${veh}">${veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : 'Tokpa'}</span><b>${L.nom}</b><small>${L.arrets.map(a => a.nom).join(' → ')}</small><span class="jm-meta">${km} km · ${L.arrets.length - 1} arrêts${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
-    b.addEventListener('click', () => { JEU.numero = ($('#jmNumero').value || '1234').slice(0, 5); sauver(); JEU.fini = false; lancerLigne(L, veh); });
+    b.addEventListener('click', () => { JEU.numero = ($('#jmNumero').value || '1234').slice(0, 5); sauver(); JEU.fini = false; lancerLigne(L, veh); annoncerDepart(L.id, veh); }); // à deux : l'autre part sur la même ligne
     el.appendChild(b);
   }
 }

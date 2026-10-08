@@ -17,7 +17,7 @@ import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
 
 const CARRE = 400;
 const TROTTOIR = { 0: 4, 1: 3.5, 2: 3, 3: 2.2, 4: 1.3, 5: .9 };
-const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, zonesLibres: [], zonesJeu: [], routeJeu: null, actif: true };
+const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, zonesLibres: [], zonesJeu: [], routeJeu: null, actif: true, anneaux: [] };
 
 // ---------- Index spatiaux ----------
 const CB = 50, CR = 40;
@@ -48,7 +48,12 @@ function indexer(data) {
   const L = data.L;
   const zone = (x, z, r) => R.zonesLibres.push([x, z, r]);
   const c = r => r.reduce((s, p) => [s[0] + p[0] / r.length, s[1] + p[1] / r.length], [0, 0]);
-  if (L.etoile) { const [x, z] = c(L.etoile.ring); zone(x, z, 105); }
+  if (L.etoile) {
+    const [x, z] = c(L.etoile.ring); zone(x, z, 105);
+    // L'anneau de bitume du rond-point (dessiné par lieux.js, hors des rues OSM) : pas de passants dessus.
+    const [sx, sz] = c(L.etoile.star), rMin = Math.min(...L.etoile.ring.map(p => Math.hypot(p[0] - x, p[1] - z)));
+    R.anneaux.push([sx, sz, rMin - 9.1, rMin + 8]);
+  }
   if (L.amazone) zone(L.amazone.pt[0], L.amazone.pt[1], 140);
   if (L.marina) { const [x, z] = c(L.marina); zone(x, z, 160); }
   if (L.congres) { const [x, z] = c(L.congres.outer.flat()); zone(x, z, 150); }
@@ -540,6 +545,7 @@ export function profilRoute(x, z, dx, dz) {
  */
 export function pietonOk(x, z, dx = 0, dz = 0) {
   if (!R.grilleR || dansBatiment(x, z) || dansTerrePlein(x, z, .3)) return false;
+  for (const [ax, az, r0, r1] of R.anneaux) { const d = Math.hypot(x - ax, z - az); if (d > r0 - .3 && d < r1 + .3) return false; }
   const l = R.grilleR.get(cle(x, z, CR)); if (!l) return true;
   for (const [, ax, az, bx, bz, hw] of l) {
     const ux = bx - ax, uz = bz - az, l2 = ux * ux + uz * uz || 1, t = Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / l2));
