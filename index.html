@@ -66,6 +66,7 @@
     <button class="tog" type="button" id="togGoogle" aria-pressed="false" title="Poser la maquette sur la vraie ville en 3D (Google)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span class="t-long">Vue réelle</span></button>
     <button class="tog" type="button" id="togMaquette" aria-pressed="false" hidden title="Bâtiments et rues de la maquette au-dessus des images Google"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l5-3v15M10 21V4l9 4v13"/></svg><span class="t-long">Maquette</span></button>
     <button class="tog" type="button" id="togSat" aria-pressed="false" hidden title="Poser la ville sur les vraies images satellite Google (API Map Tiles)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7 9 3 5 7l4 4"/><path d="m17 11 4 4-4 4-4-4"/><path d="m8 12 4 4 6-6-4-4Z"/><path d="m16 8 3-3"/><path d="M9 21a6 6 0 0 0-6-6"/></svg><span class="t-long">Sol satellite</span></button>
+    <button class="tog" type="button" id="btnConcert" title="Concert sur l’esplanade de l’Amazone (entrée 50 F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span class="t-long">Concert</span></button>
     <button class="tog" type="button" id="togMeteo" aria-pressed="false" title="Changer le temps : soleil, nuages, pluie, orage (touche M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17a4.5 4.5 0 1 1 1.2-8.8A5.5 5.5 0 0 1 18.5 10 3.5 3.5 0 0 1 18 17Z"/><path d="M9 20l-1 2M13 20l-1 2M17 20l-1 2"/></svg><span class="t-long">Soleil</span></button>
     <button class="tog" type="button" id="togTour" aria-pressed="false" title="Faire tourner la caméra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4.5h-4.5"/></svg><span class="t-long">Survol</span></button>
   </div>
@@ -96,6 +97,7 @@
       </div>
       <div class="jm-lignes" id="jmLignes"></div>
       <div class="jm-prog" id="jmProg"></div>
+      <div class="jm-duo"><b>À deux</b><button type="button" class="btn-ghost" id="mjCreer">Créer une partie</button><input id="mjCode" maxlength="4" placeholder="CODE" aria-label="Code de la partie" autocomplete="off"><button type="button" class="btn-ghost" id="mjRejoindre">Rejoindre</button><span id="mjStatut">Jouez à deux : chacun voit le zém de l’autre dans la ville.</span></div>
       <div class="jm-pied">
         <label for="jmNumero">Numéro sur ta chemise jaune <input id="jmNumero" maxlength="5" inputmode="numeric" value="1234"></label>
         <button type="button" class="btn-ghost" id="jmPub">Annonceurs</button>
@@ -182,6 +184,16 @@
       <p class="ac-son"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>Avec le son, c’est mieux</p>
     </div>
   </div>
+
+  <div class="evenement panel" id="evenement" hidden role="dialog" aria-labelledby="evTitre">
+    <small class="ev-sur">Esplanade de l’Amazone · ce soir</small>
+    <h2 id="evTitre">Concert de l’Esplanade</h2>
+    <p>Une scène face à la statue, un grand écran, des lumières et toute la ville qui danse. L’entrée se paie en MoMo avec ta cagnotte du jeu.</p>
+    <p class="ev-solde"></p>
+    <p class="ev-manque" hidden>Il te faut 50 F dans ta cagnotte : gagne-les en faisant des courses dans Zém Run.</p>
+    <div class="ev-actions"><button type="button" class="jouer" id="evPayer">Payer 50 F et entrer</button><button type="button" class="btn-ghost" id="evAnnuler">Pas maintenant</button></div>
+  </div>
+  <button type="button" class="ev-quitter" id="evQuitter" hidden>Quitter le concert</button>
 
   <div id="loader">
     <div class="box">

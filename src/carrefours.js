@@ -64,13 +64,13 @@ export function noeudsPres(x, z, r) {
 }
 
 // Plus court chemin (pondéré : on préfère les grands axes), en évitant éventuellement un nœud.
-function dijkstra(depart, arrivee, interdit = -1) {
+function dijkstra(depart, arrivee, interdit = -1, fac = FACTEUR) {
   const N = R.n, dist = new Float64Array(N).fill(Infinity), prec = new Int32Array(N).fill(-1), tas = [[0, depart]]; dist[depart] = 0;
   const pousser = e => { tas.push(e); let i = tas.length - 1; while (i) { const p = (i - 1) >> 1; if (tas[p][0] <= tas[i][0]) break; [tas[p], tas[i]] = [tas[i], tas[p]]; i = p; } };
   const tirer = () => { const h = tas[0], d = tas.pop(); if (tas.length) { tas[0] = d; let i = 0; for (;;) { const a = 2 * i + 1, b = a + 1; let m = i; if (a < tas.length && tas[a][0] < tas[m][0]) m = a; if (b < tas.length && tas[b][0] < tas[m][0]) m = b; if (m === i) break; [tas[m], tas[i]] = [tas[i], tas[m]]; i = m; } } return h; };
   while (tas.length) {
     const [d, n] = tirer(); if (d > dist[n]) continue; if (n === arrivee) break;
-    for (const [m, l, c] of R.adj[n]) { if (m === interdit) continue; const nd = d + l * FACTEUR[c]; if (nd < dist[m]) { dist[m] = nd; prec[m] = n; pousser([nd, m]); } }
+    for (const [m, l, c] of R.adj[n]) { if (m === interdit) continue; const nd = d + l * fac[c]; if (nd < dist[m]) { dist[m] = nd; prec[m] = n; pousser([nd, m]); } }
   }
   if (!isFinite(dist[arrivee])) return null;
   const out = []; for (let n = arrivee; n !== -1; n = prec[n]) out.push(n); return out.reverse();
@@ -120,6 +120,24 @@ export function itineraire(x, z, n, m, cibles) {
     const t = noeudsPres(cx, cz, 80)[0]; if (!t) return null;
     const ch = dijkstra(cur, t[0], avant) || dijkstra(cur, t[0]); if (!ch) return null;
     for (const k of ch.slice(1)) pts.push([R.X[k], R.Z[k]]);
+    if (ch.length > 1) { avant = ch[ch.length - 2]; cur = ch[ch.length - 1]; }
+  }
+  return pts;
+}
+
+// Raccourci du client pressé : distance pure, petites rues comprises (pas de préférence pour les grands axes).
+const DIRECT = [1, 1, 1, 1, 1];
+/** Itinéraire le plus court de (x, z) jusqu'à la première cible, en partant du nœud le plus proche de (xa, za)
+ *  (un point un peu devant le zém), puis les cibles suivantes par les grands axes comme d'habitude. */
+export function itineraireCourt(x, z, xa, za, cibles) {
+  if (!R.pret || !cibles.length) return null;
+  const d0 = noeudsPres(xa, za, 60)[0]; if (!d0) return null;
+  const pts = [[x, z], [R.X[d0[0]], R.Z[d0[0]]]];
+  let cur = d0[0], avant = -1;
+  for (const [k, [cx, cz]] of cibles.entries()) {
+    const t = noeudsPres(cx, cz, 80)[0]; if (!t) return null;
+    const ch = dijkstra(cur, t[0], avant, k === 0 ? DIRECT : FACTEUR) || dijkstra(cur, t[0]); if (!ch) return null;
+    for (const n of ch.slice(1)) pts.push([R.X[n], R.Z[n]]);
     if (ch.length > 1) { avant = ch[ch.length - 2]; cur = ch[ch.length - 1]; }
   }
   return pts;

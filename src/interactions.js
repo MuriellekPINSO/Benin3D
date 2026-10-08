@@ -1,11 +1,12 @@
 import * as THREE from 'three';
+import { payerEtRecevoir, remettre } from './remise.js';
 import { $ } from './base.js';
 import { moteurMaj, son } from './audio.js';
 import { BORD } from './bordure.js';
 import { DISC, bulle, causerGroupe, dialogue, passantDemande, prendreSigne } from './discussions.js';
 import { servir } from './essence.js';
 import { etalPres, ouvrirBoutique } from './artisans.js';
-import { JEU, fmtF, pose, toast } from './jeu.js';
+import { JEU, fmtF, pose, toast, avecClients } from './jeu.js';
 
 // ---------- Interagir avec ce qui est à côté (touche E) ----------
 // Le joueur conduit : quand il s'arrête, tout ce qui est à moins de ~11 m devient
@@ -24,11 +25,11 @@ function actionsObjet(st, o) {
   if (t === 'vendeuse') return { label: 'Parler à la vendeuse', go: () => {
     // D'abord on se salue, ensuite on discute le prix, enfin on achète (cahier des charges, priorité 2).
     let remise = 1;
-    const eau = () => { if (DISC.client) { DISC.client.humeur = Math.min(1, DISC.client.humeur + .15); bulle(DISC.client.siege, 'Ah, de l’eau fraîche ! Merci, zém !'); } else bulle(o.g, 'Merci ! Bonne route !'); };
+    const eau = () => { payerEtRecevoir(JEU.joueur, o.g, 'eau', DISC.client?.siege || JEU.joueur); if (DISC.client) { DISC.client.humeur = Math.min(1, DISC.client.humeur + .15); setTimeout(() => DISC.client && bulle(DISC.client.siege, 'Ah, de l’eau fraîche ! Merci, zém !'), 1600); } else bulle(o.g, 'Merci ! Bonne route !'); };
     const prix = n => Math.max(25, Math.round(n * remise / 25) * 25);
     const acheter = () => dialogue('La vendeuse', remise < 1 ? '« Bon, pour toi j’enlève un peu. Tu prends quoi ? »' : '« Pure water, akassa, beignets ! Tu prends quoi ? »', [
       [`Une pure water · ${prix(50)} F`, () => { if (payer(st, prix(50))) eau(); }],
-      [`Des beignets · ${prix(200)} F`, () => { if (payer(st, prix(200))) bulle(o.g, 'Ils sont chauds, attention !'); }],
+      [`Des beignets · ${prix(200)} F`, () => { if (payer(st, prix(200))) { payerEtRecevoir(JEU.joueur, o.g, 'beignets'); bulle(o.g, 'Ils sont chauds, attention !'); } }],
       ...(remise === 1 ? [['C’est cher, diminue un peu', () => {
         if (Math.random() < .6) { remise = .8; bulle(o.g, 'Hum… bon, parce que c’est toi !'); setTimeout(acheter, 900); }
         else { remise = .99; bulle(o.g, 'Mon fils, c’est déjà le bon prix !'); setTimeout(acheter, 900); }
@@ -44,15 +45,15 @@ function actionsObjet(st, o) {
   if (t === 'momo') return { label: 'Kiosque MoMo', go: () => {
     const P2 = JEU.prog;
     dialogue('Le kiosque MoMo', `« Dépôt, retrait, crédit ! Ta cagnotte : ${fmtF(P2.cagnotte)}. »`, [
-      ['Retirer 1 000 F (frais 50 F)', () => { if (P2.cagnotte < 1050) return toast('Cagnotte insuffisante', 1.2, 'mal'); P2.cagnotte -= 1050; st.argent += 1000; son('piece'); bulle(o.g, 'Voilà tes 1 000 F !'); }],
-      ['Déposer ma recette', () => { if (st.argent <= 0) return toast('Rien à déposer', 1.2); P2.cagnotte += st.argent; toast(`+${fmtF(st.argent)} dans la cagnotte`, 1.4, 'bien'); st.argent = 0; son('piece'); }],
-      ['Du crédit téléphone · 200 F', () => { if (payer(st, 200)) bulle(o.g, 'Crédit envoyé !'); }],
+      ['Retirer 1 000 F (frais 50 F)', () => { if (P2.cagnotte < 1050) return toast('Cagnotte insuffisante', 1.2, 'mal'); P2.cagnotte -= 1050; st.argent += 1000; son('piece'); remettre(o.g, JEU.joueur, 'billet'); bulle(o.g, 'Voilà tes 1 000 F !'); }],
+      ['Déposer ma recette', () => { if (st.argent <= 0) return toast('Rien à déposer', 1.2); remettre(JEU.joueur, o.g, 'billet'); P2.cagnotte += st.argent; toast(`+${fmtF(st.argent)} dans la cagnotte`, 1.4, 'bien'); st.argent = 0; son('piece'); }],
+      ['Du crédit téléphone · 200 F', () => { if (payer(st, 200)) { payerEtRecevoir(JEU.joueur, o.g, 'carte'); bulle(o.g, 'Voilà ta carte, gratte et recharge !'); } }],
     ], { defaut: -1, duree: 10 });
   } };
   if (t === 'vulca') return { label: 'Le vulcanisateur', go: () => {
     dialogue('Le vulcanisateur', st.vies < 3 ? '« Eh, ta moto a pris des coups ! Je la répare ? »' : '« Gonflage, réparation, je fais tout ! »', [
-      ...(st.vies < 3 ? [['Réparer la moto · 500 F (+1 vie)', () => { if (!payer(st, 500)) return; st.vies++; toast('Moto réparée : +1 vie', 1.6, 'bien'); bulle(o.g, 'C’est bon, elle est comme neuve !'); }]] : []),
-      ['Gonfler les pneus · 100 F', () => { if (!payer(st, 100)) return; st.pneus = 120; toast('Pneus gonflés : les nids-de-poule font moins mal', 1.8, 'bien'); }],
+      ...(st.vies < 3 ? [['Réparer la moto · 500 F (+1 vie)', () => { if (!payer(st, 500)) return; payerEtRecevoir(JEU.joueur, o.g, 'outil', JEU.joueur, { hautVers: .6, garder: 1.6 }); st.service = Math.max(st.service, 2.4); st.vies++; toast('Moto réparée : +1 vie', 1.6, 'bien'); bulle(o.g, 'C’est bon, elle est comme neuve !'); }]] : []),
+      ['Gonfler les pneus · 100 F', () => { if (!payer(st, 100)) return; payerEtRecevoir(JEU.joueur, o.g, 'outil', JEU.joueur, { hautVers: .45, garder: 1.4 }); st.service = Math.max(st.service, 2); st.pneus = 120; toast('Pneus gonflés : les nids-de-poule font moins mal', 1.8, 'bien'); }],
       ['Rien, merci', () => bulle(o.g, 'Bonne route !')],
     ], { defaut: -1, duree: 10 });
   } };
@@ -64,7 +65,7 @@ function actionsObjet(st, o) {
   if (t === 'enseigne') return { label: `Entrer chez ${it.nom || 'le commerçant'}`, go: () => {
     const nom = it.nom || 'la boutique', ty = it.t || '';
     const offre = /pharmac/.test(ty) ? ['Du paracétamol · 500 F', 500, 'Prends-le avec de l’eau !'] : /restau|maquis|bar|fast/.test(ty) ? ['Un plat de riz · 1 000 F', 1000, 'Bon appétit !'] : /coiff/.test(ty) ? ['Une coupe · 1 500 F', 1500, 'Te voilà beau !'] : ['Une boisson fraîche · 300 F', 300, 'Merci, à bientôt !'];
-    dialogue(nom, `« Bonne arrivée chez ${nom} ! Tu veux quoi ? »`, [[offre[0], () => { if (payer(st, offre[1])) toast(offre[2], 1.6, 'bien'); }], ['Juste dire bonjour', () => toast('« Bonne journée à toi ! »', 1.4)]], { defaut: -1, duree: 10 });
+    dialogue(nom, `« Bonne arrivée chez ${nom} ! Tu veux quoi ? »`, [[offre[0], () => { if (payer(st, offre[1])) { const vend = BORD.vivants.find(v => v.type === 'enseigne' && Math.abs(v.s - it.s) < 1); if (vend) payerEtRecevoir(JEU.joueur, vend.g, 'sac'); toast(offre[2], 1.6, 'bien'); } }], ['Juste dire bonjour', () => toast('« Bonne journée à toi ! »', 1.4)]], { defaut: -1, duree: 10 });
   } };
   return null;
 }
@@ -97,7 +98,7 @@ export function majInteractions(st, C, dt) {
     if (el) { el.hidden = !I.liste.length; if (I.liste.length) el.querySelector('span').textContent = I.liste.length > 1 ? `${I.liste[0].label} · ${I.liste.length - 1} autre${I.liste.length > 2 ? 's' : ''}` : I.liste[0].label; }
   }
   // Attendre garé : sans client, arrêté sur le côté, un passant finit par venir.
-  if (JEU.veh === 'zem' && st.v < .3 && !DISC.client && !DISC.courant && st.service <= 0 && Math.abs(st.lat) > 1) {
+  if (avecClients(JEU.veh) && st.v < .3 && !DISC.client && !DISC.courant && st.service <= 0 && Math.abs(st.lat) > 1) {
     I.attente += dt;
     if (I.attente > I.prochaineDemande) { I.attente = 0; I.prochaineDemande = 6 + Math.random() * 8; passantDemande(C); }
   } else I.attente = 0;

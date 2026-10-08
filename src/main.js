@@ -1,4 +1,7 @@
 import './style.css';
+import { initEvenement } from './evenement.js';
+import { initMultijoueur, majMultijoueur } from './multijoueur.js';
+import { construireFeux, majFeuxVille } from './feux.js';
 import { construireTerrePleins, initTerrePleins } from './terre-pleins.js';
 import * as THREE from 'three';
 import { applyMood, sunDir } from './ambiances.js';
@@ -76,6 +79,8 @@ function image(now) {
   if (E.tokpas) { E.tokpas.visible = E.zemOn && E.riseDone && dist < 6000 && !JEU.actif; if (E.tokpas.visible) majTokpas(dt); }
   majMondeReel(JEU.actif && JEU.joueur ? JEU.joueur.position : t, JEU.actif);
   majMeteo(dt);
+  majFeuxVille(U.uTime.value, JEU.actif);
+  majMultijoueur(dt);
   renderer.render(scene, camera);
   updateLabels(dist, W, H, JEU.actif && JEU.joueur ? JEU.joueur.position : null); // en jeu : les lieux proches du zém, pour se repérer
   if (E.frameN % 6 === 0) updateHud(dist, H);
@@ -100,6 +105,7 @@ async function main() {
   status('Tracé des routes…', 12); await frame();
   buildRoads(data.R);
   initTerrePleins(data.L.terrePleins); construireTerrePleins(); // terre-plein central des boulevards (gazon, haies, lampadaires)
+  construireFeux(data.L.feux, data.L.passages); // feux tricolores et passages piétons réels (OSM)
   await buildBuildings(data.B);
   initRue(data);
   const nGoogle = await initBatimentsGoogle();
@@ -116,7 +122,7 @@ async function main() {
   status('Zémidjans de 3D monde…', 94); await frame();
   await chargerZems();
   buildZems(); zemsDetailles(); buildLamps(); buildLabels();
-  initExplorer(); initJeu(data); initBoutique(); initOffre();
+  initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initBoutique(); initOffre();
   if (reduceMotion) finishRise();
   status('Lever de la ville…', 100); await frame();
   // Vue d'ensemble depuis le large, au sud-est

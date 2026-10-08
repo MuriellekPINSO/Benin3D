@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import { remettre } from './remise.js';
 import { $ } from './base.js';
 import { AUDIO, son } from './audio.js';
 import { JEU, LANE, fmtF, pose, toast } from './jeu.js';
 import { DISC, bulle, dialogue, nouveauSigne, personne } from './discussions.js';
+import { FEUX } from './feux.js';
 
 // ---------- Code de la route : feux tricolores, police, accidents ----------
 // Cahier des charges de Schekina, priorités 1 et 2 :
@@ -32,13 +34,24 @@ function entre(a, b, ep, mat) { // poutre entre deux points
   const m = new THREE.Mesh(new THREE.BoxGeometry(ep, ep, a.distanceTo(b)), mat); m.position.copy(a).add(b).multiplyScalar(.5); m.lookAt(b); return m;
 }
 
-/** Pose les feux sur les carrefours du trajet (ceux où croise une vraie rue), au plus un tous les 220 m. */
+/** Feux réels (OSM) que le trajet traverse : abscisse sur le chemin du carrefour. */
+function feuxReelsSur(C) {
+  const out = [];
+  for (const f of FEUX.noeuds) {
+    let best = -1, bd = 14;
+    for (let i = 0; i < C.n; i += 2) { const d = Math.hypot(C.X[i] - f.x, C.Z[i] - f.z); if (d < bd) { bd = d; best = i; } }
+    if (best >= 0) out.push(best);
+  }
+  return out.sort((a, b) => a - b);
+}
+/** Pose les feux du trajet : les vrais feux de Cotonou qu'il traverse ; s'il n'y en a pas, ceux des grands carrefours. */
 export function preparerFeux(C) {
   R.feux = []; R.police = null;
-  const liste = (JEU.carrefours || []).filter(c => [c.gauche, c.droite, c.droit].some(b => b && b.cls <= 3)).sort((a, b) => a.s - b.s);
+  let liste = feuxReelsSur(C).map(s => ({ s, reel: true }));
+  if (!liste.length) liste = (JEU.carrefours || []).filter(c => [c.gauche, c.droite, c.droit].some(b => b && b.cls <= 3)).sort((a, b) => a.s - b.s);
   let dernier = -1e9;
   for (const c of liste) {
-    const s0 = c.s - 9; if (s0 < 120 || s0 - dernier < 220 || s0 > C.L - 60) continue;
+    const s0 = c.s - 9; if (s0 < 60 || s0 - dernier < (c.reel ? 60 : 220) || s0 > C.L - 40) continue;
     dernier = s0;
     const f = { s: s0, dephase: Math.random() * TOUR, passe: false, etat: '', mats: matsFeu() };
     const pied = pose(C, s0, LANE * 2.9, tmp()), haut = pose(C, s0, LANE * .4, tmp()), avant = pose(C, s0 - 25, LANE * .4, tmp());
@@ -95,7 +108,7 @@ export function police(st, motif) {
   bulle(m, motif === 'feu' ? 'Hé, zém ! Arrête-toi là !' : 'Police ! On fait le constat.', { duree: 2.6, ton: 'fort' });
   const fin = () => { R.police = null; setTimeout(() => m.parent?.remove(m), 5000); };
   const regler = n => {
-    if (payer(st, n)) { toast(`Amende payée : −${fmtF(n)}`, 1.8, 'mal'); bulle(m, motif === 'feu' ? 'C’est bon, circule. Et respecte les feux !' : 'C’est noté. Roule doucement maintenant.'); }
+    if (payer(st, n)) { remettre(JEU.joueur, m, 'billet', { hautVers: 1.25 }); toast(`Amende payée : −${fmtF(n)}`, 1.8, 'mal'); bulle(m, motif === 'feu' ? 'C’est bon, circule. Et respecte les feux !' : 'C’est noté. Roule doucement maintenant.'); }
     else { st.service = Math.max(st.service, 6); toast('Pas assez d’argent : moto immobilisée un moment', 2.2, 'mal'); bulle(m, 'Tu restes ici un moment, alors !', { ton: 'fort' }); }
     fin();
   };

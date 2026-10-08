@@ -14,6 +14,7 @@ const AMB = {
   marche: { bpm: 126, gamme: [0, 3, 5, 7, 10], tonique: 185, kick: '1000101010001010', shaker: '1111111111111111', cloche: '1011010110110101', basse: [0, null, 0, null, 3, null, 4, null], lead: 'square', densite: .35, pad: false },
   plage:  { bpm: 96, gamme: [0, 2, 4, 7, 9], tonique: 233, kick: '1000000010000000', shaker: '0101010101010101', cloche: '0000100000001000', basse: [0, null, null, 4, null, null, 3, null], lead: 'sine', densite: .25, pad: true },
   calavi: { bpm: 116, gamme: [0, 2, 4, 5, 7, 9], tonique: 208, kick: '1000100010001000', shaker: '0010001000100010', cloche: '1010110101101010', basse: [0, null, 2, null, 4, null, 5, null], lead: 'triangle', densite: .4, pad: false },
+  concert: { bpm: 118, gamme: [0, 2, 3, 5, 7, 10], tonique: 196, kick: '1000100010001000', shaker: '0110011101100111', cloche: '1001010010010100', basse: [0, null, 0, 3, null, 5, null, 3], lead: 'square', densite: .5, pad: true },
   ouidah: { bpm: 100, gamme: [0, 3, 5, 7, 10], tonique: 165, kick: '1001001010010010', shaker: '0000000000000000', cloche: '1010110101101010', basse: [0, null, null, null, null, null, null, null], lead: null, densite: 0, pad: false, tom: '0010010001001001' },
 };
 const ZONES = [
@@ -25,7 +26,7 @@ const ZONES = [
 ];
 export const zoneDe = quartier => (ZONES.find(([, r]) => r.test(quartier || '')) || ['ville'])[0];
 
-const M = { actif: false, zone: 'ville', amb: AMB.ville, pas: 0, prochain: 0, minuteur: 0, maitre: null, bruit: null, accord: 0 };
+const M = { actif: false, force: false, zone: 'ville', amb: AMB.ville, pas: 0, prochain: 0, minuteur: 0, maitre: null, bruit: null, accord: 0 };
 function bruit(ctx) { if (!M.bruit) { const b = ctx.createBuffer(1, ctx.sampleRate * .5, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; M.bruit = b; } return M.bruit; }
 const freq = (amb, degre, octave = 0) => { const g = amb.gamme, n = g.length, o = Math.floor(degre / n), k = ((degre % n) + n) % n; return amb.tonique * 2 ** ((g[k] + 12 * (o + octave)) / 12); };
 function note(ctx, t, { type = 'sine', f, f2, dur, vol, filtre }) {
@@ -51,7 +52,7 @@ function jouer(ctx, t, k) {
 }
 function programmer() {
   const ctx = AUDIO.ctx; if (!ctx || !M.maitre) return;
-  const muet = AUDIO.muet || AUDIO.radio || !JEU.actif || JEU.pause || JEU.fini;
+  const muet = AUDIO.muet || (!M.force && (AUDIO.radio || !JEU.actif || JEU.pause || JEU.fini));
   M.maitre.gain.setTargetAtTime(muet ? 0 : .5, ctx.currentTime, .3);
   if (muet) { M.prochain = ctx.currentTime + .1; return; }
   if (M.prochain < ctx.currentTime) M.prochain = ctx.currentTime + .05;
@@ -79,3 +80,8 @@ export function musiqueQuartier(quartier) {
   return z;
 }
 export const NOMS_ZONES = { ville: 'Ville', marina: 'Marina', marche: 'Marchés', plage: 'Bord de mer', calavi: 'Calavi', ouidah: 'Ouidah' };
+/** Concert de l'événement (hors course) : ambiance « concert » jouée même sans partie en cours. */
+export function musiqueEvenement(on) {
+  if (on) { M.force = true; demarrerMusique(); M.amb = AMB.concert; M.zone = 'concert'; M.pas = 0; }
+  else { M.force = false; arreterMusique(); M.zone = 'ville'; M.amb = AMB.ville; }
+}

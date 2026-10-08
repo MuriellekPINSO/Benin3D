@@ -1,4 +1,5 @@
 import { $ } from './base.js';
+import { payerEtRecevoir } from './remise.js';
 import { son } from './audio.js';
 import { BORD } from './bordure.js';
 import { bulle, dialogue, DISC } from './discussions.js';
@@ -32,7 +33,8 @@ export function servir(st, it) {
   if (v) bulle(v.g, kpayo ? 'Kpayo ! Un litre, deux litres ?' : 'Bonjour zém ! On te sert ?', { duree: 2.6 });
   const verser = (l, c) => {
     if (!payer(st, c)) { toast('Pas assez d’argent pour ça', 1.4, 'mal'); if (v) bulle(v.g, 'Il faut payer d’abord hein !'); return; }
-    st.essence = Math.min(RESERVOIR, st.essence + l); st.panne = false; st.service = Math.max(st.service, 1.2);
+    st.essence = Math.min(RESERVOIR, st.essence + l); st.panne = false; st.service = Math.max(st.service, 2.6);
+    if (v && JEU.joueur) payerEtRecevoir(JEU.joueur, v.g, 'essence', JEU.joueur, { hautVers: .95, garder: 1.4, verser: true }); // on voit l'essence passer dans le réservoir
     son('piece'); toast(`+${l.toLocaleString('fr-FR')} L d’essence · −${fmtF(c)}`, 1.6, 'bien'); progres('essence', 1);
     if (kpayo && Math.random() < .18) { // essence de contrebande coupée
       st.toux = 25; setTimeout(() => toast('Essence coupée ! Le moteur tousse…', 2, 'mal'), 1300);

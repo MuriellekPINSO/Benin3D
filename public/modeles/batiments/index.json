@@ -34,5 +34,9 @@
  "bceao": {
   "triangles": 80000,
   "octets": 1819568
+ },
+ "voiture": {
+  "triangles": 59996,
+  "octets": 1149128
  }
 }

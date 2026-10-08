@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { envoyerKlaxon } from './multijoueur.js';
+import { remettre } from './remise.js';
 import { $, LITE, hash } from './base.js';
 import { camera } from './scene.js';
 import { son } from './audio.js';
@@ -6,7 +8,7 @@ import { C3, matVeh } from './vehicules.js';
 import { mergeColored } from './ville.js';
 import { PLACES } from './donnees-lieux.js';
 import { BORD } from './bordure.js';
-import { JEU, LANE, fmtF, pose, toast } from './jeu.js';
+import { JEU, LANE, fmtF, pose, toast, prendreRaccourci, avecClients } from './jeu.js';
 import { progres } from './missions.js';
 import { parler, voixDe } from './voix.js';
 
@@ -140,7 +142,7 @@ export function preparerDiscussions(L, C, arrets, garderClient = false) {
   DISC.groupes = g; DISC.ptr = 0;
   // Entre les arrêts, des gens font signe au zém pour qu'il s'arrête.
   DISC.signes = [];
-  if (JEU.veh === 'zem') for (let s = 380 + Math.random() * 200; s < C.L - 250; s += 420 + Math.random() * 380) {
+  if (avecClients(JEU.veh)) for (let s = 380 + Math.random() * 200; s < C.L - 250; s += 420 + Math.random() * 380) {
     if (surPont(s) || arrets.some(a => s > a.s - 90 && s < a.s + 40)) continue;
     const side = Math.random() < .7 ? 1 : -1;
     DISC.signes.push({ s, side, graine: Math.floor(Math.random() * 1e5), m: null, etat: 'attend' });
@@ -148,7 +150,7 @@ export function preparerDiscussions(L, C, arrets, garderClient = false) {
 }
 /** Quelqu'un fait signe plus loin, à droite : le prochain client (le zém repart chercher une course). */
 export function nouveauSigne(s, side = 1) {
-  const C = JEU.chemin; if (!C || JEU.veh !== 'zem' || s > C.L - 40) return;
+  const C = JEU.chemin; if (!C || !avecClients(JEU.veh) || s > C.L - 40) return;
   DISC.signes.push({ s, side, graine: Math.floor(Math.random() * 1e5), m: null, etat: 'attend' });
 }
 export function nettoyerDiscussions(garderClient = false) {
@@ -235,11 +237,11 @@ export function causerGroupe(g) {
 export function nouveauClient(st, k, { arrete = false } = {}) {
   const L = JEU.ligne, a = L.arretsJ[k]; if (!a) return;
   const juste = tarifJuste(st, k), [nom, femme] = choisir(NOMS);
-  const s = nouveauPassager(!!femme); s.visible = true;
+  const s = nouveauPassager(!!femme); s.visible = JEU.veh === 'zem'; // en taxi, le client est dans l'habitacle
   s.userData.voix = { femme: !!femme, graine: nom, age: /vieux|mamie/i.test(nom) ? 'vieux' : /jeune|étudiant|fifamè|sèna/i.test(nom) ? 'jeune' : '' };
   DISC.client = { nom, femme, juste, tarif: 0, humeur: .6, vers: k, siege: s, accord: false, causerie: st.s + 220 + Math.random() * 300, dits: new Set() };
   st.passagers = 1;
-  const accord = (tarif, dh, rep) => { const c = DISC.client; if (!c) return; c.tarif = tarif; c.accord = true; humeur(dh); dit(rep); if (tarif >= juste) progres('negos', 1); setTimeout(() => { if (DISC.client === c) demanderCasque(st, c); }, 1400); };
+  const accord = (tarif, dh, rep) => { const c = DISC.client; if (!c) return; c.tarif = tarif; c.accord = true; humeur(dh); dit(rep); if (tarif >= juste) progres('negos', 1); setTimeout(() => { if (DISC.client === c && JEU.veh === 'zem') demanderCasque(st, c); }, 1400); };
   const perdu = () => { dit('Je prends un autre zém !', { ton: 'fort' }); son('choc'); toast('Client perdu', 1.4, 'mal'); setTimeout(() => { if (DISC.client?.nom === nom) { DISC.client = null; st.passagers = 0; s.visible = false; } }, 1200); };
   dit(`Zém ! ${a.nom}, c’est combien ?`, { duree: 3.2 });
   dialogue(`${nom} · ${femme ? 'ta cliente' : 'ton client'}`, `« Zém ! ${a.nom}, c’est combien ? »`, [
@@ -272,17 +274,23 @@ function demanderCasque(st, c) {
   dit('Ah non… je n’ai pas de casque.');
   dialogue(`${c.nom} · le casque`, '« Tu as ton casque ? » — « Non, je n’en ai pas… »', [
     ['Je te prête le mien', () => { mettreCasque(c.siege); humeur(.12); dit('Merci zém, tu es gentil !'); }],
-    ['Achète-en un au vendeur, là · 2 000 F', () => { st.service = Math.max(st.service, 3); toast('Le client achète un casque au bord de la route…', 2.2); setTimeout(() => { if (DISC.client === c) { mettreCasque(c.siege); humeur(-.04); dit('Bon, au moins il est neuf !'); } }, 2600); }],
+    ['Achète-en un au vendeur, là · 2 000 F', () => {
+      st.service = Math.max(st.service, 3.4); toast('Le client achète un casque au vendeur du bord de la route…', 2.2);
+      const p = pose(JEU.chemin, st.s + 3, LANE * 2.6, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(JEU.chemin, st.s + 3, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+      const vend = personne(4500 + Math.floor(Math.random() * 400), { femme: false }); vend.position.set(p.x, p.y, p.z); vend.lookAt(q.x, p.y, q.z); JEU.decor.add(vend); bulle(vend, 'Casque ! Casque neuf !', { duree: 2.4 });
+      remettre(c.siege, vend, 'billet', { hautDe: .55, garder: .3 });
+      remettre(vend, c.siege, 'casque', { delai: .8, hautVers: .6, garder: .2, apres: () => { if (DISC.client === c) { mettreCasque(c.siege); humeur(-.04); dit('Bon, au moins il est neuf !'); } setTimeout(() => vend.parent?.remove(vend), 4000); } });
+    }],
   ], { defaut: 0, duree: 10, bloquant: true });
 }
 /** Le client descend à l'arrêt : il paie le prix convenu, plus ou moins selon son humeur. Renvoie le gain. */
 export function deposerClient() {
   const c = DISC.client; if (!c) return 0;
-  let gain = c.accord ? c.tarif : Math.round(c.juste * .8 / 25) * 25; const base = gain;
+  let gain = c.accord ? c.tarif : Math.round(c.juste * .8 / 25) * 25; const base = gain, supplement = c.supplement || 0; gain += supplement;
   if (c.humeur >= .75) { const pb = c.humeur >= .9 ? 100 : 50; gain += pb; dit(`Merci zém, que Dieu te garde ! Garde ${pb} F.`, { duree: 3 }); progres('ravis', 1); }
   else if (c.humeur < .3) { gain = Math.max(0, gain - 50); dit('Tu as failli me tuer ! Je retiens 50 F.', { ton: 'fort', duree: 3 }); }
   else dit(choisir(['Merci, bonne route !', 'Merci zém !', 'Que Dieu te bénisse !']));
-  DISC.dernierPaiement = { nom: c.nom, femme: c.femme, base, total: gain, casque: !!c.siege?.userData.casque };
+  DISC.dernierPaiement = { nom: c.nom, femme: c.femme, base, supplement, total: gain, casque: !!c.siege?.userData.casque };
   DISC.client = null;
   return gain;
 }
@@ -299,9 +307,17 @@ function causerie(st) {
   if (st.quartier) sujets.push('ou');
   if (BORD.repere && BORD.repere.d < 260 && Math.abs(BORD.repere.s - st.s) < 160) sujets.push('lieu');
   sujets.push('foot', 'chaud', 'essence', 'monnaie', 'famille', 'musique');
+  const reste = (JEU.ligne.arretsJ[c.vers]?.s ?? st.s) - st.s; if (reste > 700 && !c.dits.has('presse')) sujets.unshift('presse', 'presse'); // plus souvent proposé
   const sujet = choisir(sujets.filter(x => !c.dits.has(x))); if (!sujet) return; c.dits.add(sujet);
   const R = (txt, dh, rep, prime = 0) => [txt, () => { humeur(dh); dit(rep); if (prime) { st.argent += prime; toast(`+${prime} F`, 1, 'bien'); son('piece'); } }];
-  if (sujet === 'ou') {
+  if (sujet === 'presse') {
+    const sup = Math.max(200, Math.round(c.juste * .5 / 50) * 50);
+    dit(`Je suis pressé${c.femme ? 'e' : ''} ! ${sup} F de plus si tu prends un raccourci.`, { duree: 3.2 });
+    dialogue(c.nom, `« Je suis en retard ! Je te donne ${sup} F de plus si tu passes par un raccourci. »`, [
+      [`D’accord, on coupe par les petites rues (+${sup} F)`, () => { if (prendreRaccourci()) { c.supplement = sup; humeur(.1); dit('Merci ! Vas-y, vite !'); } else dit('Bon, tant pis, on reste sur la grande route.'); }],
+      ['Non, je reste sur la grande route', () => { humeur(-.05); dit('Hum… alors roule vite au moins !'); }],
+    ], { defaut: -1, duree: 10 });
+  } else if (sujet === 'ou') {
     const autres = JEU.quartiersNoms.filter(n => n !== st.quartier).sort(() => Math.random() - .5).slice(0, 2), bon = st.quartier;
     const choix = [bon, ...autres].sort(() => Math.random() - .5);
     dit('On est où là ?');
@@ -410,7 +426,7 @@ function fermerDialogue() { const el = $('#jhDialogue'); if (el) el.hidden = tru
 // ---------- Klaxon ----------
 export function klaxonner() {
   const st = JEU.etat; if (!st) return;
-  son('klaxon', JEU.prog?.klaxon); const t = st.temps;
+  son('klaxon', JEU.prog?.klaxon); envoyerKlaxon(); const t = st.temps;
   DISC.klaxons = DISC.klaxons.filter(x => t - x < 6); DISC.klaxons.push(t);
   // Ceux qui traversent devant pressent le pas.
   for (const o of JEU.objets) {

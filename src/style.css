@@ -453,3 +453,19 @@ button { font: inherit; color: inherit; }
 .jh-paiement b { font: 800 22px/1.15 var(--font-display); }
 .jh-paiement span { color: var(--ink-2); font-size: 13px; }
 .jh-paiement em { margin-top: 6px; font-style: normal; font-size: 13px; font-weight: 600; color: #2f8a4a; }
+
+/* Mode deux joueurs (menu du jeu). */
+.jm-duo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-radius: var(--r-md); background: var(--chip); margin-top: 10px; }
+.jm-duo b { font-weight: 800; margin-right: 4px; }
+.jm-duo input { width: 74px; padding: 8px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-solid); color: var(--ink); font: 700 14px var(--font-mono); text-transform: uppercase; letter-spacing: .12em; }
+.jm-duo span { flex: 1 1 100%; color: var(--ink-2); font-size: 12.5px; }
+
+/* Événement : fenêtre d'entrée et bouton pour quitter le concert. */
+.evenement { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 30; width: min(440px, calc(100% - 2 * var(--gutter))); padding: 22px 22px 18px; border-radius: var(--r-lg); }
+.evenement h2 { margin: 4px 0 8px; font: 800 30px/1 var(--font-display); }
+.evenement p { margin: 0 0 10px; color: var(--ink-2); line-height: 1.45; }
+.evenement .ev-sur { color: var(--ink-2); font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.evenement .ev-solde { color: var(--ink); font-weight: 700; }
+.evenement .ev-manque { color: #b3261e; font-weight: 600; }
+.ev-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.ev-quitter { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 20; border: 0; border-radius: 999px; padding: 12px 22px; font-weight: 800; background: var(--accent); color: var(--accent-ink); cursor: pointer; box-shadow: var(--shadow); }

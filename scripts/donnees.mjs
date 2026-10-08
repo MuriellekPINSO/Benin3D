@@ -411,6 +411,16 @@ const terrePleins = [];
   });
   console.log(`terre-pleins : ${terrePleins.length} bandes, ${Math.round(terrePleins.reduce((s, t) => s + t.p.length * 8, 0) / 1000)} km`);
 }
+// Feux tricolores et passages piétons réels (OSM, highway=traffic_signals / crossing), osm/feux.json
+// (Overpass). Mètres. Le site les pose à leur place : poteaux, têtes de feux, bandes blanches.
+const feuxReels = [], passagesPietons = [];
+try {
+  for (const e of load('feux')) {
+    if (e.type !== 'node') continue; const [x, z] = P(e.lat, e.lon), p = [Math.round(x) / 10, Math.round(z) / 10];
+    if (e.tags?.highway === 'traffic_signals') feuxReels.push(p); else if (e.tags?.highway === 'crossing') passagesPietons.push(p);
+  }
+} catch (e) { console.warn('feux : osm/feux.json absent'); }
+console.log(`feux tricolores : ${feuxReels.length}, passages piétons : ${passagesPietons.length}`);
 // Lignes aéroportuaires et jetées
 for (const e of load('aero')) {
   const t = e.tags; const pts = e.geometry.map(p => P(p.lat, p.lon));
@@ -854,6 +864,7 @@ const LMK = {
   port: { cranes: [ptM(6.34817, 2.42046), ptM(6.34838, 2.42308)], mole: [[282, 2775], [798, 2728], [1013, 2710], [1271, 2690]], nord: [[295, 2461], [983, 2405], [1802, 2354]] },
   campus: M(campusUAC),
   terrePleins,
+  feux: feuxReels, passages: passagesPietons,
   ouidah: { porte: [Math.round(PORTE[0]) / 10, Math.round(PORTE[1]) / 10], arene: [Math.round(ARENE[0]) / 10, Math.round(ARENE[1]) / 10] },
   detailles: Object.fromEntries(Object.entries(ringsDetailles).map(([k, r]) => [k, M(r)])),
   marinaLieux: MAR.size ? {

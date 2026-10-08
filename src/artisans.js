@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { payerEtRecevoir } from './remise.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { $, LITE, toXZ } from './base.js';
@@ -128,7 +129,7 @@ function listeObjets() {
 function payer(id, prix) {
   const P = JEU.prog;
   if (P.cagnotte < prix) { dit(`Il te manque ${fmtF(prix - P.cagnotte)}… Fais encore quelques courses de zém et reviens !`); choix([['D’accord, je reviens', accueil]]); son('bosse'); return; }
-  P.cagnotte -= prix; (P.souvenirs ||= []).push({ id, prix, lieu: BQ.etal.nom, date: new Date().toISOString().slice(0, 10) }); sauver();
+  P.cagnotte -= prix; if (BQ.etal?.vendeuse && JEU.joueur) payerEtRecevoir(JEU.joueur, BQ.etal.vendeuse, 'souvenir'); (P.souvenirs ||= []).push({ id, prix, lieu: BQ.etal.nom, date: new Date().toISOString().slice(0, 10) }); sauver();
   son('piece'); son('arret'); dit(`Merci ! Que Dieu te bénisse. Ton ${OBJETS[id].nom.toLowerCase()} va bien décorer ta maison !`);
   bourse(); listeObjets(); choix([['Voir un autre objet', accueil], ['Au revoir', fermerBoutique]]);
 }

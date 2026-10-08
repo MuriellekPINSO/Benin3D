@@ -1,6 +1,6 @@
 import { $ } from './base.js';
 import { son } from './audio.js';
-import { JEU, fmtF, sauver } from './jeu.js';
+import { JEU, fmtF, sauver, remplirLignes } from './jeu.js';
 import { souvenirsHTML } from './artisans.js';
 
 // ---------- Missions, cagnotte, série de jours et garage (à la manière de Danfo Run) ----------
@@ -66,6 +66,8 @@ export function serieDuJour() {
   setTimeout(() => annonce(`Série : ${p.serie.n} jour${p.serie.n > 1 ? 's' : ''} de suite`, `Bonus du jour : +${fmtF(b)} dans la cagnotte`), 2600);
 }
 
+// Taxi à débloquer : prix d'exemple donné par le cahier des charges (5 F), montant final à définir.
+export const PRIX_VOITURE = 5;
 // ---------- Menu : cagnotte, missions, garage ----------
 export function rendreProgression() {
   const el = $('#jmProg'); if (!el) return;
@@ -81,12 +83,18 @@ export function rendreProgression() {
         return `<button type="button" data-k="${k}" class="${actif ? 'actif' : ''}" ${!a && p.cagnotte < K.prix ? 'disabled' : ''}><b>${K.nom}</b><small>${actif ? 'Monté sur ton zém' : a ? 'Choisir' : fmtF(K.prix)}</small></button>`;
       }).join('')}
       ${Object.entries(BONUS).map(([k, B]) => `<button type="button" data-b="${k}" ${p.cagnotte < B.prix ? 'disabled' : ''}><b>${B.nom}${p.bonus[k] ? ` · ${p.bonus[k]} en réserve` : ''}</b><small>${B.txt} · ${fmtF(B.prix)}</small></button>`).join('')}</div>
+      <button type="button" data-v="voiture" class="${p.voiture ? 'actif' : ''}" ${!p.voiture && p.cagnotte < PRIX_VOITURE ? 'disabled' : ''}><b>Taxi (voiture)</b><small>${p.voiture ? (p.vehicule === 'voiture' ? 'Choisi pour les lignes de zém · retour au zém' : 'Débloqué · le choisir') : `Débloquer · ${fmtF(PRIX_VOITURE)}`}</small></button>
     </details>`;
   el.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
     const k = b.dataset.k, K = KLAXONS[k];
     if (!p.achetes.includes(k)) { if (p.cagnotte < K.prix) return; p.cagnotte -= K.prix; p.achetes.push(k); }
     p.klaxon = k; sauver(); son('klaxon', k); rendreProgression(); el.querySelector('details').open = true;
   }));
+  el.querySelector('[data-v]')?.addEventListener('click', () => {
+    if (!p.voiture) { if (p.cagnotte < PRIX_VOITURE) return; p.cagnotte -= PRIX_VOITURE; p.voiture = true; p.vehicule = 'voiture'; son('piece'); }
+    else p.vehicule = p.vehicule === 'voiture' ? 'zem' : 'voiture';
+    sauver(); rendreProgression(); remplirLignes(); el.querySelector('details').open = true;
+  });
   el.querySelectorAll('[data-b]').forEach(b => b.addEventListener('click', () => {
     const k = b.dataset.b; if (p.cagnotte < BONUS[k].prix) return;
     p.cagnotte -= BONUS[k].prix; p.bonus[k]++; sauver(); son('piece'); rendreProgression(); el.querySelector('details').open = true;

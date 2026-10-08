@@ -5,6 +5,7 @@
 //   npm run tripo -- <id> <photo> [triangles]    génère sources/tripo/<id>.glb puis public/modeles/batiments/<id>.glb
 //   npm run tripo -- alleger <id> [triangles]    refait seulement la version légère
 //   npm run tripo -- reprendre <id> <task_id> [triangles]   récupère une tâche déjà lancée (coupure réseau…)
+//   npm run tripo -- texte <id> "<description>" [triangles]  modèle à partir d'un texte (sans photo)
 // Docs : https://developers.tripo3d.ai/fr/docs/quick-start
 import fs from 'fs';
 import path from 'path';
@@ -36,6 +37,12 @@ const api = async (methode, chemin, corps) => {
 };
 const solde = async () => { const d = await api('GET', '/account/balance'); return `${d.balance} crédits disponibles (${d.frozen} réservés)`; };
 
+async function genererTexte(id, prompt) {
+  fs.mkdirSync(SOURCES, { recursive: true });
+  const { task_id } = await api('POST', '/generation/text-to-model', { prompt, model: MODELE, texture: true, pbr: true, texture_quality: 'detailed' });
+  console.log(`${id} : tâche ${task_id}`);
+  return attendre(id, prompt, task_id);
+}
 async function generer(id, photo, reprise = null) {
   fs.mkdirSync(SOURCES, { recursive: true });
   if (reprise) return attendre(id, photo, reprise);
@@ -101,6 +108,7 @@ const [a, b, c] = process.argv.slice(2);
 try {
   if (a === 'solde') console.log(await solde());
   else if (a === 'alleger') await alleger(b, +c || undefined);
+  else if (a === 'texte') { const [id, prompt, tri] = process.argv.slice(3); console.log(await solde()); await genererTexte(id, prompt); await alleger(id, +tri || undefined); console.log(await solde()); }
   else if (a === 'reprendre') { await generer(b, '', c); await alleger(b, +process.argv[5] || undefined); console.log(await solde()); }
   else if (a && b) { console.log(await solde()); await generer(a, b); await alleger(a, +c || undefined); console.log(await solde()); }
   else console.log('Usage : npm run tripo -- solde | <id> <photo> [triangles] | alleger <id> [triangles]');
