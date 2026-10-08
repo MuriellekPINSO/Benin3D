@@ -188,7 +188,7 @@ button { font: inherit; color: inherit; }
 .jh-quartier { position: absolute; left: 50%; top: 104px; transform: translateX(-50%); font: 700 12px/1 var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: #fffaf0; background: rgba(20, 24, 30, .7); padding: 8px 14px; border-radius: 999px; opacity: 0; pointer-events: none; }
 .jh-quartier.on { animation: apparait 3.2s ease forwards; }
 @keyframes apparait { 0% { opacity: 0; transform: translate(-50%, -8px); } 12%, 80% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
-.jh-toast { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%) scale(.9); font: 800 30px/1.1 var(--font-display); color: #fffaf0; text-shadow: 0 2px 10px rgba(0,0,0,.55); opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; text-align: center; padding: 0 var(--gutter); }
+.jh-toast { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%) scale(.9); font: 800 30px/1.1 var(--font-display); color: #fffaf0; text-shadow: 0 0 3px #000, 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 2px 0 #000, 0 -2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 4px 12px rgba(0,0,0,.5); opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; text-align: center; padding: 0 var(--gutter); }
 .jh-toast.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 .jh-toast.bien { color: #ffe27a; } .jh-toast.mal { color: #ffb3a8; }
 .jh-carte { position: absolute; left: var(--gutter); bottom: 96px; width: min(340px, calc(100% - 2 * var(--gutter))); padding: 14px 16px; }
@@ -329,11 +329,13 @@ button { font: inherit; color: inherit; }
 
 /* Zém Run : bulles de discussion, dialogue avec le client, apprenti, missions */
 .jh-bulles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.bulle { position: absolute; left: 0; top: 0; max-width: 230px; padding: 8px 12px; border-radius: 16px; background: #fffaf0; color: #1d1a16; font: 700 14px/1.25 var(--font-body); box-shadow: 0 6px 18px rgba(0,0,0,.28); transform-origin: 50% 100%; white-space: normal; text-align: center; transition: opacity .15s; will-change: transform; }
-.bulle::after { content: ''; position: absolute; left: 50%; bottom: -7px; width: 14px; height: 14px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 0 0 4px 0; }
-.bulle.fort { background: #ffe1d9; color: #7a1a10; }
-.bulle.fon { background: #fff3c4; }
-.bulle small { display: block; margin-top: 3px; font: 500 11px/1.2 var(--font-body); color: #6b5d48; }
+/* Paroles au-dessus des personnages : sans fond, comme des sous-titres de jeu ; texte blanc épais
+   cerné de noir, lisible sur la route, le ciel ou les murs. */
+.bulle { --contour: 0 0 2px #000, 1.5px 1.5px 0 #000, -1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000, -1.5px 1.5px 0 #000, 0 1.5px 0 #000, 0 -1.5px 0 #000, 1.5px 0 0 #000, -1.5px 0 0 #000, 0 3px 8px rgba(0,0,0,.55);
+  position: absolute; left: 0; top: 0; max-width: 300px; padding: 2px 4px; background: none; color: #fff; font: 800 17px/1.25 var(--font-body); text-shadow: var(--contour); transform-origin: 50% 100%; white-space: normal; text-align: center; transition: opacity .15s; will-change: transform; }
+.bulle.fort { color: #ffb59e; }
+.bulle.fon { color: #ffe27a; }
+.bulle small { display: block; margin-top: 3px; font: 600 13px/1.2 var(--font-body); color: #f1e6cf; text-shadow: var(--contour); }
 .jh-dialogue { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); width: min(560px, calc(100% - 2 * var(--gutter))); padding: 12px 14px 14px; overflow: hidden; }
 .jh-dialogue .qui { font: 700 11px/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
 .jh-dialogue .dit { margin: 6px 0 10px; font: 800 19px/1.2 var(--font-display); }
@@ -363,7 +365,7 @@ button { font: inherit; color: inherit; }
 .jp-g button.actif { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent); }
 .jp-g button:disabled { opacity: .5; cursor: not-allowed; }
 .jp-g small { color: var(--ink-2); font-size: 11.5px; }
-@media (max-width: 720px) { .jh-dialogue { bottom: 150px; } .jh-dialogue .dit { font-size: 16px; } .jp-g { grid-template-columns: 1fr; } .bulle { font-size: 12.5px; max-width: 180px; } }
+@media (max-width: 720px) { .jh-dialogue { bottom: 150px; } .jh-dialogue .dit { font-size: 16px; } .jp-g { grid-template-columns: 1fr; } .bulle { font-size: 15px; max-width: 220px; } }
 
 /* Marché artisanal : discuter avec la vendeuse, payer */
 .boutique { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 30; width: min(820px, calc(100% - 2 * var(--gutter))); max-height: calc(100% - 2 * var(--gutter)); overflow-y: auto; padding: 18px 20px 20px; }

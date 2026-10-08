@@ -53,7 +53,11 @@ function majBulles(dt) {
     tete(b.ancre, v); v.y += .35; const dist = v.distanceTo(camera.position); v.project(camera);
     const vu = v.z < 1 && Math.abs(v.x) < 1.15 && Math.abs(v.y) < 1.15 && dist < 140;
     b.el.style.opacity = vu ? Math.min(1, b.t / .3, (b.d - b.t) / .12) : 0;
-    b.el.style.transform = `translate(${((v.x * .5 + .5) * r.width).toFixed(1)}px, ${((-v.y * .5 + .5) * r.height).toFixed(1)}px) translate(-50%, -100%) scale(${THREE.MathUtils.clamp(26 / Math.max(dist, 1), .72, 1.05).toFixed(3)})`;
+    // La bulle reste entière à l'écran, même quand la personne est tout au bord.
+    const ech = THREE.MathUtils.clamp(26 / Math.max(dist, 1), .72, 1.05);
+    if (!b.w) { b.w = b.el.offsetWidth; b.h = b.el.offsetHeight; }
+    const dx = b.w * ech / 2 + 8, x = THREE.MathUtils.clamp((v.x * .5 + .5) * r.width, dx, Math.max(dx, r.width - dx)), y = THREE.MathUtils.clamp((-v.y * .5 + .5) * r.height, b.h * ech + 8, r.height - 8);
+    b.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%) scale(${ech.toFixed(3)})`;
   }
 }
 function viderBulles() { for (const b of BULLES) b.el.remove(); BULLES.length = 0; }
