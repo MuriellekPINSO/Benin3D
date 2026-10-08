@@ -101,8 +101,7 @@
         <button type="button" class="btn-ghost" id="jmPub">Annonceurs</button>
         <button type="button" class="btn-ghost" id="jmRetour">Retour à la carte</button>
       </div>
-      <p class="jm-aide"><b>↑</b> accélérer · <b>↓</b> freiner (tu t'arrêtes où tu veux) · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
-      <label class="jm-option"><input type="checkbox" id="jmAuto"> Accélération automatique (plus facile)</label>
+      <p class="jm-aide"><b>↑</b> accélérer (le zém n'avance que si tu appuies, il ralentit dès que tu relâches) · <b>↓</b> freiner · <b>arrête-toi au feu rouge</b>, sinon la police te met une amende · demande au client s'il a son casque · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
       <label class="jm-option"><input type="checkbox" id="jmVoix"> Voix des personnages (ils parlent à voix haute)</label>
     </div>
     <div class="jeu-hud" id="jeuHud" hidden>
@@ -112,6 +111,8 @@
       </div>
       <div class="jh-quartier" id="jhQuartier"></div>
       <div class="jh-carrefour" id="jhCarrefour" hidden></div>
+      <div class="jh-feu" id="jhFeu" hidden></div>
+      <div class="jh-paiement panel" id="jhPaiement" hidden role="status"></div>
       <div class="jh-rue" id="jhRue"><small>Vous roulez sur</small><b></b></div>
       <div class="jh-repere" id="jhRepere"><div class="jh-photo" id="jhRepPhoto" hidden></div><small></small><b></b></div>
       <canvas class="jh-mini" id="jhMini" width="360" height="360" aria-label="Mini-carte du trajet"></canvas>

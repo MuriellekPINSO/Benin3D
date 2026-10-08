@@ -21,12 +21,24 @@ const NOMS_VIVANT = { vendeuse: 'La vendeuse', momo: 'Le kiosque MoMo', vulca: '
 function actionsObjet(st, o) {
   const it = o.it || o; const t = o.type;
   if (t === 'station' || t === 'kpayo') return { label: t === 'station' ? `Faire le plein${it.nom ? ' · ' + it.nom : ''}` : 'Acheter du kpayo', go: () => servir(st, it) };
-  if (t === 'vendeuse') return { label: 'Acheter à la vendeuse', go: () => {
-    bulle(o.g, 'Viens, ma fille, mon fils ! C’est frais !', { duree: 2.4 });
-    dialogue('La vendeuse', '« Pure water, akassa, beignets ! Tu prends quoi ? »', [
-      ['Une pure water · 50 F', () => { if (!payer(st, 50)) return; if (DISC.client) { DISC.client.humeur = Math.min(1, DISC.client.humeur + .15); bulle(DISC.client.siege, 'Ah, de l’eau fraîche ! Merci, zém !'); } else bulle(o.g, 'Merci ! Bonne route !'); }],
-      ['Des beignets · 200 F', () => { if (payer(st, 200)) bulle(o.g, 'Ils sont chauds, attention !'); }],
-      ['Rien, merci', () => bulle(o.g, 'Une autre fois !')],
+  if (t === 'vendeuse') return { label: 'Parler à la vendeuse', go: () => {
+    // D'abord on se salue, ensuite on discute le prix, enfin on achète (cahier des charges, priorité 2).
+    let remise = 1;
+    const eau = () => { if (DISC.client) { DISC.client.humeur = Math.min(1, DISC.client.humeur + .15); bulle(DISC.client.siege, 'Ah, de l’eau fraîche ! Merci, zém !'); } else bulle(o.g, 'Merci ! Bonne route !'); };
+    const prix = n => Math.max(25, Math.round(n * remise / 25) * 25);
+    const acheter = () => dialogue('La vendeuse', remise < 1 ? '« Bon, pour toi j’enlève un peu. Tu prends quoi ? »' : '« Pure water, akassa, beignets ! Tu prends quoi ? »', [
+      [`Une pure water · ${prix(50)} F`, () => { if (payer(st, prix(50))) eau(); }],
+      [`Des beignets · ${prix(200)} F`, () => { if (payer(st, prix(200))) bulle(o.g, 'Ils sont chauds, attention !'); }],
+      ...(remise === 1 ? [['C’est cher, diminue un peu', () => {
+        if (Math.random() < .6) { remise = .8; bulle(o.g, 'Hum… bon, parce que c’est toi !'); setTimeout(acheter, 900); }
+        else { remise = .99; bulle(o.g, 'Mon fils, c’est déjà le bon prix !'); setTimeout(acheter, 900); }
+      }]] : [['Rien, merci', () => bulle(o.g, 'Une autre fois !')]]),
+    ], { defaut: -1, duree: 12, prioritaire: true });
+    bulle(o.g, 'Bonne arrivée, zém ! Ça va ?', { duree: 2.4 });
+    dialogue('La vendeuse', '« Bonne arrivée, zém ! Ça va, ce matin ? »', [
+      ['Bonjour maman, ça va et toi ?', () => { bulle(o.g, 'On est là, Dieu merci !'); setTimeout(acheter, 900); }],
+      ['On dit quoi, tantie ?', () => { bulle(o.g, 'On est ensemble ! Tu veux quoi ?'); setTimeout(acheter, 900); }],
+      ['Rien, je passais saluer', () => bulle(o.g, 'Bonne route, mon fils !')],
     ], { defaut: -1, duree: 10 });
   } };
   if (t === 'momo') return { label: 'Kiosque MoMo', go: () => {

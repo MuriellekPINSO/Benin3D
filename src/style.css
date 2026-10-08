@@ -441,3 +441,15 @@ button { font: inherit; color: inherit; }
 .jh-carrefour span.non { opacity: .2; }
 .jh-carrefour.maintenant { background: #f2c21b; color: #1d1a16; }
 .jh-carrefour.maintenant span { color: #1d1a16; }
+
+/* Code de la route (cahier des charges de Schekina) : voyant du prochain feu, écran de paiement en fin de course. */
+.jh-feu { position: absolute; left: 50%; top: 172px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 999px; background: rgba(20, 24, 30, .82); color: #fff; font-size: 13px; pointer-events: none; }
+.jh-feu i { width: 14px; height: 14px; border-radius: 50%; background: #2bff6a; box-shadow: 0 0 10px currentColor; }
+.jh-feu.orange i { background: #ffae1a; } .jh-feu.rouge i { background: #ff2a1a; }
+.jh-feu.rouge { background: rgba(140, 20, 16, .9); }
+.jh-feu span { opacity: .75; font-family: var(--font-mono); font-size: 12px; }
+.jh-paiement { position: absolute; left: 50%; top: 32%; transform: translateX(-50%); width: min(360px, calc(100% - 2 * var(--gutter))); padding: 16px 18px; border-radius: var(--r-lg); display: flex; flex-direction: column; gap: 4px; text-align: center; animation: acEntre .3s ease both; pointer-events: none; }
+.jh-paiement small { color: var(--ink-2); text-transform: uppercase; letter-spacing: .08em; font-size: 11px; font-weight: 700; }
+.jh-paiement b { font: 800 22px/1.15 var(--font-display); }
+.jh-paiement span { color: var(--ink-2); font-size: 13px; }
+.jh-paiement em { margin-top: 6px; font-style: normal; font-size: 13px; font-weight: 600; color: #2f8a4a; }

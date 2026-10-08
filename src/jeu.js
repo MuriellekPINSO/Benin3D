@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { AUDIO, audioCtx, moteur, moteurMaj, moteurStop, radio, son } from './audio.js';
 import { VOIX, taire, voixActives, voixDispo } from './voix.js';
+import { accident, majFeux, preparerFeux } from './regles.js';
+import { arreterMusique, demarrerMusique, musiqueQuartier } from './musique.js';
 import { $, LITE, hash, toXZ } from './base.js';
 import { QUARTIERS } from './donnees-lieux.js';
 import { E } from './etat.js';
@@ -13,7 +15,7 @@ import { chargerMasques, procession } from './egungun.js';
 import { satelliteVisible } from './satellite.js';
 import { photoJeu } from './google.js';
 import { BORD, majBordure, majMiniCarte, nettoyerBordure, preparerBordure } from './bordure.js';
-import { bulle, clientRate, collecte, departApprenti, deposerClient, dialogue, etiquetteClient, evenement, klaxonner, majDiscussions, nettoyerDiscussions, nouveauClient, placerCollecteur, preparerDiscussions, repondre } from './discussions.js';
+import { bulle, clientRate, collecte, departApprenti, deposerClient, dialogue, DISC, etiquetteClient, evenement, klaxonner, majDiscussions, nettoyerDiscussions, nouveauClient, nouveauSigne, placerCollecteur, preparerDiscussions, repondre } from './discussions.js';
 import { assurerMissions, progDefaut, progres, rendreProgression, serieDuJour } from './missions.js';
 import { etalPres, ouvrirBoutique } from './artisans.js';
 import { essenceDepart, facteurEssence, majEssence } from './essence.js';
@@ -38,8 +40,8 @@ export const QUIZ = {
 };
 export const LANE = 2.7;
 export const JEU = { actif: false, pause: false, etat: null, objets: [], decor: null, joueur: null, ligne: null, veh: 'zem', numero: '1234', lignes: [], meilleur: {} };
-JEU.prog = null; JEU.autoGaz = false; // false : c'est le joueur qui accélère (↑) et freine (↓)
-try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; JEU.autoGaz = !!s.autoGaz; } catch (e) { }
+JEU.prog = null; JEU.autoGaz = false; // le zém n'avance que si le joueur accélère (↑) ; relâché, il ralentit jusqu'à l'arrêt
+try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; } catch (e) { }
 export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, autoGaz: JEU.autoGaz })); } catch (e) { } };
 export const fmtF = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 
@@ -219,10 +221,10 @@ export function lancerLigne(L, veh) {
   document.getElementById('app').classList.add('mode-jeu');
   $('#jeuMenu').hidden = true; $('#jeuFin').hidden = true; $('#jeuHud').hidden = false; $('#jeuPause').hidden = true;
   $('#jhNom').textContent = `${L.nom} · ${V.nom}`;
-  audioCtx(); moteur(veh); if (AUDIO.radio) radio(true);
+  audioCtx(); moteur(veh); if (AUDIO.radio) radio(true); demarrerMusique();
   const p = pose(C, 0); camera.position.set(p.x - p.dx * 30, 14, p.z - p.dz * 30); JEU.regard = new THREE.Vector3(p.x, 1, p.z);
   if (METEO.pluie > .3) setTimeout(() => toast('Il pleut : la route glisse, freine plus tôt', 2.4, 'mal'), 3200);
-  toast(JEU.autoGaz ? `Départ : ${L.arretsJ[0].nom}` : `${L.arretsJ[0].nom} · ↑ accélérer, ↓ freiner, E interagir`, 3);
+  toast(`${L.arretsJ[0].nom} · ↑ accélérer (relâche pour ralentir), ↓ freiner, E interagir · arrête-toi au feu rouge`, 3.4);
 }
 // Tout ce qui dépend du trajet : arrêts, bord de route, gens, habillage des rues, végétation, carrefours.
 function installerTrajet(L, C, debut, garderClient) {
@@ -241,6 +243,7 @@ function installerTrajet(L, C, debut, garderClient) {
   degagerVegetation(C);
   const bar = $('#jhArrets'); if (bar) bar.innerHTML = L.arretsJ.map((a, k) => k < debut && k ? '' : `<i style="left:${(a.s / C.L * 100).toFixed(2)}%" title="${a.nom}"></i>`).join('');
   try { construireReseau(); JEU.carrefours = carrefoursDe(C); } catch (e) { console.warn('carrefours', e); JEU.carrefours = []; }
+  preparerFeux(C); // feux tricolores aux carrefours (cahier des charges, priorité 1)
 }
 /** Au carrefour, ← ou → (ralenti) : on prend la rue de ce côté et le GPS recalcule jusqu'aux arrêts suivants.
  *  Quand l'itinéraire tourne et qu'on veut continuer tout droit (passer le pont, par exemple), la flèche opposée au
@@ -270,12 +273,22 @@ export function virage(dir) {
   return true;
 }
 export function quitterJeu() {
-  JEU.actif = false; moteurStop(); taire(); nettoyerBordure(); nettoyerDiscussions(); remettreVegetation(); satelliteVisible(true); rueRouteJeu(null);
+  JEU.actif = false; moteurStop(); taire(); arreterMusique(); nettoyerBordure(); nettoyerDiscussions(); remettreVegetation(); satelliteVisible(true); rueRouteJeu(null);
   if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; }
   document.getElementById('app').classList.remove('mode-jeu');
   $('#jeu').hidden = true; controls.enabled = true; camera.near = 2; camera.fov = 45; camera.updateProjectionMatrix();
   const p = JEU.joueur ? JEU.joueur.position : controls.target; controls.target.set(p.x, 0, p.z);
   startFlight(new THREE.Vector3(p.x, 0, p.z), 900, 0.95, 0.4, 1.6);
+}
+// Fin de course : ce que le client a payé, puis on repart chercher un nouveau client.
+let minuteurPaiement = 0;
+function afficherPaiement() {
+  const P = DISC.dernierPaiement, el = $('#jhPaiement'); if (!P || !el) return;
+  const ecart = P.total - P.base, prenom = P.nom.split(' ').slice(-1)[0];
+  el.innerHTML = `<small>Course terminée</small><b>${prenom} a payé ${fmtF(P.total)}</b>`
+    + `<span>${fmtF(P.base)} convenus${ecart > 0 ? ` + ${fmtF(ecart)} de pourboire` : ecart < 0 ? ` − ${fmtF(-ecart)} retenus` : ''}</span>`
+    + `<em>Cherche un nouveau client : quelqu’un te fera signe plus loin.</em>`;
+  el.hidden = false; clearTimeout(minuteurPaiement); minuteurPaiement = setTimeout(() => { el.hidden = true; }, 4500);
 }
 export let toastT = 0;
 export function toast(txt, d = 1.6, cls = '') { const el = $('#jhToast'); el.textContent = txt; el.className = 'jh-toast on ' + cls; toastT = d; }
@@ -311,6 +324,7 @@ export function majJeu(dt) {
     else st.v = Math.max(0, st.v - (st.v > vmax ? 8 : 2.4) * dt);
   }
   st.s += st.v * dt;
+  majFeux(st);
   majEssence(st, dt);
   const latAv = st.lat; st.lat += (st.file * LANE - st.lat) * Math.min(1, dt * 9);
   if (st.y > 0 || st.vy > 0) { st.vy -= 24 * dt; st.y = Math.max(0, st.y + st.vy * dt); if (st.y === 0) st.vy = 0; }
@@ -320,7 +334,7 @@ export function majJeu(dt) {
   const j = JEU.joueur; j.position.set(p.x, p.y + st.y, p.z); j.rotation.set(0, p.a, 0);
   j.rotateX(JEU.veh === 'zem' ? Math.max(-.32, Math.min(.32, -(st.lat - latAv) / Math.max(dt, .001) * .014)) : 0);
   if (C.H) { const i = Math.max(2, Math.min(C.n - 3, Math.floor(st.s))); j.rotateZ(Math.atan((C.H[i + 2] - C.H[i - 2]) / 4)); } // penché dans la rampe du pont
-  j.visible = !(st.invul > 0 && Math.floor(st.temps * 12) % 2);
+  j.visible = true; // un accident n'est plus un clignotement : voir regles.js (constat de police ou client perdu)
   controls.target.set(p.x, 0, p.z);
   moteurMaj(st.v, true);
   // Apparition des obstacles et des jetons devant le joueur.
@@ -363,8 +377,9 @@ export function majJeu(dt) {
       else if (st.invul <= 0) {
         o.touche = true; st.vies--; st.v *= .2; st.invul = 1.8; st.secousse = .5; son('choc'); evenement('choc'); vibrer('choc');
         const noms = { zem: 'à l’autre zém', tokpa: 'au tokpa-tokpa', voiture: 'à la voiture', chevre: 'à la chèvre', marchande: 'à la marchande', travaux: 'aux travaux', egungun: ': on ne touche pas un Egungun' };
-        toast(st.vies > 0 ? `Aïe ! Attention ${noms[o.type]} !` : 'Accident…', 1.6, 'mal');
+        toast(st.vies > 0 ? `Accident ! Attention ${noms[o.type]}` : 'Accident…', 1.6, 'mal');
         if (st.vies <= 0) { majHud(st, C, V); return finJeu(false); }
+        accident(st);
       }
     }
     if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(o.lat - st.lat) < (o.T.larg + V.larg) / 2 + 1.1) { o.frole = true; st.frolements++; st.argent += 15; toast('Ça passe ! +15 F', .9, 'bien'); evenement('frole'); progres('frolements', st.frolements); }
@@ -374,8 +389,10 @@ export function majJeu(dt) {
   // Arrêts : file de droite, presque à l'arrêt, dans la zone jaune.
   const a = L.arretsJ[st.prochain];
   if (a) {
-    const dansZone = st.s > a.s - 32 && st.s < a.s + 6;
-    if (dansZone && st.file >= 1 && st.v < 7.5 && st.service <= 0) {
+    const dansZone = st.s > a.s - 32 && st.s < a.s + 6, sansClient = JEU.veh === 'zem' && !DISC.client;
+    if (sansClient) { // pas de client : on passe, il faut en trouver un (quelqu'un fait signe plus loin)
+      if (st.s > a.s + 6) { st.prochain++; if (st.prochain >= L.arretsJ.length) { majHud(st, C, V); return finJeu(true); } }
+    } else if (dansZone && st.file >= 1 && st.v < 7.5 && st.service <= 0) {
       // Zém : le client descend et paie le prix discuté ; tokpa : l'apprenti encaisse.
       let gain;
       if (JEU.veh === 'zem') gain = deposerClient();
@@ -383,7 +400,7 @@ export function majJeu(dt) {
       st.argent += gain; st.servis++;
       st.service = 1.4; son('arret'); vibrer('arret'); toast(gain ? `${a.nom} : +${gain} F` : a.nom, 1.8, 'bien'); carteQuartier(a); st.prochain++;
       if (st.prochain >= L.arretsJ.length) { majHud(st, C, V); return setTimeout(() => finJeu(true), 1500); }
-      if (JEU.veh === 'zem') { collecte(st); setTimeout(() => { if (JEU.etat === st && JEU.actif) nouveauClient(st, st.prochain); }, 1500); }
+      if (JEU.veh === 'zem') { collecte(st); afficherPaiement(); nouveauSigne(st.s + 140 + Math.random() * 120); }
       // Arrêt près d'un marché artisanal : la vendeuse appelle.
       const ea = pose(C, a.s, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), et = etalPres(ea.x, ea.z);
       if (et) {
@@ -438,7 +455,7 @@ export function majJeu(dt) {
   // Quartier traversé.
   if (Math.floor(st.temps * 4) !== Math.floor((st.temps - dt) * 4)) {
     let best = null, bd = 650; for (const [n, la, lo] of QUARTIERS_J) { const dd = Math.hypot(p.x - la, p.z - lo); if (dd < bd) { bd = dd; best = n; } }
-    if (best && best !== st.quartier) { st.quartier = best; const q = $('#jhQuartier'); q.textContent = `Quartier · ${best}`; q.classList.remove('on'); void q.offsetWidth; q.classList.add('on'); }
+    if (best && best !== st.quartier) { st.quartier = best; musiqueQuartier(best); const q = $('#jhQuartier'); q.textContent = `Quartier · ${best}`; q.classList.remove('on'); void q.offsetWidth; q.classList.add('on'); }
   }
   majHud(st, C, V);
 }
@@ -453,7 +470,7 @@ export function majHud(st, C, V) {
   $('#jhPassagers').textContent = JEU.veh === 'tokpa' ? `${st.passagers}/${V.places} passagers` : etiquetteClient();
 }
 export function finJeu(arrive) {
-  const st = JEU.etat; if (!st || JEU.fini) return; JEU.fini = true; JEU.pause = true; moteurMaj(0, false); taire();
+  const st = JEU.etat; if (!st || JEU.fini) return; JEU.fini = true; JEU.pause = true; moteurMaj(0, false); taire(); arreterMusique();
   const L = JEU.ligne, el = $('#jeuFin');
   el.querySelector('h2').textContent = arrive ? 'Terminus !' : 'Fin de la course';
   el.querySelector('.jf-sous').textContent = arrive ? `${L.nom} : ${L.arretsJ[0].nom} → ${L.arretsJ[L.arretsJ.length - 1].nom}` : 'Trois accidents : le casque a servi. Repars quand tu veux.';
@@ -547,7 +564,6 @@ export function initJeu(data) {
   btn('#jbG', gauche); btn('#jbD', droite); btn('#jbS', sauter); btn('#jbK', klaxonner); btn('#jbE', interagir); btn('#jhAction', interagir);
   const maintenu = (id, cle) => { const b = $(id); b.addEventListener('pointerdown', e => { e.preventDefault(); if (st()) st()[cle] = true; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { if (st()) st()[cle] = false; }); };
   maintenu('#jbF', 'frein'); maintenu('#jbA', 'gaz');
-  $('#jmAuto').checked = JEU.autoGaz; $('#jmAuto').addEventListener('change', e => { JEU.autoGaz = e.target.checked; sauver(); });
   $('#jmVoix').checked = VOIX.on; $('#jmVoix').addEventListener('change', e => voixActives(e.target.checked)); $('#jmVoix').closest('label').hidden = !voixDispo();
 }
 

@@ -146,6 +146,11 @@ export function preparerDiscussions(L, C, arrets, garderClient = false) {
     DISC.signes.push({ s, side, graine: Math.floor(Math.random() * 1e5), m: null, etat: 'attend' });
   }
 }
+/** Quelqu'un fait signe plus loin, à droite : le prochain client (le zém repart chercher une course). */
+export function nouveauSigne(s, side = 1) {
+  const C = JEU.chemin; if (!C || JEU.veh !== 'zem' || s > C.L - 40) return;
+  DISC.signes.push({ s, side, graine: Math.floor(Math.random() * 1e5), m: null, etat: 'attend' });
+}
 export function nettoyerDiscussions(garderClient = false) {
   for (const v2 of DISC.vivants) { v2.g.parent?.remove(v2.g); for (const m of v2.membres) m.userData.liberer(); }
   for (const h of DISC.signes) if (h.m) { h.m.parent?.remove(h.m); h.m.userData.liberer(); }
@@ -234,7 +239,7 @@ export function nouveauClient(st, k, { arrete = false } = {}) {
   s.userData.voix = { femme: !!femme, graine: nom, age: /vieux|mamie/i.test(nom) ? 'vieux' : /jeune|étudiant|fifamè|sèna/i.test(nom) ? 'jeune' : '' };
   DISC.client = { nom, femme, juste, tarif: 0, humeur: .6, vers: k, siege: s, accord: false, causerie: st.s + 220 + Math.random() * 300, dits: new Set() };
   st.passagers = 1;
-  const accord = (tarif, dh, rep) => { const c = DISC.client; if (!c) return; c.tarif = tarif; c.accord = true; humeur(dh); dit(rep); if (tarif >= juste) progres('negos', 1); };
+  const accord = (tarif, dh, rep) => { const c = DISC.client; if (!c) return; c.tarif = tarif; c.accord = true; humeur(dh); dit(rep); if (tarif >= juste) progres('negos', 1); setTimeout(() => { if (DISC.client === c) demanderCasque(st, c); }, 1400); };
   const perdu = () => { dit('Je prends un autre zém !', { ton: 'fort' }); son('choc'); toast('Client perdu', 1.4, 'mal'); setTimeout(() => { if (DISC.client?.nom === nom) { DISC.client = null; st.passagers = 0; s.visible = false; } }, 1200); };
   dit(`Zém ! ${a.nom}, c’est combien ?`, { duree: 3.2 });
   dialogue(`${nom} · ${femme ? 'ta cliente' : 'ton client'}`, `« Zém ! ${a.nom}, c’est combien ? »`, [
@@ -250,13 +255,34 @@ export function nouveauClient(st, k, { arrete = false } = {}) {
     ['Monte, on va s’entendre', () => accord(juste - 50, .2, `Ah, toi tu es gentil ! ${juste - 50} F alors.`)],
   ], { defaut: 1, bloquant: arrete });
 }
+// Casque obligatoire pour le zém et pour le client (cahier des charges, priorité 1).
+const COUL_CASQUE = ['#1d2733', '#c8382f', '#f2f2ee', '#2f6fb0', '#e9b23a'];
+function mettreCasque(p) {
+  if (!p || p.userData.casque) return;
+  const t = p.userData.tete, c = new THREE.Mesh(new THREE.SphereGeometry(.155, 12, 8, 0, Math.PI * 2, 0, Math.PI * .55), new THREE.MeshLambertMaterial({ color: choisir(COUL_CASQUE) }));
+  c.position.set(t.position.x, t.position.y - .22, t.position.z); p.add(c); p.userData.casque = c;
+}
+function demanderCasque(st, c) {
+  const aLeSien = Math.random() < .45;
+  if (aLeSien) {
+    dit('Oui, j’ai mon casque !');
+    dialogue(`${c.nom} · le casque`, '« Tu as ton casque ? » — « Oui, j’ai le mien ! »', [['Bien, mets-le, on y va', () => { mettreCasque(c.siege); humeur(.05); dit('Voilà, c’est attaché.'); }]], { defaut: 0, duree: 6 });
+    return;
+  }
+  dit('Ah non… je n’ai pas de casque.');
+  dialogue(`${c.nom} · le casque`, '« Tu as ton casque ? » — « Non, je n’en ai pas… »', [
+    ['Je te prête le mien', () => { mettreCasque(c.siege); humeur(.12); dit('Merci zém, tu es gentil !'); }],
+    ['Achète-en un au vendeur, là · 2 000 F', () => { st.service = Math.max(st.service, 3); toast('Le client achète un casque au bord de la route…', 2.2); setTimeout(() => { if (DISC.client === c) { mettreCasque(c.siege); humeur(-.04); dit('Bon, au moins il est neuf !'); } }, 2600); }],
+  ], { defaut: 0, duree: 10, bloquant: true });
+}
 /** Le client descend à l'arrêt : il paie le prix convenu, plus ou moins selon son humeur. Renvoie le gain. */
 export function deposerClient() {
   const c = DISC.client; if (!c) return 0;
-  let gain = c.accord ? c.tarif : Math.round(c.juste * .8 / 25) * 25;
+  let gain = c.accord ? c.tarif : Math.round(c.juste * .8 / 25) * 25; const base = gain;
   if (c.humeur >= .75) { const pb = c.humeur >= .9 ? 100 : 50; gain += pb; dit(`Merci zém, que Dieu te garde ! Garde ${pb} F.`, { duree: 3 }); progres('ravis', 1); }
   else if (c.humeur < .3) { gain = Math.max(0, gain - 50); dit('Tu as failli me tuer ! Je retiens 50 F.', { ton: 'fort', duree: 3 }); }
   else dit(choisir(['Merci, bonne route !', 'Merci zém !', 'Que Dieu te bénisse !']));
+  DISC.dernierPaiement = { nom: c.nom, femme: c.femme, base, total: gain, casque: !!c.siege?.userData.casque };
   DISC.client = null;
   return gain;
 }
