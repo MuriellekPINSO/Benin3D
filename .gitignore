@@ -11,6 +11,7 @@ osm/
 sources/masques/
 sources/art/
 sources/tripo/
+sources/personnages/
 # Ancienne version en un fichier : elle embarque la musique de la radio (droits non vérifiés)
 artefact/cotonou-3d.html
 

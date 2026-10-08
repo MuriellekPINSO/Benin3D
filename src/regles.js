@@ -5,6 +5,7 @@ import { AUDIO, son } from './audio.js';
 import { JEU, LANE, fmtF, pose, toast } from './jeu.js';
 import { DISC, bulle, dialogue, nouveauSigne, personne } from './discussions.js';
 import { FEUX } from './feux.js';
+import { traverser } from './pietons.js';
 
 // ---------- Code de la route : feux tricolores, police, accidents ----------
 // Cahier des charges de Schekina, priorités 1 et 2 :
@@ -76,6 +77,9 @@ export function majFeux(st) {
   for (const f of R.feux) {
     const e = etatFeu(f, st.temps);
     if (e !== f.etat) { f.etat = e; for (const k of Object.keys(f.mats)) f.mats[k].emissiveIntensity = k === e ? 2.2 : 0; }
+    // Rouge pour les motos : des piétons traversent sur le passage (une vague par cycle, si le zém approche).
+    const vague = Math.floor((st.temps + f.dephase) / TOUR), d = f.s - st.s;
+    if (e === 'rouge' && f.vague !== vague && d < 140 && d > 10) { f.vague = vague; traverser(f.s, f); }
     if (!f.passe && st.s >= f.s) {
       f.passe = true;
       if (e === 'rouge' && st.v > 1.5) police(st, 'feu');
@@ -94,9 +98,9 @@ function sifflet() {
 /** L'agent de police au bord de la route, un peu devant le zém. */
 function agent(st) {
   const C = JEU.chemin, p = pose(C, st.s + 12, LANE * 2.7, tmp()), q = pose(C, st.s + 12, 0, tmp());
-  const m = personne(9000 + Math.floor(Math.random() * 999), { gilet: '#1f3a6e', femme: false });
+  const m = personne(9000 + Math.floor(Math.random() * 999), { gilet: '#1f3a6e', femme: false, role: 'policier' });
   m.position.set(p.x, p.y, p.z); m.lookAt(q.x, p.y, q.z);
-  const kepi = new THREE.Mesh(new THREE.CylinderGeometry(.14, .15, .1, 12), new THREE.MeshLambertMaterial({ color: '#16264a' })); kepi.position.y = 1.72; m.add(kepi);
+  if (m.userData.modele !== 'policier') { const kepi = new THREE.Mesh(new THREE.CylinderGeometry(.14, .15, .1, 12), new THREE.MeshLambertMaterial({ color: '#16264a' })); kepi.position.y = 1.72; m.add(kepi); }
   m.userData.voix = { femme: false, graine: 'police' };
   JEU.decor.add(m); return m;
 }

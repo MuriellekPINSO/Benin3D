@@ -5,6 +5,7 @@ import { $, LITE, hash } from './base.js';
 import { camera } from './scene.js';
 import { son } from './audio.js';
 import { C3, matVeh } from './vehicules.js';
+import { personnage3d } from './personnages.js';
 import { mergeColored } from './ville.js';
 import { PLACES } from './donnees-lieux.js';
 import { BORD } from './bordure.js';
@@ -62,7 +63,9 @@ const PAGNES = ['#e2672a', '#2f6fb0', '#8e3c8f', '#2f8a4a', '#d9a521', '#c8382f'
 const PANTALONS = ['#2b2f3a', '#4a3b2a', '#1f3d5a', '#5e5e5e', '#3f4d2c'];
 const PEAUX = ['#4a2f22', '#5a3a28', '#3b261c', '#6b452f'];
 /** Une personne debout (face à +z) ou assise ; userData.tete pour les bulles, userData.anim(t, parle). */
-export function personne(i, { assise = false, gilet = null, femme: genre = null } = {}) {
+export function personne(i, { assise = false, gilet = null, femme: genre = null, role = null } = {}) {
+  // Le personnage réaliste et animé (personnages.js) quand il est chargé ; sinon celui dessiné ici.
+  const vrai = personnage3d(i, { assise, femme: genre, role }); if (vrai) return vrai;
   const femme = genre ?? hash(i, 71) < .5, c1 = PAGNES[Math.floor(hash(i, 72) * PAGNES.length)], c2 = PAGNES[Math.floor(hash(i, 73) * PAGNES.length)];
   const peau = PEAUX[Math.floor(hash(i, 74) * PEAUX.length)], bas = PANTALONS[Math.floor(hash(i, 75) * PANTALONS.length)];
   const P = [], add = (g, c) => P.push([g, c]);
@@ -262,7 +265,9 @@ const COUL_CASQUE = ['#1d2733', '#c8382f', '#f2f2ee', '#2f6fb0', '#e9b23a'];
 function mettreCasque(p) {
   if (!p || p.userData.casque) return;
   const t = p.userData.tete, c = new THREE.Mesh(new THREE.SphereGeometry(.155, 12, 8, 0, Math.PI * 2, 0, Math.PI * .55), new THREE.MeshLambertMaterial({ color: choisir(COUL_CASQUE) }));
-  c.position.set(t.position.x, t.position.y - .22, t.position.z); p.add(c); p.userData.casque = c;
+  if (p.userData.coiffer) p.userData.coiffer(c); // personnage animé : le casque suit la tête
+  else { c.position.set(t.position.x, t.position.y - .22, t.position.z); p.add(c); }
+  p.userData.casque = c;
 }
 function demanderCasque(st, c) {
   const aLeSien = Math.random() < .45;
@@ -359,7 +364,7 @@ export function placerCollecteur(L, C) {
   const n = L.arretsJ.length; if (JEU.veh !== 'zem' || n < 4) return;
   const k = 1 + Math.floor(Math.random() * (n - 3)), a = L.arretsJ[k];
   const p = pose(C, a.s + 2, LANE * 2.6, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
-  const m = personne(4242, { gilet: '#f28c1b', femme: false }); m.position.set(p.x, p.y, p.z); m.rotation.y = p.a - Math.PI / 2; JEU.decor.add(m);
+  const m = personne(4242, { gilet: '#f28c1b', femme: false, role: 'zem' }); m.position.set(p.x, p.y, p.z); m.rotation.y = p.a - Math.PI / 2; JEU.decor.add(m);
   DISC.collecteur = { k, m, fait: false };
 }
 export function collecte(st) {

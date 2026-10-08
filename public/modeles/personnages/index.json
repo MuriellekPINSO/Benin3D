@@ -1,0 +1,114 @@
+{
+ "vendeuse": {
+  "femme": true,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13336,
+  "octets": 877968
+ },
+ "policier": {
+  "femme": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13452,
+  "octets": 614952
+ },
+ "etudiante": {
+  "femme": true,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13208,
+  "octets": 718152
+ },
+ "jeune": {
+  "femme": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13746,
+  "octets": 649716
+ },
+ "bureau": {
+  "femme": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13742,
+  "octets": 732160
+ },
+ "zem": {
+  "femme": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13852,
+  "octets": 611396
+ },
+ "ancien": {
+  "femme": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13792,
+  "octets": 804836
+ },
+ "maman": {
+  "femme": true,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13786,
+  "octets": 827568
+ }
+}

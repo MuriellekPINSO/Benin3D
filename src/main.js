@@ -10,6 +10,7 @@ import { decode, frame, loadTxt, status } from './chargement.js';
 import { E } from './etat.js';
 import { accueil, initExplorer } from './explorer.js';
 import { chargerIndexTripo } from './batiments-tripo.js';
+import { chargerPersonnages, majPersonnages } from './personnages.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
 import { JEU, initJeu, majJeu } from './jeu.js';
 import { VEGETATION, animerLieux, construireLieux, portailUAC, semeOne, visibiliteLieux } from './lieux.js';
@@ -81,6 +82,7 @@ function image(now) {
   majMeteo(dt);
   majFeuxVille(U.uTime.value, JEU.actif);
   majMultijoueur(dt);
+  majPersonnages(dt);
   renderer.render(scene, camera);
   updateLabels(dist, W, H, JEU.actif && JEU.joueur ? JEU.joueur.position : null); // en jeu : les lieux proches du zém, pour se repérer
   if (E.frameN % 6 === 0) updateHud(dist, H);
@@ -114,6 +116,7 @@ async function main() {
   extras.push(buildPalms(data.palms), buildContainers(data.containers), buildShips());
   status('Monuments, Ganvié et marché de Dantokpa…', 90); await frame();
   await chargerIndexTripo(); // bâtiments reconnaissables générés par Tripo, s'il y en a
+  chargerPersonnages(); // personnages animés (en tâche de fond : le jeu garde ses personnages en code en attendant)
   await construireLieux(data);
   construireLieuxVideos(data); construireOuidah(data.L); construireEtals(data.L);
   semeOne(data.L.semeOne); portailUAC(data.L.campus, data.L.lignes?.find(l => l.id === 'calavi')?.pts); construireTokpas();
@@ -141,6 +144,8 @@ async function main() {
   if (googleDispo && vueReelle !== '0') setTimeout(() => { if ($('#togGoogle').getAttribute('aria-pressed') !== 'true') $('#togGoogle').click(); }, reduceMotion ? 300 : 2500);
 }
 // En développement, l'état est accessible depuis la console : __cotonou.E, __cotonou.camera…
-if (import.meta.env.DEV) Promise.all([import('./jeu.js'), import('./bordure.js'), import('./discussions.js')]).then(([j, b, d]) => { window.__cotonou = { E, camera, controls, JEU, scene, renderer, creerObjet: j.creerObjet, BORD: b.BORD, DISC: d.DISC }; });
+if (import.meta.env.DEV) Promise.all([import('./jeu.js'), import('./bordure.js'), import('./discussions.js'), import('./personnages.js'), import('./pietons.js')]).then(([j, b, d, p, pi]) => { window.__cotonou = { E, camera, controls, JEU, scene, renderer, creerObjet: j.creerObjet, BORD: b.BORD, DISC: d.DISC, personnage3d: p.personnage3d, personnagesPrets: p.personnagesPrets, personne: d.personne, traverser: pi.traverser, marchandeReelle: pi.marchandeReelle }; });
+// …et de quoi tourner la vidéo de présentation (survols, ambiance, musique) depuis un script.
+if (import.meta.env.DEV) Promise.all([import('./explorer.js'), import('./interface.js'), import('./donnees-lieux.js'), import('./ambiances.js'), import('./monde-reel.js'), import('./musique.js')]).then(([ex, it, dl, am, mr, mu]) => { window.__video = { finVol: ex.finVol, startFlight: it.startFlight, PLACES: dl.PLACES, setMood: am.setMood, monumentsEnVisite: mr.monumentsEnVisite, musique: mu.musiqueForcee, THREE }; });
 
 main().catch(err => { console.error(err); loadTxt.innerHTML = `<span class="err">Impossible d'afficher la ville.</span> ${err.message || err}`; });

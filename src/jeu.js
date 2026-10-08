@@ -3,6 +3,7 @@ import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { AUDIO, audioCtx, moteur, moteurMaj, moteurStop, radio, son } from './audio.js';
 import { VOIX, taire, voixActives, voixDispo } from './voix.js';
 import { accident, majFeux, preparerFeux } from './regles.js';
+import { majPietons, marchandeReelle, preparerPietons, regarder, viderPietons } from './pietons.js';
 import { arreterMusique, demarrerMusique, musiqueQuartier } from './musique.js';
 import { $, LITE, hash, toXZ } from './base.js';
 import { QUARTIERS } from './donnees-lieux.js';
@@ -133,7 +134,7 @@ export function creerObjet(type, s, file) {
   else if (type === 'tokpa') mesh = new THREE.Mesh(GJ.tokpa, matVeh);
   else if (type === 'voiture') mesh = new THREE.Mesh(GJ.voit[Math.floor(hash(s, 2) * 5)], matVeh);
   else if (type === 'chevre') mesh = new THREE.Mesh(GJ.chevre, matVeh);
-  else if (type === 'marchande') mesh = new THREE.Mesh(GJ.marchande[Math.floor(hash(s, 3) * 4)], matVeh);
+  else if (type === 'marchande') mesh = marchandeReelle(Math.floor(hash(s, 3) * 1e5), true) || new THREE.Mesh(GJ.marchande[Math.floor(hash(s, 3) * 4)], matVeh);
   else if (type === 'trou') mesh = new THREE.Mesh(GJ.trou, GJ.matTrou);
   else if (type === 'travaux') mesh = new THREE.Mesh(GJ.travaux, matVeh);
   else if (type === 'egungun') mesh = procession(3, Math.floor(Math.random() * 4));
@@ -143,7 +144,7 @@ export function creerObjet(type, s, file) {
   if (T.traverse) { const cote = Math.random() < .5 ? -1 : 1; o.lat = cote * (type === 'egungun' ? 8 : 7.5); o.dirLat = -cote * T.traverse; }
   JEU.objets.push(o); return o;
 }
-export function retirerObjet(o) { JEU.decor.remove(o.mesh); }
+export function retirerObjet(o) { JEU.decor.remove(o.mesh); o.mesh.userData.liberer?.(); }
 
 export function construireDecorLigne(L, C, debut = 1) {
   // Arrêts : zone jaune sur la file de droite, panneau au nom du quartier, passagers qui attendent.
@@ -157,7 +158,12 @@ export function construireDecorLigne(L, C, debut = 1) {
     const t = texteToile(['ARRÊT', a.nom.toUpperCase()], 1024, 400, '#1d1a16', '#f2c21b', '800 110px "Bricolage Grotesque", system-ui, sans-serif');
     const pan = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.25), new THREE.MeshBasicMaterial({ map: t })); pan.position.set(0, 3.9, 0); post.add(pan);
     const dos = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.25), new THREE.MeshBasicMaterial({ color: '#2b2f33' })); dos.position.set(0, 3.9, -.02); dos.rotation.y = Math.PI; post.add(dos); g.add(post);
-    for (let i = 0; i < (JEU.veh === 'tokpa' ? 5 : 2); i++) { const m = new THREE.Mesh(GJ.marchande[(k + i) % 4], matVeh); const r = pose(C, s - 4 - i * 1.5, LANE * 2.4 + (i % 2) * .6); m.position.set(r.x, r.y, r.z); m.rotation.y = r.a + Math.PI / 2; g.add(m); }
+    for (let i = 0; i < (JEU.veh === 'tokpa' ? 5 : 2); i++) {
+      const r = pose(C, s - 4 - i * 1.5, LANE * 2.4 + (i % 2) * .6), vraie = marchandeReelle(k * 31 + i * 7 + 3);
+      const m = vraie || new THREE.Mesh(GJ.marchande[(k + i) % 4], matVeh); m.position.set(r.x, r.y, r.z);
+      if (vraie) regarder(m, r.dz, -r.dx); else m.rotation.y = r.a + Math.PI / 2; // face à la chaussée
+      g.add(m);
+    }
   }
 }
 
@@ -250,6 +256,7 @@ function installerTrajet(L, C, debut, garderClient) {
   const bar = $('#jhArrets'); if (bar) bar.innerHTML = L.arretsJ.map((a, k) => k < debut && k ? '' : `<i style="left:${(a.s / C.L * 100).toFixed(2)}%" title="${a.nom}"></i>`).join('');
   try { construireReseau(); JEU.carrefours = carrefoursDe(C); } catch (e) { console.warn('carrefours', e); JEU.carrefours = []; }
   preparerFeux(C); // feux tricolores aux carrefours (cahier des charges, priorité 1)
+  preparerPietons(C); // passants sur les trottoirs et aux passages piétons
 }
 /** Au carrefour, ← ou → (ralenti) : on prend la rue de ce côté et le GPS recalcule jusqu'aux arrêts suivants.
  *  Quand l'itinéraire tourne et qu'on veut continuer tout droit (passer le pont, par exemple), la flèche opposée au
@@ -297,7 +304,7 @@ export function prendreRaccourci() {
 }
 export function quitterJeu() {
   JEU.actif = false; moteurStop(); taire(); arreterMusique(); nettoyerBordure(); nettoyerDiscussions(); remettreVegetation(); satelliteVisible(true); rueRouteJeu(null);
-  if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; }
+  viderPietons(); if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; }
   document.getElementById('app').classList.remove('mode-jeu');
   $('#jeu').hidden = true; controls.enabled = true; camera.near = 2; camera.fov = 45; camera.updateProjectionMatrix();
   const p = JEU.joueur ? JEU.joueur.position : controls.target; controls.target.set(p.x, 0, p.z);
@@ -385,6 +392,7 @@ export function majJeu(dt) {
     if (ds < -25 || Math.abs(o.lat) > (o.type === 'egungun' ? 11 : 9)) { retirerObjet(o); continue; }
     const q = pose(C, o.s, o.lat, tmpP2);
     o.mesh.position.set(q.x, q.y + (o.type === 'trou' ? .1 : 0), q.z); o.mesh.rotation.y = o.dirLat ? q.a + Math.sign(o.dirLat) * Math.PI / 2 : q.a;
+    if (o.mesh.userData.modele) { const sg = Math.sign(o.dirLat); if (sg) regarder(o.mesh, -sg * q.dz, sg * q.dx); else { regarder(o.mesh, -q.dx, -q.dz); o.mesh.userData.jouer('idle'); } } // personnage réaliste (face à +z)
     if (o.type === 'jeton') { o.mesh.position.y = q.y + 1.1 + Math.sin(st.temps * 4 + o.s) * .15; o.mesh.rotation.y = st.temps * 3 + o.s; }
     if (o.type === 'egungun') {
       o.mesh.userData.anim(st.temps); o.mesh.rotation.y = q.a + Math.PI / 2;
@@ -443,6 +451,7 @@ export function majJeu(dt) {
   // Bord de route, monuments, plaques de rue, mini-carte.
   const rep = majBordure(st, C);
   majDiscussions(st, C, dt);
+  majPietons(st, dt);
   // Carrefour devant : « ← / → pour tourner » (ralentir d'abord).
   const cf = JEU.carrefours?.find(c => c.s - st.s > -4 && c.s - st.s < 70), elC = $('#jhCarrefour');
   if (elC) {
@@ -550,7 +559,7 @@ export function initJeu(data) {
   $('#jmRetour').addEventListener('click', () => { $('#jeu').hidden = true; document.getElementById('app').classList.remove('mode-jeu'); });
   $('#jmPub').addEventListener('click', ouvrirOffre);
   $('#jfRejouer').addEventListener('click', () => { JEU.fini = false; lancerLigne(JEU.ligne, JEU.veh); });
-  $('#jfLignes').addEventListener('click', () => { JEU.actif = false; moteurStop(); nettoyerBordure(); nettoyerDiscussions(); remettreVegetation(); if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; } ouvrirJeu(); });
+  $('#jfLignes').addEventListener('click', () => { JEU.actif = false; moteurStop(); nettoyerBordure(); nettoyerDiscussions(); viderPietons(); remettreVegetation(); if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; } ouvrirJeu(); });
   $('#jfCarte').addEventListener('click', quitterJeu);
   $('#jpReprendre').addEventListener('click', () => { JEU.pause = false; $('#jeuPause').hidden = true; });
   $('#jpQuitter').addEventListener('click', quitterJeu);

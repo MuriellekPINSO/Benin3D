@@ -78,6 +78,8 @@ npm run verifier   # ESLint sur src/
 | `src/musique.js` | Musique du jeu selon le quartier, composée à la volée (Web Audio, motifs originaux, aucun morceau protégé), et ambiance « concert » de l'événement |
 | `src/multijoueur.js` | Mode deux joueurs : connexion directe entre navigateurs (WebRTC via le service public PeerJS), code de 4 lettres ; chacun voit le véhicule de l'autre et entend son klaxon |
 | `src/evenement.js` | Concert sur l'esplanade de l'Amazone (scène, écran, lumières, foule qui danse), entrée 50 F en monnaie du jeu |
+| `src/personnages.js` | Personnages béninois réalistes et animés (modèles Tripo avec squelette) : chargement, choix selon le genre ou le rôle (policier, zém), animations (attente, marche, salut, discussion, téléphone, assis, rire), tête et main suivies pour les bulles, le casque et les objets échangés. Sans eux, le jeu garde ses personnages dessinés en code |
+| `src/pietons.js` | Passants de Zém Run : ils marchent sur les trottoirs le long de la course, traversent au passage piéton quand le feu est rouge pour les motos (accident si on les touche au rouge) ; marchandes avec leur bassine sur la tête |
 | `src/missions.js` | missions (3 à la fois), cagnotte, série de jours, garage (klaxons, casque neuf, super saut) |
 | `src/artisans.js` | marchés artisanaux (Porte du Non-Retour, Arène, Place de l'Amazone) : objets d'art 3D, discussion du prix avec la vendeuse, paiement avec la cagnotte, « Mes souvenirs » |
 | `src/publicites.js` | catalogue des campagnes publicitaires (panneaux de la ville et du jeu), affichages comptés, offre aux annonceurs |
@@ -220,6 +222,17 @@ clé `TRIPO_API_KEY` dans `.env.local`, ~40 crédits par modèle) à partir de p
 couleur par modèle sont dans `scripts/tripo-reglages.json`, la pose dans la ville (rotation, décalage) dans
 `src/batiments-tripo.js` (`REGLAGES`). Les modèles d'origine (50 Mo chacun) restent dans `sources/tripo/`, non versionné.
 Ces modèles dérivent de photos CC BY / CC BY-SA / CC0 : crédits dans le bandeau du site, même licence pour les réutiliser.
+
+## Personnages animés
+
+`public/modeles/personnages/<id>.glb` (liste dans `index.json`) : vendeuse en pagne wax, jeune en maillot de foot,
+ancien en boubou, étudiante, employé en chemise wax, grand-mère, policier, zémidjan en chemise jaune. Fabriqués par
+`npm run personnages -- <id>` (ou `tout`) avec l'API Tripo, à partir d'une description (`scripts/personnages.mjs`) :
+modèle texturé (~30 crédits), squelette humain (auto-rig), puis une animation par demande (~10 crédits chacune),
+fusionnées dans un seul fichier de ~0,8 Mo (13 000 triangles, textures webp). Les étapes faites sont notées dans
+`sources/personnages/<id>.json` (non versionné) : une coupure ne fait rien repayer. Les accessoires (bassines de
+fruits portées sur la tête) sont dans `public/modeles/personnages/accessoires/`, rangés là par `scripts/accessoire.mjs`
+à partir d'un modèle `npm run tripo -- texte`.
 
 ## D'où viennent les données
 
