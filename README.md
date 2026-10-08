@@ -71,6 +71,13 @@ npm run verifier   # ESLint sur src/
 | `src/altitude.js` | altitude du sol (tuiles Terrarium d'AWS, données ouvertes) pour caler la caméra Google |
 | `src/discussions.js` | Zém Run qui parle (à la Danfo Run) : bulles au-dessus des gens, groupes qui causent au bord de la route, vendeuses qui appellent, réactions au klaxon, client du zém avec qui l'on discute le prix et qui fait la causette (réponses 1, 2, 3), collecteur du syndicat, apprenti du tokpa-tokpa |
 | `src/voix.js` | Les personnages parlent à voix haute : synthèse vocale du navigateur (gratuite, sans clé), une voix de femme ou d'homme par personne, seulement ceux qui sont près du zém ; le dialogue passe devant les bavardages. Option « Voix des personnages » dans le menu du jeu |
+| `src/regles.js` | Code de la route de Zém Run (cahier des charges de Schekina) : feux tricolores du trajet (les vrais feux d'OSM qu'il traverse), police et amende au feu rouge, accidents (constat de police ou client qui descend) |
+| `src/feux.js` | Les 81 feux tricolores et 38 passages piétons réels d'OpenStreetMap (`osm/feux.json`, Overpass), posés dans la ville avec un cycle synchronisé par carrefour |
+| `src/terre-pleins.js` | Terre-pleins centraux des boulevards à deux chaussées (calculés par `scripts/donnees.mjs`, calés sur la vue satellite Google) : marquage, séparateur béton ou gazon planté selon la largeur |
+| `src/remise.js` | Ce qu'on achète, on le reçoit : le billet passe au vendeur, l'objet (eau, beignets, essence, casque, carte de crédit, souvenir…) arrive dans la main du zém ou du client |
+| `src/musique.js` | Musique du jeu selon le quartier, composée à la volée (Web Audio, motifs originaux, aucun morceau protégé), et ambiance « concert » de l'événement |
+| `src/multijoueur.js` | Mode deux joueurs : connexion directe entre navigateurs (WebRTC via le service public PeerJS), code de 4 lettres ; chacun voit le véhicule de l'autre et entend son klaxon |
+| `src/evenement.js` | Concert sur l'esplanade de l'Amazone (scène, écran, lumières, foule qui danse), entrée 50 F en monnaie du jeu |
 | `src/missions.js` | missions (3 à la fois), cagnotte, série de jours, garage (klaxons, casque neuf, super saut) |
 | `src/artisans.js` | marchés artisanaux (Porte du Non-Retour, Arène, Place de l'Amazone) : objets d'art 3D, discussion du prix avec la vendeuse, paiement avec la cagnotte, « Mes souvenirs » |
 | `src/publicites.js` | catalogue des campagnes publicitaires (panneaux de la ville et du jeu), affichages comptés, offre aux annonceurs |
@@ -180,6 +187,29 @@ l'Amitié, photo « Vue de côté du stade… » d'Adoscam (CC BY-SA 4.0). `sofi
 entrée du Sofitel, photo « Sofitel Cotonou Marina Hôtel & Spa » de Freed Armel (CC BY-SA 4.0), ciel détouré.
 Crédits affichés dans le bandeau du site. Même licence (CC BY-SA 4.0, CC BY 2.0) pour toute réutilisation des
 textures qui en relèvent.
+
+## Zém Run : cahier des charges de Schekina (octobre 2026)
+
+| Fonctionnalité | Priorité | Statut |
+|---|---|---|
+| Contrôles aux flèches (pas d'accélération automatique) | 1 | Fait |
+| Fin de course, paiement affiché, nouveau client qui fait signe | 1 | Fait |
+| Feux tricolores (vrais feux d'OSM) | 1 | Fait |
+| Casques du zém et du client (le sien, prêté ou acheté) | 1 | Fait |
+| Police et amende au feu rouge | 2 | Fait |
+| Accidents : constat de police ou course perdue | 2 | Fait |
+| Discussion et marchandage avec les vendeurs | 2 | Fait |
+| Musique selon la zone (composée par le jeu) | 2 | Fait |
+| Raccourci payant (client pressé) | 3 | Fait |
+| Voiture déblocable (taxi, prix d'exemple 5 F, à confirmer) | 3 | Fait |
+| Mode deux joueurs | 4 | Fait, à deux, sans serveur (WebRTC) ; au-delà de deux joueurs, il faudra un serveur temps réel |
+| Événement 3D | 4 | Fait sous un nom générique, entrée en monnaie du jeu |
+
+Réserves du cahier des charges, respectées :
+- les montants (amendes, casque, raccourci, voiture, entrée) sont en monnaie du jeu. Un vrai paiement MoMo demanderait l'API MTN MoMo, un compte marchand et une validation ;
+- l'événement n'utilise pas le nom ni l'univers de WeLoveEya. Il faut l'accord des organisateurs pour s'en servir ;
+- la musique est générée par le jeu et ne reprend aucun morceau protégé ;
+- le mode deux joueurs passe par le service public de mise en relation PeerJS. Derrière certains réseaux d'entreprise, il faudrait aussi un serveur relais (TURN).
 
 ## Bâtiments reconnaissables : modèles 3D générés d'après photos
 
