@@ -26,7 +26,7 @@ import { METEO } from './meteo.js';
 import { vibrer } from './manette.js';
 import { carrefoursDe, construireReseau, itineraire, itineraireCourt } from './carrefours.js';
 import { ouvrirOffre } from './publicites.js';
-import { rueRouteJeu } from './rue.js';
+import { pietonOk, profilRoute, rueRouteJeu } from './rue.js';
 
 // ---------- Zém Run : le jeu ----------
 /** Véhicules qui prennent un client à la fois, avec négociation (zém et taxi). */
@@ -56,7 +56,40 @@ export function cheminDe(pts) {
   const cum = [0]; for (let i = 1; i < p.length; i++) cum.push(cum[i - 1] + Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]));
   const L = cum[cum.length - 1], n = Math.floor(L) + 1, X = new Float32Array(n), Z = new Float32Array(n);
   let j = 0; for (let d = 0; d < n; d++) { while (j < p.length - 2 && cum[j + 1] < d) j++; const t = (d - cum[j]) / ((cum[j + 1] - cum[j]) || 1); X[d] = p[j][0] + (p[j + 1][0] - p[j][0]) * t; Z[d] = p[j][1] + (p[j + 1][1] - p[j][1]) * t; }
-  return { X, Z, n, L: n - 1 };
+  const C = { X, Z, n, L: n - 1 }; profiler(C); return C;
+}
+// La vraie rue sous le trajet, mètre par mètre : demi-largeur de la chaussée (hw) et ligne des murs
+// (front). Les files du jeu s'y resserrent, les piétons se tiennent sur le bas-côté, pas dans les murs.
+function profiler(C) {
+  const { X, Z, n } = C, hw = new Float32Array(n), front = new Float32Array(n), pas = 2, ech = [];
+  for (let i = 0; i < n; i += pas) {
+    const a = Math.max(0, i - 3), b = Math.min(n - 1, i + 3), dx = X[b] - X[a], dz = Z[b] - Z[a], l = Math.hypot(dx, dz) || 1;
+    ech.push(profilRoute(X[i], Z[i], dx / l, dz / l));
+  }
+  // Médiane sur ~14 m : un carrefour ou une rue voisine plus large ne fait pas de saut.
+  const med = (k, cle, def) => { const v = []; for (let q = Math.max(0, k - 3); q <= Math.min(ech.length - 1, k + 3); q++) if (ech[q]) v.push(ech[q][cle]); if (!v.length) return def; v.sort((u, w) => u - w); return v[v.length >> 1]; };
+  const h = ech.map((e, k) => med(k, 'hw', 3.5)), f = ech.map((e, k) => med(k, 'front', 9.8));
+  for (let i = 0; i < n; i++) { const k = Math.min(h.length - 1, Math.floor(i / pas)); hw[i] = h[k]; front[i] = Math.max(f[k], h[k] + 1); }
+  C.hw = hw; C.front = front;
+}
+const ixC = (C, s) => Math.max(0, Math.min(C.n - 1, Math.round(s)));
+/** Demi-largeur réelle de la chaussée au point s du trajet. */
+export const demiChaussee = (C, s) => C.hw ? C.hw[ixC(C, s)] : LANE * 2.5;
+/** Les 5 files du jeu resserrées dans la largeur réelle de la rue : facteur des décalages latéraux. */
+export const kFiles = (C, s) => C.hw ? THREE.MathUtils.clamp((C.hw[ixC(C, s)] - .9) / (2 * LANE), .45, 1) : 1;
+const tmpT = { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 };
+/**
+ * Décalage latéral d'une place sur le bas-côté, à `recul` m du bord de la chaussée, côté `cote` (+1 à droite,
+ * −1 à gauche) ; null s'il n'y a pas de place (bâtiment, terre-plein, autre chaussée) même tout près du bord.
+ */
+export function latTrottoir(C, s, cote, recul = 1.4) {
+  const i = ixC(C, s), hw = demiChaussee(C, s), front = C.front ? C.front[i] : 9.8, p = pose(C, s, 0, tmpT);
+  for (const r of [Math.min(recul, front - hw - .5), Math.min(recul, front - hw - .5) * .5, .55]) {
+    if (r < .3) continue;
+    const lat = cote * (hw + r);
+    if (pietonOk(p.x - p.dz * lat, p.z + p.dx * lat)) return lat;
+  }
+  return null;
 }
 export const tmpPose = { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 };
 export function pose(C, s, lat = 0, out = tmpPose) {
@@ -152,14 +185,15 @@ export function construireDecorLigne(L, C, debut = 1) {
   for (let k = Math.max(1, debut); k < L.arrets.length; k++) {
     const a = L.arrets[k], s = a.s;
     const z = new THREE.Mesh(new THREE.PlaneGeometry(30, LANE * .9).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#f2c21b', transparent: true, opacity: .55, depthWrite: false }));
-    const p = pose(C, s - 12, LANE); z.position.set(p.x, p.y + .12, p.z); z.rotation.y = p.a; g.add(z);
-    const q = pose(C, s, LANE * 2.2); const post = new THREE.Group(); post.position.set(q.x, q.y, q.z); post.rotation.y = Math.atan2(q.dz * .6 - q.dx * .8, -q.dx * .6 - q.dz * .8);
+    const kz = kFiles(C, s - 12), p = pose(C, s - 12, LANE * kz); z.scale.z = kz; z.position.set(p.x, p.y + .12, p.z); z.rotation.y = p.a; g.add(z);
+    const q = pose(C, s, demiChaussee(C, s) + .7); const post = new THREE.Group(); post.position.set(q.x, q.y, q.z); post.rotation.y = Math.atan2(q.dz * .6 - q.dx * .8, -q.dx * .6 - q.dz * .8);
     const mat = new THREE.Mesh(C3(.08, .08, 3.6, 6), new THREE.MeshStandardMaterial({ color: '#555' })); mat.position.set(0, 1.8, 0); post.add(mat);
     const t = texteToile(['ARRÊT', a.nom.toUpperCase()], 1024, 400, '#1d1a16', '#f2c21b', '800 110px "Bricolage Grotesque", system-ui, sans-serif');
     const pan = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.25), new THREE.MeshBasicMaterial({ map: t })); pan.position.set(0, 3.9, 0); post.add(pan);
     const dos = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.25), new THREE.MeshBasicMaterial({ color: '#2b2f33' })); dos.position.set(0, 3.9, -.02); dos.rotation.y = Math.PI; post.add(dos); g.add(post);
     for (let i = 0; i < (JEU.veh === 'tokpa' ? 5 : 2); i++) {
-      const r = pose(C, s - 4 - i * 1.5, LANE * 2.4 + (i % 2) * .6), vraie = marchandeReelle(k * 31 + i * 7 + 3);
+      const si = s - 4 - i * 1.5, lat = latTrottoir(C, si, 1, 1.1 + (i % 2) * .7); if (lat === null) continue; // pas de place : personne
+      const r = pose(C, si, lat), vraie = marchandeReelle(k * 31 + i * 7 + 3);
       const m = vraie || new THREE.Mesh(GJ.marchande[(k + i) % 4], matVeh); m.position.set(r.x, r.y, r.z);
       if (vraie) regarder(m, r.dz, -r.dx); else m.rotation.y = r.a + Math.PI / 2; // face à la chaussée
       g.add(m);
@@ -248,8 +282,8 @@ function installerTrajet(L, C, debut, garderClient) {
   // Les murs et portails de la ville s'écartent des boutiques-conteneurs et des stations du jeu.
   const occupees = [];
   for (const it of BORD.items) {
-    if (it.type === 'station') { const p = pose(C, it.s, it.side * (it.off + 6), { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); occupees.push([p.x, p.z, 10]); }
-    else if (it.type === 'enseigne' && /mode|coiffure|telephone|boutique|quincaillerie|garage/.test(it.t)) { const p = pose(C, it.s, it.side * (it.off + 3.4), { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); occupees.push([p.x, p.z, 4.6]); }
+    if (it.type === 'station') { const p = pose(C, it.s, it.lat + it.side * 6, { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); occupees.push([p.x, p.z, 10]); }
+    else if (it.type === 'enseigne' && /mode|coiffure|telephone|boutique|quincaillerie|garage/.test(it.t)) { const p = pose(C, it.s, it.lat + it.side * 3.4, { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); occupees.push([p.x, p.z, 4.6]); }
   }
   rueRouteJeu(C, occupees);
   degagerVegetation(C);
@@ -268,7 +302,7 @@ export function virage(dir) {
   let br = j && (dir === 0 ? j.droit : dir < 0 ? j.gauche : j.droite), droit = dir === 0;
   if (j && !br && j.droit && dir === -j.sens) { br = j.droit; droit = true; }
   if (!br || st.prochain >= L.arretsJ.length) return false;
-  const p = pose(C, st.s, st.lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  const p = pose(C, st.s, st.lat * kFiles(C, st.s), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   const pts = itineraire(p.x, p.z, j.n, br.m, L.arretsXZ.slice(st.prochain));
   if (!pts || pts.length < 3) { toast('Pas de route par là', 1.2, 'mal'); return false; }
   appliquerItineraire(pts);
@@ -293,7 +327,7 @@ function appliquerItineraire(pts) {
 /** Client pressé (cahier des charges, priorité 3) : le GPS prend le plus court, petites rues comprises. */
 export function prendreRaccourci() {
   const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || st.prochain >= L.arretsJ.length) return false;
-  const p = pose(C, st.s, st.lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(C, Math.min(C.L - 1, st.s + 18), 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  const p = pose(C, st.s, st.lat * kFiles(C, st.s), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(C, Math.min(C.L - 1, st.s + 18), 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   const avant = Math.max(0, L.arretsJ[st.prochain].s - st.s);
   const pts = itineraireCourt(p.x, p.z, q.x, q.z, L.arretsXZ.slice(st.prochain));
   if (!pts || pts.length < 3) { toast('Pas de raccourci par ici', 1.4, 'mal'); return false; }
@@ -360,9 +394,9 @@ export function majJeu(dt) {
   if (st.y > 0 || st.vy > 0) { st.vy -= 24 * dt; st.y = Math.max(0, st.y + st.vy * dt); if (st.y === 0) st.vy = 0; }
   if (st.invul > 0) st.invul -= dt;
   if (st.secousse > 0) st.secousse -= dt;
-  const p = pose(C, st.s, st.lat);
+  const kj = kFiles(C, st.s), p = pose(C, st.s, st.lat * kj); // files resserrées dans la vraie largeur de la rue
   const j = JEU.joueur; j.position.set(p.x, p.y + st.y, p.z); j.rotation.set(0, p.a, 0);
-  j.rotateX(JEU.veh === 'zem' ? Math.max(-.32, Math.min(.32, -(st.lat - latAv) / Math.max(dt, .001) * .014)) : 0);
+  j.rotateX(JEU.veh === 'zem' ? Math.max(-.32, Math.min(.32, -(st.lat - latAv) * kj / Math.max(dt, .001) * .014)) : 0);
   if (C.H) { const i = Math.max(2, Math.min(C.n - 3, Math.floor(st.s))); j.rotateZ(Math.atan((C.H[i + 2] - C.H[i - 2]) / 4)); } // penché dans la rampe du pont
   j.visible = true; // un accident n'est plus un clignotement : voir regles.js (constat de police ou client perdu)
   controls.target.set(p.x, 0, p.z);
@@ -390,7 +424,7 @@ export function majJeu(dt) {
     if (o.dirLat) o.lat += o.dirLat * dt;
     const ds = o.s - st.s;
     if (ds < -25 || Math.abs(o.lat) > (o.type === 'egungun' ? 11 : 9)) { retirerObjet(o); continue; }
-    const q = pose(C, o.s, o.lat, tmpP2);
+    const q = pose(C, o.s, o.lat * kFiles(C, o.s), tmpP2);
     o.mesh.position.set(q.x, q.y + (o.type === 'trou' ? .1 : 0), q.z); o.mesh.rotation.y = o.dirLat ? q.a + Math.sign(o.dirLat) * Math.PI / 2 : q.a;
     if (o.mesh.userData.modele) { const sg = Math.sign(o.dirLat); if (sg) regarder(o.mesh, -sg * q.dz, sg * q.dx); else { regarder(o.mesh, -q.dx, -q.dz); o.mesh.userData.jouer('idle'); } } // personnage réaliste (face à +z)
     if (o.type === 'jeton') { o.mesh.position.y = q.y + 1.1 + Math.sin(st.temps * 4 + o.s) * .15; o.mesh.rotation.y = st.temps * 3 + o.s; }
@@ -399,7 +433,7 @@ export function majJeu(dt) {
       if (!o.annonce && ds < 70) { o.annonce = true; toast('Sortie d’Egungun ! Freine : on ne touche pas les revenants.', 2.6); son('klaxon'); }
       if (!o.respect && ds > 4 && ds < 32 && Math.abs(o.lat) < 7 && st.v < 3) { o.respect = true; st.argent += 100; toast('Respect aux Egungun : +100 F', 1.6, 'bien'); son('piece'); evenement('egungun'); progres('egungun', 1); }
     }
-    const proche = Math.abs(ds) < (o.T.long + V.long) / 2 && Math.abs(o.lat - st.lat) < (o.T.larg + V.larg) / 2 * .85;
+    const proche = Math.abs(ds) < (o.T.long + V.long) / 2 && Math.abs(o.lat - st.lat) * kj < (o.T.larg + V.larg) / 2 * .85;
     if (!o.touche && proche) {
       if (o.type === 'jeton') { st.argent += 25; st.pieces++; son('piece'); vibrer('piece'); retirerObjet(o); if (st.pieces % 5 === 0) progres('pieces', st.pieces); continue; }
       if (o.T.saut && st.y > .55) { /* sauté */ }
@@ -413,7 +447,7 @@ export function majJeu(dt) {
         accident(st);
       }
     }
-    if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(o.lat - st.lat) < (o.T.larg + V.larg) / 2 + 1.1) { o.frole = true; st.frolements++; st.argent += 15; toast('Ça passe ! +15 F', .9, 'bien'); evenement('frole'); progres('frolements', st.frolements); }
+    if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(o.lat - st.lat) * kj < (o.T.larg + V.larg) / 2 + 1.1) { o.frole = true; st.frolements++; st.argent += 15; toast('Ça passe ! +15 F', .9, 'bien'); evenement('frole'); progres('frolements', st.frolements); }
     restants.push(o);
   }
   JEU.objets = restants;

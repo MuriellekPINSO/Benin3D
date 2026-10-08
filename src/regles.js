@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { remettre } from './remise.js';
 import { $ } from './base.js';
 import { AUDIO, son } from './audio.js';
-import { JEU, LANE, fmtF, pose, toast } from './jeu.js';
+import { JEU, LANE, demiChaussee, fmtF, latTrottoir, pose, toast } from './jeu.js';
 import { DISC, bulle, dialogue, nouveauSigne, personne } from './discussions.js';
 import { FEUX } from './feux.js';
 import { traverser } from './pietons.js';
@@ -55,7 +55,7 @@ export function preparerFeux(C) {
     const s0 = c.s - 9; if (s0 < 60 || s0 - dernier < (c.reel ? 60 : 220) || s0 > C.L - 40) continue;
     dernier = s0;
     const f = { s: s0, dephase: Math.random() * TOUR, passe: false, etat: '', mats: matsFeu() };
-    const pied = pose(C, s0, LANE * 2.9, tmp()), haut = pose(C, s0, LANE * .4, tmp()), avant = pose(C, s0 - 25, LANE * .4, tmp());
+    const hw = demiChaussee(C, s0), pied = pose(C, s0, hw + .6, tmp()), haut = pose(C, s0, hw * .25, tmp()), avant = pose(C, s0 - 25, hw * .25, tmp()); // poteau au bord, feux au-dessus de la chaussée
     const g = new THREE.Group();
     const vPied = new THREE.Vector3(pied.x, pied.y, pied.z), vSommet = vPied.clone().setY(pied.y + 6), vTete = new THREE.Vector3(haut.x, haut.y + 6, haut.z);
     g.add(entre(vPied, vSommet, .18, gris), entre(vSommet, vTete, .12, gris));
@@ -66,7 +66,7 @@ export function preparerFeux(C) {
     g.add(tete, entre(vSommet, new THREE.Vector3(haut.x, haut.y + 5.8, haut.z), .05, gris));
     // Ligne d'arrêt blanche en travers de la chaussée.
     const l0 = pose(C, s0, 0, tmp()), l1 = pose(C, s0 + 4, 0, tmp());
-    const ligne = new THREE.Mesh(new THREE.BoxGeometry(LANE * 5, .03, .45), blanc); ligne.position.set(l0.x, l0.y + .04, l0.z); ligne.lookAt(l1.x, l0.y + .04, l1.z);
+    const ligne = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, .03, .45), blanc); ligne.position.set(l0.x, l0.y + .04, l0.z); ligne.lookAt(l1.x, l0.y + .04, l1.z);
     g.add(ligne);
     JEU.decor.add(g); f.g = g; R.feux.push(f);
   }
@@ -97,7 +97,7 @@ function sifflet() {
 }
 /** L'agent de police au bord de la route, un peu devant le zém. */
 function agent(st) {
-  const C = JEU.chemin, p = pose(C, st.s + 12, LANE * 2.7, tmp()), q = pose(C, st.s + 12, 0, tmp());
+  const C = JEU.chemin, p = pose(C, st.s + 12, latTrottoir(C, st.s + 12, 1, .8) ?? demiChaussee(C, st.s + 12) + .5, tmp()), q = pose(C, st.s + 12, 0, tmp());
   const m = personne(9000 + Math.floor(Math.random() * 999), { gilet: '#1f3a6e', femme: false, role: 'policier' });
   m.position.set(p.x, p.y, p.z); m.lookAt(q.x, p.y, q.z);
   if (m.userData.modele !== 'policier') { const kepi = new THREE.Mesh(new THREE.CylinderGeometry(.14, .15, .1, 12), new THREE.MeshLambertMaterial({ color: '#16264a' })); kepi.position.y = 1.72; m.add(kepi); }

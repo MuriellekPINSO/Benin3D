@@ -4,7 +4,8 @@ import { PLACES } from './donnees-lieux.js';
 import { K } from './lieux.js';
 import { ZEMS_3D } from './vehicules.js';
 import { roadLines } from './ville.js';
-import { GJ, JEU, LANE, pose } from './jeu.js';
+import { GJ, JEU, LANE, demiChaussee, latTrottoir, pose } from './jeu.js';
+import { accessoire, personnage3d } from './personnages.js';
 import { photoJeu } from './google.js';
 import { campagne, compterVue, matAffiche } from './publicites.js';
 import { matVeh } from './vehicules.js';
@@ -161,13 +162,17 @@ const FAB = {
     return { g, liberer: [] };
   },
   vendeuse(it) {
-    const g = new THREE.Group();
-    const o = new THREE.Mesh(GJ.marchande[Math.floor(hash(Math.round(it.s), 6) * 4)], matVeh); o.position.set(.4, 0, 0); g.add(o);
-    m(gc('bassine', () => new THREE.CylinderGeometry(.45, .32, .25, 12)), '#c9ccd0', -.5, .45, .2, g);
+    const g = new THREE.Group(), graine = Math.round(it.s * 7), lib = [];
+    // La vendeuse réaliste (personnages.js), ou à défaut la silhouette dessinée en code.
+    const vraie = personnage3d(graine, { femme: true });
+    if (vraie) { vraie.position.set(.45, 0, .1); vraie.userData.jouer(hash(graine, 3) < .3 ? 'telephone' : 'idle', 0); g.add(vraie); g.userData.tete = vraie.userData.tete; g.userData.main = vraie.userData.main; lib.push({ dispose: () => vraie.userData.liberer() }); }
+    else { const o = new THREE.Mesh(GJ.marchande[Math.floor(hash(Math.round(it.s), 6) * 4)], matVeh); o.position.set(.4, 0, 0); g.add(o); }
+    const b = accessoire('bassine', graine);
+    if (b) { b.position.set(-.5, .4, .2); b.rotation.y = graine; g.add(b); } else m(gc('bassine', () => new THREE.CylinderGeometry(.45, .32, .25, 12)), '#c9ccd0', -.5, .45, .2, g);
     m(gc('tabouret', () => new THREE.BoxGeometry(.6, .4, .6)), '#8a6a48', -.5, .2, .2, g);
     m(gc('para2', () => new THREE.ConeGeometry(1.7, .6, 10, 1, true).translate(0, 2.5, 0)), K.mat(['#f2efe6', '#c8382f', '#e9b62c', '#2f6fb0', '#5a8f3a'][Math.floor(hash(Math.round(it.s), 7) * 5)], { face2: true }), 0, 0, 0, g);
     m(gc('mat2', () => new THREE.CylinderGeometry(.03, .03, 2.4, 5)), '#555', 0, 1.2, 0, g);
-    return { g, liberer: [] };
+    return { g, liberer: lib };
   },
   momo(it) {
     const g = new THREE.Group(), moov = hash(Math.round(it.s), 8) < .35;
@@ -274,7 +279,16 @@ export function preparerBordure(L, C, arrets) {
   }
   // Poteaux électriques, d'un seul côté.
   for (let s = 20; s < C.L - 20; s += 36) if (!surPont(s)) items.push({ type: 'poteau', s, side: -1, off: OFF - 1.2 });
-  B.items = items.sort((a, b) => a.s - b.s); B.ptr = 0;
+  // Chacun à sa place sur le vrai bas-côté, entre la chaussée et les murs : rien sur un terre-plein,
+  // sur l'autre chaussée ni dans un bâtiment. Les grands panneaux se dressent derrière les murs.
+  const RECUL = { vendeuse: 1.2, kpayo: 1.3, momo: 1.5, vulca: 1.3, peinte: 1, zems: 2.2, enseigne: 1.5, station: 3.2 };
+  const places = items.filter(it => {
+    if (it.type === 'poteau') { it.lat = -(demiChaussee(C, it.s) + .5); return true; } // au bord, d'un seul côté (les câbles se suivent)
+    if (it.type === 'pub') { const f = C.front ? C.front[Math.max(0, Math.min(C.n - 1, Math.round(it.s)))] : 9.8; it.lat = it.side * (f + 1); return true; }
+    const lat = latTrottoir(C, it.s, it.side, RECUL[it.type] ?? 1.3); if (lat === null) return false;
+    it.lat = lat; return true;
+  });
+  B.items = places.sort((a, b) => a.s - b.s); B.ptr = 0;
   B.cables = new THREE.Group(); JEU.decor.add(B.cables);
   B.ponts = ponts;
   preparerMiniCarte(L, C, arrets);
@@ -293,7 +307,7 @@ export function majBordure(st, C) {
   const B = BORD;
   while (B.ptr < B.items.length && B.items[B.ptr].s < st.s + 360) {
     if (B.items[B.ptr].s < st.s - 30) { B.ptr++; continue; } // déjà dépassé (reprise, saut)
-    const it = B.items[B.ptr++], p = pose(C, it.s, it.side * it.off, tmpPB);
+    const it = B.items[B.ptr++], p = pose(C, it.s, it.lat, tmpPB);
     const o = FAB[it.type](it); o.s = it.s; o.type = it.type;
     o.g.userData.voix ??= { femme: /vendeuse|kpayo|momo/.test(it.type), graine: Math.round(it.s * 10) };
     o.g.position.set(p.x, p.y, p.z);

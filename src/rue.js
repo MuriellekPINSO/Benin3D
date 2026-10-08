@@ -519,6 +519,35 @@ export function ajouterEmprises(T, zone) {
     if ((a + 1) * CARRE > zone[0] && a * CARRE < zone[2] && (b + 1) * CARRE > zone[1] && b * CARRE < zone[3]) { liberer(g); R.carres.delete(k); }
   }
 }
+/**
+ * Profil de la rue sous le trajet du jeu en (x, z), direction (dx, dz) : demi-largeur de la chaussée
+ * (hw) et distance du mur des parcelles (front, comme genererCarre pour le trajet). Null hors des rues.
+ */
+export function profilRoute(x, z, dx, dz) {
+  const l = R.grilleR?.get(cle(x, z, CR)); if (!l) return null;
+  let best = null, bd = 9;
+  for (const [li, ax, az, bx, bz, hw] of l) {
+    const L = roadLines[li], ux = bx - ax, uz = bz - az, l2 = ux * ux + uz * uz || 1, ln = Math.sqrt(l2);
+    if (Math.abs((ux * dx + uz * dz) / ln) < .55) continue; // une rue qui croise le trajet : pas celle-là
+    const t = Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / l2)), d = Math.hypot(ax + ux * t - x, az + uz * t - z);
+    if (d < bd) { bd = d; best = { hw, front: Math.max(hw + (TROTTOIR[L.cls] ?? 1), 9.8), cls: L.cls }; }
+  }
+  return best;
+}
+/**
+ * Un piéton peut-il se tenir en (x, z) : ni dans un bâtiment, ni sur une chaussée, ni sur un terre-plein.
+ * Avec une direction de marche (dx, dz), les rues qui la croisent sont permises : on les traverse.
+ */
+export function pietonOk(x, z, dx = 0, dz = 0) {
+  if (!R.grilleR || dansBatiment(x, z) || dansTerrePlein(x, z, .3)) return false;
+  const l = R.grilleR.get(cle(x, z, CR)); if (!l) return true;
+  for (const [, ax, az, bx, bz, hw] of l) {
+    const ux = bx - ax, uz = bz - az, l2 = ux * ux + uz * uz || 1, t = Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / l2));
+    if ((dx || dz) && Math.abs((ux * dx + uz * dz) / Math.sqrt(l2)) < .55) continue;
+    if (Math.hypot(ax + ux * t - x, az + uz * t - z) < hw + .25) return false;
+  }
+  return true;
+}
 /** Vrai si (x, z) tombe sur une chaussée ou un trottoir (routes, rues, pistes et sentiers). */
 export function surChaussee(x, z, marge = .8) {
   const l = R.grilleR?.get(cle(x, z, CR)); if (!l) return false;

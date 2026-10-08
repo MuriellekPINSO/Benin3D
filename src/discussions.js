@@ -9,7 +9,7 @@ import { personnage3d } from './personnages.js';
 import { mergeColored } from './ville.js';
 import { PLACES } from './donnees-lieux.js';
 import { BORD } from './bordure.js';
-import { JEU, LANE, fmtF, pose, toast, prendreRaccourci, avecClients } from './jeu.js';
+import { JEU, LANE, demiChaussee, fmtF, latTrottoir, pose, toast, prendreRaccourci, avecClients } from './jeu.js';
 import { progres } from './missions.js';
 import { parler, voixDe } from './voix.js';
 
@@ -170,7 +170,10 @@ export function nettoyerDiscussions(garderClient = false) {
 }
 function creerGroupe(gp, C) {
   const g = new THREE.Group(), membres = [];
-  const p = pose(C, gp.s, gp.side * (LANE * 1.5 + 4.6), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  // Sur le bas-côté (jamais dans un mur ni sur la chaussée) ; de l'autre côté s'il n'y a pas la place.
+  let lat = latTrottoir(C, gp.s, gp.side, 2); if (lat === null) lat = latTrottoir(C, gp.s, -gp.side, 2);
+  if (lat === null) return null;
+  const p = pose(C, gp.s, lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   g.position.set(p.x, p.y, p.z); g.rotation.y = p.a;
   for (let k = 0; k < gp.nb; k++) {
     const m = personne(gp.graine + k), a = k / gp.nb * Math.PI * 2 + .4, r = gp.nb > 2 ? .62 : .5;
@@ -206,7 +209,8 @@ export function prendreSigne(h) {
 /** Le joueur, arrêté sans client, attend : un passant vient lui demander une course. */
 export function passantDemande(C) {
   const st = JEU.etat; if (!st || DISC.client || DISC.courant) return;
-  const side = st.lat < -.5 ? -1 : 1, p = pose(C, st.s + 2, side * (LANE * 2.4), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  let side = st.lat < -.5 ? -1 : 1, lat = latTrottoir(C, st.s + 2, side, .5); if (lat === null) { side = -side; lat = latTrottoir(C, st.s + 2, side, .5); } if (lat === null) return;
+  const p = pose(C, st.s + 2, lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   const m = personne(Math.floor(Math.random() * 1e5)); m.position.set(p.x, p.y, p.z); m.rotation.y = Math.atan2(side * p.dz, -side * p.dx); JEU.decor.add(m);
   const h = { s: st.s + 2, side, m, etat: 'propose', graine: 0 }; DISC.signes.push(h);
   const prochain = JEU.ligne.arretsJ[st.prochain], ou = prochain ? prochain.nom : 'le terminus';
@@ -285,7 +289,7 @@ function demanderCasque(st, c) {
     ['Je te prête le mien', () => { mettreCasque(c.siege); humeur(.12); dit('Merci zém, tu es gentil !'); }],
     ['Achète-en un au vendeur, là · 2 000 F', () => {
       st.service = Math.max(st.service, 3.4); toast('Le client achète un casque au vendeur du bord de la route…', 2.2);
-      const p = pose(JEU.chemin, st.s + 3, LANE * 2.6, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(JEU.chemin, st.s + 3, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+      const p = pose(JEU.chemin, st.s + 3, latTrottoir(JEU.chemin, st.s + 3, 1, .9) ?? demiChaussee(JEU.chemin, st.s + 3) + .5, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(JEU.chemin, st.s + 3, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
       const vend = personne(4500 + Math.floor(Math.random() * 400), { femme: false }); vend.position.set(p.x, p.y, p.z); vend.lookAt(q.x, p.y, q.z); JEU.decor.add(vend); bulle(vend, 'Casque ! Casque neuf !', { duree: 2.4 });
       remettre(c.siege, vend, 'billet', { hautDe: .55, garder: .3 });
       remettre(vend, c.siege, 'casque', { delai: .8, hautVers: .6, garder: .2, apres: () => { if (DISC.client === c) { mettreCasque(c.siege); humeur(-.04); dit('Bon, au moins il est neuf !'); } setTimeout(() => vend.parent?.remove(vend), 4000); } });
@@ -367,7 +371,7 @@ function causerie(st) {
 export function placerCollecteur(L, C) {
   const n = L.arretsJ.length; if (JEU.veh !== 'zem' || n < 4) return;
   const k = 1 + Math.floor(Math.random() * (n - 3)), a = L.arretsJ[k];
-  const p = pose(C, a.s + 2, LANE * 2.6, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  const p = pose(C, a.s + 2, latTrottoir(C, a.s + 2, 1, 1.2) ?? demiChaussee(C, a.s + 2) + .5, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   const m = personne(4242, { gilet: '#f28c1b', femme: false, role: 'zem' }); m.position.set(p.x, p.y, p.z); m.rotation.y = p.a - Math.PI / 2; JEU.decor.add(m);
   DISC.collecteur = { k, m, fait: false };
 }
@@ -472,7 +476,7 @@ export function majDiscussions(st, C, dt) {
   // Groupes qui apparaissent devant et disparaissent derrière.
   while (DISC.ptr < DISC.groupes.length && DISC.groupes[DISC.ptr].s < st.s + 280) {
     const gp = DISC.groupes[DISC.ptr++]; if (gp.s < st.s - 20) continue;
-    DISC.vivants.push(creerGroupe(gp, C));
+    const v2 = creerGroupe(gp, C); if (v2) DISC.vivants.push(v2);
   }
   const t = st.temps;
   DISC.vivants = DISC.vivants.filter(g => {
@@ -491,7 +495,9 @@ export function majDiscussions(st, C, dt) {
   for (const h of DISC.signes) {
     const ds = h.s - st.s;
     if (!h.m && ds < 260 && ds > -20) {
-      const p = pose(C, h.s, h.side * (LANE * 1.5 + 1.6), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+      let lat = latTrottoir(C, h.s, h.side, .45); if (lat === null) { h.side = -h.side; lat = latTrottoir(C, h.s, h.side, .45); }
+      if (lat === null) { h.etat = 'fini'; continue; } // pas de bas-côté ici : personne ne fait signe
+      const p = pose(C, h.s, lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
       h.m = personne(h.graine); h.m.position.set(p.x, p.y, p.z); JEU.decor.add(h.m);
       h.m.rotation.y = Math.atan2(h.side * p.dz - .6 * p.dx, -h.side * p.dx - .6 * p.dz); // face à la route, tourné vers le zém qui arrive
     }
