@@ -71,6 +71,12 @@ export function accueil() {
 }
 export function initExplorer() {
   initCategories();
+  // Crédits : la liste complète s'ouvre au clic sur « Crédits » et se referme au clic ailleurs ou avec Échap.
+  const btnCredits = $('.credits-btn'), detail = $('#creditsDetail');
+  const credits = ouvert => { detail.hidden = !ouvert; btnCredits.setAttribute('aria-expanded', String(ouvert)); };
+  btnCredits?.addEventListener('click', () => credits(detail.hidden));
+  document.addEventListener('click', e => { if (!detail.hidden && !e.target.closest('.credits')) credits(false); });
+  window.addEventListener('keydown', e => { if (e.key === 'Escape' && !detail.hidden) credits(false); });
   $('#btnRadio').addEventListener('click', async e => { const b = e.currentTarget, on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', String(on)); const ok = await radio(on); if (on && !ok) b.setAttribute('aria-pressed', 'false'); });
   $('#btnPres').addEventListener('click', () => presentation());
   $('#pres').addEventListener('click', () => finPresentation($('#btnRadio').getAttribute('aria-pressed') === 'true'));
