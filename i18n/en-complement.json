@@ -81,7 +81,8 @@
   "Chaussures": "Shoes",
   "Tout": "All",
   "Femme": "Women",
-  "Homme": "Men"
+  "Homme": "Men",
+  "Mode test : choisis « Momo Test » et le numéro 0164000001. Aucun vrai argent n’est débité.": "Test mode: choose “Momo Test” and the number 0164000001. No real money is taken."
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -152,7 +153,8 @@
   "'Pointure'": "'Shoe size'",
   "'Taille'": "'Size'",
   "</p><div class=\"md-tailles\" role=\"group\" aria-labelledby=\"mdTailleTitre\">": "</p><div class=\"md-tailles\" role=\"group\" aria-labelledby=\"mdSizeTitre\">",
-  "\n    <label class=\"md-label\" for=\"mdQuartier\">Quartier de livraison</label>\n    <select id=\"mdQuartier\"><option value=\"\">Choisis ton quartier</option>": "\n    <label class=\"md-label\" for=\"mdQuartier\">Delivery area</label>\n    <select id=\"mdQuartier\"><option value=\"\">Choose your area</option>",
+  "\n    <label class=\"md-label\" for=\"mdNom\">Ton nom (pour le livreur)</label>\n    <input id=\"mdNom\" maxlength=\"60\" autocomplete=\"name\" value=\"": "\n    <label class=\"md-label\" for=\"mdNom\">Your name (for the courier)</label>\n    <input id=\"mdNom\" maxlength=\"60\" autocomplete=\"name\" value=\"",
+  "\" placeholder=\"Prénom et nom\">\n    <label class=\"md-label\" for=\"mdQuartier\">Quartier de livraison</label>\n    <select id=\"mdQuartier\"><option value=\"\">Choisis ton quartier</option>": "\" placeholder=\"First and last name\">\n    <label class=\"md-label\" for=\"mdQuartier\">Delivery area</label>\n    <select id=\"mdQuartier\"><option value=\"\">Choose your area</option>",
   " · livraison ": " · delivery ",
   "</select>\n    <label class=\"md-label\" for=\"mdRepere\">Repère pour le livreur (facultatif)</label>\n    <input id=\"mdRepere\" maxlength=\"80\" value=\"": "</select>\n    <label class=\"md-label\" for=\"mdRepere\">Landmark for the courier (optional)</label>\n    <input id=\"mdRepere\" maxlength=\"80\" value=\"",
   "\" placeholder=\"Ex. : en face de la pharmacie, portail bleu\">\n    <p class=\"md-total\">": "\" placeholder=\"E.g. opposite the pharmacy, blue gate\">\n    <p class=\"md-total\">",
@@ -160,7 +162,8 @@
   "'Vérifier mon paiement'": "'Check my payment'",
   "Payer ": "Pay ",
   " par MoMo": " with MoMo",
-  "</span></button>\n      <button type=\"button\" class=\"btn-ghost\" id=\"mdRetour\">Retour</button>\n    </div>\n    <p class=\"md-note\">Le numéro MoMo qui paie sert aussi au livreur pour t’appeler.</p>\n    <p class=\"ev-etat\" id=\"modeMsg\" role=\"status\" aria-live=\"polite\" hidden></p>": "</span></button>\n      <button type=\"button\" class=\"btn-ghost\" id=\"mdRetour\">Back</button>\n    </div>\n    <p class=\"md-note\">The courier will call the MoMo number that pays.</p>\n    <p class=\"ev-etat\" id=\"modeMsg\" role=\"status\" aria-live=\"polite\" hidden></p>",
+  "</span></button>\n      <button type=\"button\" class=\"btn-ghost\" id=\"mdRetour\">Retour</button>\n    </div>\n    <p class=\"md-note\">Le numéro MoMo qui paie sert aussi au livreur pour t’appeler.</p>\n    ": "</span></button>\n      <button type=\"button\" class=\"btn-ghost\" id=\"mdRetour\">Back</button>\n    </div>\n    <p class=\"md-note\">The courier will call the MoMo number that pays.</p>\n    ",
+  "'<p class=\"ev-test-momo\">Mode test : choisis « Momo Test » et le numéro 0164000001. Aucun vrai argent n’est débité.</p>'": "'<p class=\"ev-test-momo\">Test mode: choose “Momo Test” and the number 0164000001. No real money is taken.</p>'",
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
   "'FedaPay ne répond pas. Vérifie ta connexion, puis réessaie.'": "'FedaPay isn’t responding. Check your connection, then try again.'",
   "'Paiement pas encore confirmé. Valide-le sur ton téléphone, puis touche « Vérifier mon paiement ».'": "'Payment not confirmed yet. Approve it on your phone, then tap “Check my payment”.'",
@@ -168,6 +171,7 @@
   "Choisis d’abord ta ": "First choose your ",
   "'pointure'": "'shoe size'",
   "'taille'": "'size'",
+  "'Indique ton nom pour le livreur.'": "'Enter your name for the courier.'",
   "'Choisis le quartier où te livrer.'": "'Choose the area to deliver to.'",
   "'Version de test : le paiement MoMo n’est pas encore activé, aucune commande n’a été envoyée.'": "'Test version: MoMo payment isn’t switched on yet, no order was sent.'",
   "'Vérification du paiement…'": "'Checking your payment…'",

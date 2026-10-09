@@ -6,7 +6,7 @@ import { $ } from './base.js';
 import { son } from './audio.js';
 import { JEU, fmtF, sauver } from './jeu.js';
 import { chargerTenue, personnage3d } from './personnages.js';
-import { paiementReel, payerMoMo, verifierTransaction } from './paiement.js';
+import { paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
 
 // ---------- Boutique de mode (version de test) ----------
 // « Joue, trouve ton style, porte-le pour de vrai. » On essaie les tenues sur son personnage dans une
@@ -40,7 +40,7 @@ const LIVRAISON = [['Akpakpa', 1000], ['Agla', 1000], ['Cadjèhoun', 1000], ['Fi
 const taillesDe = A => A.type === 'tenue' ? TAILLES : A.type === 'chaussure' ? (A.femme ? POINTURES_F : POINTURES) : null;
 
 const MD = {
-  onglet: 'tenue', filtre: 'tout', choisi: null, etape: 'fiche', taille: null, quartier: '', repere: '', attente: null, msg: ['', ''],
+  onglet: 'tenue', filtre: 'tout', choisi: null, etape: 'fiche', taille: null, nom: '', quartier: '', repere: '', attente: null, msg: ['', ''],
   index: null, objets: null, rendu: null, scene: null, cam: null, vue: null, inst: null, raf: 0, dernier: 0, rotY: 0, glisse: null, jeton: 0,
 };
 const prog = () => { const p = JEU.prog; p.garderobe ||= []; p.commandes ||= []; return p; };
@@ -210,6 +210,8 @@ function rendreCommande() {
   const total = A.prix + frais;
   el.innerHTML = `<small class="md-atelier">Commander · ${A.atelier}</small><h4>${A.nom}</h4>
     ${tailles ? `<p class="md-label" id="mdTailleTitre">${A.type === 'chaussure' ? 'Pointure' : 'Taille'}</p><div class="md-tailles" role="group" aria-labelledby="mdTailleTitre">${tailles.map(t => `<button type="button" data-t="${t}" aria-pressed="${MD.taille === t}">${t}</button>`).join('')}</div>` : ''}
+    <label class="md-label" for="mdNom">Ton nom (pour le livreur)</label>
+    <input id="mdNom" maxlength="60" autocomplete="name" value="${MD.nom.replace(/"/g, '&quot;')}" placeholder="Prénom et nom">
     <label class="md-label" for="mdQuartier">Quartier de livraison</label>
     <select id="mdQuartier"><option value="">Choisis ton quartier</option>${LIVRAISON.map(([q, f]) => `<option value="${q}" ${MD.quartier === q ? 'selected' : ''}>${q} · livraison ${fmtR(f)}</option>`).join('')}</select>
     <label class="md-label" for="mdRepere">Repère pour le livreur (facultatif)</label>
@@ -220,11 +222,13 @@ function rendreCommande() {
       <button type="button" class="btn-ghost" id="mdRetour">Retour</button>
     </div>
     <p class="md-note">Le numéro MoMo qui paie sert aussi au livreur pour t’appeler.</p>
+    ${paiementReel() && paiementTest() ? '<p class="ev-test-momo">Mode test : choisis « Momo Test » et le numéro 0164000001. Aucun vrai argent n’est débité.</p>' : ''}
     <p class="ev-etat" id="modeMsg" role="status" aria-live="polite" hidden></p>`;
   message(...MD.msg);
   el.querySelectorAll('[data-t]').forEach(b => b.addEventListener('click', () => { MD.taille = b.dataset.t; MD.msg = ['', '']; rendreCommande(); }));
   $('#mdQuartier').addEventListener('change', e => { MD.quartier = e.target.value; MD.msg = ['', '']; rendreCommande(); });
   $('#mdRepere').addEventListener('input', e => { MD.repere = e.target.value; });
+  $('#mdNom').addEventListener('input', e => { MD.nom = e.target.value; });
   $('#mdRetour').addEventListener('click', () => { MD.etape = 'fiche'; MD.attente = null; MD.msg = ['', '']; rendreFiche(); });
   $('#mdPayer').addEventListener('click', payerCommande);
 }
@@ -237,14 +241,16 @@ const ETATS = {
 async function payerCommande() {
   const id = MD.choisi, A = ARTICLES[id], tailles = taillesDe(A), btn = $('#mdPayer');
   if (tailles && !MD.taille) return message(`Choisis d’abord ta ${A.type === 'chaussure' ? 'pointure' : 'taille'}.`, 'mal');
+  if (MD.nom.trim().length < 2) { $('#mdNom').focus(); return message('Indique ton nom pour le livreur.', 'mal'); }
   if (!MD.quartier) { $('#mdQuartier').focus(); return message('Choisis le quartier où te livrer.', 'mal'); }
   if (!paiementReel()) return message('Version de test : le paiement MoMo n’est pas encore activé, aucune commande n’a été envoyée.', 'mal');
   const total = A.prix + fraisDe(MD.quartier);
   btn.disabled = true; btn.classList.add('charge'); $('#mdRetour').disabled = true;
   message(MD.attente ? 'Vérification du paiement…' : 'Ouverture de FedaPay…');
-  const infos = { article: id, taille: MD.taille || '', quartier: MD.quartier, repere: MD.repere.slice(0, 80), atelier: A.atelier };
+  const infos = { article: id, taille: MD.taille || '', nom: MD.nom.trim(), quartier: MD.quartier, repere: MD.repere.slice(0, 80), atelier: A.atelier };
+  const [prenom, ...reste] = MD.nom.trim().split(/\s+/), client = { firstname: prenom, lastname: reste.join(' ') || prenom };
   const r = MD.attente ? await verifierTransaction(MD.attente, total)
-    : await payerMoMo({ montant: total, description: `${A.nom}${MD.taille ? ` · ${MD.taille}` : ''} · livraison ${MD.quartier}`, objet: 'boutique', infos });
+    : await payerMoMo({ montant: total, description: `${A.nom}${MD.taille ? ` · ${MD.taille}` : ''} · livraison ${MD.quartier}`, objet: 'boutique', infos, client });
   MD.attente = r.statut === 'pending' ? r.id : null;
   if (r.paye) {
     const p = prog();

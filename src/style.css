@@ -533,6 +533,8 @@ button { font: inherit; color: inherit; }
 .md-tailles button { min-width: 44px; padding: 8px 10px; }
 .md-fiche select, .md-fiche input { font: 500 14px/1.2 var(--font-body); color: var(--ink); background: var(--panel-solid); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; width: 100%; }
 .md-bourse { margin: 10px 0 0; font: 700 13px/1 var(--font-mono); }
+/* Phase de test FedaPay (clé sandbox) : le numéro à utiliser. */
+.ev-test-momo { margin: 0; font-size: 12.5px; color: var(--ink-2); border: 1px dashed var(--line); border-radius: 10px; padding: 7px 10px; }
 @media (max-width: 720px) {
   .md-corps { grid-template-columns: 1fr; }
   .md-cabine { aspect-ratio: auto; height: 300px; }

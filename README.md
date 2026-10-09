@@ -229,8 +229,12 @@ vaut pour la journée sur l'appareil (`localStorage`).
   `pk_sandbox_` / `sk_sandbox_` = mode test, `pk_live_` / `sk_live_` = vrais paiements. Sans clé publique,
   le bouton MoMo n'apparaît pas et l'entrée se paie seulement avec la cagnotte.
 
-Numéros de test FedaPay (mode sandbox) : MTN 66000001 (réussi) / 66000000 (échec), Moov 64000001 (réussi) /
-64000000 (échec).
+Mode test FedaPay (clés `pk_sandbox_` / `sk_sandbox_`) : opérateur « Momo Test » et numéro **0164000001**
+ou **0166000001** (format à 10 chiffres du Bénin ; les anciens numéros à 8 chiffres échouent), tout autre numéro
+simule un échec. Le site l'indique au joueur tant que la clé est une clé de test. Le nom est transmis d'avance à
+FedaPay (« Joueur Cotonou 3D » au concert, le nom saisi dans la boutique) : sa fenêtre ne demande plus que
+l'opérateur et le numéro. Les clés sont dans `.env.local` et dans les variables Vercel du projet `tours`
+(production et préversion).
 
 ## Boutique de mode (version de test)
 

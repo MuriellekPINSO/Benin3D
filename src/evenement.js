@@ -11,7 +11,7 @@ import { musiqueEvenement } from './musique.js';
 import { fouleCorps, fouleTete, fouleTissus } from './lieux.js';
 import { chargerDanses, personnage3d, personnagesPrets } from './personnages.js';
 import { LITE } from './base.js';
-import { paiementReel, payerMoMo, verifierTransaction } from './paiement.js';
+import { paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
 import { avatarPorte } from './mode.js';
 
 // ---------- Événement en 3D : concert sur l'esplanade de l'Amazone (priorité 4) ----------
@@ -141,6 +141,7 @@ function ouvrir() {
   el.querySelector('#evPayer').disabled = !assez;
   el.querySelector('.ev-manque').hidden = assez;
   el.querySelector('#evMomo').hidden = el.querySelector('.ev-momo').hidden = !momo;
+  el.querySelector('.ev-test-momo').hidden = !momo || !paiementTest();
   if (!EV.enAttente) etatMomo('');
   el.hidden = false;
 }

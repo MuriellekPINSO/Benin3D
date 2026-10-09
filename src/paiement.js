@@ -4,6 +4,8 @@
 // Sans clé publique (VITE_FEDAPAY_PUBLIC_KEY dans .env.local et sur Vercel), le jeu n'en parle pas.
 const CLE = import.meta.env.VITE_FEDAPAY_PUBLIC_KEY || '';
 export const paiementReel = () => !!CLE;
+/** Clé de test (sandbox) : aucun vrai argent ; le joueur paie avec « Momo Test » et un numéro de test. */
+export const paiementTest = () => CLE.startsWith('pk_sandbox_');
 
 let script = null;
 const chargerCheckout = () => script ??= new Promise((ok, ko) => {
@@ -19,7 +21,7 @@ const pause = ms => new Promise(r => setTimeout(r, ms));
  * Ouvre la fenêtre FedaPay. Résout { paye, statut, id } : statut 'annule' si le joueur ferme la fenêtre,
  * 'reseau' si FedaPay ou le serveur ne répondent pas, sinon le statut FedaPay (approved, pending, declined…).
  */
-export async function payerMoMo({ montant, description, objet, infos = {} }) {
+export async function payerMoMo({ montant, description, objet, infos = {}, client = null }) {
   let FedaPay;
   try { FedaPay = await chargerCheckout(); } catch { return { paye: false, statut: 'reseau' }; }
   const transaction = await new Promise(fini => FedaPay.init({
@@ -28,6 +30,8 @@ export async function payerMoMo({ montant, description, objet, infos = {} }) {
     locale: document.documentElement.lang === 'en' ? 'en' : 'fr',
     transaction: { amount: montant, description, custom_metadata: { objet, ...infos } },
     currency: { iso: 'XOF' },
+    // Nom transmis d'avance : FedaPay ne demande plus que l'opérateur et le numéro (l'e-mail du reçu est facultatif).
+    customer: client || { firstname: 'Joueur', lastname: 'Cotonou 3D' },
     onComplete: ({ reason, transaction }) => fini(reason === FedaPay.CHECKOUT_COMPLETED ? transaction : null),
   }).open());
   if (!transaction?.id) return { paye: false, statut: 'annule' };
