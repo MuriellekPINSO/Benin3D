@@ -1,0 +1,14 @@
+{
+ "baskets": {
+  "triangles": 16000,
+  "octets": 560848
+ },
+ "sandales": {
+  "triangles": 16000,
+  "octets": 593204
+ },
+ "escarpins": {
+  "triangles": 16000,
+  "octets": 947660
+ }
+}

@@ -68,6 +68,7 @@
     <button class="tog" type="button" id="togMaquette" aria-pressed="false" hidden title="Bâtiments et rues de la maquette au-dessus des images Google"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l5-3v15M10 21V4l9 4v13"/></svg><span class="t-long">Maquette</span></button>
     <button class="tog" type="button" id="togSat" aria-pressed="false" hidden title="Poser la ville sur les vraies images satellite Google (API Map Tiles)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7 9 3 5 7l4 4"/><path d="m17 11 4 4-4 4-4-4"/><path d="m8 12 4 4 6-6-4-4Z"/><path d="m16 8 3-3"/><path d="M9 21a6 6 0 0 0-6-6"/></svg><span class="t-long">Sol satellite</span></button>
     <button class="tog" type="button" id="btnConcert" title="Concert sur l’esplanade de l’Amazone (entrée 50 F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span class="t-long">Concert</span></button>
+    <button class="tog" type="button" id="btnMode" title="Boutique de mode : essaie des tenues, porte-les dans le jeu ou achète-les pour de vrai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6a2 2 0 1 1 3 1.7c-.6.4-1 .9-1 1.6V10"/><path d="M12 10 3.6 16.2A1.6 1.6 0 0 0 4.6 19h14.8a1.6 1.6 0 0 0 1-2.8z"/></svg><span class="t-long">Boutique</span></button>
     <button class="tog" type="button" id="togMeteo" aria-pressed="false" title="Changer le temps : soleil, nuages, pluie, orage (touche M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17a4.5 4.5 0 1 1 1.2-8.8A5.5 5.5 0 0 1 18.5 10 3.5 3.5 0 0 1 18 17Z"/><path d="M9 20l-1 2M13 20l-1 2M17 20l-1 2"/></svg><span class="t-long">Soleil</span></button>
     <button class="tog" type="button" id="togTour" aria-pressed="false" title="Faire tourner la caméra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4.5h-4.5"/></svg><span class="t-long">Survol</span></button>
   </div>
@@ -190,6 +191,26 @@
     </div>
   </div>
 
+  <div class="mode panel" id="mode" hidden role="dialog" aria-labelledby="modeTitre" tabindex="-1">
+    <button type="button" class="bq-x" id="modeFermer" aria-label="Fermer la boutique">×</button>
+    <small class="md-sur">Boutique de mode · version de test</small>
+    <h3 id="modeTitre">Trouve ton style</h3>
+    <p class="md-test">Tenues, pagnes et ateliers de démonstration : les vrais créateurs arrivent bientôt.</p>
+    <div class="md-corps">
+      <div class="md-cabine">
+        <canvas id="modeVue" tabindex="0" aria-label="Cabine d’essayage : fais glisser pour faire tourner"></canvas>
+        <p class="md-charge" id="modeCharge" hidden></p>
+        <small class="md-aide">Fais glisser pour tourner</small>
+      </div>
+      <div class="md-droite">
+        <div class="md-onglets" id="modeOnglets" role="tablist"><button type="button" role="tab" data-onglet="tenue">Tenues</button><button type="button" role="tab" data-onglet="pagne">Pagnes</button><button type="button" role="tab" data-onglet="chaussure">Chaussures</button></div>
+        <div class="md-filtre" id="modeFiltre" role="group" aria-label="Filtrer les tenues"><button type="button" data-f="tout">Tout</button><button type="button" data-f="femme">Femme</button><button type="button" data-f="homme">Homme</button></div>
+        <div class="md-liste" id="modeListe"></div>
+        <div class="md-fiche" id="modeFiche"></div>
+        <p class="md-bourse" id="modeBourse"></p>
+      </div>
+    </div>
+  </div>
   <div class="evenement panel" id="evenement" hidden role="dialog" aria-labelledby="evTitre">
     <small class="ev-sur">Esplanade de l’Amazone · ce soir</small>
     <h2 id="evTitre">Concert de l’Esplanade</h2>

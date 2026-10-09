@@ -27,6 +27,7 @@ import { construireLieuxVideos } from './lieux-videos.js';
 import { animerOuidah, construireOuidah } from './ouidah.js';
 import { animerEtals, construireEtals, initBoutique } from './artisans.js';
 import { initOffre } from './publicites.js';
+import { initMode } from './mode.js';
 import { chargerTokpa, chargerZems } from './vehicules.js';
 import { buildBuildings, buildContainers, buildFoam, buildPalms, buildRoads, buildShips, buildSurfaces, buildingMeshes } from './ville.js';
 
@@ -127,7 +128,7 @@ async function main() {
   // Le vrai minibus des tokpa-tokpa (Tripo) remplace celui dessiné en code dans la circulation de la ville.
   if (TRIPO.info.tokpa) chargerTokpa(TRIPO.info.tokpa.octets).then(t => { if (t.geo && E.tokpas) { E.tokpas.geometry = t.geo; E.tokpas.material = t.mat; E.tokpas.castShadow = !LITE; } });
   buildZems(); zemsDetailles(); buildLamps(); buildLabels();
-  initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initBoutique(); initOffre();
+  initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initBoutique(); initOffre(); initMode();
   if (reduceMotion) finishRise();
   status('Lever de la ville…', 100); await frame();
   // Vue d'ensemble depuis le large, au sud-est

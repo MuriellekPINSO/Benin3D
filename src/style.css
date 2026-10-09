@@ -492,7 +492,48 @@ button { font: inherit; color: inherit; }
 .ev-btn-momo.charge svg { display: none; }
 @keyframes ev-tourne { to { transform: rotate(360deg); } }
 .evenement .ev-momo { color: var(--ink-2); font-size: 13px; }
-.evenement .ev-etat { font-weight: 600; font-size: 13px; padding: 8px 10px; border-radius: 10px; background: var(--chip); border-left: 3px solid var(--line); }
-.evenement .ev-etat.bien { background: rgba(46, 160, 67, .14); border-left-color: #2ea043; }
-.evenement .ev-etat.mal { background: rgba(214, 69, 54, .13); border-left-color: #d64536; }
+.ev-etat { font-weight: 600; font-size: 13px; padding: 8px 10px; border-radius: 10px; background: var(--chip); border-left: 3px solid var(--line); }
+.ev-etat.bien { background: rgba(46, 160, 67, .14); border-left-color: #2ea043; }
+.ev-etat.mal { background: rgba(214, 69, 54, .13); border-left-color: #d64536; }
 .ev-quitter { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 20; border: 0; border-radius: 999px; padding: 12px 22px; font-weight: 800; background: var(--accent); color: var(--accent-ink); cursor: pointer; box-shadow: var(--shadow); }
+
+/* ---------- Boutique de mode (version de test) ---------- */
+.mode { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 31; width: min(940px, calc(100% - 2 * var(--gutter))); max-height: calc(100% - 2 * var(--gutter)); overflow-y: auto; padding: 18px 20px 16px; border-radius: var(--r-lg); }
+.mode > .md-sur { font: 700 11px/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.mode h3 { margin: 4px 0 4px; font: 800 30px/1 var(--font-display); }
+.md-test { margin: 0 0 12px; font-size: 12.5px; color: var(--ink-2); }
+.md-corps { display: grid; grid-template-columns: minmax(240px, 340px) 1fr; gap: 18px; }
+.md-cabine { position: relative; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 50% 30%, #fff7e8, #e9d6b4 70%, #d9c098); aspect-ratio: 3 / 4; align-self: start; }
+.md-cabine canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+.md-cabine canvas:active { cursor: grabbing; }
+.md-charge { position: absolute; inset: auto 12px 40px; margin: 0; text-align: center; font: 600 13px/1.3 var(--font-body); color: #3a2c1c; }
+.md-aide { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font: 600 11px/1 var(--font-body); color: rgba(58, 44, 28, .7); pointer-events: none; }
+.md-onglets { display: flex; gap: 6px; margin-bottom: 8px; }
+.md-onglets button, .md-filtre button, .md-tailles button { border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 999px; padding: 7px 14px; font: 700 13px/1 var(--font-body); cursor: pointer; }
+.md-onglets button[aria-selected="true"], .md-filtre button[aria-pressed="true"], .md-tailles button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.md-filtre { display: flex; gap: 6px; margin-bottom: 10px; }
+.md-filtre button { padding: 5px 11px; font-size: 12px; }
+.md-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.md-carte { position: relative; text-align: left; border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 14px; padding: 6px 6px 8px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; transition: transform .25s cubic-bezier(.34, 1.56, .64, 1), border-color .2s; }
+.md-carte:hover { transform: translateY(-2px); }
+.md-carte.actif { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent); }
+.md-carte img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: #f6ecd9; }
+.md-carte b { font: 700 12.5px/1.2 var(--font-body); }
+.md-carte small { color: var(--ink-2); font: 500 11.5px/1.2 var(--font-mono); }
+.md-badge { position: absolute; top: 10px; left: 10px; font: 800 10px/1 var(--font-body); font-style: normal; letter-spacing: .04em; text-transform: uppercase; background: var(--accent); color: var(--accent-ink); padding: 4px 7px; border-radius: 999px; }
+.md-fiche { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.md-fiche h4 { margin: 0; font: 800 22px/1.1 var(--font-display); }
+.md-atelier { color: var(--ink-2); font: 700 11px/1 var(--font-body); letter-spacing: .06em; text-transform: uppercase; }
+.md-desc, .md-note { margin: 0; font-size: 13px; color: var(--ink-2); }
+.md-prix, .md-total { margin: 0; font-size: 14px; }
+.md-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.md-actions .jouer:disabled { opacity: .5; cursor: default; box-shadow: none; }
+.md-label { margin: 4px 0 0; font: 700 12px/1 var(--font-body); color: var(--ink-2); }
+.md-tailles { display: flex; flex-wrap: wrap; gap: 6px; }
+.md-tailles button { min-width: 44px; padding: 8px 10px; }
+.md-fiche select, .md-fiche input { font: 500 14px/1.2 var(--font-body); color: var(--ink); background: var(--panel-solid); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; width: 100%; }
+.md-bourse { margin: 10px 0 0; font: 700 13px/1 var(--font-mono); }
+@media (max-width: 720px) {
+  .md-corps { grid-template-columns: 1fr; }
+  .md-cabine { aspect-ratio: auto; height: 300px; }
+}

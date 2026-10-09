@@ -57,6 +57,19 @@ export function accessoire(prefixe, k = 0) {
   return P.accessoires[ids[k % ids.length]].clone();
 }
 export const personnagesPrets = () => P.pret;
+
+// Tenues de la boutique de mode (public/modeles/mode/, voir mode.js) : chargées à la demande, et jamais
+// tirées au hasard pour les passants (ce sont des rôles, comme le policier).
+const TENUES = {};
+/** Charge la tenue `id` (modèle animé) ; renvoie true si elle est prête. */
+export function chargerTenue(id, info = {}) {
+  if (P.modeles[id]) return Promise.resolve(true);
+  TENUES[id] ??= new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
+    .loadAsync(`${import.meta.env.BASE_URL}modeles/mode/${id}.glb?v=${info.octets || 0}`)
+    .then(g => { P.modeles[id] = Object.assign(preparer(id, g, info), { mode: true }); return true; })
+    .catch(e => { delete TENUES[id]; console.warn('tenue', id, e.message); return false; });
+  return TENUES[id];
+}
 /** Les danses du concert (danse1, danse2, acclame), dans des fichiers à part : chargées à la première entrée au concert. */
 export function chargerDanses() {
   if (P.danses) return P.danses;
@@ -69,10 +82,25 @@ export function chargerDanses() {
   return P.danses;
 }
 
+// Les clips de Tripo déplacent parfois tout le corps malgré « sur place » : le salut fait deux pas en
+// avant (≈ 2 m), la marche avance d'un mètre et demi puis revient d'un coup en boucle. Le jeu déplace
+// lui-même ses personnages : on garde le bassin à sa place, seule sa hauteur bouge encore. Les danses,
+// elles, gardent leur balancement.
+function surPlace(clips) {
+  for (const [nom, clip] of Object.entries(clips)) {
+    if (/^danse|acclame/.test(nom)) continue;
+    for (const t of clip.tracks) {
+      if (!t.name.endsWith('Hip.position')) continue;
+      const v = t.values, haut = [0, 1, 2].reduce((a, k) => Math.abs(v[k]) > Math.abs(v[a]) ? k : a, 0); // l'axe vertical : la hauteur du bassin
+      for (let i = 3; i < v.length; i += 3) for (let k = 0; k < 3; k++) if (k !== haut) v[i + k] = v[k];
+    }
+  }
+}
 // Mesures faites une fois par modèle : hauteur en position d'attente, sens du regard (des pieds
 // vers les orteils), hauteur du bassin assis.
 function preparer(id, g, info) {
   const scene = g.scene, clips = Object.fromEntries(g.animations.map(c => [c.name, c]));
+  surPlace(clips);
   scene.traverse(o => { if (o.isMesh) { o.castShadow = !LITE; o.receiveShadow = false; o.frustumCulled = false; } });
   const os = nom => scene.getObjectByName(nom);
   const mixer = new THREE.AnimationMixer(scene), poser = (clip, t) => { mixer.stopAllAction(); const a = mixer.clipAction(clip); a.play(); a.time = t; mixer.update(0); scene.updateMatrixWorld(true); };
@@ -102,7 +130,7 @@ function preparer(id, g, info) {
 function choisirId(i, femme, role, enfant = false) {
   if (role) { if (P.modeles[role]) return role; if (ROLES.has(role)) return null; } // pas de faux policier : on garde celui dessiné en code
   // Les écoliers ne sortent que si on les demande (passants, concert) : jamais comme clients du zém.
-  const ids = Object.keys(P.modeles).filter(k => !ROLES.has(k) && P.modeles[k].enfant === enfant && (femme === null || femme === undefined || P.modeles[k].femme === femme));
+  const ids = Object.keys(P.modeles).filter(k => !ROLES.has(k) && !P.modeles[k].mode && P.modeles[k].enfant === enfant && (femme === null || femme === undefined || P.modeles[k].femme === femme));
   return ids.length ? ids[Math.floor(hash(i, 91) * ids.length)] : null;
 }
 
@@ -112,8 +140,8 @@ function choisirId(i, femme, role, enfant = false) {
  * En plus : userData.main (objets remis de main en main), userData.coiffer(objet) (casque sur la tête),
  * userData.jouer(nom) (idle, marche, salut, parle, telephone, assis, rire).
  */
-export function personnage3d(i, { assise = false, femme = null, role = null, enfant = false } = {}) {
-  if (!P.pret) return null;
+export function personnage3d(i, { assise = false, femme = null, role = null, enfant = false, manuel = false } = {}) {
+  if (!P.pret && !(role && P.modeles[role])) return null;
   const id = choisirId(i, femme, role, enfant); if (!id) return null;
   const M = P.modeles[id], corps = clonerSquelette(M.scene);
   const gamme = TAILLE[id] || TAILLE[M.femme ? 'femme' : 'homme'], taille = gamme[0] + hash(i, 92) * (gamme[1] - gamme[0]);
@@ -144,9 +172,10 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
   const repos = !assise && hash(i, 94) < .22 && actions.telephone ? 'telephone' : 'idle';
   jouer(assise ? 'assis' : repos, 0);
   mixer.update(assise ? 0 : E.ph); suivre(E);
-  P.actifs.add(E);
+  if (!manuel) P.actifs.add(E); // manuel : animé par son propriétaire (userData.maj), ex. la cabine d'essayage
   g.userData = {
     tete: E.tete, main: E.main, femme: M.femme, graine: i, modele: id, haut: 1.15, jouer,
+    maj: dt => { mixer.update(dt); suivre(E); },
     anim: (t, parle, signe) => {
       if (assise) return;
       if (signe) jouer('salut');

@@ -16,7 +16,8 @@ import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer
 import sharp from 'sharp';
 
 const BASE = 'https://openapi.tripo3d.ai/v3', MODELE = 'v3.1-20260211';
-const SOURCES = 'sources/tripo', SORTIE = 'public/modeles/batiments';
+// TRIPO_SORTIE : autre dossier de sortie (ex. public/modeles/mode/objets pour les chaussures de la boutique).
+const SOURCES = 'sources/tripo', SORTIE = process.env.TRIPO_SORTIE || 'public/modeles/batiments';
 const cle = (() => {
   const l = fs.existsSync('.env.local') ? fs.readFileSync('.env.local', 'utf8').split('\n').find(x => x.startsWith('TRIPO_API_KEY=')) : null;
   return l ? l.slice('TRIPO_API_KEY='.length).trim() : process.env.TRIPO_API_KEY;

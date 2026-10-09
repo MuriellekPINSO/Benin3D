@@ -232,6 +232,29 @@ vaut pour la journée sur l'appareil (`localStorage`).
 Numéros de test FedaPay (mode sandbox) : MTN 66000001 (réussi) / 66000000 (échec), Moov 64000001 (réussi) /
 64000000 (échec).
 
+## Boutique de mode (version de test)
+
+« Joue, trouve ton style, porte-le pour de vrai. » Bouton **Boutique** : une cabine d'essayage en 3D
+(on fait tourner son personnage), six tenues, quatre pagnes wax et trois paires de chaussures. Une tenue
+se porte dans le jeu avec la cagnotte : on se voit alors danser au premier rang du concert, sous
+« Toi ». Chaque article peut aussi s'acheter pour de vrai : taille ou pointure, quartier de livraison
+(frais d'exemple), repère pour le livreur, puis paiement MoMo (FedaPay, voir plus haut ; la commande
+part dans les métadonnées de la transaction : article, taille, quartier, repère).
+
+Pour ce test, tenues, prix et ateliers sont des exemples (« Atelier démo… ») : aucune vraie marque
+(Vlisco, Nike…) ni vrai créateur sans leur accord.
+
+- `src/mode.js` : catalogue (`ARTICLES`), cabine (petite scène three.js à part), commande et paiement ;
+- tenues : personnages Tripo (`scripts/personnages.mjs`, entrées `mode: true` : même femme ou même homme,
+  seule la tenue change ; animations idle, marche, salut, danses) dans `public/modeles/mode/`, chargés
+  seulement quand on ouvre la boutique ; jamais tirés au hasard comme passants ;
+- chaussures : objets Tripo (`TRIPO_SORTIE=public/modeles/mode/objets npm run tripo -- texte <id> "…"`) ;
+- pagnes : dessinés dans le code (motifs wax sur un tissu plié) ;
+- vignettes du catalogue : `node scripts/vignettes-mode.mjs` (d'après les aperçus Tripo de `sources/`).
+
+Les animations de Tripo déplaçaient tout le corps (le salut fait deux pas en avant) : `surPlace()` dans
+`src/personnages.js` garde le bassin à sa place, sauf pour les danses.
+
 ## Bâtiments reconnaissables : modèles 3D générés d'après photos
 
 `public/modeles/batiments/<id>.glb` (liste dans `index.json`) : Palais des Congrès, Cathédrale, Porte du Non-Retour,

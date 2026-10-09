@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { $, toXZ } from './base.js';
 import { son } from './audio.js';
-import { scene } from './scene.js';
+import { controls, scene } from './scene.js';
 import { E } from './etat.js';
 import { startFlight } from './interface.js';
 import { setMood } from './ambiances.js';
@@ -12,6 +12,7 @@ import { fouleCorps, fouleTete, fouleTissus } from './lieux.js';
 import { chargerDanses, personnage3d, personnagesPrets } from './personnages.js';
 import { LITE } from './base.js';
 import { paiementReel, payerMoMo, verifierTransaction } from './paiement.js';
+import { avatarPorte } from './mode.js';
 
 // ---------- Événement en 3D : concert sur l'esplanade de l'Amazone (priorité 4) ----------
 // Une scène face à la statue, un grand écran, des lumières qui balaient, une foule qui danse et une
@@ -21,7 +22,7 @@ import { paiementReel, payerMoMo, verifierTransaction } from './paiement.js';
 // demande l'accord de ses organisateurs.
 
 export const PRIX_ENTREE = 50;
-const EV = { enAttente: null, groupe: null, actif: false, ecran: null, ctx: null, foule: null, tetes: null, places: [], spots: [], t: 0, raf: 0, scene: null, sx: 0, sz: 0, danseurs: null };
+const EV = { moi: null, enAttente: null, groupe: null, actif: false, ecran: null, ctx: null, foule: null, tetes: null, places: [], spots: [], t: 0, raf: 0, scene: null, sx: 0, sz: 0, danseurs: null };
 
 function construire() {
   const p = PLACES.find(q => q.id === 'amazone'); const [ax, az] = toXZ(p.lat, p.lon);
@@ -87,16 +88,45 @@ function boucle(now) {
   EV.raf = requestAnimationFrame(boucle);
 }
 function entrer() {
+  if (EV.actif) return; // déjà au concert
   if (!EV.groupe) construire();
   if (personnagesPrets()) chargerDanses().then(() => { if (EV.actif) danseurs(); }); // les danses arrivent en quelques secondes
   EV.groupe.visible = true; EV.actif = true; setMood('nuit'); musiqueEvenement(true);
+  EV.minDist = controls.minDistance; controls.minDistance = 5; // au concert, on peut s'approcher de la foule
   startFlight(EV.scene.clone(), 32, 1.2, Math.PI - .65, 2.6); // derrière la foule, en biais (la statue est dans l'axe de la scène)
   $('#evQuitter').hidden = false; $('#evenement').hidden = true;
   EV.raf = requestAnimationFrame(boucle);
+  // Le joueur danse au premier rang dans la tenue qu'il porte (boutique de mode), avec « Toi » au-dessus.
+  avatarPorte().then(m => {
+    if (!m || !EV.actif || EV.moi) return;
+    m.position.set(EV.sx, 0, EV.sz - 7.1); m.userData.jouer('danse1', 0); // au milieu, entre le 1er et le 2e rang
+    m.userData.tete.add(etiquetteToi()); m.add(halo()); EV.groupe.add(m); EV.moi = m;
+    // La caméra se pose au bord de la scène, face au joueur : on voit sa tenue, la foule derrière lui.
+    startFlight(m.position.clone().setY(1), 7.5, 1.0, .91, 2.4);
+  });
+}
+// Un rond de lumière au sol sous le joueur (sans vraie lampe : en ajouter une recompilerait les matériaux
+// de toute la scène, d'où une saccade, surtout sur les ordinateurs lents).
+function halo() {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d'), g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,226,150,.85)'); g.addColorStop(.55, 'rgba(255,200,90,.35)'); g.addColorStop(1, 'rgba(255,190,80,0)'); c.fillStyle = g; c.fillRect(0, 0, 128, 128);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  m.position.y = .03; m.renderOrder = 3; return m;
+}
+function etiquetteToi() {
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 64; const c = cv.getContext('2d');
+  c.fillStyle = '#f2b705'; c.beginPath(); c.roundRect(8, 8, 112, 40, 20); c.fill();
+  c.beginPath(); c.moveTo(56, 48); c.lineTo(64, 60); c.lineTo(72, 48); c.fill();
+  c.fillStyle = '#17130c'; c.font = '800 26px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('Toi', 64, 29);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false })); s.scale.set(.62, .31, 1); s.position.y = .5; s.renderOrder = 20;
+  return s;
 }
 export function quitterEvenement() {
   if (!EV.actif) return; EV.actif = false; cancelAnimationFrame(EV.raf);
   musiqueEvenement(false); EV.groupe.visible = false; $('#evQuitter').hidden = true;
+  if (EV.moi) { EV.moi.userData.liberer(); EV.groupe.remove(EV.moi); EV.moi = null; }
+  if (EV.minDist) controls.minDistance = EV.minDist;
 }
 // Billet payé en MoMo : gardé pour la journée sur cet appareil (on ne paie pas deux fois le même soir).
 const CLE_BILLET = 'cotonou3d-billet-concert', aujourdhui = () => new Date().toISOString().slice(0, 10);
@@ -131,7 +161,7 @@ async function payerEnMoMo() {
   const dispo = autres.map(b => b.disabled);
   btn.disabled = true; autres.forEach(b => { b.disabled = true; }); btn.classList.add('charge');
   etatMomo(EV.enAttente ? 'Vérification du paiement…' : 'Ouverture de FedaPay…');
-  const r = EV.enAttente ? await verifierTransaction(EV.enAttente) : await payerMoMo({ montant: PRIX_ENTREE, description: 'Entrée au concert de l’Esplanade', objet: 'concert' });
+  const r = EV.enAttente ? await verifierTransaction(EV.enAttente, PRIX_ENTREE) : await payerMoMo({ montant: PRIX_ENTREE, description: 'Entrée au concert de l’Esplanade', objet: 'concert' });
   btn.disabled = false; autres.forEach((b, i) => { b.disabled = dispo[i]; }); btn.classList.remove('charge');
   EV.enAttente = r.statut === 'pending' ? r.id : null;
   btn.querySelector('span').textContent = EV.enAttente ? 'Vérifier mon paiement' : `Payer ${PRIX_ENTREE} F par MoMo`;

@@ -1,0 +1,92 @@
+{
+ "bomba": {
+  "femme": false,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "danse1",
+   "danse2",
+   "acclame"
+  ],
+  "triangles": 13300,
+  "octets": 832576,
+  "danses": 0
+ },
+ "chemise-wax": {
+  "femme": false,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "danse1",
+   "danse2",
+   "acclame"
+  ],
+  "triangles": 13550,
+  "octets": 948924,
+  "danses": 0
+ },
+ "kaba": {
+  "femme": true,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "danse1",
+   "danse2",
+   "acclame"
+  ],
+  "triangles": 13572,
+  "octets": 1086616,
+  "danses": 0
+ },
+ "sport-h": {
+  "femme": false,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "danse1",
+   "danse2",
+   "acclame"
+  ],
+  "triangles": 13334,
+  "octets": 844980,
+  "danses": 0
+ },
+ "urbaine-f": {
+  "femme": true,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "danse1",
+   "danse2",
+   "acclame"
+  ],
+  "triangles": 13346,
+  "octets": 973968,
+  "danses": 0
+ },
+ "robe-wax": {
+  "femme": true,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "danse1",
+   "danse2",
+   "acclame"
+  ],
+  "triangles": 13898,
+  "octets": 1062952,
+  "danses": 0
+ }
+}
