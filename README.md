@@ -205,13 +205,32 @@ textures qui en relèvent.
 | Raccourci payant (client pressé) | 3 | Fait |
 | Voiture déblocable (taxi, prix d'exemple 5 F, à confirmer) | 3 | Fait |
 | Mode deux joueurs | 4 | Fait, à deux, sans serveur (WebRTC) ; au-delà de deux joueurs, il faudra un serveur temps réel |
-| Événement 3D | 4 | Fait sous un nom générique, entrée en monnaie du jeu |
+| Événement 3D | 4 | Fait sous un nom générique ; entrée de 50 F avec la cagnotte du jeu ou par MoMo (FedaPay, prêt, en attente des clés) |
 
 Réserves du cahier des charges, respectées :
-- les montants (amendes, casque, raccourci, voiture, entrée) sont en monnaie du jeu. Un vrai paiement MoMo demanderait l'API MTN MoMo, un compte marchand et une validation ;
+- les montants (amendes, casque, raccourci, voiture) sont en monnaie du jeu. Seule l'entrée du concert peut se payer pour de vrai, par MTN MoMo ou Moov Money via FedaPay (voir plus bas) ;
 - l'événement n'utilise pas le nom ni l'univers de WeLoveEya. Il faut l'accord des organisateurs pour s'en servir ;
 - la musique est générée par le jeu et ne reprend aucun morceau protégé ;
 - le mode deux joueurs passe par le service public de mise en relation PeerJS. Derrière certains réseaux d'entreprise, il faudrait aussi un serveur relais (TURN).
+
+## Paiement MoMo de l'entrée du concert (FedaPay)
+
+L'entrée du concert (50 F) peut se payer pour de vrai par MTN MoMo ou Moov Money, avec FedaPay Checkout :
+une petite fenêtre FedaPay où le joueur tape son numéro, puis valide sur son téléphone. Le billet payé
+vaut pour la journée sur l'appareil (`localStorage`).
+
+- `src/paiement.js` : charge `checkout.js` de FedaPay à la demande, ouvre la fenêtre, puis demande au
+  serveur si la transaction est payée (en redemandant tant qu'elle est `pending`, 24 s au plus) ;
+- `api/fedapay.js` : fonction Vercel `GET /api/fedapay?id=<transaction>`, qui relit la transaction chez
+  FedaPay avec la clé secrète et répond `{ paye, statut }` (payé = `approved` et au moins 50 F).
+  En local, `npm run dev` et `npm run preview` la servent aussi (`vite.config.js`) ;
+- clés (voir `.env.example`) : `VITE_FEDAPAY_PUBLIC_KEY` (publique, dans la page) et `FEDAPAY_SECRET_KEY`
+  (secrète, seulement sur le serveur), dans `.env.local` et dans les variables d'environnement Vercel.
+  `pk_sandbox_` / `sk_sandbox_` = mode test, `pk_live_` / `sk_live_` = vrais paiements. Sans clé publique,
+  le bouton MoMo n'apparaît pas et l'entrée se paie seulement avec la cagnotte.
+
+Numéros de test FedaPay (mode sandbox) : MTN 66000001 (réussi) / 66000000 (échec), Moov 64000001 (réussi) /
+64000000 (échec).
 
 ## Bâtiments reconnaissables : modèles 3D générés d'après photos
 

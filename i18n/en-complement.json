@@ -63,6 +63,23 @@
  "index.html": {
   "Crédits": "Credits",
   "Inviter un ami": "Invite a friend",
-  "Jouez à deux sur la même ligne : crée une partie et envoie le lien à ton ami.": "Play together on the same line: create a game and send the link to your friend."
+  "Jouez à deux sur la même ligne : crée une partie et envoie le lien à ton ami.": "Play together on the same line: create a game and send the link to your friend.",
+  "Une scène face à la statue, un grand écran, des lumières et toute la ville qui danse. L’entrée coûte 50 F, à payer avec ta cagnotte du jeu.": "A stage facing the statue, a giant screen, lights and the whole city dancing. Entry costs 50 F, paid from your in-game savings.",
+  "Tu peux aussi la payer pour de vrai avec MTN MoMo ou Moov Money : tu tapes ton numéro, puis tu valides sur ton téléphone. Le billet vaut pour toute la journée.": "You can also pay for real with MTN MoMo or Moov Money: type your number, then approve on your phone. The ticket is valid all day.",
+  "Payer 50 F par MoMo": "Pay 50 F with MoMo"
+ },
+ "src/evenement.js": {
+  "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
+  "'FedaPay ne répond pas. Vérifie ta connexion, puis réessaie.'": "'FedaPay isn’t responding. Check your connection, then try again.'",
+  "'Paiement pas encore confirmé. Valide-le sur ton téléphone, puis touche « Vérifier mon paiement ».'": "'Payment not confirmed yet. Approve it on your phone, then tap “Check my payment”.'",
+  "'Le paiement MoMo n’est pas encore activé sur ce site.'": "'MoMo payment isn’t switched on for this site yet.'",
+  "'Vérification du paiement…'": "'Checking your payment…'",
+  "'Ouverture de FedaPay…'": "'Opening FedaPay…'",
+  "'Entrée au concert de l’Esplanade'": "'Entry to the Esplanade Concert'",
+  "'Vérifier mon paiement'": "'Check my payment'",
+  "'Paiement reçu, bon concert !'": "'Payment received, enjoy the concert!'",
+  "'Le paiement n’a pas abouti : rien n’a été prélevé. Tu peux réessayer.'": "'The payment didn’t go through: nothing was charged. You can try again.'",
+  "Payer ": "Pay ",
+  " F par MoMo": " F with MoMo"
  }
 }

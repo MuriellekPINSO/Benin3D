@@ -193,10 +193,12 @@
   <div class="evenement panel" id="evenement" hidden role="dialog" aria-labelledby="evTitre">
     <small class="ev-sur">Esplanade de l’Amazone · ce soir</small>
     <h2 id="evTitre">Concert de l’Esplanade</h2>
-    <p>Une scène face à la statue, un grand écran, des lumières et toute la ville qui danse. L’entrée se paie en MoMo avec ta cagnotte du jeu.</p>
+    <p>Une scène face à la statue, un grand écran, des lumières et toute la ville qui danse. L’entrée coûte 50 F, à payer avec ta cagnotte du jeu.</p>
+    <p class="ev-momo" hidden>Tu peux aussi la payer pour de vrai avec MTN MoMo ou Moov Money : tu tapes ton numéro, puis tu valides sur ton téléphone. Le billet vaut pour toute la journée.</p>
     <p class="ev-solde"></p>
     <p class="ev-manque" hidden>Il te faut 50 F dans ta cagnotte : gagne-les en faisant des courses dans Zém Run.</p>
-    <div class="ev-actions"><button type="button" class="jouer" id="evPayer">Payer 50 F et entrer</button><button type="button" class="btn-ghost" id="evAnnuler">Pas maintenant</button></div>
+    <p class="ev-etat" id="evEtat" role="status" aria-live="polite" hidden></p>
+    <div class="ev-actions"><button type="button" class="jouer" id="evPayer">Payer 50 F et entrer</button><button type="button" class="jouer ev-btn-momo" id="evMomo" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg><span>Payer 50 F par MoMo</span></button><button type="button" class="btn-ghost" id="evAnnuler">Pas maintenant</button></div>
   </div>
   <button type="button" class="ev-quitter" id="evQuitter" hidden>Quitter le concert</button>
 

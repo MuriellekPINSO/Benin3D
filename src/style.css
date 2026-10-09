@@ -485,4 +485,14 @@ button { font: inherit; color: inherit; }
 .evenement .ev-solde { color: var(--ink); font-weight: 700; }
 .evenement .ev-manque { color: #b3261e; font-weight: 600; }
 .ev-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+/* Paiement MoMo (FedaPay) : bouton jaune, état du paiement, petit cercle qui tourne pendant l'attente. */
+.ev-actions .jouer:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.ev-btn-momo { background: var(--ink); color: var(--bg); box-shadow: none; }
+.ev-btn-momo.charge::before { content: ''; width: 13px; height: 13px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: ev-tourne .8s linear infinite; }
+.ev-btn-momo.charge svg { display: none; }
+@keyframes ev-tourne { to { transform: rotate(360deg); } }
+.evenement .ev-momo { color: var(--ink-2); font-size: 13px; }
+.evenement .ev-etat { font-weight: 600; font-size: 13px; padding: 8px 10px; border-radius: 10px; background: var(--chip); border-left: 3px solid var(--line); }
+.evenement .ev-etat.bien { background: rgba(46, 160, 67, .14); border-left-color: #2ea043; }
+.evenement .ev-etat.mal { background: rgba(214, 69, 54, .13); border-left-color: #d64536; }
 .ev-quitter { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 20; border: 0; border-radius: 999px; padding: 12px 22px; font-weight: 800; background: var(--accent); color: var(--accent-ink); cursor: pointer; box-shadow: var(--shadow); }

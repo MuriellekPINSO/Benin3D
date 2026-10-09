@@ -11,16 +11,17 @@ import { musiqueEvenement } from './musique.js';
 import { fouleCorps, fouleTete, fouleTissus } from './lieux.js';
 import { chargerDanses, personnage3d, personnagesPrets } from './personnages.js';
 import { LITE } from './base.js';
+import { paiementReel, payerMoMo, verifierTransaction } from './paiement.js';
 
 // ---------- Événement en 3D : concert sur l'esplanade de l'Amazone (priorité 4) ----------
 // Une scène face à la statue, un grand écran, des lumières qui balaient, une foule qui danse et une
-// musique de concert composée par le jeu. Entrée : 50 F, payés avec la cagnotte du jeu (monnaie
-// virtuelle, comme le recommande le cahier des charges ; un vrai paiement MoMo demanderait l'API MTN
-// et un compte marchand). Le nom reste générique : utiliser celui d'un vrai festival demande l'accord
-// de ses organisateurs.
+// musique de concert composée par le jeu. Entrée : 50 F, payés avec la cagnotte du jeu ou, comme le
+// demande le cahier des charges, pour de vrai par MTN MoMo ou Moov Money (FedaPay, voir paiement.js ;
+// le billet payé vaut pour la journée). Le nom reste générique : utiliser celui d'un vrai festival
+// demande l'accord de ses organisateurs.
 
 export const PRIX_ENTREE = 50;
-const EV = { groupe: null, actif: false, ecran: null, ctx: null, foule: null, tetes: null, places: [], spots: [], t: 0, raf: 0, scene: null, sx: 0, sz: 0, danseurs: null };
+const EV = { enAttente: null, groupe: null, actif: false, ecran: null, ctx: null, foule: null, tetes: null, places: [], spots: [], t: 0, raf: 0, scene: null, sx: 0, sz: 0, danseurs: null };
 
 function construire() {
   const p = PLACES.find(q => q.id === 'amazone'); const [ax, az] = toXZ(p.lat, p.lon);
@@ -97,13 +98,50 @@ export function quitterEvenement() {
   if (!EV.actif) return; EV.actif = false; cancelAnimationFrame(EV.raf);
   musiqueEvenement(false); EV.groupe.visible = false; $('#evQuitter').hidden = true;
 }
-/** Fenêtre d'entrée : 50 F pris sur la cagnotte du jeu. */
+// Billet payé en MoMo : gardé pour la journée sur cet appareil (on ne paie pas deux fois le même soir).
+const CLE_BILLET = 'cotonou3d-billet-concert', aujourdhui = () => new Date().toISOString().slice(0, 10);
+const billetDuJour = () => { try { return localStorage.getItem(CLE_BILLET) === aujourdhui(); } catch { return false; } };
+const garderBillet = () => { try { localStorage.setItem(CLE_BILLET, aujourdhui()); } catch { /* navigation privée */ } };
+
+/** Fenêtre d'entrée : 50 F pris sur la cagnotte du jeu, ou payés par MoMo. */
 function ouvrir() {
-  const el = $('#evenement'), P = JEU.prog, assez = (P?.cagnotte || 0) >= PRIX_ENTREE;
+  if (billetDuJour()) return entrer();
+  const el = $('#evenement'), P = JEU.prog, assez = (P?.cagnotte || 0) >= PRIX_ENTREE, momo = paiementReel();
   el.querySelector('.ev-solde').textContent = `Ta cagnotte : ${fmtF(P?.cagnotte || 0)}`;
   el.querySelector('#evPayer').disabled = !assez;
   el.querySelector('.ev-manque').hidden = assez;
+  el.querySelector('#evMomo').hidden = el.querySelector('.ev-momo').hidden = !momo;
+  if (!EV.enAttente) etatMomo('');
   el.hidden = false;
+}
+
+// ---------- Paiement MoMo (FedaPay) ----------
+function etatMomo(txt, cls = '') {
+  const p = $('#evEtat'); p.textContent = txt; p.className = 'ev-etat ' + cls; p.hidden = !txt;
+}
+const MESSAGES = {
+  annule: ['Paiement annulé : rien n’a été prélevé.', ''],
+  reseau: ['FedaPay ne répond pas. Vérifie ta connexion, puis réessaie.', 'mal'],
+  pending: ['Paiement pas encore confirmé. Valide-le sur ton téléphone, puis touche « Vérifier mon paiement ».', ''],
+  'non-configure': ['Le paiement MoMo n’est pas encore activé sur ce site.', 'mal'],
+};
+async function payerEnMoMo() {
+  const btn = $('#evMomo'), autres = [$('#evPayer'), $('#evAnnuler')];
+  if (btn.disabled) return;
+  const dispo = autres.map(b => b.disabled);
+  btn.disabled = true; autres.forEach(b => { b.disabled = true; }); btn.classList.add('charge');
+  etatMomo(EV.enAttente ? 'Vérification du paiement…' : 'Ouverture de FedaPay…');
+  const r = EV.enAttente ? await verifierTransaction(EV.enAttente) : await payerMoMo({ montant: PRIX_ENTREE, description: 'Entrée au concert de l’Esplanade', objet: 'concert' });
+  btn.disabled = false; autres.forEach((b, i) => { b.disabled = dispo[i]; }); btn.classList.remove('charge');
+  EV.enAttente = r.statut === 'pending' ? r.id : null;
+  btn.querySelector('span').textContent = EV.enAttente ? 'Vérifier mon paiement' : `Payer ${PRIX_ENTREE} F par MoMo`;
+  if (r.paye) {
+    garderBillet(); son('piece'); etatMomo('Paiement reçu, bon concert !', 'bien');
+    setTimeout(() => { etatMomo(''); entrer(); }, 1100);
+    return;
+  }
+  const [txt, cls] = MESSAGES[r.statut] || ['Le paiement n’a pas abouti : rien n’a été prélevé. Tu peux réessayer.', 'mal'];
+  etatMomo(txt, cls);
 }
 export function initEvenement() {
   $('#btnConcert')?.addEventListener('click', ouvrir);
@@ -112,6 +150,7 @@ export function initEvenement() {
     const P = JEU.prog; if (!P || P.cagnotte < PRIX_ENTREE) return;
     P.cagnotte -= PRIX_ENTREE; sauver(); son('piece'); entrer();
   });
+  $('#evMomo')?.addEventListener('click', payerEnMoMo);
   $('#evQuitter')?.addEventListener('click', quitterEvenement);
   window.addEventListener('keydown', e => { if (e.key === 'Escape' && EV.actif) quitterEvenement(); });
 }
