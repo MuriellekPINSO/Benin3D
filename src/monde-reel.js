@@ -16,7 +16,7 @@ import { batimentsGoogleVisibles } from './batiments-google.js';
 // bâtiments (si l'on veut), les monuments, la circulation, les étiquettes et tout
 // le jeu Zém Run, qui roule ainsi sur les vraies rues vues par Google.
 
-export const MR = { actif: false, m: null, alt: null, maquette: false, enJeu: false, visite: false, ombre: null };
+export const MR = { actif: false, m: null, alt: null, maquette: false, enJeu: false, visite: false, ombre: null, envoye: {} };
 const v = new THREE.Vector3(), deg = 180 / Math.PI;
 
 async function creerCarte() {
@@ -73,13 +73,22 @@ export function majMondeReel(centre, enJeu = false) {
   if (a !== null) MR.alt = MR.alt === null ? a : MR.alt + (a - MR.alt) * .04;
   const base = MR.alt ?? 5;
   camera.getWorldDirection(v);
-  const [lat, lng] = toLL(camera.position.x, camera.position.z), m = MR.m;
-  m.fov = camera.fov;
-  m.heading = ((Math.atan2(v.x, -v.z) * deg) + 360) % 360;
-  m.tilt = Math.acos(THREE.MathUtils.clamp(-v.y, -1, 1)) * deg;
-  m.roll = 0;
-  m.range = Math.max(1, camera.position.distanceTo(centre));
-  m.cameraPosition = { lat, lng, altitude: base + camera.position.y };
+  const [lat, lng] = toLL(camera.position.x, camera.position.z), m = MR.m, d = MR.envoye;
+  // On n'envoie à Google que ce qui a changé, et jamais la distance au centre (range) : Google la recalcule
+  // lui-même depuis la position de la caméra, un peu autrement que nous. La renvoyer à chaque image faisait
+  // osciller sa caméra entre deux positions (11 m d'écart), et la carte clignotait sur les ordinateurs lents.
+  const heading = ((Math.atan2(v.x, -v.z) * deg) + 360) % 360, tilt = Math.acos(THREE.MathUtils.clamp(-v.y, -1, 1)) * deg;
+  const altitude = base + camera.position.y;
+  if (d.fov === undefined || Math.abs(camera.fov - d.fov) > 1e-3) m.fov = d.fov = camera.fov;
+  // Un changement de cap ou d'inclinaison seul ferait tourner la caméra Google autour de son centre :
+  // on renvoie alors aussi la position, qui l'emporte quand les deux changent dans la même image.
+  let tourne = false;
+  if (d.heading === undefined || Math.abs(((heading - d.heading + 540) % 360) - 180) > 1e-4) { m.heading = d.heading = heading; tourne = true; }
+  if (d.tilt === undefined || Math.abs(tilt - d.tilt) > 1e-4) { m.tilt = d.tilt = tilt; tourne = true; }
+  if (d.roll === undefined) m.roll = d.roll = 0;
+  if (tourne || Math.abs(lat - d.lat) > 1e-8 || Math.abs(lng - d.lng) > 1e-8 || Math.abs(altitude - d.alt) > .01) {
+    d.lat = lat; d.lng = lng; d.alt = altitude; m.cameraPosition = { lat, lng, altitude };
+  }
   // Le capteur d'ombres suit la zone couverte par l'ombre du soleil.
   if (MR.ombre) { const c = sun.shadow.camera, w = (c.right - c.left) * 1.2; MR.ombre.position.set(centre.x, .05, centre.z); MR.ombre.scale.set(w, 1, w); }
   // Moins de brume sur la maquette : le ciel et l'horizon sont ceux de Google.
