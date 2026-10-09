@@ -223,10 +223,29 @@ couleur par modèle sont dans `scripts/tripo-reglages.json`, la pose dans la vil
 `src/batiments-tripo.js` (`REGLAGES`). Les modèles d'origine (50 Mo chacun) restent dans `sources/tripo/`, non versionné.
 Ces modèles dérivent de photos CC BY / CC BY-SA / CC0 : crédits dans le bandeau du site, même licence pour les réutiliser.
 
+## Version anglaise (bouton FR / EN)
+
+Le site existe en français (racine) et en anglais (`/en/`), construits à partir du même code par
+`npm run build` (`scripts/i18n/construire.mjs`). Pendant la construction anglaise, le module de Vite
+`scripts/i18n/vite-langue.mjs` remplace les textes français du code, de la page et de la feuille de style
+par leur traduction, rangée dans `i18n/` :
+
+- `en-textes.json` (par fichier), `en-html.json` : tirés de la première traduction anglaise par
+  `scripts/i18n/extraire.py` (alignement jeton par jeton de l'ancien code et de sa copie anglaise) ;
+- `en-complement.json` : les textes ajoutés depuis (et quelques corrections) — c'est là qu'on ajoute les
+  nouveaux ; `node scripts/i18n/manquants.mjs` liste ceux qui n'ont pas encore de traduction ;
+- `en-donnees.json` : noms des lignes et textes des arrêts ; `node scripts/i18n/donnees-en.mjs` en tire
+  `public/donnees/cotonou.en.json.gz` (à relancer après `npm run donnees`).
+
+Le français reste la langue du code. Une phrase à accorder s'écrit en entier (`f ? 'ravie' : 'ravi'`), pas
+en collant un « e », pour pouvoir la traduire.
+
 ## Personnages animés
 
 `public/modeles/personnages/<id>.glb` (liste dans `index.json`) : vendeuse en pagne wax, jeune en maillot de foot,
-ancien en boubou, étudiante, employé en chemise wax, grand-mère, policier, zémidjan en chemise jaune. Fabriqués par
+ancien en boubou, étudiante, employé en chemise wax, grand-mère, policier, zémidjan en chemise jaune, et deux
+écoliers en uniforme kaki (passants seulement, jamais clients). Les danses du concert (danse1, danse2, acclame)
+sont dans `<id>-danses.glb`, chargés à l'entrée du concert. Fabriqués par
 `npm run personnages -- <id>` (ou `tout`) avec l'API Tripo, à partir d'une description (`scripts/personnages.mjs`) :
 modèle texturé (~30 crédits), squelette humain (auto-rig), puis une animation par demande (~10 crédits chacune),
 fusionnées dans un seul fichier de ~0,8 Mo (13 000 triangles, textures webp). Les étapes faites sont notées dans

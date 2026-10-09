@@ -10,7 +10,7 @@
 import fs from 'fs';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { dedup, prune, textureCompress, meshopt, resample } from '@gltf-transform/functions';
+import { cloneDocument, dedup, prune, textureCompress, meshopt, resample } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import sharp from 'sharp';
 
@@ -19,8 +19,10 @@ const SOURCES = 'sources/personnages', SORTIE = 'public/modeles/personnages';
 const POSE = 'full body, standing straight in A-pose with arms held slightly away from the body, feet apart, facing forward, empty hands, realistic human proportions, photorealistic game character in the style of GTA V, highly detailed face and fabric';
 const NEG = 'holding objects, bag, backpack, umbrella, base, pedestal, ground plane, multiple people, cartoon, chibi, big head, toy, arms touching the body, cape';
 // Animations prêtes de Tripo (squelette biped v1.0) gardées pour le jeu, et leur nom dans le site.
-const ANIMS = { idle: 'preset:biped:idle', marche: 'preset:biped:walk', salut: 'preset:biped:greet_01', parle: 'preset:biped:agree', telephone: 'preset:biped:make_a_call_01', assis: 'preset:biped:sit', rire: 'preset:biped:laugh_01' };
+const ANIMS = { idle: 'preset:biped:idle', marche: 'preset:biped:walk', salut: 'preset:biped:greet_01', parle: 'preset:biped:agree', telephone: 'preset:biped:make_a_call_01', assis: 'preset:biped:sit', rire: 'preset:biped:laugh_01' , danse1: 'preset:biped:dance_01', danse2: 'preset:biped:dance_02', acclame: 'preset:biped:cheer' };
 
+// Animations du concert, rangées à part (voir alleger).
+const DANSES = ['danse1', 'danse2', 'acclame'];
 export const PERSONNAGES = {
   vendeuse: { femme: true, prompt: `A Beninese market woman from Cotonou in her forties, dark brown skin, wearing a long fitted dress in a vivid orange, blue and yellow African wax print (pagne), a matching tied headwrap (foulard), simple flip-flop sandals, ${POSE}` },
   jeune: { femme: false, prompt: `A young Beninese man from Cotonou, about twenty years old, dark skin, short black hair with a fade, wearing a green and yellow football jersey, light blue jeans and white sneakers, slim build, ${POSE}` },
@@ -29,6 +31,8 @@ export const PERSONNAGES = {
   bureau: { femme: false, prompt: `A Beninese office worker man in his thirties, dark skin, short hair, wearing a short-sleeved shirt in a blue and white African wax print tucked into dark grey trousers, black leather shoes, wristwatch, ${POSE}` },
   maman: { femme: true, prompt: `A plump Beninese grandmother in her sixties, dark skin, wearing a loose two-piece outfit (blouse and wrapper skirt) in a green and purple African wax print, a matching headscarf, plastic sandals, ${POSE}` },
   policier: { femme: false, prompt: `A police officer of the Republic of Benin, dark skin, wearing a light blue short-sleeved uniform shirt with epaulettes and badge, dark navy blue trousers, black belt, black boots and a navy blue peaked cap, ${POSE}` },
+  'eleve-garcon': { femme: false, enfant: true, prompt: `A Beninese schoolboy about nine years old, dark skin, short black hair, wearing the khaki school uniform of Benin: short-sleeved khaki shirt with pockets and khaki shorts, black plastic sandals, child proportions, ${POSE}` },
+  'eleve-fille': { femme: true, enfant: true, prompt: `A Beninese schoolgirl about nine years old, dark skin, hair in short neat braids, wearing the khaki school uniform of Benin: short-sleeved khaki dress with a belt, white socks and black shoes, child proportions, ${POSE}` },
   zem: { femme: false, prompt: `A Beninese zemidjan motorcycle taxi driver from Cotonou, dark skin, wearing a bright yellow short-sleeved work shirt with a black registration number printed on the back and chest, dark trousers, plastic sandals, ${POSE}` },
 };
 
@@ -126,6 +130,17 @@ async function alleger(id) {
       }
     }
   }
+  // Les danses du concert vont dans un petit fichier à part (<id>-danses.glb : les os et leurs mouvements,
+  // sans maillage ni texture), téléchargé seulement quand on entre au concert.
+  const danses = cloneDocument(doc), estDanse = n => DANSES.includes(n);
+  // (on supprime aussi les morceaux internes : sinon leurs données restent dans le fichier)
+  const jeter = a => { for (const c of a.listChannels()) c.dispose(); for (const sp of a.listSamplers()) sp.dispose(); a.dispose(); };
+  for (const a of danses.getRoot().listAnimations()) if (!estDanse(a.getName())) jeter(a);
+  for (const n of danses.getRoot().listNodes()) { n.setMesh(null); n.setSkin(null); }
+  for (const m of danses.getRoot().listMeshes()) { for (const p of m.listPrimitives()) p.dispose(); m.dispose(); }
+  for (const sk of danses.getRoot().listSkins()) sk.dispose();
+  for (const a of root.listAnimations()) if (estDanse(a.getName())) jeter(a);
+  await danses.transform(resample(), prune({ keepLeaves: true }), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
   await doc.transform(
     dedup(), resample(), prune(),
     textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [1024, 1024], slots: /baseColor/ }),
@@ -134,11 +149,12 @@ async function alleger(id) {
   );
   fs.mkdirSync(SORTIE, { recursive: true });
   const out = `${SORTIE}/${id}.glb`; await io.write(out, doc);
+  const outD = `${SORTIE}/${id}-danses.glb`; if (danses.getRoot().listAnimations().length) await io.write(outD, danses);
   const tri = root.listMeshes().flatMap(m => m.listPrimitives()).reduce((s, p) => s + (p.getIndices()?.getCount() ?? 0) / 3, 0);
   const anims = root.listAnimations().map(a => a.getName());
-  console.log(`${id}.glb : ${Math.round(tri)} triangles, ${root.listSkins().length} squelette(s), animations [${anims.join(', ')}], ${(fs.statSync(out).size / 1e6).toFixed(2)} Mo`);
+  console.log(`${id}.glb : ${Math.round(tri)} triangles, danses ${fs.existsSync(outD) ? (fs.statSync(outD).size / 1e3).toFixed(0) + ' ko' : '—'}, ${root.listSkins().length} squelette(s), animations [${anims.join(', ')}], ${(fs.statSync(out).size / 1e6).toFixed(2)} Mo`);
   const idx = `${SORTIE}/index.json`, liste = fs.existsSync(idx) ? JSON.parse(fs.readFileSync(idx, 'utf8')) : {};
-  liste[id] = { femme: PERSONNAGES[id]?.femme ?? false, animations: anims, triangles: Math.round(tri), octets: fs.statSync(out).size };
+  liste[id] = { femme: PERSONNAGES[id]?.femme ?? false, enfant: !!PERSONNAGES[id]?.enfant, animations: anims, triangles: Math.round(tri), octets: fs.statSync(out).size, danses: fs.existsSync(outD) ? fs.statSync(outD).size : 0 };
   fs.writeFileSync(idx, JSON.stringify(liste, null, 1));
 }
 

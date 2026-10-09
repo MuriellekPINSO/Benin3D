@@ -325,7 +325,7 @@ function causerie(st) {
   const R = (txt, dh, rep, prime = 0) => [txt, () => { humeur(dh); dit(rep); if (prime) { st.argent += prime; toast(`+${prime} F`, 1, 'bien'); son('piece'); } }];
   if (sujet === 'presse') {
     const sup = Math.max(200, Math.round(c.juste * .5 / 50) * 50);
-    dit(`Je suis pressé${c.femme ? 'e' : ''} ! ${sup} F de plus si tu prends un raccourci.`, { duree: 3.2 });
+    dit(`${c.femme ? 'Je suis pressée' : 'Je suis pressé'} ! ${sup} F de plus si tu prends un raccourci.`, { duree: 3.2 });
     dialogue(c.nom, `« Je suis en retard ! Je te donne ${sup} F de plus si tu passes par un raccourci. »`, [
       [`D’accord, on coupe par les petites rues (+${sup} F)`, () => { if (prendreRaccourci()) { c.supplement = sup; humeur(.1); dit('Merci ! Vas-y, vite !'); } else dit('Bon, tant pis, on reste sur la grande route.'); }],
       ['Non, je reste sur la grande route', () => { humeur(-.05); dit('Hum… alors roule vite au moins !'); }],
@@ -415,7 +415,7 @@ function suivant() {
   const box = el.querySelector('.choix'); box.innerHTML = '';
   d.choix.forEach(([t], k) => { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<kbd>${k + 1}</kbd>${t}`; b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); repondre(k); }); box.append(b); });
   el.hidden = false; son('arret');
-  if (d.texte.trim().startsWith('«')) parler(d.texte, d.voix || voixQui(d.qui), 2);
+  if (/^[«“"]/.test(d.texte.trim())) parler(d.texte, d.voix || voixQui(d.qui), 2);
   if (d.bloquant && JEU.etat) JEU.etat.service = 99; // arrêté le temps de répondre (plein, client qui monte)
 }
 // Qui parle dans le dialogue : le client, un métier connu, sinon celui qui vient de parler dans sa bulle.
@@ -539,6 +539,6 @@ export function majDiscussions(st, C, dt) {
 /** Texte pour la case passagers du HUD. */
 export function etiquetteClient() {
   const c = DISC.client; if (!c) return 'À vide';
-  const e = c.femme ? 'e' : '', h = c.humeur >= .75 ? `ravi${e}` : c.humeur >= .45 ? 'tranquille' : c.humeur >= .25 ? `pas content${e}` : `fâché${e}`;
+  const f = c.femme, h = c.humeur >= .75 ? (f ? 'ravie' : 'ravi') : c.humeur >= .45 ? 'tranquille' : c.humeur >= .25 ? (f ? 'pas contente' : 'pas content') : (f ? 'fâchée' : 'fâché'); // mots entiers : la version anglaise les traduit
   return `${c.nom.split(' ').slice(-1)[0]} · ${h}${c.accord ? ` · ${fmtF(c.tarif)}` : ''}`;
 }

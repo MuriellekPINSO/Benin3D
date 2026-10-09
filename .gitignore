@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-en/
 osm/
 .DS_Store
 *.log

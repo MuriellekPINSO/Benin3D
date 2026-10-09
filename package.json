@@ -6,7 +6,7 @@
   "description": "Cotonou en 3D d'après OpenStreetMap, avec les lieux reconstitués et le jeu Zém Run.",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/i18n/construire.mjs",
     "preview": "vite preview",
     "donnees": "node scripts/donnees.mjs",
     "modeles": "node scripts/modeles.mjs",
@@ -24,6 +24,7 @@
     "@gltf-transform/core": "^4.2.1",
     "@gltf-transform/extensions": "^4.2.1",
     "@gltf-transform/functions": "^4.2.1",
+    "acorn": "^8.19.0",
     "eslint": "^9.36.0",
     "globals": "^16.4.0",
     "meshoptimizer": "^0.25.0",

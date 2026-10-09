@@ -9,7 +9,7 @@ import { $, LITE, reduceMotion } from './base.js';
 import { decode, frame, loadTxt, status } from './chargement.js';
 import { E } from './etat.js';
 import { accueil, initExplorer } from './explorer.js';
-import { chargerIndexTripo } from './batiments-tripo.js';
+import { TRIPO, chargerIndexTripo } from './batiments-tripo.js';
 import { chargerPersonnages, majPersonnages } from './personnages.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
 import { JEU, initJeu, majJeu } from './jeu.js';
@@ -27,7 +27,7 @@ import { construireLieuxVideos } from './lieux-videos.js';
 import { animerOuidah, construireOuidah } from './ouidah.js';
 import { animerEtals, construireEtals, initBoutique } from './artisans.js';
 import { initOffre } from './publicites.js';
-import { chargerZems } from './vehicules.js';
+import { chargerTokpa, chargerZems } from './vehicules.js';
 import { buildBuildings, buildContainers, buildFoam, buildPalms, buildRoads, buildShips, buildSurfaces, buildingMeshes } from './ville.js';
 
 // ---------- Boucle ----------
@@ -124,6 +124,8 @@ async function main() {
   if (import.meta.env.DEV) console.info(`arbres retirés des chaussées : ${sansArbres}`);
   status('Zémidjans de 3D monde…', 94); await frame();
   await chargerZems();
+  // Le vrai minibus des tokpa-tokpa (Tripo) remplace celui dessiné en code dans la circulation de la ville.
+  if (TRIPO.info.tokpa) chargerTokpa(TRIPO.info.tokpa.octets).then(t => { if (t.geo && E.tokpas) { E.tokpas.geometry = t.geo; E.tokpas.material = t.mat; E.tokpas.castShadow = !LITE; } });
   buildZems(); zemsDetailles(); buildLamps(); buildLabels();
   initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initBoutique(); initOffre();
   if (reduceMotion) finishRise();

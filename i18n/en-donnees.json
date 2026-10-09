@@ -1,0 +1,61 @@
+{
+ "centre": {
+  "nom": "The heart of Cotonou",
+  "arrets": {
+   "Étoile Rouge": "The big junction where five roads meet, around the Red Star monument.",
+   "Dantokpa": "The largest open-air market in West Africa, on the edge of the lagoon.",
+   "Missèbo": "The fabric and second-hand clothes market, just south of Dantokpa.",
+   "Zongo": "The neighbourhood of the great mosque with its two white minarets.",
+   "Ganhi": "Banks, shops and the Notre-Dame cathedral, striped red and white.",
+   "Akpakpa": "The east bank of the lagoon, linked to the centre by three bridges."
+  }
+ },
+ "marina": {
+  "nom": "Along the Marina",
+  "arrets": {
+   "Haie Vive": "Restaurants, maquis and terraces: this is where Cotonou goes out at night.",
+   "Erevan": "The junction with the Bio Guéra statue and the Erevan department store.",
+   "Palais des Congrès": "The white drums inspired by the tata somba, opened in 2003.",
+   "Palais de la Marina": "The Presidency of the Republic, facing the ocean.",
+   "Ganhi": "Banks, shops and the cathedral of Notre-Dame de Miséricorde."
+  }
+ },
+ "calavi": {
+  "nom": "Calavi – Godomey",
+  "arrets": {
+   "Carrefour Kpota": "The big junction of Abomey-Calavi, where the pirogues leave for Ganvié.",
+   "UAC": "The University of Abomey-Calavi, the largest in the country, founded in 1970.",
+   "IITA": "The International Institute of Tropical Agriculture and its forest.",
+   "Échangeur de Godomey": "The western gateway to Cotonou. Since 2021, the tokpa-tokpa minibuses stop here."
+  }
+ },
+ "plage": {
+  "nom": "From the beach to the stadium",
+  "arrets": {
+   "Plage de Fidjrossè": "The western beach, along the Route des Pêches.",
+   "Fidjrossè": "The neighbourhood of drinks stalls and coconut palms, between the airport and the sea.",
+   "Agla": "A large residential neighbourhood in the north-west of the city.",
+   "Stade de l'Amitié": "The Général Mathieu Kérékou stadium, in Kouhounou.",
+   "Étoile Rouge": "The monument roundabout, in the heart of the city."
+  }
+ },
+ "ouidah": {
+  "nom": "Ouidah · Route des Esclaves",
+  "arrets": {
+   "Temple des Pythons": "The temple of Dangbé, the python god, facing the Basilica of the Immaculate Conception.",
+   "Place Chacha": "The former auction square, where the Route des Esclaves begins, running nearly 4 km down to the sea.",
+   "Arbre de l'Oubli": "Captives had to walk around it to forget their homeland: nine times for men, seven times for women.",
+   "Zoungbodji": "The mass grave memorial and the Tree of Return, walked around so that the soul would one day come back.",
+   "Porte du Non-Retour": "The memorial facing the ocean, at the end of the Route des Esclaves. Next to it, the Arène de Ouidah, home of the Vodun Days."
+  }
+ },
+ "corniche": {
+  "nom": "Ganhi – Corniche Est",
+  "arrets": {
+   "Ganhi": "The business district, at the foot of the cathedral.",
+   "Akpakpa": "The east bank, its markets and its workshops.",
+   "Corniche Est": "The promenade along the Atlantic, with its jogging track and coconut palms.",
+   "Donaten": "The Akpakpa seafront and its new villas."
+  }
+ }
+}

@@ -41,7 +41,7 @@ function marcheur(st, loin) {
   for (let essai = 0; essai < 8; essai++) {
     const cote = Math.random() < .5 ? -1 : 1, s = st.s + (loin ? 130 + Math.random() * 90 : -10 + Math.random() * 220), recul = .9 + Math.random() * 1.6;
     const lat = latTrottoir(C, s, cote, recul); if (lat === null) continue;
-    const m = personnage3d(Math.floor(Math.random() * 1e6)); if (!m) return null;
+    const m = personnage3d(Math.floor(Math.random() * 1e6), { enfant: Math.random() < .16 }) || personnage3d(Math.floor(Math.random() * 1e6)); if (!m) return null; // quelques écoliers en uniforme
     m.userData.jouer('marche', 0); JEU.decor.add(m);
     return { m, s, cote, recul, lat, sens: Math.random() < .5 ? -1 : 1, v: 1.05 + Math.random() * .45, case: Math.round(s) };
   }
@@ -69,7 +69,7 @@ export function traverser(s, feu = null) {
   if (!personnagesPrets() || !PT.C || PT.traversees.length > 6) return;
   const n = 2 + Math.floor(Math.random() * 3);
   for (let k = 0; k < n; k++) {
-    const depuis = Math.random() < .5 ? -1 : 1, m = Math.random() < .25 ? marchandeReelle(Math.floor(Math.random() * 1e6), true) : personnage3d(Math.floor(Math.random() * 1e6));
+    const depuis = Math.random() < .5 ? -1 : 1, m = Math.random() < .25 ? marchandeReelle(Math.floor(Math.random() * 1e6), true) : personnage3d(Math.floor(Math.random() * 1e6), { enfant: Math.random() < .2 }) || personnage3d(Math.floor(Math.random() * 1e6));
     if (!m) return;
     m.userData.jouer('marche', 0); JEU.decor.add(m);
     const sp = s + 1.5 + Math.random() * 3, hw = demiChaussee(PT.C, sp);

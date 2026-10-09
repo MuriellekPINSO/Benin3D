@@ -13,16 +13,17 @@ import { camera } from './scene.js';
 // son AnimationMixer. Tant que les modèles ne sont pas chargés (ou s'ils manquent), le jeu garde
 // ses personnages dessinés en code (personne() de discussions.js).
 
-const P = { modeles: {}, pret: false, actifs: new Set(), accessoires: {} };
+const P = { modeles: {}, pret: false, actifs: new Set(), accessoires: {}, index: {}, danses: null };
 // Rôles : on ne tire pas au hasard le policier ni le zém, ils servent quand on les demande.
 const ROLES = new Set(['policier', 'zem']);
-const TAILLE = { femme: [1.6, 1.7], homme: [1.68, 1.82], ancien: [1.64, 1.72], maman: [1.56, 1.64] };
+const TAILLE = { femme: [1.6, 1.7], homme: [1.68, 1.82], ancien: [1.64, 1.72], maman: [1.56, 1.64], 'eleve-garcon': [1.24, 1.38], 'eleve-fille': [1.22, 1.36] };
 const v = new THREE.Vector3(), v2 = new THREE.Vector3();
 
 /** Charge les personnages (en tâche de fond : le jeu marche sans eux). */
 export async function chargerPersonnages() {
   let idx = {};
   try { const r = await fetch(import.meta.env.BASE_URL + 'modeles/personnages/index.json'); if (r.ok && /json/.test(r.headers.get('content-type') || '')) idx = await r.json(); } catch { }
+  P.index = idx;
   const chargeur = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   await Promise.all(Object.entries(idx).map(async ([id, info]) => {
     try {
@@ -56,6 +57,17 @@ export function accessoire(prefixe, k = 0) {
   return P.accessoires[ids[k % ids.length]].clone();
 }
 export const personnagesPrets = () => P.pret;
+/** Les danses du concert (danse1, danse2, acclame), dans des fichiers à part : chargées à la première entrée au concert. */
+export function chargerDanses() {
+  if (P.danses) return P.danses;
+  const chargeur = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  P.danses = Promise.all(Object.entries(P.modeles).map(async ([id, M]) => {
+    const o = P.index[id]?.danses; if (!o) return;
+    try { const g = await chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/personnages/${id}-danses.glb?v=${o}`); for (const c of g.animations) M.clips[c.name] = c; }
+    catch (e) { console.warn('danses', id, e.message); }
+  }));
+  return P.danses;
+}
 
 // Mesures faites une fois par modèle : hauteur en position d'attente, sens du regard (des pieds
 // vers les orteils), hauteur du bassin assis.
@@ -84,12 +96,13 @@ function preparer(id, g, info) {
     assis = { t: tMin, bassin: b };
   }
   mixer.stopAllAction(); mixer.uncacheRoot(scene);
-  return { id, scene, clips, hauteur, sol, rot, assis, crane, femme: !!info.femme };
+  return { id, scene, clips, hauteur, sol, rot, assis, crane, femme: !!info.femme, enfant: !!info.enfant };
 }
 
-function choisirId(i, femme, role) {
+function choisirId(i, femme, role, enfant = false) {
   if (role) { if (P.modeles[role]) return role; if (ROLES.has(role)) return null; } // pas de faux policier : on garde celui dessiné en code
-  const ids = Object.keys(P.modeles).filter(k => !ROLES.has(k) && (femme === null || femme === undefined || P.modeles[k].femme === femme));
+  // Les écoliers ne sortent que si on les demande (passants, concert) : jamais comme clients du zém.
+  const ids = Object.keys(P.modeles).filter(k => !ROLES.has(k) && P.modeles[k].enfant === enfant && (femme === null || femme === undefined || P.modeles[k].femme === femme));
   return ids.length ? ids[Math.floor(hash(i, 91) * ids.length)] : null;
 }
 
@@ -99,9 +112,9 @@ function choisirId(i, femme, role) {
  * En plus : userData.main (objets remis de main en main), userData.coiffer(objet) (casque sur la tête),
  * userData.jouer(nom) (idle, marche, salut, parle, telephone, assis, rire).
  */
-export function personnage3d(i, { assise = false, femme = null, role = null } = {}) {
+export function personnage3d(i, { assise = false, femme = null, role = null, enfant = false } = {}) {
   if (!P.pret) return null;
-  const id = choisirId(i, femme, role); if (!id) return null;
+  const id = choisirId(i, femme, role, enfant); if (!id) return null;
   const M = P.modeles[id], corps = clonerSquelette(M.scene);
   const gamme = TAILLE[id] || TAILLE[M.femme ? 'femme' : 'homme'], taille = gamme[0] + hash(i, 92) * (gamme[1] - gamme[0]);
   const ech = taille / M.hauteur;
@@ -118,9 +131,11 @@ export function personnage3d(i, { assise = false, femme = null, role = null } = 
   g.add(E.tete); E.main.position.set(0, 1.1, .25); g.add(E.main);
   E.tete.position.set(0, taille + .08, 0);
   const jouer = (nom, fondu = .35) => {
+    if (!actions[nom] && M.clips[nom]) actions[nom] = mixer.clipAction(M.clips[nom]); // danse chargée après coup
     if (!actions[nom]) nom = 'idle'; if (E.courante === nom || !actions[nom]) return;
     const a = actions[nom]; a.reset(); a.enabled = true; a.setEffectiveWeight(1);
     if (nom === 'assis') { a.time = M.assis?.t ?? a.getClip().duration; a.paused = true; } // on garde la pose assise
+    else if (fondu === 0) a.time = (E.ph * 7.3) % a.getClip().duration; // chacun à son rythme, pas tous en même temps
     a.play();
     const prec = E.courante && actions[E.courante]; if (prec && fondu > 0) a.crossFadeFrom(prec, fondu, false); else if (prec) prec.stop();
     E.courante = nom;

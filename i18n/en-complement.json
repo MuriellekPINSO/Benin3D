@@ -1,0 +1,68 @@
+{
+ "src/chargement.js": {
+  "'donnees/cotonou.json.gz'": "'donnees/cotonou.en.json.gz'"
+ },
+ "src/style.css": {
+  "'L’apprenti · '": "'The apprentice · '",
+  "'Essence'": "'Fuel'"
+ },
+ "src/multijoueur.js": {
+  "'La connexion directe ne passe pas entre vos deux réseaux (souvent en 4G). Essayez tous les deux sur le même wifi.'": "'The direct connection can’t get through between your two networks (often on 4G). Try both being on the same wifi.'",
+  "' (aucun relais TURN configuré)'": "' (no TURN relay configured)'",
+  "'Connecté ! Choisissez une ligne : vous partirez ensemble.'": "'Connected! Pick a line: you’ll set off together.'",
+  "'Connexion instable…'": "'Unstable connection…'",
+  "Partie créée, code ": "Game created, code ",
+  ". Envoie le lien à ton ami avec « Inviter », puis attends-le ici.": ". Send the link to your friend with “Invite”, then wait for them here.",
+  "'Ton ami arrive…'": "'Your friend is joining…'",
+  "On joue à Zém Run ensemble ? Clique sur le lien (code ": "Shall we play Zém Run together? Click the link (code ",
+  "'Zém Run à deux'": "'Zém Run for two'",
+  "Lien copié ! Colle-le dans WhatsApp pour ton ami. (Code ": "Link copied! Paste it in WhatsApp for your friend. (Code ",
+  "Envoie ce lien à ton ami : ": "Send this link to your friend: ",
+  "'Connexion à la partie…'": "'Joining the game…'",
+  "'Partie introuvable : vérifie le code, ou demande à ton ami de recréer la partie.'": "'Game not found: check the code, or ask your friend to create the game again.'",
+  ". Choisissez une ligne : vous partirez ensemble.": ". Pick a line: you’ll set off together.",
+  "'Ton ami a choisi la ligne : c’est parti, ensemble !'": "'Your friend picked the line: off you go, together!'",
+  "'Ton ami est déjà au terminus !'": "'Your friend has already reached the terminus!'",
+  "Ton ami · n° ": "Your friend · no. ",
+  "'Ton ami roule sur une autre ligne'": "'Your friend is riding another line'",
+  "'Ton ami est à côté de toi'": "'Your friend is right beside you'",
+  "Ton ami · ": "Your friend · ",
+  "'derrière'": "'behind'",
+  "'devant'": "'ahead'",
+  "'Abandon'": "'Gave up'"
+ },
+ "src/pietons.js": {
+  "'Tu as failli renverser un piéton !'": "'You nearly ran over a pedestrian!'",
+  "'Le piéton s’écarte de justesse'": "'The pedestrian jumps aside just in time'"
+ },
+ "src/regles.js": {
+  "'Feu vert'": "'Green light'",
+  "'Feu orange'": "'Amber light'",
+  "'Feu rouge'": "'Red light'",
+  "'est descendue'": "'got off'",
+  "'est descendu'": "'got off'",
+  " : course perdue": ": ride lost"
+ },
+ "src/discussions.js": {
+  "'ta cliente'": "'your passenger'",
+  "'ton client'": "'your passenger'",
+  "'Je suis pressée'": "'I’m in a hurry'",
+  "'Je suis pressé'": "'I’m in a hurry'",
+  "'ravie'": "'delighted'",
+  "'ravi'": "'delighted'",
+  "'pas contente'": "'not happy'",
+  "'pas content'": "'not happy'",
+  "'fâchée'": "'angry'",
+  "'fâché'": "'angry'",
+  " ! ": "! ",
+  " · ": " · "
+ },
+ "src/jeu.js": {
+  "'Course à deux'": "'Two-player race'"
+ },
+ "index.html": {
+  "Crédits": "Credits",
+  "Inviter un ami": "Invite a friend",
+  "Jouez à deux sur la même ligne : crée une partie et envoie le lien à ton ami.": "Play together on the same line: create a game and send the link to your friend."
+ }
+}

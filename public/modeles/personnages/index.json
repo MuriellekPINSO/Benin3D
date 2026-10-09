@@ -1,6 +1,7 @@
 {
  "vendeuse": {
   "femme": true,
+  "enfant": false,
   "animations": [
    "idle",
    "marche",
@@ -11,10 +12,12 @@
    "rire"
   ],
   "triangles": 13336,
-  "octets": 877968
+  "octets": 877968,
+  "danses": 445536
  },
  "policier": {
   "femme": false,
+  "enfant": false,
   "animations": [
    "idle",
    "marche",
@@ -25,10 +28,12 @@
    "rire"
   ],
   "triangles": 13452,
-  "octets": 614952
+  "octets": 614952,
+  "danses": 441236
  },
  "etudiante": {
   "femme": true,
+  "enfant": false,
   "animations": [
    "idle",
    "marche",
@@ -39,10 +44,12 @@
    "rire"
   ],
   "triangles": 13208,
-  "octets": 718152
+  "octets": 718152,
+  "danses": 445804
  },
  "jeune": {
   "femme": false,
+  "enfant": false,
   "animations": [
    "idle",
    "marche",
@@ -53,10 +60,12 @@
    "rire"
   ],
   "triangles": 13746,
-  "octets": 649716
+  "octets": 649716,
+  "danses": 443844
  },
  "bureau": {
   "femme": false,
+  "enfant": false,
   "animations": [
    "idle",
    "marche",
@@ -67,10 +76,12 @@
    "rire"
   ],
   "triangles": 13742,
-  "octets": 732160
+  "octets": 732160,
+  "danses": 442496
  },
  "zem": {
   "femme": false,
+  "enfant": false,
   "animations": [
    "idle",
    "marche",
@@ -81,10 +92,12 @@
    "rire"
   ],
   "triangles": 13852,
-  "octets": 611396
+  "octets": 611396,
+  "danses": 444048
  },
  "ancien": {
   "femme": false,
+  "enfant": false,
   "animations": [
    "idle",
    "marche",
@@ -95,10 +108,12 @@
    "rire"
   ],
   "triangles": 13792,
-  "octets": 804836
+  "octets": 804836,
+  "danses": 441960
  },
  "maman": {
   "femme": true,
+  "enfant": false,
   "animations": [
    "idle",
    "marche",
@@ -109,6 +124,39 @@
    "rire"
   ],
   "triangles": 13786,
-  "octets": 827568
+  "octets": 827568,
+  "danses": 443028
+ },
+ "eleve-fille": {
+  "femme": true,
+  "enfant": true,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13968,
+  "octets": 606472,
+  "danses": 443948
+ },
+ "eleve-garcon": {
+  "femme": false,
+  "enfant": true,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13606,
+  "octets": 615404,
+  "danses": 442228
  }
 }

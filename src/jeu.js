@@ -12,7 +12,7 @@ import { E } from './etat.js';
 import { startFlight } from './interface.js';
 import { VEGETATION, texteToile } from './lieux.js';
 import { camera, controls, scene } from './scene.js';
-import { ZEMS_3D, B3, C3, matVeh, partsChevre, partsMarchande, partsTokpa, partsVoiture, partsZem } from './vehicules.js';
+import { TOKPA_3D, ZEMS_3D, B3, C3, matVeh, partsChevre, partsMarchande, partsTokpa, partsVoiture, partsZem } from './vehicules.js';
 import { TABLIERS, mergeColored } from './ville.js';
 import { chargerMasques, procession } from './egungun.js';
 import { satelliteVisible } from './satellite.js';
@@ -165,7 +165,7 @@ export function creerObjet(type, s, file) {
     const m3d = hash(JEU.objets.length + s, 1) < .5 ? ZEMS_3D.moto : ZEMS_3D.zem || ZEMS_3D.moto;
     mesh = m3d ? m3d.clone() : new THREE.Mesh(hash(JEU.objets.length + s, 1) < .5 ? GJ.zem : GJ.zemB, matVeh);
   }
-  else if (type === 'tokpa') mesh = new THREE.Mesh(GJ.tokpa, matVeh);
+  else if (type === 'tokpa') { mesh = TOKPA_3D.geo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(GJ.tokpa, matVeh); mesh.castShadow = !LITE; }
   else if (type === 'voiture') mesh = new THREE.Mesh(GJ.voit[Math.floor(hash(s, 2) * 5)], matVeh);
   else if (type === 'chevre') mesh = new THREE.Mesh(GJ.chevre, matVeh);
   else if (type === 'marchande') mesh = marchandeReelle(Math.floor(hash(s, 3) * 1e5), true) || new THREE.Mesh(GJ.marchande[Math.floor(hash(s, 3) * 4)], matVeh);
@@ -245,7 +245,8 @@ export function lancerLigne(L, veh) {
   // Zém du joueur : moto-taxi détaillée de 3D monde (conducteur au gilet jaune), sinon le modèle en code.
   const detaille = veh === 'zem' && ZEMS_3D.moto;
   const taxiTripo = veh === 'voiture' && tripoDispo('voiture');
-  const j = detaille ? ZEMS_3D.moto.clone() : taxiTripo ? new THREE.Group() : new THREE.Mesh(mergeColored(veh === 'zem' ? partsZem({ passager: false }) : veh === 'voiture' ? partsVoiture('#f2c21b') : partsTokpa()), matVeh); j.castShadow = !LITE;
+  const tokpaTripo = veh === 'tokpa' && TOKPA_3D.geo; // le vrai minibus (Tripo), sinon celui dessiné en code
+  const j = detaille ? ZEMS_3D.moto.clone() : taxiTripo ? new THREE.Group() : tokpaTripo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(mergeColored(veh === 'zem' ? partsZem({ passager: false }) : veh === 'voiture' ? partsVoiture('#f2c21b') : partsTokpa()), matVeh); j.castShadow = !LITE;
   const grp = new THREE.Group(); grp.add(j);
   if (taxiTripo) poserTripo('voiture', j, { largeur: 4.3, rot: Math.PI / 2 }); // taxi généré par Tripo
   if (veh === 'zem') { // numéro au dos du gilet

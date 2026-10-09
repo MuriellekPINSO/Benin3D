@@ -38,5 +38,9 @@
  "voiture": {
   "triangles": 59996,
   "octets": 1149128
+ },
+ "tokpa": {
+  "triangles": 30000,
+  "octets": 1014692
  }
 }

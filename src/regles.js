@@ -14,6 +14,7 @@ import { traverser } from './pietons.js';
 // - un accident n'est plus un simple clignotement : la police vient faire le constat,
 //   ou le client descend pour prendre un autre zém et la course est perdue.
 
+const NOM_FEU = { vert: 'Feu vert', orange: 'Feu orange', rouge: 'Feu rouge' }; // libellés entiers (traduits dans la version anglaise)
 const CYCLE = { vert: 9, orange: 2.5, rouge: 7 }, TOUR = CYCLE.vert + CYCLE.orange + CYCLE.rouge;
 export const AMENDES = { feu: 2000, constat: 1500 };
 const R = { feux: [], police: null };
@@ -87,7 +88,7 @@ export function majFeux(st) {
     }
   }
   const f = R.feux.find(f => !f.passe && f.s - st.s < 90 && f.s - st.s > -2), el = $('#jhFeu');
-  if (el) { el.hidden = !f; if (f) { el.className = 'jh-feu ' + f.etat; el.innerHTML = `<i></i><b>Feu ${f.etat}</b><span>${Math.max(0, Math.round(f.s - st.s))} m</span>`; } }
+  if (el) { el.hidden = !f; if (f) { el.className = 'jh-feu ' + f.etat; el.innerHTML = `<i></i><b>${NOM_FEU[f.etat]}</b><span>${Math.max(0, Math.round(f.s - st.s))} m</span>`; } }
 }
 
 // Coup de sifflet de l'agent (deux notes aiguës).
@@ -138,7 +139,7 @@ export function accident(st) {
   const c = DISC.client;
   if (c && Math.random() < .5) {
     bulle(c.siege, choisir(['Je descends ! Je prends un autre zém.', 'Tu veux me tuer ? Je descends ici !', 'Arrête ! Je ne monte plus avec toi.']), { ton: 'fort', duree: 3 });
-    toast(`${c.nom.split(' ').slice(-1)[0]} est descendu${c.femme ? 'e' : ''} : course perdue`, 2.4, 'mal');
+    toast(`${c.nom.split(' ').slice(-1)[0]} ${c.femme ? 'est descendue' : 'est descendu'} : course perdue`, 2.4, 'mal');
     const s = c.siege; DISC.client = null; st.passagers = 0; setTimeout(() => { if (!DISC.client && s) s.visible = false; }, 1500);
     nouveauSigne(st.s + 160 + Math.random() * 120);
   } else setTimeout(() => { if (JEU.etat === st && JEU.actif) police(st, 'constat'); }, 900);

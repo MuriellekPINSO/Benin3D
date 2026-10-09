@@ -9,6 +9,8 @@ import { JEU, fmtF, sauver } from './jeu.js';
 import { PLACES } from './donnees-lieux.js';
 import { musiqueEvenement } from './musique.js';
 import { fouleCorps, fouleTete, fouleTissus } from './lieux.js';
+import { chargerDanses, personnage3d, personnagesPrets } from './personnages.js';
+import { LITE } from './base.js';
 
 // ---------- Événement en 3D : concert sur l'esplanade de l'Amazone (priorité 4) ----------
 // Une scène face à la statue, un grand écran, des lumières qui balaient, une foule qui danse et une
@@ -18,11 +20,11 @@ import { fouleCorps, fouleTete, fouleTissus } from './lieux.js';
 // de ses organisateurs.
 
 export const PRIX_ENTREE = 50;
-const EV = { groupe: null, actif: false, ecran: null, ctx: null, foule: null, tetes: null, places: [], spots: [], t: 0, raf: 0, scene: null };
+const EV = { groupe: null, actif: false, ecran: null, ctx: null, foule: null, tetes: null, places: [], spots: [], t: 0, raf: 0, scene: null, sx: 0, sz: 0, danseurs: null };
 
 function construire() {
   const p = PLACES.find(q => q.id === 'amazone'); const [ax, az] = toXZ(p.lat, p.lon);
-  const sx = ax, sz = az + 42; EV.scene = new THREE.Vector3(sx, 4, sz);
+  const sx = ax, sz = az + 42; EV.scene = new THREE.Vector3(sx, 4, sz); EV.sx = sx; EV.sz = sz;
   const g = new THREE.Group(); g.name = 'evenement'; g.visible = false; scene.add(g); EV.groupe = g;
   const noir = new THREE.MeshStandardMaterial({ color: '#16181c', roughness: .7 }), acier = new THREE.MeshStandardMaterial({ color: '#8c949a', metalness: .6, roughness: .35 });
   const boite = (w, h, d, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; g.add(b); return b; };
@@ -41,11 +43,25 @@ function construire() {
     const c = new THREE.Mesh(new THREE.ConeGeometry(2.6, 16, 18, 1, true).translate(0, -8, 0), new THREE.MeshBasicMaterial({ color: lum[i], transparent: true, opacity: .18, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     c.position.set(sx - 10 + i * 4, 12.4, sz - 4); g.add(c); EV.spots.push(c);
   }
-  // La foule : silhouettes en tissus wax, tournées vers la scène, qui sautent en rythme.
+  // La foule : silhouettes en tissus wax, tournées vers la scène, qui sautent en rythme (derrière les danseurs des premiers rangs).
   const n = 520, corps = new THREE.InstancedMesh(fouleCorps, new THREE.MeshLambertMaterial(), n), tetes = new THREE.InstancedMesh(fouleTete, new THREE.MeshLambertMaterial({ color: '#4a2f22' }), n);
-  for (let i = 0; i < n; i++) { const x = sx + (Math.random() - .5) * 46, z = az + 6 + Math.random() * 28; EV.places.push([x, z, Math.random() * 6.28, .8 + Math.random() * .5]); corps.setColorAt(i, fouleTissus[i % fouleTissus.length]); }
+  for (let i = 0; i < n; i++) { const x = sx + (Math.random() - .5) * 46, z = az + 6 + Math.random() * 20; EV.places.push([x, z, Math.random() * 6.28, .8 + Math.random() * .5]); corps.setColorAt(i, fouleTissus[i % fouleTissus.length]); }
   corps.frustumCulled = tetes.frustumCulled = false; // positions mises à jour à chaque image
   g.add(corps, tetes); EV.foule = corps; EV.tetes = tetes;
+}
+// Les premiers rangs : de vrais personnages (personnages.js) qui dansent et acclament, chacun à son rythme.
+const DANSES = ['danse1', 'danse2', 'acclame'];
+function danseurs() {
+  if (EV.danseurs || !personnagesPrets()) return;
+  EV.danseurs = [];
+  const n = LITE ? 14 : 40;
+  for (let i = 0; i < n; i++) {
+    const m = personnage3d(7000 + i * 13, { enfant: i % 9 === 4 }) || personnage3d(7000 + i * 13); if (!m) break;
+    const rang = Math.floor(i / 10);
+    m.position.set(EV.sx + ((i % 10) - 4.5) * 2.1 + (Math.random() - .5) * .8, 0, EV.sz - 6 - rang * 2.2 - Math.random() * .6);
+    m.rotation.y = (Math.random() - .5) * .5; // face à la scène
+    m.userData.jouer(DANSES[(i * 7) % 3], 0); EV.groupe.add(m); EV.danseurs.push(m);
+  }
 }
 function dessinerEcran(t) {
   const c = EV.ctx, w = 512, h = 256, teinte = (t * 40) % 360;
@@ -71,6 +87,7 @@ function boucle(now) {
 }
 function entrer() {
   if (!EV.groupe) construire();
+  if (personnagesPrets()) chargerDanses().then(() => { if (EV.actif) danseurs(); }); // les danses arrivent en quelques secondes
   EV.groupe.visible = true; EV.actif = true; setMood('nuit'); musiqueEvenement(true);
   startFlight(EV.scene.clone(), 32, 1.2, Math.PI - .65, 2.6); // derrière la foule, en biais (la statue est dans l'axe de la scène)
   $('#evQuitter').hidden = false; $('#evenement').hidden = true;
