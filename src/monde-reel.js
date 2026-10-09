@@ -28,9 +28,11 @@ async function creerCarte() {
   $('#vueGoogle').append(m);
   return m;
 }
-// Vue réelle seule : Google remplace le sol, les bâtiments, les arbres et les monuments
-// dessinés ; restent la circulation et les étiquettes. Avec la maquette (bouton, ou
-// toujours pendant Zém Run, où il faut des volumes au ras du sol) : tout sauf le sol.
+// Vue réelle seule : Google remplace le sol, les bâtiments ordinaires et les arbres dessinés ;
+// restent nos monuments (Google n'a pas de bâtiments en 3D à Cotonou : sans eux, le Palais des
+// Congrès ou la cathédrale ne seraient qu'une photo à plat), la circulation et les étiquettes.
+// Avec la maquette (bouton, ou toujours pendant Zém Run, où il faut des volumes au ras du sol) :
+// tout sauf le sol.
 function appliquerVisibilite() {
   const on = MR.actif, maquette = !on || MR.maquette || MR.enJeu;
   for (const c of COUCHES_SOL) c.visible = !on || (MR.enJeu && !!c.userData.route); // en jeu : nos routes, nettes au ras du sol
@@ -40,7 +42,7 @@ function appliquerVisibilite() {
   for (const m of VEGETATION) m.visible = maquette;
   for (const m of TP.decor) m.visible = maquette; // haies, lampadaires et drapeaux des terre-pleins
   rueActive(maquette);
-  LIEUX.caches = !maquette && !MR.visite; visibiliteLieux(camera.position); // la visite montre nos monuments
+  LIEUX.caches = false; visibiliteLieux(camera.position); // nos monuments restent, même sur les images Google
   if (MR.ombre) MR.ombre.visible = on && maquette;
 }
 /** Active ou coupe la vue réelle ; renvoie un message d'erreur, ou null. */
