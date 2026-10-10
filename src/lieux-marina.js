@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { toXZ } from './base.js';
 import { fresque, kobra } from './fresques.js';
+import { porteFoodCourt } from './interieurs.js';
 import { K, bake, barrieres, centroide, groupeLieu, mursPoly, obb, ruban, solPoly } from './lieux.js';
 
 // ---------- Boulevard de la Marina, de l'Amazone à Bio Guéra ----------
@@ -124,6 +125,7 @@ function citeMinisterielle(Cm) {
       for (let k = -1; k <= 1; k++) K.boite(2.5, 1.6, 2.5, '#8f9496', o.cx + Math.cos(o.ang) * k * 14, 24.6, o.cz + Math.sin(o.ang) * k * 14);
     }
     if (Cm.parking) { const r = loc(g, Cm.parking); mursPoly(r, 0, 16, K.tex('parking', 1, 1), 8, 4); const o = obb(r); K.boite(o.L + 6, .5, o.W + 6, '#f6f5f1', o.cx, 17.2, o.cz).rotation.y = -o.ang; }
+    if (Cm.parking) porteFoodCourt(g, Cm.parking); // le food court du bâtiment-parking : on peut y entrer (salon entre amis)
     // Cour centrale : bassin et auvent ajouré.
     const [px, pz] = A(-315, 242); const lx = px - g.position.x, lz = pz - g.position.z;
     K.cyl(7, 7, .25, 28, K.mat('#3f9fb6', { rugosite: .15 }), lx, .15, lz).scale.set(1, 1, 3.4);

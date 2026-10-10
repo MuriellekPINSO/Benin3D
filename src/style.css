@@ -542,7 +542,8 @@ button { font: inherit; color: inherit; }
 
 /* ---------- Salon entre amis ---------- */
 .mode-salon .side, .mode-salon .hud, .mode-salon .dock, .mode-salon .credits, .mode-salon .card, .mode-salon .jouer-flottant { display: none !important; }
-.mode-salon #labels .lbl-q, .mode-salon #labels .lbl-water { display: none !important; }
+.mode-salon #labels .lbl-q, .mode-salon #labels .lbl-water, .mode-salon.dedans #labels { display: none !important; }
+.sl-entrer { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); font-size: 15px; padding: 12px 22px; max-width: calc(100% - 2 * var(--gutter)); }
 .salon .sl-fermer { position: absolute; top: 10px; right: 12px; border: 0; background: var(--chip); width: 32px; height: 32px; border-radius: 50%; font-size: 20px; line-height: 1; cursor: pointer; }
 .salon .sl-champ { display: grid; gap: 4px; font-weight: 700; font-size: 13px; margin: 4px 0 10px; }
 .salon input { font: inherit; color: inherit; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; }

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { $, coarse, toXZ } from './base.js';
 import { PLACES } from './donnees-lieux.js';
 import { personne } from './discussions.js';
+import { INTERIEURS, arriveeDedans, arriveeDehors, cacherInterieurs, limiter, ouvrirInterieur, porteProche, siegeProche } from './interieurs.js';
 import { E } from './etat.js';
 import { startFlight } from './interface.js';
 import { JEU } from './jeu.js';
@@ -30,10 +31,10 @@ const PHRASES = ['Ça va ?', 'On y va !', 'On mange où ?', 'Attends-moi !', 'Tr
 // Lieux de rendez-vous : id dans PLACES, nom dans le menu, « je vais … », décalage du point d'arrivée (mètres,
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
-const LIEUX = [['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0]];
-const CLAVIER = { ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
+const LIEUX = [['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0]]; // 7e : intérieur dont on arrive devant la porte
+const CLAVIER = { KeyE: 'porte', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
-const S = { actif: false, local: false, vueReelle: false, canal: null, code: '', nom: '', modele: 'vendeuse', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
+const S = { actif: false, local: false, vueReelle: false, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 'vendeuse', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
 export const salonActif = () => S.actif;
 const cible = new THREE.Vector3(), voulue = new THREE.Vector3();
 const r2 = v => Math.round(v * 100) / 100;
@@ -178,17 +179,37 @@ function dire(texte) {
   S.canal.dire({ n: S.nom, txt: texte });
 }
 function geste(nom) {
+  if (nom === 'assis' && S.lieu) { // dedans : sur la chaise libre la plus proche
+    const c = siegeProche(S.lieu, S.x, S.z); if (!c) { ligne('Approche-toi d’une table pour t’asseoir.'); return; }
+    S.x = c.x; S.z = c.z; S.cap = c.cap;
+  }
   S.geste = nom; S.gesteFin = nom === 'salut' || nom === 'rire' ? performance.now() + 3200 : 0; // saluer et rire durent un moment, danser et s'asseoir jusqu'au prochain pas
   if (nom === 'danse1' && personnagesPrets()) chargerDanses();
 }
 /** Se rend à un lieu de rendez-vous ; `proposer` : prévient les autres, qui peuvent suivre d'un clic. */
 function aller(id, proposer = true) {
   const L = LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id); if (!L || !p) return;
-  const [x, z] = toXZ(p.lat, p.lon);
-  S.x = x + L[3] + (Math.random() - .5) * 4; S.z = z + L[4] + (Math.random() - .5) * 4;
-  S.cap = L[5]; S.saut = true; S.geste = 'idle';
+  if (S.lieu) dehors(false);
+  const [x, z] = toXZ(p.lat, p.lon), I = L[6] && INTERIEURS.get(L[6]);
+  if (I) { const a = arriveeDehors(I); S.x = a.x + (Math.random() - .5) * 2; S.z = a.z; S.cap = a.cap + Math.PI; } // devant la porte, face à elle
+  else { S.x = x + L[3] + (Math.random() - .5) * 4; S.z = z + L[4] + (Math.random() - .5) * 4; S.cap = L[5]; }
+  S.saut = true; S.geste = 'idle';
   if (proposer) S.canal?.dire({ n: S.nom, txt: `Je vais ${L[2]}, venez !`, lieu: id });
 }
+
+// ---------- Intérieurs : entrer dans un bâtiment, en sortir ----------
+function dedans(I) {
+  ouvrirInterieur(I); const a = arriveeDedans(I);
+  S.lieu = I; S.y = a.y; S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; S.geste = 'idle'; S.dist = Math.min(S.dist, 4.5);
+  document.getElementById('app').classList.add('dedans');
+  S.canal?.dire({ n: S.nom, txt: `Je suis dans ${I.nom}, venez !`, lieu: LIEUX.find(l => l[6] === I.id)?.[0] });
+}
+function dehors(replacer = true) {
+  const I = S.lieu; if (!I) return;
+  S.lieu = null; S.y = 0; cacherInterieurs(); document.getElementById('app').classList.remove('dedans');
+  if (replacer) { const a = arriveeDehors(I); S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; }
+}
+function porte() { if (S.lieu) dehors(); else if (S.devant) dedans(S.devant); }
 
 // ---------- Entrer, quitter ----------
 async function entrer(code) {
@@ -206,6 +227,7 @@ async function entrer(code) {
   // À pied, il faut la ville en 3D autour de soi : la « Vue réelle » (images Google à plat) attendra la sortie.
   S.vueReelle = $('#togGoogle')?.getAttribute('aria-pressed') === 'true'; if (S.vueReelle) $('#togGoogle').click();
   E.flight = null; S.minDist = controls.minDistance; controls.minDistance = 1.5; controls.enabled = false; controls.autoRotate = false;
+  camera.near = .3; camera.updateProjectionMatrix(); // caméra proche du personnage (comme dans Zém Run)
   aller('amazone', false); majListe();
   ligne(`Bienvenue dans le salon ${code}${S.local ? ' (mode test : seuls les onglets de ce navigateur se voient)' : ''} ! Invite tes amis avec « Inviter ».`);
   if (personnagesPrets()) chargerDanses();
@@ -215,12 +237,12 @@ async function entrer(code) {
 }
 function quitter() {
   if (!S.actif) return;
-  S.actif = false; S.canal?.quitter(); S.canal = null;
+  dehors(); S.actif = false; S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
   for (const A of S.autres.values()) retirer(A); S.autres.clear();
   if (S.moi) { retirerBulle(S); scene.remove(S.moi); S.moi.userData.liberer?.(); S.moi = S.g = null; }
   $('#salonHud').hidden = true; $('#slMessages').replaceChildren(); S.touches.clear(); S.joy = null;
   document.getElementById('app').classList.remove('mode-salon');
-  controls.enabled = true; controls.minDistance = S.minDist;
+  controls.enabled = true; controls.minDistance = S.minDist; camera.near = 2; camera.updateProjectionMatrix();
   if (S.vueReelle && $('#togGoogle')?.getAttribute('aria-pressed') !== 'true') $('#togGoogle').click();
   startFlight(new THREE.Vector3(S.x, 0, S.z), 160, 1.05, S.cap + Math.PI, 1.6);
 }
@@ -243,21 +265,23 @@ export function majSalon(dt) {
   S.cap += tour * 2.4 * dt;
   const v = av * (t.has('court') || (j && Math.hypot(j.x, j.y) > .95) ? 4.6 : 1.7) * (av < 0 ? .55 : 1);
   S.x += Math.sin(S.cap) * v * dt; S.z += Math.cos(S.cap) * v * dt;
+  if (S.lieu) [S.x, S.z] = limiter(S.lieu, S.x, S.z); // les murs de la pièce
   const marche = Math.abs(v) > .05;
   if (marche || Math.abs(tour) > .05) { S.geste = 'idle'; S.gesteFin = 0; }
   else if (S.gesteFin && performance.now() > S.gesteFin) { S.geste = 'idle'; S.gesteFin = 0; }
   S.anim = marche ? 'marche' : S.geste;
-  if (S.moi) { S.moi.position.set(S.x, 0, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); }
+  if (S.moi) { S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); }
   // Caméra derrière l'épaule.
-  cible.set(S.x, 1.55, S.z);
-  voulue.set(S.x - Math.sin(S.cap) * S.dist, 1.55 + S.dist * .42, S.z - Math.cos(S.cap) * S.dist);
+  cible.set(S.x, S.y + 1.55, S.z);
+  voulue.set(S.x - Math.sin(S.cap) * S.dist, S.y + 1.55 + S.dist * (S.lieu ? .2 : .42), S.z - Math.cos(S.cap) * S.dist); // dedans, à hauteur d'yeux
+  if (S.lieu) { const [cx, cz] = limiter(S.lieu, voulue.x, voulue.z, .35); voulue.set(cx, Math.min(voulue.y, S.y + 4), cz); } // la caméra reste dans la pièce
   if (S.saut) { camera.position.copy(voulue); S.saut = false; } else camera.position.lerp(voulue, 1 - Math.exp(-dt * 7));
   controls.target.copy(cible);
   // Sa position aux autres, cinq fois par seconde (et au moins toutes les 2,5 s pour rester « présent »).
   S.envoi -= dt; S.depuis += dt;
   if (S.envoi <= 0 && S.canal) {
     S.envoi = ENVOI;
-    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim }, k = JSON.stringify(e);
+    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu?.id || '', y: S.y }, k = JSON.stringify(e);
     if (k !== S.dernier || S.depuis > 2.5) { S.dernier = k; S.depuis = 0; S.canal.envoyer(e); }
   }
   // Les autres, lissés entre deux nouvelles.
@@ -267,10 +291,15 @@ export function majSalon(dt) {
     if (Math.hypot(e.x - A.x, e.z - A.z) > 30) { A.x = e.x; A.z = e.z; } // il vient d'utiliser « Aller à »
     const dx = e.x - A.x, dz = e.z - A.z; A.x += dx * kk; A.z += dz * kk;
     let da = (e.h || 0) - A.cap; da = Math.atan2(Math.sin(da), Math.cos(da)); A.cap += da * kk;
-    if (A.g) { A.g.position.set(A.x, 0, A.z); A.g.rotation.y = A.cap; A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? 'marche' : ANIMS.has(e.a) ? e.a : 'idle'); }
+    if (A.g) A.g.visible = (e.i || '') === (S.lieu?.id || ''); // seulement ceux qui sont dans la même pièce (ou dehors)
+    if (A.g) { A.g.position.set(A.x, typeof e.y === 'number' ? e.y : 0, A.z); A.g.rotation.y = A.cap; A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? 'marche' : ANIMS.has(e.a) ? e.a : 'idle'); }
     if (A.bulle && now > A.bulleFin) retirerBulle(A);
   }
   if (S.bulle && now > S.bulleFin) retirerBulle(S);
+  // Devant une porte : « Entrer » ; dedans : « Sortir ».
+  S.devant = S.lieu ? null : porteProche(S.x, S.z);
+  const b = $('#slEntrer'), txt = S.lieu ? 'Sortir (E)' : S.devant ? `Entrer dans ${S.devant.nom} (E)` : '';
+  if (b && b.textContent !== txt) { b.textContent = txt; b.hidden = !txt; }
 }
 
 // ---------- Interface ----------
@@ -302,6 +331,7 @@ export function initSalon() {
   $('#slInviter')?.addEventListener('click', inviter);
   $('#slCopier')?.addEventListener('click', copier);
   $('#slQuitter')?.addEventListener('click', quitter);
+  $('#slEntrer')?.addEventListener('click', porte);
   $('#slForm')?.addEventListener('submit', e => { e.preventDefault(); dire($('#slTexte').value); $('#slTexte').value = ''; });
   const ph = $('#slPhrases'); if (ph) for (const p of PHRASES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = p; b.addEventListener('click', () => dire(p)); ph.append(b); }
   const ge = $('#slGestes'); if (ge) for (const [id, nom] of GESTES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = nom; b.addEventListener('click', () => geste(id)); ge.append(b); }
@@ -313,7 +343,7 @@ export function initSalon() {
     const champ = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     if (champ) { if (e.key === 'Escape') e.target.blur(); e.stopPropagation(); return; }
     if (e.key === 'Enter') { $('#slTexte').focus(); e.preventDefault(); e.stopPropagation(); return; }
-    const k = CLAVIER[e.code]; if (k) { S.touches.add(k); e.preventDefault(); e.stopPropagation(); }
+    const k = CLAVIER[e.code]; if (k === 'porte') { if (!e.repeat) porte(); e.preventDefault(); e.stopPropagation(); } else if (k) { S.touches.add(k); e.preventDefault(); e.stopPropagation(); }
   }, true);
   window.addEventListener('keyup', e => { const k = CLAVIER[e.code]; if (k) S.touches.delete(k); }, true);
   window.addEventListener('blur', () => S.touches.clear());
@@ -321,7 +351,7 @@ export function initSalon() {
   canvas.addEventListener('pointerdown', e => { if (S.actif) S.glisse = { x: e.clientX, id: e.pointerId }; });
   window.addEventListener('pointermove', e => { if (S.glisse && e.pointerId === S.glisse.id) { S.cap -= (e.clientX - S.glisse.x) * .006; S.glisse.x = e.clientX; } });
   window.addEventListener('pointerup', e => { if (S.glisse?.id === e.pointerId) S.glisse = null; });
-  canvas.addEventListener('wheel', e => { if (!S.actif) return; S.dist = THREE.MathUtils.clamp(S.dist * (1 + Math.sign(e.deltaY) * .12), 2.5, 22); e.preventDefault(); }, { passive: false });
+  canvas.addEventListener('wheel', e => { if (!S.actif) return; S.dist = THREE.MathUtils.clamp(S.dist * (1 + Math.sign(e.deltaY) * .12), 2.5, S.lieu ? 6 : 22); e.preventDefault(); }, { passive: false });
   // Manette tactile : un rond qu'on pousse avec le pouce.
   const joy = $('#slJoy');
   if (joy) {
