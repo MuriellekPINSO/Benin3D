@@ -94,6 +94,7 @@ const marRing = id => { const e = MAR.get(id); return e?.geometry ? openRing(e.g
 const CITE_BATIS = Array.from({ length: 11 }, (_, i) => 1475569326 + i);
 for (const id of [418092830, 418092848, 272739650, 418199686, 418199685, 418199703, 418199726, 824870670, 418199684, ...CITE_BATIS, 822608986, 538816990]) EXCLUDE.add(id);
 const PARVIS_BCEAO = P(6.35300, 2.42680); // fontaine et allée devant la tour
+const MOOV = P(6.35222, 2.42108); // siège de Moov Africa, avenue Jean-Paul II
 const ringsMarina = {}; // tour BCEAO (822608986), siège d'AGL (538816990)
 // Zones où les emprises Google ne sont pas posées (les lieux y sont dessinés à la main).
 const ZONES_MARINA = { poly: [418092822, 1475569343, 1475569350, 824888822, 824944706].map(marRing).filter(Boolean), cercles: [] };
@@ -104,7 +105,7 @@ const ZONES_MARINA = { poly: [418092822, 1475569343, 1475569350, 824888822, 8249
 }
 const inMarina = (x, z) => ZONES_MARINA.cercles.some(([cx, cz, r]) => (x - cx) ** 2 + (z - cz) ** 2 < r * r) || ZONES_MARINA.poly.some(r => pip([x, z], r));
 // Bâtiments vus dans les vidéos de drone, reconstruits en détail : Sofitel, tour BCEAO, Erevan, mosquée de Zongo.
-const DETAILLES = { 272739400: 'sofitel', 539986464: 'bceao', 81766299: 'erevan', 361292644: 'zongo', 274955299: 'dantokpaHall' };
+const DETAILLES = { 272739400: 'sofitel', 539986464: 'bceao', 81766299: 'erevan', 361292644: 'zongo', 274955299: 'dantokpaHall', 825868073: 'moov' }; // moov : siège de Moov Africa, avenue Jean-Paul II (modèle Tripo)
 const ringsDetailles = {};
 const ETOILE_C = (() => { const r = lmRing(264916649); return [r.reduce((s, p) => s + p[0], 0) / r.length, r.reduce((s, p) => s + p[1], 0) / r.length]; })();
 const PITCH = lmRing(815467297), PITCH_C = [PITCH.reduce((s, p) => s + p[0], 0) / 4, PITCH.reduce((s, p) => s + p[1], 0) / 4];
@@ -274,6 +275,7 @@ if (fs.existsSync(GOB)) {
     if (ringsExclus.some(([er, eb]) => qx > eb[0] && qx < eb[2] && qz > eb[1] && qz < eb[3] && pip([qx, qz], er)) || ringsExclus.some(([er, eb]) => { const ec = [(eb[0] + eb[2]) / 2, (eb[1] + eb[3]) / 2]; return ec[0] > bb[0] && ec[0] < bb[2] && ec[1] > bb[1] && ec[1] < bb[3] && pip(ec, r); })) { doublons++; continue; }
     const id = 10000000 + gardes, u = rnd(id), v = rnd(id, 7);
     if (dansCongres(qx, qz)) { gardes++; continue; } // après la numérotation : les autres bâtiments gardent leur graine
+    if (Math.hypot(qx - MOOV[0], qz - MOOV[1]) < 260) { gardes++; continue; } // siège de Moov (modèle Tripo) : Google y voit l'angle vitré en arc, absent de l'emprise OSM
     let cat = m2 > 1500 ? 4 : 0, h;
     if (marketRings.some(mr => pip([qx, qz], mr))) { cat = m2 > 1200 ? 10 : 8; h = cat === 10 ? 9.5 + u * 3 : 3 + u * 1.6; }
     else if (pip([qx, qz], campusUAC)) { cat = 11; h = m2 < 60 ? 3.4 : 6.6 + Math.floor(u * 3) * 3.2; }

@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { LITE, hash, toXZ } from './base.js';
 import { scene } from './scene.js';
-import { K, bake, centroide, detailsProches, groupeLieu, local, mursPoly, obb, panneauTexte, solPoly, voiture } from './lieux.js';
+import { K, bake, centroide, detailsProches, grandPanneau, groupeLieu, local, mursPoly, obb, panneauTexte, solPoly, voiture } from './lieux.js';
 import { construireLieuxMarina } from './lieux-marina.js';
+import { GRANDES_AFFICHES } from './publicites.js';
 
 // Lieux relevés sur les vidéos de drone de Cotonou (octobre 2026) : Sofitel Marina,
 // tour BCEAO, Erevan et la statue de Bio Guéra, rond-point de l'aéroport, mosquée de
@@ -426,6 +427,24 @@ function tombes(arr) {
   }
   m.castShadow = !LITE; m.receiveShadow = true; m.userData.proche = 3500; detailsProches.push(m); scene.add(m);
 }
+// ---------- Siège de Moov Africa Bénin : avenue Jean-Paul II, Zone résidentielle ----------
+// Modèle Tripo d'après une photo de la façade : tour de verre bleu en arc à l'angle nord-ouest
+// (vue sur l'image satellite), deux ailes blanches, rez-de-chaussée bleu et rouge. Emprise OSM 825868073.
+function siegeMoov(ring) {
+  const c = centroide(ring), g = groupeLieu('moov', c[0], c[1]), A = GRANDES_AFFICHES;
+  K.into(g, () => {
+    // Trois grands panneaux Moov (faces dos à dos) entre la façade (z ≈ -17) et l'avenue Jean-Paul II
+    // (bord de chaussée vers z ≈ -27) : devant l'aile ouest (la vitre au logo, côté est, reste dégagée ;
+    // à l'est, une annexe voisine occupe l'angle), à l'angle du parking, et dans le parking, de profil
+    // pour les deux sens de l'avenue.
+    grandPanneau(-11, -23.5, Math.PI, [A[0], A[4]], true);
+    grandPanneau(-31, -21, Math.PI, [A[1], A[5]], true);
+    grandPanneau(-30, 4, -Math.PI / 2, [A[2], A[3]], true);
+    if (tripoDispo('moov')) { poserTripo('moov', g, { hauteur: 32 }); return; }
+    const r = ring.map(([x, z]) => [x - c[0], z - c[1]]); mursPoly(r, 0, 5, K.mat('#2a5fae'), 4, 5); mursPoly(r, 5, 29, K.tex('balcons', 1, 1), 7, 3.4); solPoly([r], K.mat('#d8d6d0'), 29, 6);
+  });
+  bake(g);
+}
 
 export function construireLieuxVideos(data) {
   construireLieuxMarina(data.L);
@@ -442,5 +461,6 @@ export function construireLieuxVideos(data) {
   if (D.zongo) mosqueeZongo(D.zongo);
   // Grand bâtiment du marché Dantokpa : modèle Tripo (photo jbdodane, CC BY 2.0) posé sur l'emprise OSM.
   if (D.dantokpaHall && tripoDispo('dantokpa')) { const o = obb(D.dantokpaHall); const g = groupeLieu('dantokpa-hall', o.cx, o.cz, o.L >= o.W ? o.ang : o.ang + Math.PI / 2); poserTripo('dantokpa', g, { largeur: Math.max(o.L, o.W) + 4 }); }
+  if (D.moov) siegeMoov(D.moov);
   tombes(data.tombes || []);
 }

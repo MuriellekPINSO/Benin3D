@@ -179,5 +179,26 @@
   "Commande payée ! L’atelier t’appelle au numéro qui a payé pour la livraison à ": "Order paid! The workshop will call the number that paid to arrange delivery to ",
   "' La tenue est aussi dans ta garde-robe du jeu.'": "' The outfit is also in your in-game wardrobe.'",
   "'Le paiement n’a pas abouti : rien n’a été prélevé. Tu peux réessayer.'": "'The payment didn’t go through: nothing was charged. You can try again.'"
+ },
+ "src/donnees-lieux.js": {
+  "'Siège de Moov Africa Bénin'": "'Moov Africa Bénin headquarters'",
+  "\"Le siège de l'opérateur Moov Africa, avenue Jean-Paul II, dans la Zone résidentielle : une tour de verre bleu en arc de cercle à l'angle, entre deux ailes blanches, avec le logo Moov Africa sur la vitre. Au rez-de-chaussée, l'agence siège et Moov Money.\"": "\"The headquarters of the operator Moov Africa, on Avenue Jean-Paul II in the Zone résidentielle: a curved tower of blue glass at the corner, between two white wings, with the Moov Africa logo on the glass. On the ground floor, the head-office branch and Moov Money.\""
+ },
+ "src/publicites.js": {
+  "'Moov Africa'": "'Moov Africa'",
+  "'Moov Sayaa'": "'Moov Sayaa'",
+  "'2 500 F : 102 minutes vers tous les réseaux'": "'2,500 F: 102 minutes to all networks'",
+  "'Le meilleur du Bénin'": "'The best of Benin'",
+  "'Le meilleur du Bénin est avec toi !'": "'The best of Benin is with you!'",
+  "'Un seul code pour tous les services Moov Africa'": "'One code for all Moov Africa services'",
+  "'Les offres Canal+ sans consommer ton forfait internet'": "'Canal+ offers without using your data plan'",
+  "'Moov Fidelis'": "'Moov Fidelis'",
+  "'Ta fidélité récompensée !'": "'Your loyalty rewarded!'",
+  "'Je me dépiste, et toi ?'": "'I get screened, do you?'",
+  "'Moov Gaming League'": "'Moov Gaming League'",
+  "'Panel innovation technologique et gaming'": "'Panel on tech innovation and gaming'",
+  "'Le meilleur des vacances'": "'The best holidays'",
+  "'Moov Cash+ et Mia'": "'Moov Cash+ and Mia'",
+  "'Un monde nouveau vous appelle'": "'A new world is calling you'"
  }
 }

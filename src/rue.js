@@ -65,7 +65,9 @@ function indexer(data) {
     // Boulevard de la Marina (lieux-marina.js) : parking du Super U, jardin, Cité, ambassades, hôtels, MTN, Dôme, Sofitel.
     [6.3496, 2.3871, 78], [6.3507, 2.4069, 120], [6.3511, 2.4046, 175], [6.3508, 2.4030, 75], [6.3490, 2.4033, 70], [6.3488, 2.4012, 150],
     [6.34943, 2.39872, 45], [6.35058, 2.39921, 38], [6.34980, 2.39668, 50], [6.35037, 2.39581, 36], [6.3497, 2.3942, 150],
-    [6.3532, 2.4268, 75], [6.35085, 2.41977, 40], [6.35453, 2.43723, 85], [6.35385, 2.40458, 70]]) { const [x, z] = toXZ(la, lo); zone(x, z, r); }
+    [6.3532, 2.4268, 75], [6.35085, 2.41977, 40], [6.35453, 2.43723, 85], [6.35385, 2.40458, 70],
+    // Siège de Moov Africa : parvis sur l'avenue Jean-Paul II et parking à l'ouest.
+    [6.35225, 2.42105, 38]]) { const [x, z] = toXZ(la, lo); zone(x, z, r); }
   // Le mur peint du port : pas de murs ni de maisons devant les fresques.
   const mp = L.marinaLieux?.murPort;
   if (mp) for (let i = 1; i < mp.length; i++) { const [ax, az] = mp[i - 1], [bx, bz] = mp[i], n = Math.ceil(Math.hypot(bx - ax, bz - az) / 25); for (let k = 0; k <= n; k++) zone(ax + (bx - ax) * k / n, az + (bz - az) * k / n, 16); }

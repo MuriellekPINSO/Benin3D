@@ -13,6 +13,8 @@ sources/masques/
 sources/art/
 sources/tripo/
 sources/personnages/
+# Visuels d'origine des annonceurs (formats variés) : `npm run pubs` en tire public/pubs/, versionné.
+sources/pubs/
 # Ancienne version en un fichier : elle embarque la musique de la radio (droits non vérifiés)
 artefact/cotonou-3d.html
 

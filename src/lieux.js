@@ -6,6 +6,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { LITE, hash, toXZ, u8c } from './base.js';
 import { scene } from './scene.js';
 import { ROAD_W, TABLIERS, roadLines } from './ville.js';
+import { GRANDES_AFFICHES, matAffiche } from './publicites.js';
 
 // ---------- Lieux détaillés ----------
 // Matières et primitives reprises du projet « 3D monde » (src/entities/Batisseur.ts),
@@ -287,6 +288,37 @@ export function ecranPub(x, z, rot, titre, detail, fond) {
   for (const s of [1, -1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 1.8), new THREE.MeshBasicMaterial({ map: t, toneMapped: false })); p.position.set(0, 5.6, s * .16); if (s < 0) p.rotation.y = Math.PI; p.userData.garder = true; g.add(p); }
   return g;
 }
+// Grand panneau publicitaire sur un mât, comme ceux du marché de Tokpa : deux faces de 10 × 5 m,
+// châssis en treillis d'acier galvanisé, passerelle et spots. En V (faces jointes du côté de la
+// route, une par sens de circulation) ou, avec `dos`, faces dos à dos (une de chaque côté).
+// `faces` : deux campagnes (visuels 2:1).
+export function grandPanneau(x, z, rot, faces, dos = false) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; K.racine.add(g);
+  const acier = K.mat('#a9afb3', { metal: .55, rugosite: .42 }), treillis = K.mat('#8c9397', { metal: .5, rugosite: .5 }), cadre = K.mat('#e9e7e1'), spot = K.mat('#3a3f44');
+  const L = 10, h = 5, bas = 9.2, beta = 50 * Math.PI / 180, prof = dos ? 0 : L / 2 * Math.cos(beta), e = dos ? .8 : 0;
+  // Mât central (il monte entre les deux faces), et en V poutres vers le dos de chaque face.
+  const hm = bas + h * .6 + .3; K.cyl(.38, .48, hm, 14, acier, 0, hm / 2, -prof, g); K.boite(1, .5, 1, acier, 0, bas + .1, -prof, g);
+  const poutre = (ax, az, bx, bz, y) => { const p = K.boite(.16, .16, Math.hypot(bx - ax, bz - az), treillis, (ax + bx) / 2, y, (az + bz) / 2, g); p.rotation.y = Math.atan2(bx - ax, bz - az); };
+  faces.forEach((c, k) => {
+    const f = new THREE.Group(); g.add(f);
+    if (dos) f.rotation.y = k ? Math.PI : 0;
+    else {
+      const s = k ? -1 : 1, nx = s * Math.cos(beta), nz = Math.sin(beta), cx = s * L / 2 * Math.sin(beta);
+      for (const y of [bas + .2, bas + h * .6]) poutre(0, -prof, cx - nx * .7, -prof - nz * .7, y);
+      f.position.set(cx, 0, -prof); f.rotation.y = s * (Math.PI / 2 - beta);
+    }
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(L, h), matAffiche(c)); p.position.set(0, bas + h / 2, e + .02); p.userData.garder = true; f.add(p);
+    K.boite(L + .3, h + .3, .22, cadre, 0, bas + h / 2, e - .12, f);
+    // Treillis : montants tous les 2 m, lisses haute et basse, croix de Saint-André.
+    for (let i = 0; i <= 5; i++) K.boite(.1, h + .5, .1, treillis, -L / 2 + i * 2, bas + h / 2, e - .7, f);
+    for (const y of [bas - .1, bas + h + .1]) K.boite(L, .1, .1, treillis, 0, y, e - .7, f);
+    for (let i = 0; i < 5; i++) { const d = K.boite(.07, Math.hypot(2, h), .07, treillis, -L / 2 + 1 + i * 2, bas + h / 2, e - .7, f); d.rotation.z = (i % 2 ? 1 : -1) * Math.atan2(2, h); }
+    // Passerelle au pied des affiches, spots sur bras en haut.
+    K.boite(L, .08, .9, treillis, 0, bas - .3, e + .45, f);
+    for (let i = 0; i < 4; i++) { const sx = -L / 2 + 1.25 + i * 2.5; K.boite(.07, .07, 1.1, acier, sx, bas + h + .35, e + .5, f); K.boite(.4, .22, .32, spot, sx, bas + h + .28, e + 1.05, f); }
+  });
+  return g;
+}
 // Barrières mobiles métalliques en file (entrées, parkings).
 export function barrieres(x, z, rot, n) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; K.racine.add(g);
@@ -411,6 +443,10 @@ export async function amazone(L) {
     ecranPub(hx - 2, -hz * .55, -Math.PI / 2, 'BÉNIN RÉVÉLÉ', 'Esplanade des Amazones', '#2a6f8f');
     ecranPub(hx - 2, 0, -Math.PI / 2, 'AMAZONES', 'Fierté et mémoire du Danxomè', '#8a2f3a');
     ecranPub(hx - 2, hz * .55, -Math.PI / 2, 'COTONOU', 'Ville ouverte sur l’Atlantique', '#3f7b58');
+    // Deux grands panneaux Moov Africa sur le trottoir entre l'esplanade et le boulevard de la
+    // Marina, de part et d'autre de l'entrée : une face vers le boulevard, une vers l'esplanade.
+    grandPanneau(-30, -103.5, Math.PI, GRANDES_AFFICHES.slice(0, 2), true);
+    grandPanneau(30, -103.5, Math.PI, GRANDES_AFFICHES.slice(2, 4), true);
     for (let i = 0; i < 18; i++) { const a = i * Math.PI * 2 / 18, l = K.cyl(.11, .11, .03, 10, K.mat('#fff0b0', { rugosite: .25, emissif: '#5a4a20' }), Math.cos(a) * 16.5, .12, Math.sin(a) * 16.5); l.castShadow = false; }
   });
   bake(g);

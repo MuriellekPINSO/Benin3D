@@ -5,15 +5,24 @@ import { $ } from './base.js';
 // Chaque campagne alimente les panneaux 4 × 3 des grands axes (rue.js) et les grands
 // panneaux posés le long des trajets du jeu (bordure.js). Les affiches sont dessinées
 // (texte et couleurs de la marque, sans logo) : pour une vraie campagne, mettre le
-// visuel fourni par l'annonceur dans public/pubs/ et l'indiquer dans `image`
-// (format 4:3, 1024 × 768 px). Les marques réelles ne doivent être affichées dans une
-// version publique qu'avec l'accord de l'annonceur.
+// visuel fourni par l'annonceur dans sources/pubs/, `npm run pubs` le met au format 4:3
+// (public/pubs/, 1024 × 768 px), puis l'indiquer dans `image`. Les marques réelles ne
+// doivent être affichées dans une version publique qu'avec l'accord de l'annonceur.
 
 export const CONTACT_PUB = ''; // adresse ou numéro à afficher dans l'offre (à renseigner)
 
+// Visuels réels de Moov Africa (sources/pubs/moov/, mis au format par `npm run pubs`).
+const moov = (id, titre, sous) => ({ id: `moov-${id}`, marque: 'Moov Africa', titre, sous, fond: '#0a5aa8', encre: '#ffffff', accent: '#f58220', poids: 2, image: `pubs/moov-${id}.jpg` });
 export const CAMPAGNES = [
   { id: 'mtn-momo', marque: 'MTN', titre: 'MoMo', sous: 'Envoyez, payez, retirez partout au Bénin', fond: '#ffcc00', encre: '#111111', accent: '#111111', poids: 3 },
-  { id: 'moov-money', marque: 'Moov Africa', titre: 'Moov Money', sous: 'Votre argent, partout, à tout moment', fond: '#0a5aa8', encre: '#ffffff', accent: '#f58220', poids: 3 },
+  moov('sayaa', 'Moov Sayaa', '2 500 F : 102 minutes vers tous les réseaux'),
+  moov('meilleur', 'Le meilleur du Bénin', 'Le meilleur du Bénin est avec toi !'),
+  moov('199', '*199#', 'Un seul code pour tous les services Moov Africa'),
+  moov('canal', 'Canal+', 'Les offres Canal+ sans consommer ton forfait internet'),
+  moov('fidelis', 'Moov Fidelis', 'Ta fidélité récompensée !'),
+  moov('depistage', '#UnPasContreLeCancer', 'Je me dépiste, et toi ?'),
+  moov('gaming', 'Moov Gaming League', 'Panel innovation technologique et gaming'),
+  moov('vacances', 'Le meilleur des vacances', 'Moov Cash+ et Mia'),
   { id: 'vodun-days', marque: 'Ouidah', titre: 'VODUN DAYS', sous: '9 et 10 janvier · Ouidah', fond: '#7a1f2b', encre: '#ffffff', accent: '#f2c21b', poids: 2 },
   { id: 'benin-revele', marque: 'Tourisme', titre: 'LE BÉNIN RÉVÉLÉ', sous: 'Visitez, découvrez, vivez', fond: '#14532d', encre: '#ffffff', accent: '#facc15', poids: 2 },
   { id: 'qualiwo', marque: 'Qualiwo', titre: 'QUALIWO', sous: 'Commandez en un geste', fond: '#c75b39', encre: '#ffffff', accent: '#ffe7a8', poids: 2 },
@@ -21,6 +30,8 @@ export const CAMPAGNES = [
   { id: 'bissap', marque: 'Exemple', titre: 'JUS DE BISSAP', sous: '100 % naturel', fond: '#9d174d', encre: '#ffffff', accent: '#fde68a', poids: 1 },
   { id: 'ciment', marque: 'Exemple', titre: 'CIMENT SOLIDE', sous: 'Bâtir pour durer', fond: '#4b5563', encre: '#ffffff', accent: '#facc15', poids: 1 },
 ];
+// Grands panneaux sur mât (place de l'Amazone, siège Moov) : visuels 2:1, deux affiches Moov par face.
+export const GRANDES_AFFICHES = [1, 2, 3, 4, 5, 6].map(n => ({ ...moov(`grand-${n}`, 'Moov Africa', 'Un monde nouveau vous appelle'), poids: 0 }));
 const total = CAMPAGNES.reduce((s, c) => s + c.poids, 0);
 /** Une campagne au hasard (pondérée), à partir d'un nombre entre 0 et 1. */
 export function campagne(r) { let x = r * total; for (const c of CAMPAGNES) { x -= c.poids; if (x <= 0) return c; } return CAMPAGNES[0]; }

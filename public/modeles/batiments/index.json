@@ -42,5 +42,9 @@
  "tokpa": {
   "triangles": 30000,
   "octets": 1014692
+ },
+ "moov": {
+  "triangles": 52730,
+  "octets": 1127520
  }
 }

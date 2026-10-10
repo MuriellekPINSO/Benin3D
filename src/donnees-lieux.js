@@ -55,6 +55,8 @@ export const PLACES = [
     text: "Deux hôtels dans le même jardin de sept hectares : le Novotel Orisha en V, toits gris et liseré bleu, et l'Ibis, longue barre de trois niveaux au toit débordant rouge. Un étang et un petit pavillon bordent l'allée." },
   { id: 'mtn', name: 'Siège de MTN Bénin', kind: 'Entreprise', k: 'institution', lat: 6.34943, lon: 2.39872, h: 34, view: [230, 1.05, 2.5],
     text: "Le siège de l'opérateur MTN, boulevard de la Marina : un immeuble de verre vert réfléchissant, un grand pan jaune MTN sur la façade ouest et un pylône rouge et blanc sur le toit. En face, de l'autre côté du boulevard, Nigeria House, l'ambassade du Nigeria." },
+  { id: 'moov', name: 'Siège de Moov Africa Bénin', kind: 'Entreprise', k: 'institution', lat: 6.35218, lon: 2.42114, h: 31, view: [170, 1.05, 3.85],
+    text: "Le siège de l'opérateur Moov Africa, avenue Jean-Paul II, dans la Zone résidentielle : une tour de verre bleu en arc de cercle à l'angle, entre deux ailes blanches, avec le logo Moov Africa sur la vitre. Au rez-de-chaussée, l'agence siège et Moov Money." },
   { id: 'dome', name: 'Le Dôme et le Pavillon', kind: 'Sofitel Marina', k: 'hotel', lat: 6.35000, lon: 2.39630, h: 26, view: [280, 1.0, 2.8],
     text: "L'ancien Centre international de conférences de 1995, rénové par le Sofitel : un grand cône à facettes couleur bronze, illuminé le soir. À côté, le Pavillon, aux ailettes dorées et à la verrière bleue, abrite deux salles de cinéma, un casino et un club. Une allée de nuages blancs les relie à l'hôtel." },
   { id: 'superu', name: 'Erevan · Super U', kind: 'Centre commercial', k: 'marche', lat: 6.34895, lon: 2.38694, h: 12, view: [220, 1.05, 3.0],

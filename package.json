@@ -14,7 +14,8 @@
     "photos": "node scripts/photos.mjs",
     "verifier": "eslint src",
     "tripo": "node scripts/tripo.mjs",
-    "personnages": "node scripts/personnages.mjs"
+    "personnages": "node scripts/personnages.mjs",
+    "pubs": "node scripts/pubs.mjs"
   },
   "dependencies": {
     "peerjs": "^1.5.5",
