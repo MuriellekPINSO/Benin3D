@@ -18,6 +18,7 @@
     "pubs": "node scripts/pubs.mjs"
   },
   "dependencies": {
+    "firebase": "^12.19.0",
     "peerjs": "^1.5.5",
     "three": "0.180.0"
   },

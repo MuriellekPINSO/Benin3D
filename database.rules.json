@@ -1,0 +1,23 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "zem_salons": {
+      "$code": {
+        ".read": "auth != null && $code.matches(/^[A-Z2-9]{6}$/)",
+        "joueurs": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['n', 'm', 'x', 'z']) && newData.child('n').isString() && newData.child('n').val().length <= 16 && newData.child('m').isString() && newData.child('m').val().length <= 40 && newData.child('x').isNumber() && newData.child('z').isNumber()"
+          }
+        },
+        "messages": {
+          "$m": {
+            ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid",
+            ".validate": "newData.hasChildren(['u', 'n', 'txt', 't']) && newData.child('txt').isString() && newData.child('txt').val().length >= 1 && newData.child('txt').val().length <= 140 && newData.child('n').isString() && newData.child('n').val().length <= 16 && newData.child('t').val() <= now"
+          }
+        }
+      }
+    }
+  }
+}

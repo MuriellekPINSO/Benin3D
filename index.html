@@ -69,6 +69,7 @@
     <button class="tog" type="button" id="togSat" aria-pressed="false" hidden title="Poser la ville sur les vraies images satellite Google (API Map Tiles)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7 9 3 5 7l4 4"/><path d="m17 11 4 4-4 4-4-4"/><path d="m8 12 4 4 6-6-4-4Z"/><path d="m16 8 3-3"/><path d="M9 21a6 6 0 0 0-6-6"/></svg><span class="t-long">Sol satellite</span></button>
     <button class="tog" type="button" id="btnConcert" title="Concert sur l’esplanade de l’Amazone (entrée 50 F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span class="t-long">Concert</span></button>
     <button class="tog" type="button" id="btnMode" title="Boutique de mode : essaie des tenues, porte-les dans le jeu ou achète-les pour de vrai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6a2 2 0 1 1 3 1.7c-.6.4-1 .9-1 1.6V10"/><path d="M12 10 3.6 16.2A1.6 1.6 0 0 0 4.6 19h14.8a1.6 1.6 0 0 0 1-2.8z"/></svg><span class="t-long">Boutique</span></button>
+    <button class="tog" type="button" id="btnSalon" title="Entre amis : retrouve tes amis dans Cotonou, promenez-vous et discutez ensemble"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.3A5 5 0 0 1 21 19"/></svg><span class="t-long">Entre amis</span></button>
     <button class="tog" type="button" id="togMeteo" aria-pressed="false" title="Changer le temps : soleil, nuages, pluie, orage (touche M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17a4.5 4.5 0 1 1 1.2-8.8A5.5 5.5 0 0 1 18.5 10 3.5 3.5 0 0 1 18 17Z"/><path d="M9 20l-1 2M13 20l-1 2M17 20l-1 2"/></svg><span class="t-long">Soleil</span></button>
     <button class="tog" type="button" id="togTour" aria-pressed="false" title="Faire tourner la caméra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4.5h-4.5"/></svg><span class="t-long">Survol</span></button>
   </div>
@@ -223,6 +224,30 @@
     <div class="ev-actions"><button type="button" class="jouer" id="evPayer">Payer 50 F et entrer</button><button type="button" class="jouer ev-btn-momo" id="evMomo" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg><span>Payer 50 F par MoMo</span></button><button type="button" class="btn-ghost" id="evAnnuler">Pas maintenant</button></div>
   </div>
   <button type="button" class="ev-quitter" id="evQuitter" hidden>Quitter le concert</button>
+
+  <div class="evenement panel salon" id="salon" hidden role="dialog" aria-labelledby="slTitre">
+    <button type="button" class="sl-fermer" id="slFermer" aria-label="Fermer">×</button>
+    <small class="ev-sur">Nouveau · version de test</small>
+    <h2 id="slTitre">Entre amis</h2>
+    <p>Retrouve tes amis dans Cotonou : promenez-vous à pied, discutez, saluez-vous, dansez, et allez ensemble à l’Amazone, à la Haie Vive ou à la plage.</p>
+    <label class="sl-champ">Ton nom <input id="slNom" maxlength="16" autocomplete="nickname" placeholder="Ex. : Murielle"></label>
+    <p class="sl-titre">Ton personnage</p>
+    <div class="sl-avatars" id="slAvatars" role="radiogroup" aria-label="Ton personnage"></div>
+    <div class="ev-actions"><button type="button" class="jouer" id="slCreer">Créer un salon</button></div>
+    <div class="sl-rejoindre"><input id="slCode" maxlength="6" placeholder="Code reçu (6 caractères)" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" id="slRejoindre">Rejoindre</button></div>
+    <p class="ev-etat" id="slEtat" role="status" aria-live="polite" hidden></p>
+  </div>
+  <div class="salon-hud" id="salonHud" hidden>
+    <div class="sl-haut panel"><div><b>Salon <span id="slCodeAff"></span></b><small id="slNb"></small></div><button type="button" class="jouer" id="slInviter">Inviter</button><button type="button" id="slCopier">Copier le lien</button><button type="button" id="slQuitter">Quitter</button></div>
+    <div class="sl-chat panel">
+      <ol id="slMessages" aria-live="polite" aria-label="Messages du salon"></ol>
+      <div class="sl-phrases" id="slPhrases"></div>
+      <form id="slForm"><input id="slTexte" maxlength="140" placeholder="Écris à tes amis… (Entrée)" autocomplete="off" aria-label="Message"><button type="submit">Envoyer</button></form>
+    </div>
+    <div class="sl-actions panel"><div class="sl-gestes" id="slGestes" aria-label="Gestes"></div><select id="slAller" aria-label="Aller à un lieu avec tes amis"></select></div>
+    <div class="sl-joy" id="slJoy" hidden aria-hidden="true"><i></i></div>
+    <p class="sl-aide">Flèches ou ZQSD pour marcher · Maj pour courir · glisser pour tourner · molette pour zoomer · Entrée pour écrire</p>
+  </div>
 
   <div id="loader">
     <div class="box">
