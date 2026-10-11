@@ -6,6 +6,7 @@ import { JEU, sauter, virage } from './jeu.js';
 import { DISC, klaxonner, repondre } from './discussions.js';
 import { interagir } from './interactions.js';
 import { changerMeteo } from './meteo.js';
+import { manetteSalon, salonActif } from './salon.js';
 
 // ---------- Manettes (Xbox, PlayStation, génériques), API Gamepad ----------
 // Reprise de 3D monde (Manette.ts) : lecture normalisée (PlayStation en mode brut
@@ -15,6 +16,10 @@ import { changerMeteo } from './meteo.js';
 //   pendant un dialogue : A/✕ = réponse 1, B/○ = 2, X/□ = 3 · Start : pause · Select : météo
 // Dans la ville : stick gauche pour se déplacer, stick droit pour tourner et incliner,
 // gâchettes pour zoomer, Start pour jouer. Dans les menus : croix ou stick pour choisir, A pour valider.
+// Salon entre amis (Ma vie) : stick gauche pour marcher (à fond ou RB : courir), stick droit pour tourner ;
+// en voiture ou à moto, RT : gaz, LT : frein puis marche arrière, stick gauche : volant ; A : action
+// (entrer, monter, faire le plein, commander…), X : 2e action, Y : gestes et zém, B : klaxon,
+// Select : aller à (GPS en roulant), Start : phrases rapides.
 
 const M = { index: null, prec: [], dernier: null, lateral: 0, haut: false, roulement: 0, nom: '' };
 const zone = (v, s = .16) => { const a = Math.abs(v); return a <= s ? 0 : Math.sign(v) * Math.min(1, (a - s) / (1 - s)); };
@@ -35,7 +40,7 @@ export function vibrer(type) {
 
 // Menus : la croix déplace le focus parmi les boutons visibles du panneau ouvert, A valide.
 function panneauOuvert() {
-  for (const s of ['#accueil', '#boutique', '#jeuPause', '#jeuFin', '#jeuMenu', '#offrePub', '#reel']) { const el = $(s); if (el && !el.hidden && el.offsetParent !== null) return el; }
+  for (const s of ['#choix', '#vieTirage', '#salon', '#accueil', '#boutique', '#jeuPause', '#jeuFin', '#jeuMenu', '#offrePub', '#reel']) { const el = $(s); if (el && !el.hidden && el.offsetParent !== null) return el; }
   return null;
 }
 function deplacerFocus(p, sens) {
@@ -65,8 +70,10 @@ export function majManette(dt) {
     if (appuye(13) || appuye(15) || (ly > .6 && M.lateral <= 0)) deplacerFocus(p, 1);
     M.lateral = ly < -.6 ? -1 : ly > .6 ? 1 : 0;
     if (appuye(0) && document.activeElement && p.contains(document.activeElement)) document.activeElement.click();
-    if (appuye(1)) (p.querySelector('.bq-x, .op-x, #reelFermer, #jpReprendre, #jmRetour, #acPasser') || {}).click?.();
+    if (appuye(1)) (p.querySelector('.bq-x, .op-x, #reelFermer, #jpReprendre, #jmRetour, #acPasser, #chAnnuler, #slFermer') || {}).click?.();
     if (appuye(9) && p.id === 'jeuPause') $('#jpReprendre').click();
+  } else if (salonActif()) {
+    manetteSalon({ lx, ly, rx, rt, lt, court: !!enfonce[5], a: appuye(0), b: appuye(1), x: appuye(2), y: appuye(3), select: appuye(8), start: appuye(9) });
   } else if (JEU.actif && JEU.etat && !JEU.fini) {
     const st = JEU.etat;
     if (!JEU.pause) {
@@ -107,4 +114,5 @@ export function majManette(dt) {
   M.prec = enfonce;
 }
 window.addEventListener('gamepadconnected', e => { M.index = e.gamepad.index; });
+document.addEventListener('vibrer', e => vibrer(e.detail)); // demandé par les modules qui n'importent pas celui-ci (trajets.js)
 window.addEventListener('gamepaddisconnected', e => { if (M.index === e.gamepad.index) { M.index = null; M.nom = ''; } });

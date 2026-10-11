@@ -296,7 +296,11 @@
   " ? Ça fait ": "? That’s ",
   "'Ta moto louée t’attend à côté : approche-toi et « Monter sur ta moto ».'": "'Your rented motorbike is waiting nearby: walk up and “Get on your motorbike”.'",
   "'Station-service la plus proche'": "'Nearest fuel station'",
-  "'faire le plein'": "'to fill up'"
+  "'faire le plein'": "'to fill up'",
+  "'Manette : stick gauche pour marcher ou conduire · RT/LT gaz et frein · A action · X 2e action · Y gestes · B klaxon · Select aller à · Start phrases'": "'Gamepad: left stick to walk or drive · RT/LT throttle and brake · A action · X 2nd action · Y gestures · B horn · Select go to · Start phrases'",
+  "'Prendre un zém'": "'Hail a zém'",
+  "'GPS : où vas-tu ?'": "'GPS: where are you going?'",
+  "'Dire à tes amis'": "'Say to your friends'"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",

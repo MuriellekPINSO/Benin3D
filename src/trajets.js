@@ -229,7 +229,7 @@ export function majTrajets(dt, av, tour) {
   if (T.mode === 'conduit') {
     const V = T.veh, D = VIE.data, panne = !(D?.carburant > 0);
     if (panne && !T.panneDite) { T.panneDite = true; ligne('Panne sèche ! Tu avances au pas : « Aller à » → « Station-service la plus proche » pour le GPS.'); }
-    const km0 = V.km, choc = piloter(V, av, tour, dt, { panne }); if (choc) son('choc');
+    const km0 = V.km, choc = piloter(V, av, tour, dt, { panne }); if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); }
     T.conso += (V.km - km0) / V.D.kmParLitre; if (T.conso > .01) { consommer(T.conso); T.conso = 0; }
     moteurMaj(Math.abs(V.v), true);
     S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; S.anim = 'assis';

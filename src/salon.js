@@ -12,6 +12,7 @@ import { stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment } from './rue.js';
 import { T, actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, vehiculeDe } from './trajets.js';
 import { VIE, alerteDuJour, assurerVie, louerMoto, majVie, rendreVie, sauverVie, surAnnonce, vitesseFaim } from './vie.js';
+import { son } from './audio.js';
 import { camera, canvas, controls, scene } from './scene.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
@@ -33,7 +34,7 @@ const PHRASES = ['Ça va ?', 'On y va !', 'On mange où ?', 'Attends-moi !', 'Tr
 const LIEUX = [['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0]]; // 7e : intérieur dont on arrive devant la porte
 const CLAVIER = { KeyE: 'porte', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
-const S = { actif: false, local: false, vueReelle: false, nonLus: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 'vendeuse', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
+const S = { actif: false, local: false, vueReelle: false, nonLus: 0, pad: null, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 'vendeuse', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
 export const salonActif = () => S.actif;
 const cible = new THREE.Vector3(), voulue = new THREE.Vector3();
 const r2 = v => Math.round(v * 100) / 100;
@@ -273,13 +274,14 @@ async function copier() {
 export function majSalon(dt) {
   if (!S.actif) return;
   const t = S.touches, j = S.joy;
-  const av = THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (j ? j.y : 0), -1, 1);
-  const tour = THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) - (j ? j.x : 0), -1, 1);
+  const pad = S.pad && performance.now() - S.padT < 250 ? S.pad : null; // manette (voir manette.js), si elle vient de parler : débranchée ou menu ouvert, on n'avance plus
+  const av = THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
+  const tour = THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) - (j ? j.x : 0) - (pad ? pad.lx : 0), -1, 1);
   majVie(dt);
   const suivi = majTrajets(dt, av, tour); // en voiture, à moto, derrière un zém : c'est le véhicule qui bouge
   if (!suivi) {
-    S.cap += tour * 2.4 * dt;
-    const v = av * (t.has('court') || (j && Math.hypot(j.x, j.y) > .95) ? 4.6 : 1.7) * (av < 0 ? .55 : 1) * vitesseFaim(); // trop faim : au ralenti
+    S.cap += tour * 2.4 * dt - (pad ? pad.rx * 2 * dt : 0); // stick droit : tourner
+    const v = av * (t.has('court') || (j && Math.hypot(j.x, j.y) > .95) || (pad && (pad.court || Math.hypot(pad.lx, pad.ly) > .95)) ? 4.6 : 1.7) * (av < 0 ? .55 : 1) * vitesseFaim(); // trop faim : au ralenti
     const nx = S.x + Math.sin(S.cap) * v * dt, nz = S.z + Math.cos(S.cap) * v * dt;
     if (S.lieu) [S.x, S.z] = limiter(S.lieu, nx, nz); // les murs de la pièce
     else if (!dansBatiment(nx, nz)) { S.x = nx; S.z = nz; } // dehors : on ne traverse pas les bâtiments
@@ -329,6 +331,19 @@ export function majSalon(dt) {
     const b = $(sel), a = S.actions[k], txt = a ? `${a.texte}${k === 0 && !coarse ? ' (E)' : ''}` : '';
     if (b && b.textContent !== txt) { b.textContent = txt; b.hidden = !txt; }
   });
+}
+
+// ---------- Manette : boutons ----------
+/** Appelé par manette.js à chaque image quand le salon est ouvert et qu'aucune fenêtre n'attend un choix. */
+export function manetteSalon(m) {
+  S.pad = m; S.padT = performance.now();
+  if (!S.padVu) { S.padVu = true; const a = $('.sl-aide'); if (a) a.textContent = 'Manette : stick gauche pour marcher ou conduire · RT/LT gaz et frein · A action · X 2e action · Y gestes · B klaxon · Select aller à · Start phrases'; }
+  if (m.a) S.actions?.[0]?.f();
+  if (m.x) S.actions?.[1]?.f();
+  if (m.b && T.mode === 'conduit') son('klaxon');
+  if (m.y) choisir('Gestes', [...GESTES.map(([id, nom]) => ({ texte: nom, f: () => geste(id) })), { texte: 'Prendre un zém', f: helerZem }]);
+  if (m.select) choisir(T.mode === 'conduit' ? 'GPS : où vas-tu ?' : 'Aller à…', LIEUX.map(L => ({ texte: L[1], f: () => aller(L[0]) })));
+  if (m.start) choisir('Dire à tes amis', PHRASES.map(p => ({ texte: p, f: () => dire(p) })));
 }
 
 // ---------- Héler un zém : choisir où aller, négocier le prix ----------
