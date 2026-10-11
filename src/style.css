@@ -585,7 +585,7 @@ button { font: inherit; color: inherit; }
   /* Téléphone : barre compacte, joystick à gauche, discussion et gestes ouverts à la demande. */
   .sl-haut { top: 8px; padding: 4px 4px 4px 12px; gap: 4px; flex-wrap: nowrap; }
   .sl-haut b { font-size: 14px; }
-  .sl-haut small, #slCopier { display: none; }
+  .sl-haut small, #slCopier, #slVue { display: none; }
   .sl-haut button { padding: 7px 11px !important; font-size: 13px; }
   .sl-chat, .sl-actions { display: none; }
   .sl-chat.ouvert { display: grid; left: 8px; right: 8px; width: auto; top: 58px; bottom: auto; max-height: 52vh; }

@@ -16,7 +16,8 @@ import { manetteSalon, salonActif } from './salon.js';
 //   pendant un dialogue : A/✕ = réponse 1, B/○ = 2, X/□ = 3 · Start : pause · Select : météo
 // Dans la ville : stick gauche pour se déplacer, stick droit pour tourner et incliner,
 // gâchettes pour zoomer, Start pour jouer. Dans les menus : croix ou stick pour choisir, A pour valider.
-// Salon entre amis (Ma vie) : stick gauche pour marcher (à fond ou RB : courir), stick droit pour tourner ;
+// Salon entre amis (Ma vie) : stick gauche pour marcher (à fond ou RB : courir), stick droit pour tourner et
+// prendre de la hauteur, LB : changer de vue (derrière soi, de haut, très haut) ;
 // en voiture ou à moto, RT : gaz, LT : frein puis marche arrière, stick gauche : volant ; A : action
 // (entrer, monter, faire le plein, commander…), X : 2e action, Y : gestes et zém, B : klaxon,
 // Select : aller à (GPS en roulant), Start : phrases rapides.
@@ -73,7 +74,7 @@ export function majManette(dt) {
     if (appuye(1)) (p.querySelector('.bq-x, .op-x, #reelFermer, #jpReprendre, #jmRetour, #acPasser, #chAnnuler, #slFermer') || {}).click?.();
     if (appuye(9) && p.id === 'jeuPause') $('#jpReprendre').click();
   } else if (salonActif()) {
-    manetteSalon({ lx, ly, rx, rt, lt, court: !!enfonce[5], a: appuye(0), b: appuye(1), x: appuye(2), y: appuye(3), select: appuye(8), start: appuye(9) });
+    manetteSalon({ lx, ly, rx, ry, rt, lt, court: !!enfonce[5], lb: appuye(4), a: appuye(0), b: appuye(1), x: appuye(2), y: appuye(3), select: appuye(8), start: appuye(9) });
   } else if (JEU.actif && JEU.etat && !JEU.fini) {
     const st = JEU.etat;
     if (!JEU.pause) {

@@ -97,7 +97,6 @@
   "Ton nom": "Your name",
   "Créer un salon": "Create a room",
   "Copier le lien": "Copy the link",
-  "Flèches ou ZQSD pour marcher · Maj pour courir · glisser pour tourner · molette pour zoomer · Entrée pour écrire": "Arrows or WASD to walk · Shift to run · drag to turn · wheel to zoom · Enter to type",
   "Discussion": "Chat",
   "Gestes": "Gestures",
   "Ma vie": "My life",
@@ -109,7 +108,10 @@
   "150 000 F · appartement à la Haie Vive · voiture": "150,000 F · flat in Haie Vive · car",
   "Commencer ma vie": "Start my life",
   "Faim": "Hunger",
-  "Prendre un zém": "Hail a zém"
+  "Prendre un zém": "Hail a zém",
+  "Flèches ou ZQSD pour marcher · Maj pour courir · glisser pour tourner (vers le bas : de haut) · molette pour zoomer · V : changer de vue · Entrée pour écrire": "Arrows or WASD to walk · Shift to run · drag to turn (down: view from above) · wheel to zoom · V: change view · Enter to type",
+  "Vue : de haut": "View: from above",
+  "Vue": "View"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -297,10 +299,14 @@
   "'Ta moto louée t’attend à côté : approche-toi et « Monter sur ta moto ».'": "'Your rented motorbike is waiting nearby: walk up and “Get on your motorbike”.'",
   "'Station-service la plus proche'": "'Nearest fuel station'",
   "'faire le plein'": "'to fill up'",
-  "'Manette : stick gauche pour marcher ou conduire · RT/LT gaz et frein · A action · X 2e action · Y gestes · B klaxon · Select aller à · Start phrases'": "'Gamepad: left stick to walk or drive · RT/LT throttle and brake · A action · X 2nd action · Y gestures · B horn · Select go to · Start phrases'",
   "'Prendre un zém'": "'Hail a zém'",
   "'GPS : où vas-tu ?'": "'GPS: where are you going?'",
-  "'Dire à tes amis'": "'Say to your friends'"
+  "'Dire à tes amis'": "'Say to your friends'",
+  "'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · LB vue · RT/LT gaz et frein · A action · X 2e action · Y gestes · B klaxon · Select aller à · Start phrases'": "'Gamepad: left stick to walk or drive · right stick to turn and look from above · LB view · RT/LT throttle and brake · A action · X 2nd action · Y gestures · B horn · Select go to · Start phrases'",
+  "'Derrière toi'": "'Behind you'",
+  "'De haut'": "'From above'",
+  "'Très haut'": "'High above'",
+  "Vue : ": "View: "
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",

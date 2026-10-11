@@ -32,9 +32,9 @@ const PHRASES = ['Ça va ?', 'On y va !', 'On mange où ?', 'Attends-moi !', 'Tr
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
 const LIEUX = [['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0]]; // 7e : intérieur dont on arrive devant la porte
-const CLAVIER = { KeyE: 'porte', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
+const CLAVIER = { KeyV: 'vue', KeyE: 'porte', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
-const S = { actif: false, local: false, vueReelle: false, nonLus: 0, pad: null, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 'vendeuse', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
+const S = { actif: false, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 'vendeuse', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
 export const salonActif = () => S.actif;
 const cible = new THREE.Vector3(), voulue = new THREE.Vector3();
 const r2 = v => Math.round(v * 100) / 100;
@@ -291,12 +291,14 @@ export function majSalon(dt) {
     S.anim = marche ? 'marche' : S.geste;
     if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); }
   }
-  // Caméra derrière l'épaule (ou derrière le véhicule).
-  const P = suivi || S, dist = suivi ? suivi.dist : S.dist;
+  // Caméra derrière soi (ou derrière le véhicule), à la distance et l'inclinaison choisies : glisser vers le haut ou
+  // le bas, molette, touche V, stick droit de la manette. De très haut, on voit le quartier comme sur une carte.
+  if (pad) S.tangage = THREE.MathUtils.clamp(S.tangage + pad.ry * 1.2 * dt, .05, 1.48);
+  const P = suivi || S, dist = suivi ? Math.max(S.dist, suivi.dist) : S.dist, inc = S.lieu ? Math.min(S.tangage, .35) : S.tangage; // dedans, à hauteur d'yeux
   cible.set(P.x, P.y + 1.55, P.z);
-  voulue.set(P.x - Math.sin(P.cap) * dist, P.y + (suivi ? suivi.haut : 1.55 + S.dist * (S.lieu ? .2 : .42)), P.z - Math.cos(P.cap) * dist); // dedans, à hauteur d'yeux
+  voulue.set(P.x - Math.sin(P.cap) * dist * Math.cos(inc), P.y + 1.55 + dist * Math.sin(inc), P.z - Math.cos(P.cap) * dist * Math.cos(inc));
   if (S.lieu) { const [cx, cz] = limiter(S.lieu, voulue.x, voulue.z, .35); voulue.set(cx, Math.min(voulue.y, S.y + 4), cz); } // la caméra reste dans la pièce
-  else { // dehors : si un bâtiment se trouve entre le personnage et la caméra, elle s'approche (jamais dans un mur)
+  else if (voulue.y - P.y < 14) { // dehors, au ras des toits : si un bâtiment se trouve entre le personnage et la caméra, elle s'approche (jamais dans un mur)
     let k = 1; for (let i = 1; i <= 12; i++) { const f = i / 12; if (dansBatiment(cible.x + (voulue.x - cible.x) * f, cible.z + (voulue.z - cible.z) * f)) { k = Math.max(.15, (i - 1) / 12); break; } }
     if (k < 1) voulue.set(cible.x + (voulue.x - cible.x) * k, cible.y + (voulue.y - cible.y) * k + .4, cible.z + (voulue.z - cible.z) * k);
   }
@@ -333,11 +335,20 @@ export function majSalon(dt) {
   });
 }
 
+// ---------- Vues : derrière soi, de haut, très haut (touche V, bouton « Vue », LB de la manette) ----------
+const VUES = [['Derrière toi', 7, .4], ['De haut', 45, 1], ['Très haut', 140, 1.38]];
+function changerVue() {
+  S.vue = (S.vue + 1) % VUES.length; const [, d, t] = VUES[S.vue];
+  S.dist = S.lieu ? Math.min(d, 6) : d; S.tangage = t;
+  const b = $('#slVue'); if (b) b.textContent = `Vue : ${VUES[(S.vue + 1) % VUES.length][0].toLowerCase()}`;
+}
+
 // ---------- Manette : boutons ----------
 /** Appelé par manette.js à chaque image quand le salon est ouvert et qu'aucune fenêtre n'attend un choix. */
 export function manetteSalon(m) {
   S.pad = m; S.padT = performance.now();
-  if (!S.padVu) { S.padVu = true; const a = $('.sl-aide'); if (a) a.textContent = 'Manette : stick gauche pour marcher ou conduire · RT/LT gaz et frein · A action · X 2e action · Y gestes · B klaxon · Select aller à · Start phrases'; }
+  if (!S.padVu) { S.padVu = true; const a = $('.sl-aide'); if (a) a.textContent = 'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · LB vue · RT/LT gaz et frein · A action · X 2e action · Y gestes · B klaxon · Select aller à · Start phrases'; }
+  if (m.lb) changerVue();
   if (m.a) S.actions?.[0]?.f();
   if (m.x) S.actions?.[1]?.f();
   if (m.b && T.mode === 'conduit') son('klaxon');
@@ -394,6 +405,7 @@ export function initSalon(data) {
   $('#slInviter')?.addEventListener('click', inviter);
   $('#slCopier')?.addEventListener('click', copier);
   $('#slQuitter')?.addEventListener('click', quitter);
+  $('#slVue')?.addEventListener('click', changerVue); $('#slVue2')?.addEventListener('click', changerVue);
   $('#slEntrer')?.addEventListener('click', () => S.actions?.[0]?.f());
   $('#slAction2')?.addEventListener('click', () => S.actions?.[1]?.f());
   $('#slZem')?.addEventListener('click', helerZem);
@@ -415,15 +427,15 @@ export function initSalon(data) {
     const champ = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     if (champ) { if (e.key === 'Escape') e.target.blur(); e.stopPropagation(); return; }
     if (e.key === 'Enter') { $('#slTexte').focus(); e.preventDefault(); e.stopPropagation(); return; }
-    const k = CLAVIER[e.code]; if (k === 'porte') { if (!e.repeat) porte(); e.preventDefault(); e.stopPropagation(); } else if (k) { S.touches.add(k); e.preventDefault(); e.stopPropagation(); }
+    const k = CLAVIER[e.code]; if (k === 'vue') { if (!e.repeat) changerVue(); e.preventDefault(); e.stopPropagation(); } else if (k === 'porte') { if (!e.repeat) porte(); e.preventDefault(); e.stopPropagation(); } else if (k) { S.touches.add(k); e.preventDefault(); e.stopPropagation(); }
   }, true);
   window.addEventListener('keyup', e => { const k = CLAVIER[e.code]; if (k) S.touches.delete(k); }, true);
   window.addEventListener('blur', () => S.touches.clear());
   // Glisser sur la ville pour tourner, molette pour s'approcher ou s'éloigner.
-  canvas.addEventListener('pointerdown', e => { if (S.actif) S.glisse = { x: e.clientX, id: e.pointerId }; });
-  window.addEventListener('pointermove', e => { if (S.glisse && e.pointerId === S.glisse.id) { S.cap -= (e.clientX - S.glisse.x) * .006; S.glisse.x = e.clientX; } });
+  canvas.addEventListener('pointerdown', e => { if (S.actif) S.glisse = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+  window.addEventListener('pointermove', e => { if (S.glisse && e.pointerId === S.glisse.id) { S.cap -= (e.clientX - S.glisse.x) * .006; S.tangage = THREE.MathUtils.clamp(S.tangage + (e.clientY - S.glisse.y) * .005, .05, 1.48); S.glisse.x = e.clientX; S.glisse.y = e.clientY; } }); // vers le bas : on prend de la hauteur
   window.addEventListener('pointerup', e => { if (S.glisse?.id === e.pointerId) S.glisse = null; });
-  canvas.addEventListener('wheel', e => { if (!S.actif) return; S.dist = THREE.MathUtils.clamp(S.dist * (1 + Math.sign(e.deltaY) * .12), 2.5, S.lieu ? 6 : 22); e.preventDefault(); }, { passive: false });
+  canvas.addEventListener('wheel', e => { if (!S.actif) return; S.dist = THREE.MathUtils.clamp(S.dist * (1 + Math.sign(e.deltaY) * .12), 2.5, S.lieu ? 6 : 150); e.preventDefault(); }, { passive: false });
   // Manette tactile : un rond qu'on pousse avec le pouce.
   const joy = $('#slJoy');
   if (joy) {
