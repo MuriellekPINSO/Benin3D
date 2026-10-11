@@ -31,9 +31,9 @@ export function moteur(type) {
   const ctx = audioCtx(); if (!ctx) return;
   moteurStop();
   const o = ctx.createOscillator(), o2 = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-  o.type = 'sawtooth'; o2.type = 'square'; f.type = 'lowpass'; f.frequency.value = type === 'tokpa' ? 420 : 700; g.gain.value = 0;
+  o.type = 'sawtooth'; o2.type = 'square'; f.type = 'lowpass'; f.frequency.value = type === 'tokpa' ? 420 : type === 'avion' ? 520 : 700; g.gain.value = 0;
   o.connect(f); o2.connect(f); f.connect(g).connect(ctx.destination); o.start(); o2.start();
-  AUDIO.moteur = { o, o2, g, base: type === 'tokpa' ? 42 : 68, k: type === 'tokpa' ? 2.4 : 4.2 };
+  AUDIO.moteur = { o, o2, g, base: type === 'tokpa' ? 42 : type === 'avion' ? 74 : 68, k: type === 'tokpa' ? 2.4 : type === 'avion' ? .9 : 4.2 }; // avion : le bourdonnement de l'hélice, plus grave à vitesse égale
 }
 export function moteurMaj(v, actif) { const m = AUDIO.moteur; if (!m) return; const t = AUDIO.ctx.currentTime; m.o.frequency.setTargetAtTime(m.base + v * m.k, t, .08); m.o2.frequency.setTargetAtTime((m.base + v * m.k) * .5, t, .08); m.g.gain.setTargetAtTime(actif ? .045 : 0, t, .1); }
 export function moteurStop() { const m = AUDIO.moteur; if (!m) return; try { m.g.gain.value = 0; m.o.stop(); m.o2.stop(); } catch (e) { } AUDIO.moteur = null; }

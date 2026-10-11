@@ -74,6 +74,12 @@
         },
         "vehiculeFin": {
           ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "billet": {
+          ".validate": "newData.isString() && newData.val().length <= 20"
+        },
+        "vols": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() <= data.val() + 1)"
         }
       }
     }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { personne } from './discussions.js';
-import { K, panneauTexte } from './lieux.js';
+import { K, centroide, groupeLieu, obb, panneauTexte } from './lieux.js';
 import { CAMPAGNES, matAffiche } from './publicites.js';
 import { scene } from './scene.js';
 
@@ -16,7 +16,7 @@ export const INTERIEURS = new Map();
  * Déclare un intérieur. def : { nom, porte: [x, z] devant la façade, dehors: regard vers la rue (radians),
  * w, d (pièce rectangulaire, mètres), entree: [x, z, regard] dans la pièce, construire(I) }.
  */
-export function declarerInterieur(id, def) { INTERIEURS.set(id, { id, ...def, centre: [def.porte[0], LARGE], g: null, sieges: [], comptoirs: [] }); }
+export function declarerInterieur(id, def) { INTERIEURS.set(id, { id, ...def, centre: [def.porte[0], LARGE], g: null, sieges: [], comptoirs: [], guichets: [] }); }
 /** L’intérieur dont on est devant la porte (moins de 5 m), sinon null. */
 export function porteProche(x, z) { for (const I of INTERIEURS.values()) if (Math.hypot(x - I.porte[0], z - I.porte[1]) < 5) return I; return null; }
 /** Construit la pièce à la première visite et l'affiche. */
@@ -37,6 +37,13 @@ export function comptoirProche(I, x, z) {
   for (const c of I.comptoirs) { const cx = I.centre[0] + c.x, cz = I.centre[1] + c.z; if (Math.hypot(x - cx, z - cz) < 2.5) return { ...c, x: cx, z: cz }; }
   return null;
 }
+/** Le guichet devant lequel on se tient (billetterie, porte d'embarquement…) : { id, nom, agent, x, z } en coordonnées de la ville, ou null. */
+export function guichetProche(I, x, z) {
+  for (const c of I?.guichets || []) { const cx = I.centre[0] + c.x, cz = I.centre[1] + c.z; if (Math.hypot(x - cx, z - cz) < 2.6) return { ...c, x: cx, z: cz }; }
+  return null;
+}
+/** Point de la pièce en coordonnées de la ville. */
+export const dansLaPiece = (I, x, z, cap = 0) => ({ x: I.centre[0] + x, y: ALT, z: I.centre[1] + z, cap });
 /** Le plateau de la table devant une chaise (x, z, regard) : où poser l'assiette. */
 export const devantChaise = (x, z, cap) => ({ x: x + Math.sin(cap) * .5, z: z + Math.cos(cap) * .5, y: .79 });
 /** La chaise libre la plus proche (moins de 4,5 m : on y va tout seul) : { x, z, cap } en coordonnées de la ville, ou null. */
@@ -134,4 +141,111 @@ export function porteFoodCourt(g, ring) {
   K.boite(6, .25, 2.2, '#efede7', lx, 3.3, lz - 1.1); // auvent
   panneauTexte(['FOOD COURT'], 4.6, .7, lx, 3.85, lz - .2, Math.PI, { fond: '#1f3d4a', encre: '#f5c21b', px: 1024, py: 156, police: '800 96px system-ui, sans-serif' });
   declarerInterieur('cite-foodcourt', { nom: 'le food court de la Cité ministérielle', porte: [px, pz - 1.5], dehors: Math.PI, w: 40, d: 26, entree: [0, -9.5, 0], construire: foodCourt });
+}
+
+// ---------- Hall de l'aéroport de Cotonou : billetterie des vols découverte, porte d'embarquement (vol.js) ----------
+// On entre par le grand portail blanc de la façade côté ville. Dedans : les comptoirs d'enregistrement,
+// l'écran des départs, la billetterie des vols découverte (Cotonou → Ouidah), des rangées de sièges et la
+// porte 2, vitrée, qui donne sur le tarmac. Les départs affichés sont des exemples, sans compagnie réelle.
+const DEPARTS_AFFICHES = [['10:30', 'OUIDAH · vol découverte', '2', 'Embarquement'], ['11:15', 'LOMÉ', '4', 'À l’heure'], ['12:05', 'ABIDJAN', '5', 'À l’heure'], ['13:40', 'LAGOS', '3', 'Enregistrement'], ['15:20', 'PARIS CDG', '6', 'À l’heure'], ['17:55', 'DAKAR', '4', 'Retardé']];
+function ecranDeparts(w, h, x, y, z, rot) {
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = Math.round(1024 * h / w); const c = cv.getContext('2d');
+  c.fillStyle = '#0d1a2b'; c.fillRect(0, 0, cv.width, cv.height); c.fillStyle = '#f2c21b'; c.fillRect(0, 0, cv.width, 78);
+  c.fillStyle = '#0d1a2b'; c.font = '800 46px system-ui, sans-serif'; c.textBaseline = 'middle'; c.fillText('DÉPARTS · DEPARTURES', 26, 40);
+  c.font = '600 26px system-ui, sans-serif'; c.fillStyle = '#9fb2c8'; [['Heure', 26], ['Destination', 160], ['Porte', 700], ['Statut', 800]].forEach(([t, x]) => c.fillText(t, x, 106));
+  c.font = '700 34px system-ui, sans-serif';
+  DEPARTS_AFFICHES.forEach(([hh, dest, porte, statut], k) => {
+    const yy = 152 + k * 52; if (k % 2) { c.fillStyle = 'rgba(255,255,255,.05)'; c.fillRect(0, yy - 26, cv.width, 52); }
+    c.fillStyle = '#ffffff'; c.fillText(hh, 26, yy); c.fillText(dest, 160, yy, 520); c.fillText(porte, 716, yy);
+    c.fillStyle = statut === 'Embarquement' ? '#5fd38a' : statut === 'Retardé' ? '#ff8a6a' : '#f2c21b'; c.fillText(statut, 800, yy, 210);
+  });
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, toneMapped: false }));
+  m.position.set(x, y, z); m.rotation.y = rot; m.userData.garder = true; K.racine.add(m); return m;
+}
+function hallAeroport(I) {
+  const W = I.w, D = I.d, H = 8;
+  K.boite(W, .2, D, K.tex('terrazzo', W / 4, D / 4), 0, -.1, 0).castShadow = false;
+  K.boite(W, .2, D, '#f4f2ee', 0, H + .1, 0).castShadow = false;
+  const blanc = K.mat('#efede7', { rugosite: .9 });
+  for (const [w, d, x, z] of [[W, .3, 0, -D / 2], [.3, D, -W / 2, 0], [.3, D, W / 2, 0]]) K.boite(w, H, d, blanc, x, H / 2, z).castShadow = false;
+  // Mur sud, côté pistes : grandes baies vitrées sur le tarmac (lumière du jour), montants gris.
+  const jour = K.mat('#dcebf2', { emissif: '#a9c4cf' }), gris = K.mat('#7d868b', { metal: .3, rugosite: .5 });
+  K.boite(W, H, .1, jour, 0, H / 2, D / 2 - .05).castShadow = false;
+  for (let x = -W / 2; x <= W / 2; x += 3.2) K.boite(.18, H, .25, gris, x, H / 2, D / 2 - .2);
+  K.boite(W, .25, .3, gris, 0, 2.9, D / 2 - .2); K.boite(W, 1.2, .3, '#e9e6de', 0, H - .6, D / 2 - .22);
+  panneauTexte(['AÉROPORT INTERNATIONAL CARDINAL BERNARDIN GANTIN · COTONOU'], 26, 1, 0, H - .6, D / 2 - .4, Math.PI, { fond: '#e9e6de', encre: '#2c3a40', px: 2048, py: 79, police: '800 50px system-ui, sans-serif' });
+  // Colonnes rondes et dalles lumineuses.
+  for (const x of [-15, -5, 5, 15]) for (const z of [-5, 5]) K.cyl(.45, .45, H, 18, blanc, x, H / 2, z);
+  const led = K.mat('#ffffff', { emissif: '#fff4e0' });
+  for (let x = -W / 2 + 3; x < W / 2 - 1; x += 5) for (let z = -D / 2 + 3; z < D / 2 - 1; z += 5) K.boite(1.6, .04, .8, led, x, H - .02, z).castShadow = false;
+  // Entrée côté ville (par où l'on est arrivé) : portes vitrées, sortie vers les taxis et les zéms.
+  K.boite(4.4, 3, .08, K.mat('#5d7f8e', { transparent: .6, rugosite: .1 }), 0, 1.5, -D / 2 + .19).castShadow = false;
+  panneauTexte(['SORTIE · Taxis, zéms'], 3.4, .5, 0, 3.4, -D / 2 + .17, 0, { fond: '#1f7a3e', encre: '#ffffff', px: 1024, py: 150, police: '800 74px system-ui, sans-serif' });
+  // Comptoirs d'enregistrement le long du mur ouest, tapis à bagages, agents à deux d'entre eux.
+  panneauTexte(['ENREGISTREMENT · CHECK-IN'], 12, .8, -W / 2 + .17, 4.6, 0, Math.PI / 2, { fond: '#1f3d4a', encre: '#ffffff', px: 2048, py: 136, police: '800 84px system-ui, sans-serif' });
+  for (let k = 0; k < 5; k++) {
+    const z = -8 + k * 4;
+    K.boite(.9, 1.1, 2.2, '#e9e6de', -W / 2 + 4, .55, z); K.boite(1, .06, 2.3, K.mat('#3a3f44', { rugosite: .35 }), -W / 2 + 4, 1.12, z);
+    K.boite(1.6, .35, .9, '#2b2f33', -W / 2 + 5.4, .2, z + 1.5); // tapis à bagages
+    panneauTexte([String(k + 1)], .7, .7, -W / 2 + .2, 2.6, z, Math.PI / 2, { fond: '#f2c21b', encre: '#1d1a16', px: 256, py: 256 });
+    if (k % 2 === 0) { const a = personne(700 + k, { role: 'bureau' }); a.position.set(-W / 2 + 2.9, 0, z); a.rotation.y = Math.PI / 2; K.racine.add(a); }
+    if (k === 0 || k === 2) for (let q = 0; q < 2; q++) { const p = personne(710 + k * 3 + q); p.position.set(-W / 2 + 6 + q * 1.4, 0, z + .3); p.rotation.y = -Math.PI / 2; K.racine.add(p); K.boite(.42, .62, .26, ['#2f4f6f', '#7a2f2a', '#3a3a3a'][(k + q) % 3], -W / 2 + 6.1 + q * 1.4, .31, z + .85); } // voyageurs et leurs valises
+  }
+  // Écran des départs, au-dessus de l'allée vers la porte 2.
+  K.boite(7.4, 3.6, .2, '#1a1c1f', -7, 5.2, D / 2 - .45);
+  ecranDeparts(7, 3.2, -7, 5.2, D / 2 - .57, Math.PI);
+  // Billetterie des vols découverte, le long du mur est, près de l'entrée.
+  const bleu = '#1f5fa8';
+  K.boite(.1, 3.4, 6.4, K.mat(bleu, { rugosite: .7 }), W / 2 - .2, 1.7, -5.5).castShadow = false;
+  panneauTexte(['BILLETTERIE', 'Vols découverte'], 5, 1, W / 2 - .27, 3.05, -5.5, -Math.PI / 2, { fond: bleu, encre: '#ffffff', px: 1024, py: 205, police: '800 76px system-ui, sans-serif' });
+  panneauTexte(['Cotonou → Ouidah · 12 000 F', 'Le long de la côte · env. 10 min', 'Avion 4 places, pilote compris', 'Premier vol offert'], 2.6, 1.5, W / 2 - .27, 1.75, -3.6, -Math.PI / 2, { fond: '#f6f4ee', encre: '#1d1a16', px: 1024, py: 590, police: '700 60px system-ui, sans-serif' });
+  K.boite(.9, 1.05, 5, '#f2efe8', W / 2 - 4, .52, -5.5); K.boite(1, .06, 5.1, K.mat('#3a3f44', { rugosite: .35 }), W / 2 - 4, 1.08, -5.5);
+  const agentBillets = personne(720, { role: 'bureau' }); agentBillets.position.set(W / 2 - 2.8, 0, -5.5); agentBillets.rotation.y = -Math.PI / 2; K.racine.add(agentBillets);
+  I.guichets.push({ id: 'billetterie', nom: 'la billetterie', agent: agentBillets, x: W / 2 - 5.2, z: -5.5 });
+  panneauTexte(['← Billetterie · vols pour Ouidah'], 4.2, .5, 9, 4.2, -5.3, 0, { fond: '#1f3d4a', encre: '#f5c21b', px: 1024, py: 122, police: '800 64px system-ui, sans-serif' }); // vu en entrant
+  // Porte 2 : portique de sécurité, pupitre de l'agente, porte vitrée sur le tarmac.
+  K.boite(3, 3, .12, K.mat('#5d7f8e', { transparent: .55, rugosite: .1 }), 0, 1.5, D / 2 - .3).castShadow = false;
+  panneauTexte(['PORTE 2 · EMBARQUEMENT', 'Vol découverte pour Ouidah'], 5.2, 1, 0, 3.7, D / 2 - .5, Math.PI, { fond: '#f2c21b', encre: '#1d1a16', px: 1024, py: 197, police: '800 70px system-ui, sans-serif' });
+  for (const s of [-1, 1]) K.boite(.18, 2.3, .6, '#9aa3a8', s * .55, 1.15, D / 2 - 5.5);
+  K.boite(1.3, .22, .6, '#9aa3a8', 0, 2.38, D / 2 - 5.5);
+  K.boite(1.1, 1.05, .6, '#2c3a40', 2.4, .52, D / 2 - 2.8); K.boite(1.2, .05, .7, '#e9e6de', 2.4, 1.07, D / 2 - 2.8);
+  const agentPorte = personne(721, { role: 'bureau' }); agentPorte.position.set(2.4, 0, D / 2 - 1.9); agentPorte.rotation.y = Math.PI; K.racine.add(agentPorte);
+  I.guichets.push({ id: 'porte', nom: 'la porte 2', agent: agentPorte, x: 1.6, z: D / 2 - 4 });
+  // Rangées de sièges face aux pistes ; chaque siège est une place où s'asseoir.
+  const assise = K.mat('#2b4f7a', { rugosite: .6 }), pied = K.mat('#6d7478', { metal: .4, rugosite: .5 });
+  let n = 0;
+  for (const z of [-1.5, 2, 5.5]) for (const bloc of [-1, 1]) {
+    const x0 = bloc * 7.5;
+    K.boite(6.2, .08, .5, pied, x0, .42, z); for (const dx of [-2.6, 0, 2.6]) K.boite(.08, .42, .08, pied, x0 + dx, .21, z);
+    for (let k = 0; k < 6; k++) {
+      const x = x0 - 2.5 + k; K.boite(.5, .06, .46, assise, x, .46, z); K.boite(.5, .5, .06, assise, x, .74, z - .22);
+      I.sieges.push({ x, z, cap: 0 });
+      if ((n++ * 5) % 9 === 2) { const p = personne(730 + n, { assise: true }); p.position.set(x, .47, z); K.racine.add(p); I.sieges[I.sieges.length - 1].occupe = true; } // des voyageurs attendent déjà
+    }
+  }
+  // Plantes, drapeau, écran publicitaire près de l'entrée.
+  for (const [x, z] of [[-W / 2 + 1.2, -D / 2 + 1.2], [W / 2 - 1.2, -D / 2 + 1.2], [-W / 2 + 1.2, D / 2 - 1.5], [W / 2 - 1.2, D / 2 - 1.5]]) { K.cyl(.45, .35, .8, 12, '#d9d2c4', x, .4, z); K.sphere(.85, K.mat('#4f7a3c', { rugosite: .9 }), x, 1.5, z).scale.set(1, 1.35, 1); }
+  K.cyl(.04, .04, 3.4, 8, pied, -4.2, 1.7, -D / 2 + 1); const dr = K.boite(1.2, .8, .02, K.tex('drapeauBenin', 1, 1), -3.6, 2.95, -D / 2 + 1); dr.castShadow = false;
+  const pub = CAMPAGNES.find(c => c.id === 'moov-meilleur') || CAMPAGNES[0];
+  K.boite(3.45, 1.95, .12, '#1a1c1f', -9, 2.6, -D / 2 + .22);
+  const ecran = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.8), matAffiche(pub)); ecran.position.set(-9, 2.6, -D / 2 + .3); ecran.userData.garder = true; K.racine.add(ecran);
+}
+/** Porte du hall au pied du grand portail blanc de l'aérogare, côté ville (même calcul que lieux.js, aeroport()). */
+export function declarerAeroport(A) {
+  if (!A?.terminals?.length || !A.runway) return;
+  const main = A.terminals[0], c = centroide(main), rw = A.runway, ra = rw[0], rb = rw[rw.length - 1];
+  const t = ((c[0] - ra[0]) * (rb[0] - ra[0]) + (c[1] - ra[1]) * (rb[1] - ra[1])) / ((rb[0] - ra[0]) ** 2 + (rb[1] - ra[1]) ** 2);
+  const px = ra[0] + (rb[0] - ra[0]) * t, pz = ra[1] + (rb[1] - ra[1]) * t, vl = Math.hypot(c[0] - px, c[1] - pz) || 1, lx = (c[0] - px) / vl, lz = (c[1] - pz) / vl;
+  const o = obb(main), prof = Math.min(o.L, o.W) / 2 + 6, rot = Math.atan2(lx, lz);
+  const g = groupeLieu('aeroport-porte', c[0] + lx * (prof + .3), c[1] + lz * (prof + .3)); g.rotation.y = rot;
+  K.into(g, () => {
+    const verre = K.mat('#4d6f7e', { transparent: .7, rugosite: .1, metal: .2 });
+    for (const s of [-1, 1]) K.boite(1.9, 2.8, .08, verre, s * 1, 1.4, 0).castShadow = false; // portes coulissantes
+    K.boite(4.4, .2, .3, '#c9cdd0', 0, 2.9, 0);
+    panneauTexte(['DÉPARTS · DEPARTURES'], 3.6, .55, 0, 3.4, .1, 0, { fond: '#1f3d4a', encre: '#f5c21b', px: 1024, py: 156, police: '800 84px system-ui, sans-serif' });
+    K.cyl(.05, .05, 1.2, 8, '#8f979b', 3.4, .6, 1.6);
+    panneauTexte(['Billetterie', 'Vols pour Ouidah'], 1.3, .8, 3.4, 1.55, 1.62, 0, { fond: '#1f5fa8', encre: '#ffffff', px: 512, py: 315, police: '800 84px system-ui, sans-serif' });
+  });
+  declarerInterieur('aeroport-hall', { nom: 'le hall de l’aéroport', porte: [c[0] + lx * (prof + 1.8), c[1] + lz * (prof + 1.8)], dehors: rot, w: 46, d: 30, entree: [0, -12.5, 0], construire: hallAeroport });
 }

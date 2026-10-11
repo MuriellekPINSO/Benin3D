@@ -776,7 +776,7 @@ export function aeroport(L) {
     const px = ra[0] + (rb[0] - ra[0]) * t, pz = ra[1] + (rb[1] - ra[1]) * t; const vx = c[0] - px, vz = c[1] - pz, vl = Math.hypot(vx, vz) || 1;
     const lx = vx / vl, lz = vz / vl; // direction côté ville
     const o = obb(main); const prof = Math.min(o.L, o.W) / 2 + 6;
-    // Enseigne jaune et tentes blanches devant l'entrée.
+    // Enseigne jaune et tentes blanches de part et d'autre de l'entrée (l'allée centrale reste dégagée : on y entre dans le hall).
     const rot = Math.atan2(lx, lz);
     panneauTexte(['AÉROPORT INTERNATIONAL CARDINAL BERNARDIN GANTIN'], 40, 2.4, lx * prof, 10.5, lz * prof, rot, { fond: '#f2c21b', encre: '#1d1a16', px: 2048, py: 123, police: '800 78px system-ui, sans-serif' });
     // Grand portail blanc en ogive au centre du terminal, côté ville (vidéo de drone 2025).
@@ -787,7 +787,7 @@ export function aeroport(L) {
     // L'ancienne aérogare, deux niveaux saumon à bandeaux blancs, à gauche de l'esplanade.
     { const o = K.boite(26, 8.4, 14, K.mat('#d9a28c', { rugosite: .85 }), lx * (prof + 30) - lz * 42, 4.2, lz * (prof + 30) + lx * 42); o.rotation.y = rot;
       for (const y of [3.9, 8.6]) { const b = K.boite(26.4, .5, 14.4, '#f1efe8', lx * (prof + 30) - lz * 42, y, lz * (prof + 30) + lx * 42); b.rotation.y = rot; } }
-    for (const s of [-1, 0, 1]) { const ox = lx * (prof + 12) + lz * s * 14, oz = lz * (prof + 12) - lx * s * 14; const tente = K.cone(6, 8, 8, K.mat('#f4f2ec', { face2: true }), ox, 6.5, oz); tente.castShadow = true; for (let k = 0; k < 4; k++) K.cyl(.1, .1, 3, 6, '#ccc', ox + Math.cos(k * 1.57) * 4.5, 1.5, oz + Math.sin(k * 1.57) * 4.5); }
+    for (const s of [-1, 1]) { const ox = lx * (prof + 12) + lz * s * 14, oz = lz * (prof + 12) - lx * s * 14; const tente = K.cone(6, 8, 8, K.mat('#f4f2ec', { face2: true }), ox, 6.5, oz); tente.castShadow = true; for (let k = 0; k < 4; k++) K.cyl(.1, .1, 3, 6, '#ccc', ox + Math.cos(k * 1.57) * 4.5, 1.5, oz + Math.sin(k * 1.57) * 4.5); }
     for (let k = -5; k <= 5; k++) { const ox = lx * (prof + 24) + lz * k * 2.4, oz = lz * (prof + 24) - lx * k * 2.4; K.boite(1.8, .8, .5, k % 2 ? '#c8382f' : '#f2f2ee', ox, .4, oz).rotation.y = rot; }
   });
   bake(g);

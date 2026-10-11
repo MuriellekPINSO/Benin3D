@@ -140,6 +140,16 @@ export async function faireLePlein(litres) { const v = VIE.data; v.carburant = M
 export function manger(points) { const v = VIE.data; if (!v) return; v.faim = Math.min(100, v.faim + points); rendreVie(); }
 /** Ralentissement quand on a trop faim. */
 export const vitesseFaim = () => (VIE.data && VIE.data.faim <= 0 ? .5 : 1);
+/** Billet d'avion (vol découverte, vol.js) : payé, puis gardé jusqu'à l'embarquement. Le premier vol est offert. */
+export async function acheterBillet(vers, prix, nom) {
+  if (!VIE.data) return false;
+  if (prix > 0 && !(await depenser(prix, `billet d’avion pour ${nom}`))) return false;
+  return ecrire({ billet: vers });
+}
+export const billet = () => VIE.data?.billet || '';
+export const premierVol = () => !(VIE.data?.vols > 0);
+/** Le billet est composté à la montée dans l'avion. */
+export function composterBillet() { if (VIE.data) ecrire({ billet: '', vols: (VIE.data.vols || 0) + 1 }); }
 export function sauverVie() { if (VIE.data) ecrire({ faim: Math.round(VIE.data.faim), carburant: Math.round((VIE.data.carburant || 0) * 100) / 100 }); }
 
 // ---------- Affichage ----------

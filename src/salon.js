@@ -11,6 +11,7 @@ import { chargerDanses, chargerTenue, personnage3d, personnagesPrets } from './p
 import { stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment } from './rue.js';
 import { T, actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, vehiculeDe } from './trajets.js';
+import { creerAvion, etatVol, poserAvion, retirerAvion } from './vol.js';
 import { VIE, alerteDuJour, assurerVie, louerMoto, majVie, rendreVie, sauverVie, surAnnonce, vitesseFaim } from './vie.js';
 import { son } from './audio.js';
 import { camera, canvas, controls, scene } from './scene.js';
@@ -18,7 +19,8 @@ import { camera, canvas, controls, scene } from './scene.js';
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
 // Jusqu'à 8 amis dans la même ville : chacun se promène à pied avec son personnage, voit les autres,
 // discute (chat et bulles au-dessus des têtes), salue, danse, rit, s'assoit, et propose d'aller ensemble
-// à l'Amazone, à la Haie Vive, à la plage ou au siège de Moov. On invite ses amis par un lien (WhatsApp).
+// à l'Amazone, à la Haie Vive, à la plage ou au siège de Moov, ou en avion jusqu'à Ouidah (vol.js). On invite
+// ses amis par un lien (WhatsApp).
 // En ligne : Firebase Realtime Database du projet zem-run-cotonou, connexion anonyme, règles dans
 // database.rules.json. Avec ?salon-local dans l'adresse, les onglets du même navigateur se relient sans
 // serveur (BroadcastChannel) : c'est le mode de test.
@@ -31,7 +33,7 @@ const PHRASES = ['Ça va ?', 'On y va !', 'On mange où ?', 'Attends-moi !', 'Tr
 // Lieux de rendez-vous : id dans PLACES, nom dans le menu, « je vais … », décalage du point d'arrivée (mètres,
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
-const LIEUX = [['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0]]; // 7e : intérieur dont on arrive devant la porte
+const LIEUX = [['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0]]; // 7e : intérieur dont on arrive devant la porte
 const CLAVIER = { KeyV: 'vue', KeyE: 'porte', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
 const S = { actif: false, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 'vendeuse', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
@@ -125,7 +127,7 @@ function bulle(qui, texte) {
   qui.g.userData.tete.add(s); qui.bulle = s; qui.bulleFin = performance.now() + 6000;
 }
 function retirerBulle(qui) { if (!qui.bulle) return; qui.bulle.parent?.remove(qui.bulle); qui.bulle.material.map.dispose(); qui.bulle.material.dispose(); qui.bulle = null; }
-function retirer(A) { if (A.g) { retirerBulle(A); scene.remove(A.g); A.g.userData.liberer?.(); A.g = null; } }
+function retirer(A) { if (A.g) { retirerBulle(A); scene.remove(A.g); A.g.userData.liberer?.(); A.g = null; } retirerAvion(A.avion); A.avion = null; }
 
 // ---------- Les autres joueurs ----------
 function surEtat(id, e) {
@@ -298,30 +300,34 @@ export function majSalon(dt) {
   cible.set(P.x, P.y + 1.55, P.z);
   voulue.set(P.x - Math.sin(P.cap) * dist * Math.cos(inc), P.y + 1.55 + dist * Math.sin(inc), P.z - Math.cos(P.cap) * dist * Math.cos(inc));
   if (S.lieu) { const [cx, cz] = limiter(S.lieu, voulue.x, voulue.z, .35); voulue.set(cx, Math.min(voulue.y, S.y + 4), cz); } // la caméra reste dans la pièce
-  else if (voulue.y - P.y < 14) { // dehors, au ras des toits : si un bâtiment se trouve entre le personnage et la caméra, elle s'approche (jamais dans un mur)
+  else if (!suivi?.libre && voulue.y - P.y < 14) { // dehors, au ras des toits : si un bâtiment se trouve entre le personnage et la caméra, elle s'approche (jamais dans un mur) ; pas en avion
     let k = 1; for (let i = 1; i <= 12; i++) { const f = i / 12; if (dansBatiment(cible.x + (voulue.x - cible.x) * f, cible.z + (voulue.z - cible.z) * f)) { k = Math.max(.15, (i - 1) / 12); break; } }
     if (k < 1) voulue.set(cible.x + (voulue.x - cible.x) * k, cible.y + (voulue.y - cible.y) * k + .4, cible.z + (voulue.z - cible.z) * k);
   }
-  if (S.saut) { camera.position.copy(voulue); S.saut = false; } else camera.position.lerp(voulue, 1 - Math.exp(-dt * (suivi ? 5 : 7)));
+  if (S.saut || suivi?.libre) { camera.position.copy(voulue); S.saut = false; } else camera.position.lerp(voulue, 1 - Math.exp(-dt * (suivi ? 5 : 7))); // en avion (temps accéléré), la caméra reste collée derrière
   controls.target.copy(cible);
   // Sa position aux autres, cinq fois par seconde (et au moins toutes les 2,5 s pour rester « présent »).
   S.envoi -= dt; S.depuis += dt;
   if (S.envoi <= 0 && S.canal) {
     S.envoi = ENVOI;
-    const vh = T.mode === 'conduit' ? T.veh.type : T.mode === 'passager' ? 'zem' : ''; // le véhicule sous soi, pour les amis
-    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu?.id || '', y: r2(S.y), vh }, k = JSON.stringify(e);
+    const vh = T.mode === 'conduit' ? T.veh.type : T.mode === 'passager' ? 'zem' : T.mode === 'avion' ? 'avion' : ''; // le véhicule sous soi, pour les amis
+    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu?.id || '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}) }, k = JSON.stringify(e);
     if (k !== S.dernier || S.depuis > 2.5) { S.dernier = k; S.depuis = 0; S.canal.envoyer(e); }
   }
   // Les autres, lissés entre deux nouvelles.
   const kk = 1 - Math.exp(-dt * 8), now = performance.now();
   for (const A of S.autres.values()) {
     const e = A.etat; if (!e) continue;
-    if (Math.hypot(e.x - A.x, e.z - A.z) > 30) { A.x = e.x; A.z = e.z; } // il vient d'utiliser « Aller à »
-    const dx = e.x - A.x, dz = e.z - A.z; A.x += dx * kk; A.z += dz * kk;
+    const enAvion = e.vh === 'avion' && !(e.i || S.lieu), ey = typeof e.y === 'number' ? e.y : 0;
+    if (Math.hypot(e.x - A.x, e.z - A.z) > (enAvion ? 400 : 30)) { A.x = e.x; A.z = e.z; A.y = ey; } // il vient d'utiliser « Aller à »
+    const dx = e.x - A.x, dz = e.z - A.z; A.x += dx * kk; A.z += dz * kk; A.y = (A.y ?? ey) + (ey - (A.y ?? ey)) * kk;
     let da = (e.h || 0) - A.cap; da = Math.atan2(Math.sin(da), Math.cos(da)); A.cap += da * kk;
-    if (A.g) A.g.visible = (e.i || '') === (S.lieu?.id || ''); // seulement ceux qui sont dans la même pièce (ou dehors)
+    if (A.g) A.g.visible = (e.i || '') === (S.lieu?.id || '') && !enAvion; // seulement ceux qui sont dans la même pièce (ou dehors) ; en avion, on voit l'avion
+    if (enAvion) { A.avion ??= creerAvion(); poserAvion(A.avion, A.x, A.y, A.z, A.cap, e.ta || 0, e.ro || 0); A.avion.helice.visible = true; }
+    else if (A.avion) { retirerAvion(A.avion); A.avion = null; }
     const V = vehiculeDe(A, ['moto', 'voiture', 'zem'].includes(e.vh) && !(e.i || S.lieu) ? e.vh : null);
-    if (V) { V.x = A.x; V.z = A.z; V.cap = A.cap; V.y = typeof e.y === 'number' ? e.y : 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; asseoirSur(A.g, V, e.vh === 'zem'); }
+    if (enAvion) { /* dans l'avion : on ne le voit pas */ }
+    else if (V) { V.x = A.x; V.z = A.z; V.cap = A.cap; V.y = typeof e.y === 'number' ? e.y : 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; asseoirSur(A.g, V, e.vh === 'zem'); }
     else if (A.g) { A.g.position.set(A.x, typeof e.y === 'number' ? e.y : 0, A.z); A.g.rotation.y = A.cap; A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? 'marche' : ANIMS.has(e.a) ? e.a : 'idle'); }
     if (A.bulle && now > A.bulleFin) retirerBulle(A);
   }
@@ -360,7 +366,8 @@ export function manetteSalon(m) {
 // ---------- Héler un zém : choisir où aller, négocier le prix ----------
 function helerZem() {
   if (T.mode !== 'pied' || S.lieu) { ligne(S.lieu ? 'Sors d’abord pour héler un zém.' : 'Tu es déjà en route.'); return; }
-  choisir('Zém ! Où vas-tu ?', LIEUX.filter(L => L[0] !== 'station').map(L => ({ texte: L[1], f: () => {
+  const proches = LIEUX.filter(L => { if (L[0] === 'station') return false; const d = destination(L); return d && Math.hypot(d[0] - S.x, d[1] - S.z) < 15000; }); // Ouidah ↔ Cotonou : 35 km, c'est l'avion
+  choisir('Zém ! Où vas-tu ?', proches.map(L => ({ texte: L[1], f: () => {
     const d = destination(L); if (!d) return;
     const q = prixZem(S.x, S.z, S.cap, d[0], d[1]); if (!q) { ligne('Le zém ne connaît pas la route jusque-là.'); return; }
     if (q.km < .15) { ligne('Tu y es déjà !'); return; }
@@ -392,7 +399,7 @@ function ouvrir() {
 }
 export function initSalon(data) {
   surAnnonce(t => ligne(t)); // argent gagné ou dépensé, faim : dans le fil du salon
-  S.dire = dire; initTrajets(data, { S, ligne });
+  S.dire = dire; initTrajets(data, { S, ligne, dedans, dehors });
   if (import.meta.env.DEV) window.__salon = { S, T, VIE, surRoute }; // pour les tests (console, scripts)
   S.local = new URLSearchParams(location.search).has('salon-local');
   $('#btnSalon')?.addEventListener('click', ouvrir);

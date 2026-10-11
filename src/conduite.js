@@ -32,6 +32,7 @@ const D_ACCEL = 3.2; // accélération du zém en pilote automatique
 const MODELES = { voiture: null, moto: null };
 const LONGUEURS = { voiture: 4.4, moto: 2 };
 const DEMI_TOUR = { voiture: true, moto: true }; // le redressement aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu (phare devant)
+const SELLES = { moto: [.86, -.27] }; // selle du modèle Tripo, mesurée : dessus à 0,78 m, 0,2 à 0,3 m derrière le centre (avec [1,02 ; −0,08] du zém, on s'asseyait sur le réservoir)
 export function chargerVehicules() {
   const ch = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   for (const [type, id] of [['voiture', 'voiture-perso'], ['moto', 'moto-perso']]) {
@@ -48,14 +49,14 @@ export function creerVehicule(type, { couleur } = {}) {
   else { m = new THREE.Mesh(mergeColored(type === 'voiture' ? partsVoiture(couleur || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: couleur, chemise: '#f2c21b' })), matVeh); m.castShadow = true; m.receiveShadow = true; }
   m.rotation.y = -Math.PI / 2 + (gabarit && MODELES[type] && DEMI_TOUR[type] ? Math.PI : 0); g.add(m); // avant +x → +z
   scene.add(g);
-  return { type, D, g, x: 0, z: 0, y: 0, cap: 0, v: 0, km: 0 };
+  return { type, D, g, x: 0, z: 0, y: 0, cap: 0, v: 0, km: 0, selle: (gabarit && MODELES[type] && SELLES[type]) || D.selle };
 }
 export function retirerVehicule(V) { if (V) scene.remove(V.g); } // les géométries sont partagées entre les copies : on ne les libère pas
 export function placer(V, x, z, cap) { V.x = x; V.z = z; V.cap = cap; V.v = 0; V.y = hauteur(x, z, 0); V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; }
 /** Où asseoir un personnage sur le véhicule (repère du véhicule) : pilote ou passager ; null : dans la voiture, on ne le voit pas. */
 export function siege(V, passager = false) {
   const D = V.D; if (D.cache) return null;
-  return { y: D.selle[0] - .48, z: passager ? D.arriere : D.selle[1] }; // .48 : hauteur du bassin d'un personnage assis
+  return { y: V.selle[0] - .48, z: passager ? D.arriere : V.selle[1] }; // .48 : hauteur du bassin d'un personnage assis
 }
 
 // ---------- Les routes : où l'on peut rouler ----------

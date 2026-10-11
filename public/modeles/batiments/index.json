@@ -54,5 +54,9 @@
  "moto-perso": {
   "triangles": 29996,
   "octets": 955700
+ },
+ "avion-tourisme": {
+  "triangles": 35000,
+  "octets": 828168
  }
 }
