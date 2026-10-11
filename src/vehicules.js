@@ -138,7 +138,7 @@ function habillerPassagere(gabarit) {
   const epaules = new THREE.Mesh(new THREE.CylinderGeometry(.08, .185, .09, 16, 1, true), mat); epaules.scale.set(1.05, 1, .78); epaules.position.set(0, 1.665, -.5);
   gabarit.add(corsage, epaules);
 }
-function gabaritDe(objet, { largeur, hauteur, passagere }) {
+export function gabaritDe(objet, { largeur, hauteur, passagere }) {
   const s = new THREE.Box3().setFromObject(objet).getSize(new THREE.Vector3());
   objet.scale.multiplyScalar(largeur ? largeur / Math.max(s.x, s.z) : hauteur / s.y);
   const redresse = new THREE.Group(); redresse.add(objet);

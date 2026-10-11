@@ -237,16 +237,43 @@
     <div class="sl-rejoindre"><input id="slCode" maxlength="6" placeholder="Code reçu (6 caractères)" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" id="slRejoindre">Rejoindre</button></div>
     <p class="ev-etat" id="slEtat" role="status" aria-live="polite" hidden></p>
   </div>
+  <div class="choix" id="choix" hidden role="dialog" aria-labelledby="chTitre">
+    <div class="ch-boite panel"><h3 id="chTitre"></h3><div class="ch-liste" id="chListe"></div><button type="button" class="ch-annuler" id="chAnnuler">Annuler</button></div>
+  </div>
+  <div class="vie-tirage" id="vieTirage" hidden role="dialog" aria-labelledby="vtTitre">
+    <div class="vt-boite panel">
+      <small class="ev-sur">Ta vie à Cotonou commence</small>
+      <h2 id="vtTitre">Ton départ</h2>
+      <div class="vt-cartes">
+        <div class="vt-carte" data-depart="debrouillard"><b>Débrouillard</b><span>2 000 F · chambre à Akpakpa</span></div>
+        <div class="vt-carte" data-depart="fils"><b>Fils à papa</b><span>150 000 F · appartement à la Haie Vive · voiture</span></div>
+      </div>
+      <p id="vtTexte" role="status" aria-live="polite"></p>
+      <button type="button" class="jouer" id="vtCommencer" hidden>Commencer ma vie</button>
+    </div>
+  </div>
   <div class="salon-hud" id="salonHud" hidden>
+    <div class="vie-hud panel" id="vieHud" hidden aria-label="Ma vie">
+      <div class="vh-tete"><b id="vhArgent"></b><small id="vhDepart"></small></div>
+      <div class="vh-faim"><span>Faim</span><i id="vhFaim"></i><small id="vhFaimTxt"></small></div>
+      <small id="vhLogement"></small>
+      <small id="vhMetier"></small>
+      <small class="vh-dette" id="vhDette" hidden></small>
+      <div class="vh-faim" id="vhEssenceLigne" hidden><span>Essence</span><i id="vhEssence"></i><small id="vhEssenceTxt"></small></div>
+      <b class="vh-vitesse" id="vhVitesse" hidden></b>
+      <small class="vh-gps" id="vhGps" hidden></small>
+      <button type="button" class="vh-louer" id="vhLouer" hidden></button>
+    </div>
     <div class="sl-haut panel"><div><b>Salon <span id="slCodeAff"></span></b><small id="slNb"></small></div><button type="button" class="jouer" id="slInviter">Inviter</button><button type="button" id="slCopier">Copier le lien</button><button type="button" id="slQuitter">Quitter</button></div>
-    <div class="sl-chat panel">
+    <div class="sl-chat panel" id="slChat">
       <ol id="slMessages" aria-live="polite" aria-label="Messages du salon"></ol>
       <div class="sl-phrases" id="slPhrases"></div>
       <form id="slForm"><input id="slTexte" maxlength="140" placeholder="Écris à tes amis… (Entrée)" autocomplete="off" aria-label="Message"><button type="submit">Envoyer</button></form>
     </div>
-    <div class="sl-actions panel"><div class="sl-gestes" id="slGestes" aria-label="Gestes"></div><select id="slAller" aria-label="Aller à un lieu avec tes amis"></select></div>
+    <div class="sl-actions panel" id="slActions"><div class="sl-gestes" id="slGestes" aria-label="Gestes"></div><button type="button" class="sl-zem" id="slZem">Prendre un zém</button><select id="slAller" aria-label="Aller à un lieu avec tes amis"></select></div>
     <div class="sl-joy" id="slJoy" hidden aria-hidden="true"><i></i></div>
-    <button type="button" class="jouer sl-entrer" id="slEntrer" hidden></button>
+    <div class="sl-boutons"><button type="button" id="slChatBtn" aria-expanded="false" aria-controls="slChat">Discussion<b id="slNonLus" hidden></b></button><button type="button" id="slGestesBtn" aria-expanded="false" aria-controls="slActions">Gestes</button></div>
+    <div class="sl-agir"><button type="button" class="jouer" id="slEntrer" hidden></button><button type="button" class="sl-agir2" id="slAction2" hidden></button></div>
     <p class="sl-aide">Flèches ou ZQSD pour marcher · Maj pour courir · glisser pour tourner · molette pour zoomer · Entrée pour écrire</p>
   </div>
 

@@ -16,9 +16,9 @@ export const INTERIEURS = new Map();
  * Déclare un intérieur. def : { nom, porte: [x, z] devant la façade, dehors: regard vers la rue (radians),
  * w, d (pièce rectangulaire, mètres), entree: [x, z, regard] dans la pièce, construire(I) }.
  */
-export function declarerInterieur(id, def) { INTERIEURS.set(id, { id, ...def, centre: [def.porte[0], LARGE], g: null, sieges: [] }); }
-/** L'intérieur dont on est devant la porte (moins de 4 m), sinon null. */
-export function porteProche(x, z) { for (const I of INTERIEURS.values()) if (Math.hypot(x - I.porte[0], z - I.porte[1]) < 4) return I; return null; }
+export function declarerInterieur(id, def) { INTERIEURS.set(id, { id, ...def, centre: [def.porte[0], LARGE], g: null, sieges: [], comptoirs: [] }); }
+/** L’intérieur dont on est devant la porte (moins de 5 m), sinon null. */
+export function porteProche(x, z) { for (const I of INTERIEURS.values()) if (Math.hypot(x - I.porte[0], z - I.porte[1]) < 5) return I; return null; }
 /** Construit la pièce à la première visite et l'affiche. */
 export function ouvrirInterieur(I) {
   if (!I.g) { const g = new THREE.Group(); g.name = `interieur-${I.id}`; g.position.set(I.centre[0], ALT, I.centre[1]); scene.add(g); I.g = g; K.into(g, () => I.construire(I)); }
@@ -32,6 +32,13 @@ export function limiter(I, x, z, marge = .45) {
   const [cx, cz] = I.centre;
   return [THREE.MathUtils.clamp(x, cx - I.w / 2 + marge, cx + I.w / 2 - marge), THREE.MathUtils.clamp(z, cz - I.d / 2 + marge, cz + I.d / 2 - marge)];
 }
+/** Le comptoir devant lequel on se tient (moins de 2,5 m) : { nom, plats, vendeur, x, z } en coordonnées de la ville, ou null. */
+export function comptoirProche(I, x, z) {
+  for (const c of I.comptoirs) { const cx = I.centre[0] + c.x, cz = I.centre[1] + c.z; if (Math.hypot(x - cx, z - cz) < 2.5) return { ...c, x: cx, z: cz }; }
+  return null;
+}
+/** Le plateau de la table devant une chaise (x, z, regard) : où poser l'assiette. */
+export const devantChaise = (x, z, cap) => ({ x: x + Math.sin(cap) * .5, z: z + Math.cos(cap) * .5, y: .79 });
 /** La chaise libre la plus proche (moins de 4,5 m : on y va tout seul) : { x, z, cap } en coordonnées de la ville, ou null. */
 export function siegeProche(I, x, z) {
   let best = null, dm = 4.5;
@@ -96,6 +103,7 @@ function foodCourt(I) {
     K.boite(5.4, 1.05, .9, '#f2efe8', x, .52, D / 2 - 2.4); K.boite(5.5, .06, 1, K.mat('#3a3f44', { rugosite: .35 }), x, 1.08, D / 2 - 2.4);
     for (let p = 0; p < 3; p++) K.cyl(.22, .22, .12, 14, K.mat(['#c25a2a', '#e9d8a6', '#6b8e4e'][(p + k) % 3]), x - 1.4 + p * 1.1, 1.17, D / 2 - 2.4); // plats exposés
     const v = personne(500 + k, { role: k % 2 ? 'jeune' : 'vendeuse' }); v.position.set(x - .8, 0, D / 2 - 1.3); v.rotation.y = Math.PI; K.racine.add(v);
+    I.comptoirs.push({ nom, plats: plats.map(([p, prix]) => [p, Number(prix.replace(/\D/g, ''))]), vendeur: v, x: x - .8, z: D / 2 - 3.3 }); // on commande devant le comptoir
   });
   // Tables de quatre, allée centrale vers les comptoirs ; chaque chaise est un siège possible.
   const plateau = K.mat('#b98a5a', { rugosite: .6 }), metal = K.mat('#6d7478', { metal: .4, rugosite: .5 }), assise = K.mat('#2f8f8a', { rugosite: .6 });

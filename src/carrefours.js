@@ -128,14 +128,15 @@ export function itineraire(x, z, n, m, cibles) {
 // Raccourci du client pressé : distance pure, petites rues comprises (pas de préférence pour les grands axes).
 const DIRECT = [1, 1, 1, 1, 1];
 /** Itinéraire le plus court de (x, z) jusqu'à la première cible, en partant du nœud le plus proche de (xa, za)
- *  (un point un peu devant le zém), puis les cibles suivantes par les grands axes comme d'habitude. */
-export function itineraireCourt(x, z, xa, za, cibles) {
+ *  (un point un peu devant le zém), puis les cibles suivantes par les grands axes comme d'habitude.
+ *  `rayon` : jusqu'où chercher la rue la plus proche d'une cible (une cour, un parking en retrait). */
+export function itineraireCourt(x, z, xa, za, cibles, rayon = 80) {
   if (!R.pret || !cibles.length) return null;
   const d0 = noeudsPres(xa, za, 60)[0]; if (!d0) return null;
   const pts = [[x, z], [R.X[d0[0]], R.Z[d0[0]]]];
   let cur = d0[0], avant = -1;
   for (const [k, [cx, cz]] of cibles.entries()) {
-    const t = noeudsPres(cx, cz, 80)[0]; if (!t) return null;
+    const t = noeudsPres(cx, cz, rayon)[0]; if (!t) return null;
     const ch = dijkstra(cur, t[0], avant, k === 0 ? DIRECT : FACTEUR) || dijkstra(cur, t[0]); if (!ch) return null;
     for (const n of ch.slice(1)) pts.push([R.X[n], R.Z[n]]);
     if (ch.length > 1) { avant = ch[ch.length - 2]; cur = ch[ch.length - 1]; }

@@ -4,9 +4,14 @@ import { PLACES } from './donnees-lieux.js';
 import { personne } from './discussions.js';
 import { INTERIEURS, arriveeDedans, arriveeDehors, cacherInterieurs, limiter, ouvrirInterieur, porteProche, siegeProche } from './interieurs.js';
 import { E } from './etat.js';
+import { firebase, joueur } from './firebase.js';
 import { startFlight } from './interface.js';
 import { JEU } from './jeu.js';
 import { chargerDanses, chargerTenue, personnage3d, personnagesPrets } from './personnages.js';
+import { stationLaPlusProche, surRoute } from './conduite.js';
+import { dansBatiment } from './rue.js';
+import { T, actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, vehiculeDe } from './trajets.js';
+import { VIE, alerteDuJour, assurerVie, louerMoto, majVie, rendreVie, sauverVie, surAnnonce, vitesseFaim } from './vie.js';
 import { camera, canvas, controls, scene } from './scene.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
@@ -17,12 +22,6 @@ import { camera, canvas, controls, scene } from './scene.js';
 // database.rules.json. Avec ?salon-local dans l'adresse, les onglets du même navigateur se relient sans
 // serveur (BroadcastChannel) : c'est le mode de test.
 
-// Configuration web publique de Firebase : elle est visible par tout visiteur, c'est normal ; la
-// sécurité vient des règles de la base.
-const FIREBASE = {
-  apiKey: 'AIzaSyBICBd5BGAGoLBgjRb78Zq-shfP9oij1rA', authDomain: 'zem-run-cotonou.firebaseapp.com', projectId: 'zem-run-cotonou',
-  databaseURL: 'https://zem-run-cotonou-default-rtdb.europe-west1.firebasedatabase.app', appId: '1:655292147870:web:e6d7ab3d39a452adb8338f',
-};
 const MAX = 8, ENVOI = .2, LETTRES = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', CLE = 'cotonou3d.salon';
 const AVATARS = [['vendeuse', 'Vendeuse en pagne'], ['etudiante', 'Étudiante'], ['maman', 'Maman'], ['jeune', 'Jeune en maillot'], ['bureau', 'Tenue de bureau'], ['ancien', 'Ancien en boubou']];
 const GESTES = [['salut', 'Saluer'], ['danse1', 'Danser'], ['rire', 'Rire'], ['assis', 'S’asseoir'], ['telephone', 'Téléphoner']];
@@ -31,10 +30,10 @@ const PHRASES = ['Ça va ?', 'On y va !', 'On mange où ?', 'Attends-moi !', 'Tr
 // Lieux de rendez-vous : id dans PLACES, nom dans le menu, « je vais … », décalage du point d'arrivée (mètres,
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
-const LIEUX = [['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0]]; // 7e : intérieur dont on arrive devant la porte
+const LIEUX = [['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0]]; // 7e : intérieur dont on arrive devant la porte
 const CLAVIER = { KeyE: 'porte', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
-const S = { actif: false, local: false, vueReelle: false, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 'vendeuse', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
+const S = { actif: false, local: false, vueReelle: false, nonLus: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 'vendeuse', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
 export const salonActif = () => S.actif;
 const cible = new THREE.Vector3(), voulue = new THREE.Vector3();
 const r2 = v => Math.round(v * 100) / 100;
@@ -62,13 +61,8 @@ function canalLocal(code, R) {
     quitter: () => { bc.postMessage({ type: 'part', id }); clearInterval(veille); bc.close(); },
   };
 }
-let FB = null; // SDK Firebase chargé seulement à l'ouverture d'un salon
 async function canalFirebase(code, R) {
-  FB ??= Promise.all([import('firebase/app'), import('firebase/auth'), import('firebase/database')]).then(([a, au, d]) => {
-    const app = a.initializeApp(FIREBASE, 'salon'); return { au, d, auth: au.getAuth(app), db: d.getDatabase(app) };
-  });
-  const { au, d, auth, db } = await FB;
-  const user = auth.currentUser || (await au.signInAnonymously(auth)).user;
+  const { d, db } = await firebase(), user = await joueur();
   R.id = user.uid;
   const base = d.ref(db, `zem_salons/${code}`), joueurs = d.child(base, 'joueurs'), moi = d.child(joueurs, user.uid), msgs = d.child(base, 'messages');
   const deja = await d.get(joueurs);
@@ -112,7 +106,8 @@ function etiquette(texte, moi = false) {
   c.fillStyle = moi ? '#f2b705' : 'rgba(20, 24, 32, .84)'; c.beginPath(); c.roundRect(160 - w / 2, 8, w, 54, 27); c.fill();
   c.fillStyle = moi ? '#17130c' : '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(texte, 160, 36);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false })); s.scale.set(1.6, .36, 1); s.position.y = .42; s.renderOrder = 30; return s;
+  // Taille fixe à l'écran (comme dans les jeux) : lisible de loin, pas envahissant de près ni sur un téléphone en hauteur.
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); s.scale.set(.145, .033, 1); s.position.y = .36; s.renderOrder = 30; return s;
 }
 // Bulle de discussion au-dessus de la tête, six secondes.
 function bulle(qui, texte) {
@@ -125,7 +120,7 @@ function bulle(qui, texte) {
   c.fillStyle = '#1f1b16'; c.font = '600 34px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
   lignes.forEach((l, k) => c.fillText(l, 256, 44 + k * 48));
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false })); s.scale.set(2.6, 2.6 * cv.height / 512, 1); s.position.y = .9 + s.scale.y / 2; s.renderOrder = 31;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); s.scale.set(.26, .26 * cv.height / 512, 1); s.center.set(.5, 0); s.position.y = .62; s.renderOrder = 31; // posée au-dessus du nom
   qui.g.userData.tete.add(s); qui.bulle = s; qui.bulleFin = performance.now() + 6000;
 }
 function retirerBulle(qui) { if (!qui.bulle) return; qui.bulle.parent?.remove(qui.bulle); qui.bulle.material.map.dispose(); qui.bulle.material.dispose(); qui.bulle = null; }
@@ -164,6 +159,7 @@ function ligne(texte, { nom = '', lieu = null, moi = false } = {}) {
   li.append(texte);
   if (lieu && !moi) { const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = 'Y aller'; bt.addEventListener('click', () => aller(lieu, false)); li.append(' ', bt); }
   ol.append(li); while (ol.children.length > 40) ol.firstChild.remove();
+  if (nom && !moi && !$('#slChat').classList.contains('ouvert') && matchMedia('(max-width: 720px)').matches) { S.nonLus++; const n = $('#slNonLus'); n.textContent = S.nonLus; n.hidden = false; }
   ol.scrollTop = ol.scrollHeight;
 }
 function surMessage(m) {
@@ -179,22 +175,33 @@ function dire(texte) {
   S.canal.dire({ n: S.nom, txt: texte });
 }
 function geste(nom) {
-  if (nom === 'assis' && S.lieu) { // dedans : sur la chaise libre la plus proche
-    const c = siegeProche(S.lieu, S.x, S.z); if (!c) { ligne('Approche-toi d’une table pour t’asseoir.'); return; }
-    S.x = c.x; S.z = c.z; S.cap = c.cap;
+  if (nom === 'assis') { // sur la chaise libre la plus proche (il n'y a des chaises que dans les lieux où l'on entre)
+    const c = S.lieu && siegeProche(S.lieu, S.x, S.z); if (!c) { ligne(S.lieu ? 'Approche-toi d’une table pour t’asseoir.' : 'Entre dans un lieu (le food court de la Cité…) pour t’asseoir à une table.'); return; }
+    S.x = c.x; S.z = c.z; S.cap = c.cap; asseoir(c); // si l'on porte une assiette, on la pose et on mange
   }
   S.geste = nom; S.gesteFin = nom === 'salut' || nom === 'rire' ? performance.now() + 3200 : 0; // saluer et rire durent un moment, danser et s'asseoir jusqu'au prochain pas
   if (nom === 'danse1' && personnagesPrets()) chargerDanses();
 }
-/** Se rend à un lieu de rendez-vous ; `proposer` : prévient les autres, qui peuvent suivre d'un clic. */
+/** Point d'arrivée d'un lieu de rendez-vous : [x, z, regard] (devant la porte pour un lieu où l'on entre). */
+function destination(L) {
+  if (L[0] === 'station') { const st = stationLaPlusProche(S.x, S.z); return st && [st[0], st[1], 0]; }
+  const p = PLACES.find(q => q.id === L[0]), I = L[6] && INTERIEURS.get(L[6]); if (!p) return null;
+  if (I) { const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; }
+  const [x, z] = toXZ(p.lat, p.lon); return [x + L[3], z + L[4], L[5]];
+}
+/** Se rend à un lieu de rendez-vous ; `proposer` : prévient les autres, qui peuvent suivre d'un clic. En voiture
+ *  ou à moto, on n'y saute pas : le GPS trace l'itinéraire par les routes. */
 function aller(id, proposer = true) {
-  const L = LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id); if (!L || !p) return;
+  const L = LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || (id === 'station' && {}); if (!L || !p) return;
+  if (T.mode === 'conduit') { const d = destination(L); if (d) gps(d[0], d[1], id === 'station' ? (stationLaPlusProche(S.x, S.z)?.[2] || L[1]) : L[1]); return; }
+  if (T.mode !== 'pied') return;
   if (S.lieu) dehors(false);
-  const [x, z] = toXZ(p.lat, p.lon), I = L[6] && INTERIEURS.get(L[6]);
-  if (I) { const a = arriveeDehors(I); S.x = a.x + (Math.random() - .5) * 2; S.z = a.z; S.cap = a.cap + Math.PI; } // devant la porte, face à elle
-  else { S.x = x + L[3] + (Math.random() - .5) * 4; S.z = z + L[4] + (Math.random() - .5) * 4; S.cap = L[5]; }
+  const I = L[6] && INTERIEURS.get(L[6]);
+  if (id === 'station') { const d = destination(L); if (!d) return; S.x = d[0] + 6; S.z = d[1]; S.cap = -Math.PI / 2; }
+  else if (I) { const a = arriveeDehors(I); S.x = a.x + (Math.random() - .5) * 2; S.z = a.z; S.cap = a.cap + Math.PI; } // devant la porte, face à elle
+  else { const [x, z] = toXZ(p.lat, p.lon); S.x = x + L[3] + (Math.random() - .5) * 4; S.z = z + L[4] + (Math.random() - .5) * 4; S.cap = L[5]; }
   S.saut = true; S.geste = 'idle';
-  if (proposer) S.canal?.dire({ n: S.nom, txt: `Je vais ${L[2]}, venez !`, lieu: id });
+  if (proposer && id !== 'station') S.canal?.dire({ n: S.nom, txt: `Je vais ${L[2]}, venez !`, lieu: id });
 }
 
 // ---------- Intérieurs : entrer dans un bâtiment, en sortir ----------
@@ -209,13 +216,16 @@ function dehors(replacer = true) {
   S.lieu = null; S.y = 0; cacherInterieurs(); document.getElementById('app').classList.remove('dedans');
   if (replacer) { const a = arriveeDehors(I); S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; }
 }
-function porte() { if (S.lieu) dehors(); else if (S.devant) dedans(S.devant); }
+function porte() { S.actions?.[0]?.f(); } // touche E : l'action principale du moment
 
 // ---------- Entrer, quitter ----------
 async function entrer(code) {
   if (S.actif) return;
   const nom = nettoyer($('#slNom').value, 16); if (!nom) { statut('Écris ton nom pour que tes amis te reconnaissent.', 'mal'); $('#slNom').focus(); return; }
   S.nom = nom; try { localStorage.setItem(CLE, JSON.stringify({ nom, modele: S.modele })); } catch { /* navigation privée */ }
+  statut('Chargement de ta vie…');
+  const vie = await assurerVie(S.local, { nom, modele: S.modele }); // la première fois : tirage du départ
+  if (!vie) { statut('Impossible de charger ta vie : vérifie ta connexion.', 'mal'); return; }
   statut('Connexion au salon…');
   S.autres.clear(); S.vus.clear();
   const R = S.R = { etat: surEtat, message: surMessage }; // R.id : mon identifiant, connu avant les premiers messages
@@ -228,18 +238,21 @@ async function entrer(code) {
   S.vueReelle = $('#togGoogle')?.getAttribute('aria-pressed') === 'true'; if (S.vueReelle) $('#togGoogle').click();
   E.flight = null; S.minDist = controls.minDistance; controls.minDistance = 1.5; controls.enabled = false; controls.autoRotate = false;
   camera.near = .3; camera.updateProjectionMatrix(); // caméra proche du personnage (comme dans Zém Run)
-  aller('amazone', false); majListe();
+  aller('amazone', false); majListe(); rendreVie();
   ligne(`Bienvenue dans le salon ${code}${S.local ? ' (mode test : seuls les onglets de ce navigateur se voient)' : ''} ! Invite tes amis avec « Inviter ».`);
+  const alerte = alerteDuJour(); if (alerte) ligne(alerte);
   if (personnagesPrets()) chargerDanses();
   const g = await creerAvatar(S.modele, graine(S.canal.id));
   if (!S.actif) { g.userData.liberer?.(); return; }
   S.moi = g; S.g = g; g.userData.tete.add(etiquette(S.nom, true)); scene.add(g);
+  entrerMonde(); // son véhicule garé à côté (Fils à papa, moto louée)
 }
 function quitter() {
   if (!S.actif) return;
-  dehors(); S.actif = false; S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
+  quitterMonde(); dehors(); sauverVie(); S.actif = false; S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
   for (const A of S.autres.values()) retirer(A); S.autres.clear();
   if (S.moi) { retirerBulle(S); scene.remove(S.moi); S.moi.userData.liberer?.(); S.moi = S.g = null; }
+  for (const A of S.autres.values()) vehiculeDe(A, null);
   $('#salonHud').hidden = true; $('#slMessages').replaceChildren(); S.touches.clear(); S.joy = null;
   document.getElementById('app').classList.remove('mode-salon');
   controls.enabled = true; controls.minDistance = S.minDist; camera.near = 2; camera.updateProjectionMatrix();
@@ -262,26 +275,37 @@ export function majSalon(dt) {
   const t = S.touches, j = S.joy;
   const av = THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (j ? j.y : 0), -1, 1);
   const tour = THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) - (j ? j.x : 0), -1, 1);
-  S.cap += tour * 2.4 * dt;
-  const v = av * (t.has('court') || (j && Math.hypot(j.x, j.y) > .95) ? 4.6 : 1.7) * (av < 0 ? .55 : 1);
-  S.x += Math.sin(S.cap) * v * dt; S.z += Math.cos(S.cap) * v * dt;
-  if (S.lieu) [S.x, S.z] = limiter(S.lieu, S.x, S.z); // les murs de la pièce
-  const marche = Math.abs(v) > .05;
-  if (marche || Math.abs(tour) > .05) { S.geste = 'idle'; S.gesteFin = 0; }
-  else if (S.gesteFin && performance.now() > S.gesteFin) { S.geste = 'idle'; S.gesteFin = 0; }
-  S.anim = marche ? 'marche' : S.geste;
-  if (S.moi) { S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); }
-  // Caméra derrière l'épaule.
-  cible.set(S.x, S.y + 1.55, S.z);
-  voulue.set(S.x - Math.sin(S.cap) * S.dist, S.y + 1.55 + S.dist * (S.lieu ? .2 : .42), S.z - Math.cos(S.cap) * S.dist); // dedans, à hauteur d'yeux
+  majVie(dt);
+  const suivi = majTrajets(dt, av, tour); // en voiture, à moto, derrière un zém : c'est le véhicule qui bouge
+  if (!suivi) {
+    S.cap += tour * 2.4 * dt;
+    const v = av * (t.has('court') || (j && Math.hypot(j.x, j.y) > .95) ? 4.6 : 1.7) * (av < 0 ? .55 : 1) * vitesseFaim(); // trop faim : au ralenti
+    const nx = S.x + Math.sin(S.cap) * v * dt, nz = S.z + Math.cos(S.cap) * v * dt;
+    if (S.lieu) [S.x, S.z] = limiter(S.lieu, nx, nz); // les murs de la pièce
+    else if (!dansBatiment(nx, nz)) { S.x = nx; S.z = nz; } // dehors : on ne traverse pas les bâtiments
+    const marche = Math.abs(v) > .05;
+    if (marche || Math.abs(tour) > .05) { S.geste = 'idle'; S.gesteFin = 0; }
+    else if (S.gesteFin && performance.now() > S.gesteFin) { S.geste = 'idle'; S.gesteFin = 0; }
+    S.anim = marche ? 'marche' : S.geste;
+    if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); }
+  }
+  // Caméra derrière l'épaule (ou derrière le véhicule).
+  const P = suivi || S, dist = suivi ? suivi.dist : S.dist;
+  cible.set(P.x, P.y + 1.55, P.z);
+  voulue.set(P.x - Math.sin(P.cap) * dist, P.y + (suivi ? suivi.haut : 1.55 + S.dist * (S.lieu ? .2 : .42)), P.z - Math.cos(P.cap) * dist); // dedans, à hauteur d'yeux
   if (S.lieu) { const [cx, cz] = limiter(S.lieu, voulue.x, voulue.z, .35); voulue.set(cx, Math.min(voulue.y, S.y + 4), cz); } // la caméra reste dans la pièce
-  if (S.saut) { camera.position.copy(voulue); S.saut = false; } else camera.position.lerp(voulue, 1 - Math.exp(-dt * 7));
+  else { // dehors : si un bâtiment se trouve entre le personnage et la caméra, elle s'approche (jamais dans un mur)
+    let k = 1; for (let i = 1; i <= 12; i++) { const f = i / 12; if (dansBatiment(cible.x + (voulue.x - cible.x) * f, cible.z + (voulue.z - cible.z) * f)) { k = Math.max(.15, (i - 1) / 12); break; } }
+    if (k < 1) voulue.set(cible.x + (voulue.x - cible.x) * k, cible.y + (voulue.y - cible.y) * k + .4, cible.z + (voulue.z - cible.z) * k);
+  }
+  if (S.saut) { camera.position.copy(voulue); S.saut = false; } else camera.position.lerp(voulue, 1 - Math.exp(-dt * (suivi ? 5 : 7)));
   controls.target.copy(cible);
   // Sa position aux autres, cinq fois par seconde (et au moins toutes les 2,5 s pour rester « présent »).
   S.envoi -= dt; S.depuis += dt;
   if (S.envoi <= 0 && S.canal) {
     S.envoi = ENVOI;
-    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu?.id || '', y: S.y }, k = JSON.stringify(e);
+    const vh = T.mode === 'conduit' ? T.veh.type : T.mode === 'passager' ? 'zem' : ''; // le véhicule sous soi, pour les amis
+    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu?.id || '', y: r2(S.y), vh }, k = JSON.stringify(e);
     if (k !== S.dernier || S.depuis > 2.5) { S.dernier = k; S.depuis = 0; S.canal.envoyer(e); }
   }
   // Les autres, lissés entre deux nouvelles.
@@ -292,14 +316,35 @@ export function majSalon(dt) {
     const dx = e.x - A.x, dz = e.z - A.z; A.x += dx * kk; A.z += dz * kk;
     let da = (e.h || 0) - A.cap; da = Math.atan2(Math.sin(da), Math.cos(da)); A.cap += da * kk;
     if (A.g) A.g.visible = (e.i || '') === (S.lieu?.id || ''); // seulement ceux qui sont dans la même pièce (ou dehors)
-    if (A.g) { A.g.position.set(A.x, typeof e.y === 'number' ? e.y : 0, A.z); A.g.rotation.y = A.cap; A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? 'marche' : ANIMS.has(e.a) ? e.a : 'idle'); }
+    const V = vehiculeDe(A, ['moto', 'voiture', 'zem'].includes(e.vh) && !(e.i || S.lieu) ? e.vh : null);
+    if (V) { V.x = A.x; V.z = A.z; V.cap = A.cap; V.y = typeof e.y === 'number' ? e.y : 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; asseoirSur(A.g, V, e.vh === 'zem'); }
+    else if (A.g) { A.g.position.set(A.x, typeof e.y === 'number' ? e.y : 0, A.z); A.g.rotation.y = A.cap; A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? 'marche' : ANIMS.has(e.a) ? e.a : 'idle'); }
     if (A.bulle && now > A.bulleFin) retirerBulle(A);
   }
   if (S.bulle && now > S.bulleFin) retirerBulle(S);
-  // Devant une porte : « Entrer » ; dedans : « Sortir ».
-  S.devant = S.lieu ? null : porteProche(S.x, S.z);
-  const b = $('#slEntrer'), txt = S.lieu ? 'Sortir (E)' : S.devant ? `Entrer dans ${S.devant.nom} (E)` : '';
-  if (b && b.textContent !== txt) { b.textContent = txt; b.hidden = !txt; }
+  // Les actions du moment : entrer, sortir, monter, descendre, faire le plein, commander… (deux boutons, touche E).
+  S.devant = S.lieu || T.mode !== 'pied' ? null : porteProche(S.x, S.z);
+  S.actions = [...(S.devant ? [{ texte: `Entrer dans ${S.devant.nom}`, f: () => dedans(S.devant) }] : []), ...actions(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : [])]; // l'action du lieu d'abord, « Sortir » en dernier
+  ['#slEntrer', '#slAction2'].forEach((sel, k) => {
+    const b = $(sel), a = S.actions[k], txt = a ? `${a.texte}${k === 0 && !coarse ? ' (E)' : ''}` : '';
+    if (b && b.textContent !== txt) { b.textContent = txt; b.hidden = !txt; }
+  });
+}
+
+// ---------- Héler un zém : choisir où aller, négocier le prix ----------
+function helerZem() {
+  if (T.mode !== 'pied' || S.lieu) { ligne(S.lieu ? 'Sors d’abord pour héler un zém.' : 'Tu es déjà en route.'); return; }
+  choisir('Zém ! Où vas-tu ?', LIEUX.filter(L => L[0] !== 'station').map(L => ({ texte: L[1], f: () => {
+    const d = destination(L); if (!d) return;
+    const q = prixZem(S.x, S.z, S.cap, d[0], d[1]); if (!q) { ligne('Le zém ne connaît pas la route jusque-là.'); return; }
+    if (q.km < .15) { ligne('Tu y es déjà !'); return; }
+    let prix = q.prix; const argent = VIE.data?.argent ?? 0;
+    const proposer = (txt, marchande) => choisir(`${txt} (${q.km.toFixed(1).replace('.', ',')} km)`, [
+      { texte: `D’accord pour ${prix.toLocaleString('fr-FR')} F`, desactive: argent < prix, sous: argent < prix ? 'Tu n’as pas assez d’argent' : '', f: () => appelerZem(d[0], d[1], L[1], prix) },
+      ...(marchande ? [] : [{ texte: 'Marchander', sous: 'Il peut accepter… ou pas', f: () => { if (Math.random() < .55) { prix = Math.max(150, prix - (prix > 500 ? 100 : 50)); proposer(`« Bon, ${prix.toLocaleString('fr-FR')} F, c’est mon dernier prix. »`, true); } else proposer(`« Non non, ${prix.toLocaleString('fr-FR')} F, c’est le prix ! »`, true); } }]),
+    ]);
+    proposer(`« ${L[1]} ? Ça fait ${prix.toLocaleString('fr-FR')} F. »`, false);
+  } })));
 }
 
 // ---------- Interface ----------
@@ -319,7 +364,10 @@ function ouvrir() {
   }
   statut(''); $('#salon').hidden = false;
 }
-export function initSalon() {
+export function initSalon(data) {
+  surAnnonce(t => ligne(t)); // argent gagné ou dépensé, faim : dans le fil du salon
+  S.dire = dire; initTrajets(data, { S, ligne });
+  if (import.meta.env.DEV) window.__salon = { S, T, VIE, surRoute }; // pour les tests (console, scripts)
   S.local = new URLSearchParams(location.search).has('salon-local');
   $('#btnSalon')?.addEventListener('click', ouvrir);
   $('#slFermer')?.addEventListener('click', () => { $('#salon').hidden = true; });
@@ -331,7 +379,16 @@ export function initSalon() {
   $('#slInviter')?.addEventListener('click', inviter);
   $('#slCopier')?.addEventListener('click', copier);
   $('#slQuitter')?.addEventListener('click', quitter);
-  $('#slEntrer')?.addEventListener('click', porte);
+  $('#slEntrer')?.addEventListener('click', () => S.actions?.[0]?.f());
+  $('#slAction2')?.addEventListener('click', () => S.actions?.[1]?.f());
+  $('#slZem')?.addEventListener('click', helerZem);
+  $('#vhLouer')?.addEventListener('click', () => louerMoto().then(ok => { if (ok) { garerSonVehicule(); ligne('Ta moto louée t’attend à côté : approche-toi et « Monter sur ta moto ».'); } }));
+  const bascule = (bouton, panneau, autre) => $(bouton)?.addEventListener('click', () => {
+    const ouvert = !$(panneau).classList.contains('ouvert'); $(panneau).classList.toggle('ouvert', ouvert); $(bouton).setAttribute('aria-expanded', String(ouvert));
+    if (ouvert) { $(autre[1]).classList.remove('ouvert'); $(autre[0]).setAttribute('aria-expanded', 'false'); }
+    if (panneau === '#slChat' && ouvert) { S.nonLus = 0; $('#slNonLus').hidden = true; $('#slMessages').scrollTop = 1e6; }
+  });
+  bascule('#slChatBtn', '#slChat', ['#slGestesBtn', '#slActions']); bascule('#slGestesBtn', '#slActions', ['#slChatBtn', '#slChat']);
   $('#slForm')?.addEventListener('submit', e => { e.preventDefault(); dire($('#slTexte').value); $('#slTexte').value = ''; });
   const ph = $('#slPhrases'); if (ph) for (const p of PHRASES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = p; b.addEventListener('click', () => dire(p)); ph.append(b); }
   const ge = $('#slGestes'); if (ge) for (const [id, nom] of GESTES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = nom; b.addEventListener('click', () => geste(id)); ge.append(b); }

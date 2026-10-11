@@ -20,6 +20,7 @@ function objet(type) {
   else if (type === 'carte') add(new THREE.BoxGeometry(.09, .005, .055), mat('#2f6fb0'));
   else if (type === 'outil') { add(new THREE.BoxGeometry(.04, .03, .3), mat('#8f979b', { })); add(new THREE.TorusGeometry(.04, .012, 6, 12, Math.PI * 1.4).rotateX(Math.PI / 2), mat('#8f979b'), 0, 0, .16); }
   else if (type === 'souvenir') { add(new THREE.CylinderGeometry(.05, .07, .28, 8), mat('#7a4a2c'), 0, .14, 0); add(new THREE.SphereGeometry(.06, 8, 6), mat('#6b3f22'), 0, .32, 0); }
+  else if (type === 'plat') { add(new THREE.CylinderGeometry(.14, .11, .03, 18), mat('#f4f1ea')); add(new THREE.SphereGeometry(.09, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat('#c8642c'), 0, .015, 0); } // assiette garnie
   else add(new THREE.BoxGeometry(.2, .16, .14), mat('#1f2326')); // sac
   g.traverse(o => { if (o.isMesh) o.castShadow = false; });
   g.scale.setScalar(2.2); // plus gros que nature : on doit le voir depuis la caméra du zém

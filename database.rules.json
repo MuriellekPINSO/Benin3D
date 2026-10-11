@@ -18,6 +18,64 @@
           }
         }
       }
+    },
+    "zem_vies": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && newData.exists()",
+        ".validate": "newData.hasChildren(['nom', 'modele', 'depart', 'argent', 'faim', 'logement', 'cree', 't'])",
+        "nom": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16"
+        },
+        "modele": {
+          ".validate": "newData.isString() && newData.val().length <= 40"
+        },
+        "depart": {
+          ".validate": "(data.exists() && newData.val() === data.val()) || (!data.exists() && (newData.val() === 'debrouillard' || newData.val() === 'fils'))"
+        },
+        "cree": {
+          ".validate": "(data.exists() && newData.val() === data.val()) || (!data.exists() && newData.val() === now)"
+        },
+        "t": {
+          ".validate": "newData.val() === now"
+        },
+        "argent": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000 && ((!data.exists() && ((newData.parent().child('depart').val() === 'fils' && newData.val() === 150000) || (newData.parent().child('depart').val() === 'debrouillard' && newData.val() === 2000))) || (data.exists() && (newData.val() <= data.val() || (newData.val() - data.val() <= 5000 && newData.parent().child('t').val() === now && now - data.parent().child('t').val() >= 3000))))"
+        },
+        "faim": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+        },
+        "logement": {
+          ".validate": "newData.isString() && newData.val().length <= 20"
+        },
+        "vehicule": {
+          ".validate": "newData.isString() && newData.val().length <= 20"
+        },
+        "metier": {
+          ".validate": "newData.isString() && newData.val().length <= 30"
+        },
+        "grade": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10"
+        },
+        "xp": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "dette": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "loyerT": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "$autre": {
+          ".validate": false
+        },
+        "carburant": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10"
+        },
+        "vehiculeFin": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        }
+      }
     }
   }
 }

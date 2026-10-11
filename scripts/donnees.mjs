@@ -867,6 +867,10 @@ const LMK = {
   campus: M(campusUAC),
   terrePleins,
   feux: feuxReels, passages: passagesPietons,
+  // Toutes les stations-service (OSM amenity=fuel) : on y fait le plein en roulant librement (conduite.js). [x, z, nom] en mètres.
+  stations: [...load('commerces'), ...load('commerces_ouidah'), ...load('poi')].filter(e => e.tags?.amenity === 'fuel' && (e.center || e).lat)
+    .map(e => { const c = e.center || e, q = P(c.lat, c.lon); return [q[0] / 10, q[1] / 10, (e.tags.name || e.tags.brand || 'Station-service').slice(0, 40)]; })
+    .filter((s, i, a) => a.findIndex(t => Math.hypot(t[0] - s[0], t[1] - s[1]) < 30) === i),
   ouidah: { porte: [Math.round(PORTE[0]) / 10, Math.round(PORTE[1]) / 10], arene: [Math.round(ARENE[0]) / 10, Math.round(ARENE[1]) / 10] },
   detailles: Object.fromEntries(Object.entries(ringsDetailles).map(([k, r]) => [k, M(r)])),
   marinaLieux: MAR.size ? {

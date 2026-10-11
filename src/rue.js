@@ -79,7 +79,7 @@ function indexer(data) {
     for (const s of L.aero.stands) zone(s.pts[0][0], s.pts[0][1], 90);
   }
 }
-function dansBatiment(x, z) {
+export function dansBatiment(x, z) {
   const l = R.grilleB.get(cle(x, z, CB)); if (!l) return false;
   const { B, off, bb } = R.B;
   for (const i of l) {

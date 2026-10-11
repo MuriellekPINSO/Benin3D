@@ -46,5 +46,13 @@
  "moov": {
   "triangles": 52730,
   "octets": 1127520
+ },
+ "voiture-perso": {
+  "triangles": 40000,
+  "octets": 887204
+ },
+ "moto-perso": {
+  "triangles": 29996,
+  "octets": 955700
  }
 }

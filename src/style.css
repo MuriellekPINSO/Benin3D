@@ -543,7 +543,11 @@ button { font: inherit; color: inherit; }
 /* ---------- Salon entre amis ---------- */
 .mode-salon .side, .mode-salon .hud, .mode-salon .dock, .mode-salon .credits, .mode-salon .card, .mode-salon .jouer-flottant { display: none !important; }
 .mode-salon #labels .lbl-q, .mode-salon #labels .lbl-water, .mode-salon.dedans #labels { display: none !important; }
-.sl-entrer { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); font-size: 15px; padding: 12px 22px; max-width: calc(100% - 2 * var(--gutter)); }
+.sl-agir { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; max-width: calc(100% - 2 * var(--gutter)); }
+.sl-agir .jouer { font-size: 15px; padding: 12px 22px; }
+.sl-agir2 { border: 0; border-radius: 999px; padding: 11px 18px; font-weight: 800; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); cursor: pointer; }
+.sl-zem { border: 0; border-radius: 999px; padding: 8px 12px; font-weight: 800; background: #f2c21b; color: #17130c; cursor: pointer; }
+.vh-gps { color: #2e8fd6 !important; font-weight: 700; }
 .salon .sl-fermer { position: absolute; top: 10px; right: 12px; border: 0; background: var(--chip); width: 32px; height: 32px; border-radius: 50%; font-size: 20px; line-height: 1; cursor: pointer; }
 .salon .sl-champ { display: grid; gap: 4px; font-weight: 700; font-size: 13px; margin: 4px 0 10px; }
 .salon input { font: inherit; color: inherit; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; }
@@ -576,8 +580,64 @@ button { font: inherit; color: inherit; }
 .sl-aide { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); margin: 0; font-size: 12px; color: var(--ink-2); background: var(--panel); padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .sl-joy { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); width: 110px; height: 110px; border-radius: 50%; background: var(--panel); border: 2px solid var(--line); touch-action: none; }
 .sl-joy i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: var(--accent); transform: translate(var(--jx, 0px), var(--jy, 0px)); }
+.sl-boutons { display: none; }
 @media (max-width: 720px) {
-  .sl-chat ol { max-height: 110px; }
-  .sl-actions { bottom: auto; top: 96px; }
+  /* Téléphone : barre compacte, joystick à gauche, discussion et gestes ouverts à la demande. */
+  .sl-haut { top: 8px; padding: 4px 4px 4px 12px; gap: 4px; flex-wrap: nowrap; }
+  .sl-haut b { font-size: 14px; }
+  .sl-haut small, #slCopier { display: none; }
+  .sl-haut button { padding: 7px 11px !important; font-size: 13px; }
+  .sl-chat, .sl-actions { display: none; }
+  .sl-chat.ouvert { display: grid; left: 8px; right: 8px; width: auto; top: 58px; bottom: auto; max-height: 52vh; }
+  .sl-chat.ouvert ol { max-height: 26vh; }
+  .sl-actions.ouvert { display: grid; right: 8px; bottom: 132px; width: min(250px, calc(100% - 16px)); }
+  .sl-boutons { display: flex; flex-direction: column; gap: 8px; position: absolute; right: 12px; bottom: 26px; }
+  .sl-boutons button { position: relative; border: 0; border-radius: 999px; padding: 11px 16px; font-weight: 800; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); }
+  .sl-boutons button[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
+  .sl-boutons b { position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; border-radius: 10px; background: #d64536; color: #fff; font-size: 12px; line-height: 20px; text-align: center; padding: 0 5px; }
+  .sl-joy { left: 18px; bottom: 26px; transform: none; }
+  .sl-agir { bottom: 26px; flex-direction: column; max-width: calc(100% - 290px); }
+  .sl-agir .jouer, .sl-agir2 { font-size: 14px; padding: 10px 14px; white-space: normal; line-height: 1.2; }
   .sl-aide { display: none; }
 }
+
+/* ---------- Ma vie : tirage du départ et panneau ---------- */
+.vie-tirage { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(10, 12, 16, .55); padding: var(--gutter); }
+.vt-boite { width: min(520px, 100%); padding: 22px; border-radius: var(--r-lg); text-align: center; }
+.vt-boite h2 { margin: 4px 0 14px; font: 800 30px/1 var(--font-display); }
+.vt-cartes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.vt-carte { display: grid; gap: 6px; padding: 18px 12px; border-radius: var(--r-md); border: 2px solid var(--line); background: var(--chip); transition: transform .15s, background .15s, border-color .15s; }
+.vt-carte b { font: 800 20px/1.1 var(--font-display); }
+.vt-carte span { font-size: 13px; color: var(--ink-2); }
+.vt-carte.choisie { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); transform: scale(1.04); }
+.vt-carte.choisie span { color: var(--accent-ink); }
+.vt-boite p { min-height: 2.9em; margin: 0 0 12px; color: var(--ink-2); line-height: 1.45; }
+.vie-hud { position: absolute; top: var(--gutter); left: var(--gutter); width: 250px; padding: 10px 14px; border-radius: var(--r-md); display: grid; gap: 4px; font-size: 12px; }
+.vie-hud small { color: var(--ink-2); }
+.vh-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.vh-tete b { font: 800 20px/1.1 var(--font-display); }
+.vh-faim { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+.vh-faim i { height: 8px; border-radius: 4px; background: linear-gradient(90deg, #2ea043 var(--faim, 50%), var(--chip) var(--faim, 50%)); }
+.vh-faim i.bas { background: linear-gradient(90deg, #d64536 var(--faim, 50%), var(--chip) var(--faim, 50%)); }
+.vh-dette { color: #d64536 !important; font-weight: 700; }
+.vh-vitesse { font: 800 22px/1 var(--font-display); }
+.vh-louer { justify-self: start; border: 0; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 12px; padding: 5px 10px; cursor: pointer; }
+@media (max-width: 720px) {
+  .vie-hud { top: 56px; left: 8px; width: auto; max-width: 62%; padding: 6px 10px; gap: 2px; }
+  .vie-hud #vhLogement, .vie-hud #vhMetier { display: none; }
+  .vh-tete b { font-size: 16px; }
+  .vt-cartes { gap: 8px; }
+  .vt-carte { padding: 14px 8px; }
+}
+
+/* ---------- Fenêtre de choix (zém, menu du comptoir) ---------- */
+.choix { position: absolute; inset: 0; z-index: 35; display: grid; place-items: center; background: rgba(10, 12, 16, .45); padding: var(--gutter); }
+.ch-boite { width: min(420px, 100%); max-height: 80vh; overflow: auto; padding: 18px; border-radius: var(--r-lg); display: grid; gap: 10px; }
+.ch-boite h3 { margin: 0; font: 800 20px/1.25 var(--font-display); }
+.ch-liste { display: grid; gap: 8px; }
+.ch-liste button { display: grid; gap: 2px; text-align: left; border: 1px solid var(--line); background: var(--chip); border-radius: var(--r-md); padding: 10px 14px; cursor: pointer; }
+.ch-liste button b { font-size: 15px; }
+.ch-liste button small { color: var(--ink-2); font-size: 12px; }
+.ch-liste button:hover:not(:disabled) { border-color: var(--accent); }
+.ch-liste button:disabled { opacity: .5; cursor: not-allowed; }
+.ch-annuler { justify-self: end; border: 0; background: transparent; color: var(--ink-2); font-weight: 700; cursor: pointer; padding: 6px 10px; }
