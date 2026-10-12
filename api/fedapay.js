@@ -3,10 +3,11 @@
 // FedaPay avec la clé secrète, qui ne quitte jamais le serveur (FEDAPAY_SECRET_KEY sur Vercel et dans
 // .env.local).
 //   GET /api/fedapay?id=<transaction>&min=<montant attendu>  →  { paye: true | false, statut, montant }
-// (Version de test : le montant attendu vient de la page. Pour de vraies ventes, le serveur devra
-// connaître lui-même le prix des articles et créer la transaction.)
+// Le montant attendu vient de la page, mais il ne descend jamais sous MONTANT_MIN : avec la clé live,
+// seule l'entrée du concert (100 F) se paie pour de vrai. Pour vendre les articles de la boutique, le
+// serveur devra connaître lui-même leur prix et créer la transaction.
 // La même fonction sert en local : vite.config.js la branche sur le serveur de développement.
-export const MONTANT_MIN = 50;
+export const MONTANT_MIN = 100;
 
 export async function verifierPaiement(id, min = MONTANT_MIN, cle = process.env.FEDAPAY_SECRET_KEY) {
   if (!cle) return { code: 503, corps: { paye: false, statut: 'non-configure' } };

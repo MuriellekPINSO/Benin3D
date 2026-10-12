@@ -64,9 +64,9 @@
   "Crédits": "Credits",
   "Inviter un ami": "Invite a friend",
   "Jouez à deux sur la même ligne : crée une partie et envoie le lien à ton ami.": "Play together on the same line: create a game and send the link to your friend.",
-  "Une scène face à la statue, un grand écran, des lumières et toute la ville qui danse. L’entrée coûte 50 F, à payer avec ta cagnotte du jeu.": "A stage facing the statue, a giant screen, lights and the whole city dancing. Entry costs 50 F, paid from your in-game savings.",
+  "Une scène face à la statue, un grand écran, des lumières et toute la ville qui danse. L’entrée coûte 100 F, à payer avec ta cagnotte du jeu.": "A stage facing the statue, a giant screen, lights and the whole city dancing. Entry costs 100 F, paid from your in-game savings.",
   "Tu peux aussi la payer pour de vrai avec MTN MoMo ou Moov Money : tu tapes ton numéro, puis tu valides sur ton téléphone. Le billet vaut pour toute la journée.": "You can also pay for real with MTN MoMo or Moov Money: type your number, then approve on your phone. The ticket is valid all day.",
-  "Payer 50 F par MoMo": "Pay 50 F with MoMo",
+  "Payer 100 F par MoMo": "Pay 100 F with MoMo",
   "Boutique de mode : essaie des tenues, porte-les dans le jeu ou achète-les pour de vrai": "Fashion shop: try outfits on, wear them in the game or buy them for real",
   "Boutique": "Shop",
   "Fermer la boutique": "Close the shop",
@@ -216,7 +216,9 @@
   "'Ouverture de FedaPay…'": "'Opening FedaPay…'",
   "Commande payée ! L’atelier t’appelle au numéro qui a payé pour la livraison à ": "Order paid! The workshop will call the number that paid to arrange delivery to ",
   "' La tenue est aussi dans ta garde-robe du jeu.'": "' The outfit is also in your in-game wardrobe.'",
-  "'Le paiement n’a pas abouti : rien n’a été prélevé. Tu peux réessayer.'": "'The payment didn’t go through: nothing was charged. You can try again.'"
+  "'Le paiement n’a pas abouti : rien n’a été prélevé. Tu peux réessayer.'": "'The payment didn’t go through: nothing was charged. You can try again.'",
+  "'Achat réel : bientôt disponible'": "'Real purchase: coming soon'",
+  "'Achat réel : bientôt disponible. Aucune commande n’a été envoyée.'": "'Real purchase: coming soon. No order was sent.'"
  },
  "src/donnees-lieux.js": {
   "'Siège de Moov Africa Bénin'": "'Moov Africa Bénin headquarters'",

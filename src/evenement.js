@@ -16,12 +16,12 @@ import { avatarPorte } from './mode.js';
 
 // ---------- Événement en 3D : concert sur l'esplanade de l'Amazone (priorité 4) ----------
 // Une scène face à la statue, un grand écran, des lumières qui balaient, une foule qui danse et une
-// musique de concert composée par le jeu. Entrée : 50 F, payés avec la cagnotte du jeu ou, comme le
+// musique de concert composée par le jeu. Entrée : 100 F, payés avec la cagnotte du jeu ou, comme le
 // demande le cahier des charges, pour de vrai par MTN MoMo ou Moov Money (FedaPay, voir paiement.js ;
 // le billet payé vaut pour la journée). Le nom reste générique : utiliser celui d'un vrai festival
 // demande l'accord de ses organisateurs.
 
-export const PRIX_ENTREE = 50;
+export const PRIX_ENTREE = 100;
 const EV = { moi: null, enAttente: null, groupe: null, actif: false, ecran: null, ctx: null, foule: null, tetes: null, places: [], spots: [], t: 0, raf: 0, scene: null, sx: 0, sz: 0, danseurs: null };
 
 function construire() {
@@ -133,7 +133,7 @@ const CLE_BILLET = 'cotonou3d-billet-concert', aujourdhui = () => new Date().toI
 const billetDuJour = () => { try { return localStorage.getItem(CLE_BILLET) === aujourdhui(); } catch { return false; } };
 const garderBillet = () => { try { localStorage.setItem(CLE_BILLET, aujourdhui()); } catch { /* navigation privée */ } };
 
-/** Fenêtre d'entrée : 50 F pris sur la cagnotte du jeu, ou payés par MoMo. */
+/** Fenêtre d'entrée : 100 F pris sur la cagnotte du jeu, ou payés par MoMo. */
 function ouvrir() {
   if (billetDuJour()) return entrer();
   const el = $('#evenement'), P = JEU.prog, assez = (P?.cagnotte || 0) >= PRIX_ENTREE, momo = paiementReel();

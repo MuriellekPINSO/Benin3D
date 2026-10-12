@@ -176,9 +176,12 @@ function choisir(id) {
   MD.choisi = id; MD.etape = 'fiche'; MD.taille = null; MD.attente = null; MD.msg = ['', ''];
   rendreListe(); rendreFiche(); exposer(id);
 }
+// Les ateliers sont encore des démos : avec la clé live, on n'encaisse rien pour eux (« bientôt »).
+// L'achat réel reste ouvert en mode test (clé sandbox) et sans clé (la page dit alors qu'il n'est pas activé).
+const venteOuverte = () => !paiementReel() || paiementTest();
 function rendreFiche() {
   const id = MD.choisi, A = ARTICLES[id], p = prog(), el = $('#modeFiche'); if (!A) { el.innerHTML = ''; return; }
-  if (MD.etape === 'commande') return rendreCommande();
+  if (MD.etape === 'commande' && venteOuverte()) return rendreCommande();
   const aMoi = p.garderobe.includes(id), portee = p.tenue === id;
   el.innerHTML = `<small class="md-atelier">${A.atelier}</small><h4>${A.nom}</h4><p class="md-desc">${A.desc}</p>
     <p class="md-prix"><b>${fmtR(A.prix)}</b> en vrai${A.prixJeu ? ` · ou <b>${fmtF(A.prixJeu)}</b> de cagnotte pour la porter dans le jeu` : ''}</p>
@@ -187,6 +190,7 @@ function rendreFiche() {
       <button type="button" class="jouer ev-btn-momo" id="mdAcheter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg><span>Acheter pour de vrai</span></button>
     </div>
     <p class="ev-etat" id="modeMsg" role="status" aria-live="polite" hidden></p>`;
+  if (!venteOuverte()) { const b = $('#mdAcheter'); b.disabled = true; b.querySelector('span').textContent = 'Achat réel : bientôt disponible'; }
   message(...MD.msg);
   $('#mdPorter')?.addEventListener('click', () => porter(id));
   $('#mdAcheter').addEventListener('click', () => { MD.etape = 'commande'; MD.msg = ['', '']; rendreFiche(); });
@@ -244,6 +248,7 @@ async function payerCommande() {
   if (MD.nom.trim().length < 2) { $('#mdNom').focus(); return message('Indique ton nom pour le livreur.', 'mal'); }
   if (!MD.quartier) { $('#mdQuartier').focus(); return message('Choisis le quartier où te livrer.', 'mal'); }
   if (!paiementReel()) return message('Version de test : le paiement MoMo n’est pas encore activé, aucune commande n’a été envoyée.', 'mal');
+  if (!venteOuverte()) return message('Achat réel : bientôt disponible. Aucune commande n’a été envoyée.', 'mal');
   const total = A.prix + fraisDe(MD.quartier);
   btn.disabled = true; btn.classList.add('charge'); $('#mdRetour').disabled = true;
   message(MD.attente ? 'Vérification du paiement…' : 'Ouverture de FedaPay…');

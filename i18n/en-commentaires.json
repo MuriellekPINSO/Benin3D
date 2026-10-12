@@ -397,7 +397,7 @@
   "// positions mises à jour à chaque image": "// positions updated every frame",
   "// pulsation du morceau": "// the track's beat",
   "// derrière la foule, en biais (la statue est dans l'axe de la scène)": "// behind the crowd, at an angle (the statue is in line with the stage)",
-  "/** Fenêtre d'entrée : 50 F pris sur la cagnotte du jeu. */": "/** Entry window: 50 F taken from the game's savings. */"
+  "/** Fenêtre d'entrée : 100 F pris sur la cagnotte du jeu, ou payés par MoMo. */": "/** Entry window: 100 F taken from the game's savings, or paid with MoMo. */"
  },
  "src/explorer.js": {
   "// ---------- Explorer : catégories, radio, présentation ----------": "// ---------- Explorer: categories, radio, guided tour ----------",
