@@ -165,7 +165,7 @@ const FAB = {
     const g = new THREE.Group(), graine = Math.round(it.s * 7), lib = [];
     // La vendeuse réaliste (personnages.js), ou à défaut la silhouette dessinée en code.
     const vraie = personnage3d(graine, { femme: true });
-    if (vraie) { vraie.position.set(.45, 0, .1); vraie.userData.jouer(hash(graine, 3) < .3 ? 'telephone' : 'idle', 0); g.add(vraie); g.userData.tete = vraie.userData.tete; g.userData.main = vraie.userData.main; lib.push({ dispose: () => vraie.userData.liberer() }); }
+    if (vraie) { vraie.position.set(.45, 0, .1); vraie.userData.jouer('idle', 0); /* « telephone » est une pose assise : elle s'assoirait dans le vide */ g.add(vraie); g.userData.tete = vraie.userData.tete; g.userData.main = vraie.userData.main; lib.push({ dispose: () => vraie.userData.liberer() }); }
     else { const o = new THREE.Mesh(GJ.marchande[Math.floor(hash(Math.round(it.s), 6) * 4)], matVeh); o.position.set(.4, 0, 0); g.add(o); }
     const b = accessoire('bassine', graine);
     if (b) { b.position.set(-.5, .4, .2); b.rotation.y = graine; g.add(b); } else m(gc('bassine', () => new THREE.CylinderGeometry(.45, .32, .25, 12)), '#c9ccd0', -.5, .45, .2, g);

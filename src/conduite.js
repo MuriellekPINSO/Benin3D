@@ -4,11 +4,11 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { TRIPO } from './batiments-tripo.js';
 import { construireReseau, itineraireCourt } from './carrefours.js';
 import { personne } from './discussions.js';
-import { dansBatiment } from './rue.js';
+import { dansBatiment, dansObstacleRue } from './rue.js';
 import { dansTerrePlein } from './terre-pleins.js';
 import { scene } from './scene.js';
 import { TABLIERS, mergeColored, roadLines } from './ville.js';
-import { ZEMS_3D, gabaritDe, matVeh, partsVoiture, partsZem } from './vehicules.js';
+import { TOKPA_3D, ZEMS_3D, gabaritDe, matVeh, partsTokpa, partsVoiture, partsZem } from './vehicules.js';
 
 // ---------- Conduire dans la ville (Ma vie, salon entre amis) ----------
 // On monte sur sa moto ou dans sa voiture et on roule où l'on veut, mais sur les routes : la chaussée et
@@ -17,25 +17,29 @@ import { ZEMS_3D, gabaritDe, matVeh, partsVoiture, partsZem } from './vehicules.
 // tablier par sa rampe, on passe dessous en travers), essence qui baisse en roulant. Le GPS trace
 // l'itinéraire jusqu'à la destination choisie ; le zém qu'on hèle le suit tout seul.
 
-// Vitesses en m/s (13,9 = 50 km/h), essence à l'échelle du jeu (comme Zém Run : quelques km par litre).
+// Vitesses en m/s (13,9 = 50 km/h ; on roule plus vite qu'en vrai : la ville est grande), essence à l'échelle du jeu : des réservoirs de quelques litres, qu'on voit
+// baisser en roulant, mais assez de kilomètres par litre pour qu'une course de zém ou de taxi rapporte plus que
+// l'essence qu'elle coûte (metiers.js).
 export const VEHICULES = {
-  moto: { nom: 'moto', vmax: 13.9, accel: 3.6, frein: 8, recul: 2.2, braquage: 1.9, reservoir: 3, kmParLitre: 3, selle: [1.02, -.08], arriere: -.62 },
-  voiture: { nom: 'voiture', vmax: 16.7, accel: 3, frein: 7, recul: 3, braquage: 1.25, reservoir: 6, kmParLitre: 2, cache: true },
-  zem: { nom: 'zém', vmax: 11, accel: 3.4, frein: 8, recul: 2, braquage: 1.9, reservoir: 3, kmParLitre: 3, selle: [1.02, -.08], arriere: -.62 },
+  moto: { nom: 'moto', vmax: 22, accel: 5.5, frein: 9, recul: 2.5, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.62 },
+  voiture: { nom: 'voiture', vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
+  taxi: { nom: 'taxi', vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
+  tokpa: { nom: 'tokpa-tokpa', vmax: 20, accel: 3.8, frein: 7.5, recul: 2.5, braquage: 1.05, reservoir: 10, kmParLitre: 4, cache: true }, // l'apprenti se tient à la porte latérale, à droite (metiers.js)
+  zem: { nom: 'zém', vmax: 18, accel: 5, frein: 9, recul: 2, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.62 },
 };
 export const PRIX_LITRE = 680; // à la pompe (Zém Run : 680 F à la station, 500 F le kpayo)
-const D_ACCEL = 3.2; // accélération du zém en pilote automatique
+const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote automatique
 
 // Modèles réalistes : voiture et moto du joueur générées par Tripo (public/modeles/batiments/, sans pilote :
 // c'est son personnage qu'on voit dessus), zémidjan de « 3D monde » (gilet jaune, casque). Gabarits : avant vers
 // +x (vehicules.js). Tant qu'ils ne sont pas chargés, les modèles dessinés en code.
-const MODELES = { voiture: null, moto: null };
-const LONGUEURS = { voiture: 4.4, moto: 2 };
-const DEMI_TOUR = { voiture: true, moto: true }; // le redressement aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu (phare devant)
+const MODELES = { voiture: null, moto: null, taxi: null };
+const LONGUEURS = { voiture: 4.4, moto: 2, taxi: 4.3 };
+const DEMI_TOUR = { voiture: true, moto: true, taxi: false }; // le redressement aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu (phare devant)
 const SELLES = { moto: [.86, -.27] }; // selle du modèle Tripo, mesurée : dessus à 0,78 m, 0,2 à 0,3 m derrière le centre (avec [1,02 ; −0,08] du zém, on s'asseyait sur le réservoir)
 export function chargerVehicules() {
   const ch = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  for (const [type, id] of [['voiture', 'voiture-perso'], ['moto', 'moto-perso']]) {
+  for (const [type, id] of [['voiture', 'voiture-perso'], ['moto', 'moto-perso'], ['taxi', 'voiture']]) { // taxi : celui de Zém Run
     const info = TRIPO.info[id]; if (!info) continue;
     ch.loadAsync(`${import.meta.env.BASE_URL}modeles/batiments/${id}.glb?v=${info.octets}`).then(g => { MODELES[type] = gabaritDe(g.scene, { largeur: LONGUEURS[type] }); }).catch(e => console.warn(`modèle ${id}`, e.message));
   }
@@ -45,8 +49,9 @@ export function creerVehicule(type, { couleur } = {}) {
   const D = VEHICULES[type], g = new THREE.Group();
   const gabarit = type === 'zem' ? ZEMS_3D.moto : MODELES[type];
   let m;
-  if (gabarit) m = gabarit.clone();
-  else { m = new THREE.Mesh(mergeColored(type === 'voiture' ? partsVoiture(couleur || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: couleur, chemise: '#f2c21b' })), matVeh); m.castShadow = true; m.receiveShadow = true; }
+  if (type === 'tokpa') { m = TOKPA_3D.geo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(mergeColored(partsTokpa()), matVeh); m.castShadow = true; } // le minibus de Zém Run (Tripo)
+  else if (gabarit) m = gabarit.clone();
+  else { m = new THREE.Mesh(mergeColored(type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : couleur || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: couleur, chemise: '#f2c21b' })), matVeh); m.castShadow = true; m.receiveShadow = true; }
   m.rotation.y = -Math.PI / 2 + (gabarit && MODELES[type] && DEMI_TOUR[type] ? Math.PI : 0); g.add(m); // avant +x → +z
   scene.add(g);
   return { type, D, g, x: 0, z: 0, y: 0, cap: 0, v: 0, km: 0, selle: (gabarit && MODELES[type] && SELLES[type]) || D.selle };
@@ -82,7 +87,7 @@ const projeter = (x, z, ax, az, bx, bz) => { const dx = bx - ax, dz = bz - az, l
 export function surRoute(x, z) {
   indexer();
   const l = G.cases.get(cle(x, z)); if (!l) return false;
-  for (const [ax, az, bx, bz, hw] of l) if (projeter(x, z, ax, az, bx, bz)[0] <= hw) return !dansBatiment(x, z) && !dansTerrePlein(x, z, 0); // ni bâtiment, ni terre-plein central
+  for (const [ax, az, bx, bz, hw] of l) if (projeter(x, z, ax, az, bx, bz)[0] <= hw) return !dansBatiment(x, z) && !dansTerrePlein(x, z, 0) && !dansObstacleRue(x, z, .2); // ni bâtiment, ni terre-plein central, ni mur de parcelle
   return false;
 }
 /** Hauteur sous les roues : le tablier d'un pont si l'on y est monté (par sa rampe), sinon le sol. */
@@ -92,6 +97,14 @@ export function hauteur(x, z, yPrec) {
   let best = -1;
   for (const [ax, az, bx, bz, hw, h0, h1] of l) { const [d, t] = projeter(x, z, ax, az, bx, bz); if (d <= hw) { const h = h0 + (h1 - h0) * t; if (Math.abs(h - yPrec) < 1.6 && h > best) best = h; } }
   return best >= 0 ? best : 0; // trop haut par rapport à là où l'on est : on passe dessous
+}
+
+/** Vrai si un pont (tablier ou rampe) passe à moins de r mètres de (x, z) : on n'y pose pas un arrêt de bus. */
+export function pontPres(x, z, r = 20) {
+  indexer();
+  for (let cx = Math.floor((x - r) / CS); cx <= Math.floor((x + r) / CS); cx++) for (let cz = Math.floor((z - r) / CS); cz <= Math.floor((z + r) / CS); cz++)
+    for (const [ax, az, bx, bz, hw] of G.ponts.get(cx + ',' + cz) || []) if (projeter(x, z, ax, az, bx, bz)[0] <= hw + r) return true;
+  return false;
 }
 
 // ---------- Conduire ----------
@@ -125,8 +138,13 @@ export function suivreChemin(V, P, dt, vmax = V.D.vmax) {
   const [tx, tz] = pts[P.i], dx = tx - V.x, dz = tz - V.z, d = Math.hypot(dx, dz), dernier = P.i === pts.length - 1;
   let da = Math.atan2(dx, dz) - V.cap; da = Math.atan2(Math.sin(da), Math.cos(da));
   V.cap += THREE.MathUtils.clamp(da, -2 * dt, 2 * dt);
-  const voulue = dernier ? Math.min(vmax, d * .8) : Math.min(vmax, 2.5 + 9 * Math.max(0, Math.cos(da)) ** 2);
-  V.v += THREE.MathUtils.clamp(voulue - V.v, -7 * dt, D_ACCEL * dt);
+  // Pleine vitesse en ligne droite ; on ralentit avant un virage, vu 15 à 45 m devant (plus loin quand on va vite).
+  const loin = 15 + Math.abs(V.v) * 1.5; let j = P.i; while (j < pts.length - 1 && Math.hypot(pts[j][0] - V.x, pts[j][1] - V.z) < loin) j++;
+  let dv = Math.atan2(pts[j][0] - V.x, pts[j][1] - V.z) - V.cap; dv = Math.atan2(Math.sin(dv), Math.cos(dv));
+  const droit = Math.max(0, Math.cos(Math.max(Math.abs(da), Math.abs(dv)))) ** 3;
+  const reste = dernier ? d : Math.hypot(pts[pts.length - 1][0] - V.x, pts[pts.length - 1][1] - V.z);
+  const voulue = Math.min(vmax, 3.5 + (vmax - 3.5) * droit, Math.max(2, reste * .8)); // et on freine pour s'arrêter au bout
+  V.v += THREE.MathUtils.clamp(voulue - V.v, -8 * dt, D_ACCEL * dt);
   if (dernier && d < 2.5) { V.v = Math.max(0, V.v - 8 * dt); avancer(V, dt, false); return V.v === 0; }
   avancer(V, dt, false); return false;
 }

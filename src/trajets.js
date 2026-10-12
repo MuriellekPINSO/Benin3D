@@ -6,8 +6,9 @@ import { PRIX_LITRE, VEHICULES, creerVehicule, initStations, itineraire, longueu
 import { comptoirProche, devantChaise, siegeProche } from './interieurs.js';
 import { payerEtRecevoir, remettre } from './remise.js';
 import { scene } from './scene.js';
-import { VIE, consommer, depenser, faireLePlein, manger, reservoir, sauverVie } from './vie.js';
+import { VIE, carburant, consommer, depenser, faireLePlein, manger, reservoir, sauverVie } from './vie.js';
 import { actionsVol, arreterVol, initVol, majAeroports, majVol } from './vol.js';
+import { actionsMetier, chocMetier, enService, initMetiers, majMetiers, quitterMetiers } from './metiers.js';
 
 // ---------- Se déplacer et vivre en ville : véhicule, zém, essence, GPS, repas ----------
 // Appelé par le salon (S : position, personnage, pièce où l'on est). On voit son personnage monter sur sa
@@ -21,7 +22,13 @@ const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 const v3 = new THREE.Vector3();
 let S = null, ligne = () => { };
 
-export function initTrajets(data, ctx) { initStations(data.L.stations); S = ctx.S; ligne = ctx.ligne; initVol(data, { ...ctx, T }); }
+export function initTrajets(data, ctx) {
+  initStations(data.L.stations); S = ctx.S; ligne = ctx.ligne; initVol(data, { ...ctx, T });
+  initMetiers(data, { ...ctx, T, gps, choisir, asseoirSur, garerSonVehicule, etiquette }); // zém, taxi, tokpa-tokpa (metiers.js)
+}
+// Comment on nomme le véhicule : monter dans…, descendre de…
+const NOMS = { voiture: ['ta voiture', 'de la voiture'], moto: ['ta moto', 'de la moto'], taxi: ['le taxi', 'du taxi'], tokpa: ['le tokpa-tokpa', 'du tokpa-tokpa'] };
+const nomDe = V => (V.travail && V.type === 'moto' ? ['la moto du patron', 'de la moto'] : NOMS[V.type] || NOMS.voiture);
 
 // Un point de route libre près de (x, z), pour garer un véhicule ou faire venir un zém.
 function pointDeRoute(x, z, rMin = 0, rMax = 25) {
@@ -49,7 +56,7 @@ function etiquette(texte) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); sp.scale.set(.145, .033, 1); sp.renderOrder = 30; return sp;
 }
 export function quitterMonde() {
-  arreterVol(); moteurStop(); retirerVehicule(T.veh); T.veh = null; if (T.zem) retirerVehicule(T.zem.V); T.zem = null;
+  quitterMetiers(); arreterVol(); moteurStop(); retirerVehicule(T.veh); T.veh = null; if (T.zem) retirerVehicule(T.zem.V); T.zem = null;
   retirerRuban(T.gps?.m); T.gps = null; jeterPlat(); T.repas = null; T.trans = null; T.mode = 'pied';
   if (S?.moi) S.moi.visible = true;
 }
@@ -59,20 +66,22 @@ export function actions() {
   const out = [], V = T.veh, D = VIE.data;
   if (T.trans) return out;
   if (T.mode === 'avion') return actionsVol();
+  out.push(...actionsMetier()); // le métier d'abord : parler au client, encaisser, crier la destination…
+  if (T.mode === 'apprenti') return out;
   if (T.mode === 'conduit') {
-    const st = stationProche(V.x, V.z), R = reservoir(), manque = Math.round((R - (D?.carburant || 0)) * 10) / 10;
+    const st = stationProche(V.x, V.z), R = reservoir(), manque = Math.round((R - carburant()) * 10) / 10;
     if (st && Math.abs(V.v) < .6 && manque > .05) {
       const prix = Math.ceil(manque * PRIX_LITRE / 25) * 25, un = Math.min(manque, 1);
       if (D.argent >= prix) out.push({ texte: `Faire le plein · ${manque.toLocaleString('fr-FR')} L · ${fmt(prix)}`, f: () => plein(st, manque, prix) });
       else if (D.argent >= Math.ceil(un * PRIX_LITRE / 25) * 25) out.push({ texte: `Mettre ${un.toLocaleString('fr-FR')} L · ${fmt(Math.ceil(un * PRIX_LITRE / 25) * 25)}`, f: () => plein(st, un, Math.ceil(un * PRIX_LITRE / 25) * 25) });
     }
-    if (Math.abs(V.v) < .8) out.push({ texte: V.D.cache ? 'Descendre de la voiture' : 'Descendre de la moto', f: descendre });
+    if (Math.abs(V.v) < .8) out.push({ texte: `Descendre ${nomDe(V)[1]}`, f: descendre });
     return out;
   }
   if (T.mode === 'passager') return out;
   if (T.zem?.phase === 'attend' && Math.hypot(T.zem.V.x - S.x, T.zem.V.z - S.z) < 4.5) out.push({ texte: `Monter sur le zém · ${fmt(T.zem.prix)}`, f: monterZem });
-  if (V && !S.lieu && Math.hypot(V.x - S.x, V.z - S.z) < 3.2) out.push({ texte: V.D.cache ? 'Monter dans ta voiture' : 'Monter sur ta moto', f: monter });
-  if (S.lieu) { const c = comptoirProche(S.lieu, S.x, S.z); if (c && !T.plat) out.push({ texte: `Commander · ${c.nom}`, f: () => commander(c) }); }
+  if (V && !S.lieu && Math.hypot(V.x - S.x, V.z - S.z) < (V.type === 'tokpa' ? 4.8 : 3.2)) out.push({ texte: `Monter ${V.D.cache ? 'dans' : 'sur'} ${nomDe(V)[0]}`, f: monter });
+  if (S.lieu && !['serveur', 'cuisinier'].includes(enService())) { const c = comptoirProche(S.lieu, S.x, S.z); if (c && !T.plat) out.push({ texte: `Commander · ${c.nom}`, f: () => commander(c) }); } // en service au food court, on ne commande pas
   out.push(...actionsVol()); // billetterie, porte d'embarquement, monter dans l'avion
   return out;
 }
@@ -82,13 +91,13 @@ export function actions() {
 // portière et disparaît dans la voiture.
 function monter() {
   const V = T.veh; if (!V) return;
-  const cote = V.D.cache ? 1.3 : .55, bx = V.x + Math.sin(V.cap + Math.PI / 2) * cote, bz = V.z + Math.cos(V.cap + Math.PI / 2) * cote;
-  T.trans = { t: 0, duree: .9, de: [S.x, S.z], vers: [bx, bz], fin: () => { T.mode = 'conduit'; S.cap = V.cap; moteur(V.type); son('bosse'); ligne(V.D.cache ? 'Tu montes dans ta voiture. Flèches ou ZQSD : accélérer, freiner puis reculer, tourner.' : 'Tu montes sur ta moto. Flèches ou ZQSD : accélérer, freiner puis reculer, tourner.'); } };
+  const cote = V.type === 'tokpa' ? 1.5 : V.D.cache ? 1.3 : .55, bx = V.x + Math.sin(V.cap + Math.PI / 2) * cote, bz = V.z + Math.cos(V.cap + Math.PI / 2) * cote;
+  T.trans = { t: 0, duree: .9, de: [S.x, S.z], vers: [bx, bz], fin: () => { T.mode = 'conduit'; S.cap = V.cap; moteur(V.type === 'tokpa' || V.type === 'taxi' ? 'voiture' : V.type); son('bosse'); ligne(`Tu montes ${V.D.cache ? 'dans' : 'sur'} ${nomDe(V)[0]}. Flèches ou ZQSD : accélérer, freiner puis reculer, tourner.`); } };
 }
 function descendre() {
   const V = T.veh; if (!V || Math.abs(V.v) > .8) return;
   V.v = 0; moteurStop(); T.mode = 'pied';
-  const cote = V.D.cache ? 1.6 : 1; S.x = V.x + Math.sin(V.cap + Math.PI / 2) * cote; S.z = V.z + Math.cos(V.cap + Math.PI / 2) * cote; S.cap = V.cap; S.y = 0;
+  const cote = V.type === 'tokpa' ? 1.9 : V.D.cache ? 1.6 : 1; S.x = V.x + Math.sin(V.cap + Math.PI / 2) * cote; S.z = V.z + Math.cos(V.cap + Math.PI / 2) * cote; S.cap = V.cap; S.y = 0;
   if (S.moi) S.moi.visible = true;
   sauverVie();
 }
@@ -149,10 +158,10 @@ function monterZem() {
 }
 function majZem(dt) {
   const Z = T.zem; if (!Z) return;
-  if (Z.phase === 'vient') { if (suivreChemin(Z.V, Z.P, dt, 8)) { Z.phase = 'attend'; son('klaxon'); ligne('Ton zém est là : monte derrière lui !'); } }
+  if (Z.phase === 'vient') { if (suivreChemin(Z.V, Z.P, dt, 12)) { Z.phase = 'attend'; son('klaxon'); ligne('Ton zém est là : monte derrière lui !'); } }
   else if (Z.phase === 'attend') { Z.attente += dt; if (Z.attente > 90) { ligne('Le zém est reparti : tu l’as fait trop attendre.'); Z.phase = 'repart'; Z.repart = 0; } }
   else if (Z.phase === 'course') {
-    if (suivreChemin(Z.V, Z.P, dt, 11)) { // arrivé : on descend et on paie
+    if (suivreChemin(Z.V, Z.P, dt, 17)) { // arrivé : on descend et on paie
       T.mode = 'pied'; Z.phase = 'paie';
       S.x = Z.V.x + Math.sin(Z.V.cap + Math.PI / 2) * 1.1; S.z = Z.V.z + Math.cos(Z.V.cap + Math.PI / 2) * 1.1; S.cap = Z.V.cap; S.y = 0; if (S.moi) S.moi.visible = true;
       retirerRuban(T.gps?.m); T.gps = null;
@@ -222,6 +231,7 @@ export function choisir(titre, options, { annuler = 'Annuler' } = {}) {
  */
 export function majTrajets(dt, av, tour) {
   majStations(S.x, S.z); majZem(dt); majRepas(dt); majAeroports();
+  const metier = majMetiers(dt); // apprenti de tokpa-tokpa : la caméra suit le minibus
   if (T.plat && !T.repas && S.anim === 'assis' && S.lieu) { const c = siegeProche(S.lieu, S.x, S.z); if (c && Math.hypot(c.x - S.x, c.z - S.z) < .3) asseoir(c); } // l'assiette arrive alors qu'on est déjà assis
   if (T.trans) { // on marche jusqu'au véhicule (ya, yb : on monte sur l'aile de l'avion, on en descend)
     const A = T.trans; A.t += dt; const k = Math.min(1, A.t / A.duree);
@@ -231,18 +241,19 @@ export function majTrajets(dt, av, tour) {
     if (k >= 1) { T.trans = null; A.fin(); }
     return { x: S.x, y: S.y, z: S.z, cap: S.cap, dist: 6, haut: 2.6 };
   }
+  if (metier) return metier;
   if (T.mode === 'avion') { const suivi = majVol(dt); if (suivi) return suivi; } // en vol (à l'arrivée : on redescend à pied)
   if (T.mode === 'conduit') {
-    const V = T.veh, D = VIE.data, panne = !(D?.carburant > 0);
+    const V = T.veh, panne = !(carburant() > 0);
     if (panne && !T.panneDite) { T.panneDite = true; ligne('Panne sèche ! Tu avances au pas : « Aller à » → « Station-service la plus proche » pour le GPS.'); }
-    const km0 = V.km, choc = piloter(V, av, tour, dt, { panne }); if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); }
+    const km0 = V.km, choc = piloter(V, av, tour, dt, { panne }); if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
     T.conso += (V.km - km0) / V.D.kmParLitre; if (T.conso > .01) { consommer(T.conso); T.conso = 0; }
     moteurMaj(Math.abs(V.v), true);
     S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; S.anim = 'assis';
     asseoirSur(S.moi, V, false); if (V.etiquette) V.etiquette.visible = false;
     const kmh = Math.round(Math.abs(V.v) * 3.6); $('#vhVitesse').hidden = false; $('#vhVitesse').textContent = `${kmh} km/h${V.v < -.2 ? ' · marche arrière' : ''}`;
     majGps(dt, V.x, V.z, V.cap);
-    return { x: V.x, y: V.y, z: V.z, cap: V.cap, dist: V.D.cache ? 8 : 6, haut: V.D.cache ? 3.2 : 2.6 };
+    return { x: V.x, y: V.y, z: V.z, cap: V.cap, dist: V.type === 'tokpa' ? 11 : V.D.cache ? 8 : 6, haut: V.type === 'tokpa' ? 4 : V.D.cache ? 3.2 : 2.6 };
   }
   $('#vhVitesse').hidden = true; if (T.veh?.etiquette) T.veh.etiquette.visible = !S.lieu; // dedans, l'étiquette se verrait à travers les murs
   if (T.mode === 'passager' && T.zem) {

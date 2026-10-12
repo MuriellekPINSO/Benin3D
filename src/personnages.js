@@ -168,9 +168,10 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
     const prec = E.courante && actions[E.courante]; if (prec && fondu > 0) a.crossFadeFrom(prec, fondu, false); else if (prec) prec.stop();
     E.courante = nom;
   };
-  // Chacun ne fait pas la même chose au même moment : début décalé, et certains téléphonent en attendant.
-  const repos = !assise && hash(i, 94) < .22 && actions.telephone ? 'telephone' : 'idle';
-  jouer(assise ? 'assis' : repos, 0);
+  // Chacun ne fait pas la même chose au même moment : début décalé, et certains, assis, téléphonent.
+  // « telephone » est une pose assise (bassin bas, genoux pliés) : seulement pour ceux qui sont assis, sinon ils s'assoiraient dans le vide.
+  const repos = 'idle';
+  jouer(assise ? (hash(i, 94) < .22 && actions.telephone ? 'telephone' : 'assis') : repos, 0);
   mixer.update(assise ? 0 : E.ph); suivre(E);
   if (!manuel) P.actifs.add(E); // manuel : animé par son propriétaire (userData.maj), ex. la cabine d'essayage
   g.userData = {

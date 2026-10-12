@@ -16,7 +16,7 @@ export const INTERIEURS = new Map();
  * Déclare un intérieur. def : { nom, porte: [x, z] devant la façade, dehors: regard vers la rue (radians),
  * w, d (pièce rectangulaire, mètres), entree: [x, z, regard] dans la pièce, construire(I) }.
  */
-export function declarerInterieur(id, def) { INTERIEURS.set(id, { id, ...def, centre: [def.porte[0], LARGE], g: null, sieges: [], comptoirs: [], guichets: [] }); }
+export function declarerInterieur(id, def) { INTERIEURS.set(id, { id, ...def, centre: [def.porte[0], LARGE], g: null, sieges: [], comptoirs: [], guichets: [], assis: [], obstacles: [] }); }
 /** L’intérieur dont on est devant la porte (moins de 5 m), sinon null. */
 export function porteProche(x, z) { for (const I of INTERIEURS.values()) if (Math.hypot(x - I.porte[0], z - I.porte[1]) < 5) return I; return null; }
 /** Construit la pièce à la première visite et l'affiche. */
@@ -31,6 +31,14 @@ export const arriveeDehors = I => ({ x: I.porte[0] + Math.sin(I.dehors) * 2.5, z
 export function limiter(I, x, z, marge = .45) {
   const [cx, cz] = I.centre;
   return [THREE.MathUtils.clamp(x, cx - I.w / 2 + marge, cx + I.w / 2 - marge), THREE.MathUtils.clamp(z, cz - I.d / 2 + marge, cz + I.d / 2 - marge)];
+}
+// Meubles qu'on ne traverse pas (comptoirs, tables, guichets, colonnes…) : boîtes [x, z, demi-largeur, demi-profondeur] de la pièce.
+const bloc = (I, w, d, x, z) => I.obstacles.push([x, z, w / 2, d / 2]);
+/** De combien (x, z) de la ville, avec un rayon r, entre dans un meuble de la pièce (0 : libre). */
+export function profondeurInterieur(I, x, z, r = .3) {
+  const lx = x - I.centre[0], lz = z - I.centre[1]; let p = 0;
+  for (const [bx, bz, hw, hd] of I.obstacles) { const u = Math.abs(lx - bx), v = Math.abs(lz - bz); if (u < hw + r && v < hd + r) p = Math.max(p, Math.min(hw + r - u, hd + r - v)); }
+  return p;
 }
 /** Le comptoir devant lequel on se tient (moins de 2,5 m) : { nom, plats, vendeur, x, z } en coordonnées de la ville, ou null. */
 export function comptoirProche(I, x, z) {
@@ -107,7 +115,7 @@ function foodCourt(I) {
     K.boite(6.4, 3.4, .1, K.mat(couleur, { rugosite: .7 }), x, 1.7, D / 2 - .2).castShadow = false;
     panneauTexte([nom, genre], 4.6, .9, x, 3.05, D / 2 - .26, Math.PI, { fond: couleur, encre: '#ffffff', px: 1024, py: 200, police: '800 72px "Bricolage Grotesque", system-ui, sans-serif' });
     menu(nom, plats, couleur, 2, 1.3, x + 1.9, 1.85, D / 2 - .27, Math.PI);
-    K.boite(5.4, 1.05, .9, '#f2efe8', x, .52, D / 2 - 2.4); K.boite(5.5, .06, 1, K.mat('#3a3f44', { rugosite: .35 }), x, 1.08, D / 2 - 2.4);
+    K.boite(5.4, 1.05, .9, '#f2efe8', x, .52, D / 2 - 2.4); K.boite(5.5, .06, 1, K.mat('#3a3f44', { rugosite: .35 }), x, 1.08, D / 2 - 2.4); bloc(I, 5.5, 1, x, D / 2 - 2.4);
     for (let p = 0; p < 3; p++) K.cyl(.22, .22, .12, 14, K.mat(['#c25a2a', '#e9d8a6', '#6b8e4e'][(p + k) % 3]), x - 1.4 + p * 1.1, 1.17, D / 2 - 2.4); // plats exposés
     const v = personne(500 + k, { role: k % 2 ? 'jeune' : 'vendeuse' }); v.position.set(x - .8, 0, D / 2 - 1.3); v.rotation.y = Math.PI; K.racine.add(v);
     I.comptoirs.push({ nom, plats: plats.map(([p, prix]) => [p, Number(prix.replace(/\D/g, ''))]), vendeur: v, x: x - .8, z: D / 2 - 3.3 }); // on commande devant le comptoir
@@ -116,17 +124,17 @@ function foodCourt(I) {
   const plateau = K.mat('#b98a5a', { rugosite: .6 }), metal = K.mat('#6d7478', { metal: .4, rugosite: .5 }), assise = K.mat('#2f8f8a', { rugosite: .6 });
   let n = 0;
   for (const tx of [-15, -9, -3.4, 3.4, 9, 15]) for (const tz of [-5.5, -.5, 4.5]) {
-    K.boite(1.5, .05, .95, plateau, tx, .75, tz); K.cyl(.05, .05, .72, 8, metal, tx, .37, tz); K.cyl(.32, .32, .03, 16, metal, tx, .02, tz);
+    K.boite(1.5, .05, .95, plateau, tx, .75, tz); K.cyl(.05, .05, .72, 8, metal, tx, .37, tz); K.cyl(.32, .32, .03, 16, metal, tx, .02, tz); bloc(I, 1.5, .95, tx, tz);
     for (const [cx, cz, cap] of [[-.42, -.85, 0], [.42, -.85, 0], [-.42, .85, Math.PI], [.42, .85, Math.PI]]) {
       const x = tx + cx, z = tz + cz, dos = cap ? .22 : -.22;
       K.boite(.46, .05, .44, assise, x, .46, z); K.boite(.46, .46, .05, assise, x, .72, z + dos); K.cyl(.025, .025, .44, 6, metal, x, .22, z);
       I.sieges.push({ x, z, cap });
       // Des agents déjeunent déjà à quelques tables.
-      if ((n++ * 7) % 11 === 3) { const p = personne(600 + n, { assise: true }); p.position.set(x, .47, z); p.rotation.y = cap; K.racine.add(p); I.sieges[I.sieges.length - 1].occupe = true; }
+      if ((n++ * 7) % 11 === 3) { const p = personne(600 + n, { assise: true }); p.position.set(x, .47, z); p.rotation.y = cap; K.racine.add(p); I.sieges[I.sieges.length - 1].occupe = true; I.assis.push({ p, x, z, cap }); } // clients du serveur (metiers-ville.js)
     }
   }
   // Plantes, drapeau, écran publicitaire.
-  for (const [x, z] of [[-W / 2 + 1.2, -D / 2 + 1.2], [W / 2 - 1.2, -D / 2 + 1.2], [-W / 2 + 1.2, D / 2 - 3.4], [W / 2 - 1.2, D / 2 - 3.4]]) { K.cyl(.38, .3, .7, 12, '#d9d2c4', x, .35, z); K.sphere(.75, K.mat('#4f7a3c', { rugosite: .9 }), x, 1.35, z).scale.set(1, 1.3, 1); }
+  for (const [x, z] of [[-W / 2 + 1.2, -D / 2 + 1.2], [W / 2 - 1.2, -D / 2 + 1.2], [-W / 2 + 1.2, D / 2 - 3.4], [W / 2 - 1.2, D / 2 - 3.4]]) { K.cyl(.38, .3, .7, 12, '#d9d2c4', x, .35, z); K.sphere(.75, K.mat('#4f7a3c', { rugosite: .9 }), x, 1.35, z).scale.set(1, 1.3, 1); bloc(I, .8, .8, x, z); }
   K.cyl(.04, .04, 3.2, 8, metal, -W / 2 + 2.6, 1.6, -D / 2 + 1); const dr = K.boite(1.2, .8, .02, K.tex('drapeauBenin', 1, 1), -W / 2 + 3.2, 2.75, -D / 2 + 1); dr.castShadow = false;
   const pub = CAMPAGNES.find(c => c.id === 'moov-meilleur') || CAMPAGNES[0];
   K.boite(.12, 1.95, 3.45, '#1a1c1f', -W / 2 + .22, 2.5, 0);
@@ -176,7 +184,7 @@ function hallAeroport(I) {
   K.boite(W, .25, .3, gris, 0, 2.9, D / 2 - .2); K.boite(W, 1.2, .3, '#e9e6de', 0, H - .6, D / 2 - .22);
   panneauTexte(['AÉROPORT INTERNATIONAL CARDINAL BERNARDIN GANTIN · COTONOU'], 26, 1, 0, H - .6, D / 2 - .4, Math.PI, { fond: '#e9e6de', encre: '#2c3a40', px: 2048, py: 79, police: '800 50px system-ui, sans-serif' });
   // Colonnes rondes et dalles lumineuses.
-  for (const x of [-15, -5, 5, 15]) for (const z of [-5, 5]) K.cyl(.45, .45, H, 18, blanc, x, H / 2, z);
+  for (const x of [-15, -5, 5, 15]) for (const z of [-5, 5]) { K.cyl(.45, .45, H, 18, blanc, x, H / 2, z); bloc(I, .9, .9, x, z); }
   const led = K.mat('#ffffff', { emissif: '#fff4e0' });
   for (let x = -W / 2 + 3; x < W / 2 - 1; x += 5) for (let z = -D / 2 + 3; z < D / 2 - 1; z += 5) K.boite(1.6, .04, .8, led, x, H - .02, z).castShadow = false;
   // Entrée côté ville (par où l'on est arrivé) : portes vitrées, sortie vers les taxis et les zéms.
@@ -186,8 +194,8 @@ function hallAeroport(I) {
   panneauTexte(['ENREGISTREMENT · CHECK-IN'], 12, .8, -W / 2 + .17, 4.6, 0, Math.PI / 2, { fond: '#1f3d4a', encre: '#ffffff', px: 2048, py: 136, police: '800 84px system-ui, sans-serif' });
   for (let k = 0; k < 5; k++) {
     const z = -8 + k * 4;
-    K.boite(.9, 1.1, 2.2, '#e9e6de', -W / 2 + 4, .55, z); K.boite(1, .06, 2.3, K.mat('#3a3f44', { rugosite: .35 }), -W / 2 + 4, 1.12, z);
-    K.boite(1.6, .35, .9, '#2b2f33', -W / 2 + 5.4, .2, z + 1.5); // tapis à bagages
+    K.boite(.9, 1.1, 2.2, '#e9e6de', -W / 2 + 4, .55, z); K.boite(1, .06, 2.3, K.mat('#3a3f44', { rugosite: .35 }), -W / 2 + 4, 1.12, z); bloc(I, 1, 2.3, -W / 2 + 4, z);
+    K.boite(1.6, .35, .9, '#2b2f33', -W / 2 + 5.4, .2, z + 1.5); bloc(I, 1.6, .9, -W / 2 + 5.4, z + 1.5); // tapis à bagages
     panneauTexte([String(k + 1)], .7, .7, -W / 2 + .2, 2.6, z, Math.PI / 2, { fond: '#f2c21b', encre: '#1d1a16', px: 256, py: 256 });
     if (k % 2 === 0) { const a = personne(700 + k, { role: 'bureau' }); a.position.set(-W / 2 + 2.9, 0, z); a.rotation.y = Math.PI / 2; K.racine.add(a); }
     if (k === 0 || k === 2) for (let q = 0; q < 2; q++) { const p = personne(710 + k * 3 + q); p.position.set(-W / 2 + 6 + q * 1.4, 0, z + .3); p.rotation.y = -Math.PI / 2; K.racine.add(p); K.boite(.42, .62, .26, ['#2f4f6f', '#7a2f2a', '#3a3a3a'][(k + q) % 3], -W / 2 + 6.1 + q * 1.4, .31, z + .85); } // voyageurs et leurs valises
@@ -200,24 +208,24 @@ function hallAeroport(I) {
   K.boite(.1, 3.4, 6.4, K.mat(bleu, { rugosite: .7 }), W / 2 - .2, 1.7, -5.5).castShadow = false;
   panneauTexte(['BILLETTERIE', 'Vols découverte'], 5, 1, W / 2 - .27, 3.05, -5.5, -Math.PI / 2, { fond: bleu, encre: '#ffffff', px: 1024, py: 205, police: '800 76px system-ui, sans-serif' });
   panneauTexte(['Cotonou → Ouidah · 12 000 F', 'Le long de la côte · env. 10 min', 'Avion 4 places, pilote compris', 'Premier vol offert'], 2.6, 1.5, W / 2 - .27, 1.75, -3.6, -Math.PI / 2, { fond: '#f6f4ee', encre: '#1d1a16', px: 1024, py: 590, police: '700 60px system-ui, sans-serif' });
-  K.boite(.9, 1.05, 5, '#f2efe8', W / 2 - 4, .52, -5.5); K.boite(1, .06, 5.1, K.mat('#3a3f44', { rugosite: .35 }), W / 2 - 4, 1.08, -5.5);
+  K.boite(.9, 1.05, 5, '#f2efe8', W / 2 - 4, .52, -5.5); K.boite(1, .06, 5.1, K.mat('#3a3f44', { rugosite: .35 }), W / 2 - 4, 1.08, -5.5); bloc(I, 1, 5.1, W / 2 - 4, -5.5);
   const agentBillets = personne(720, { role: 'bureau' }); agentBillets.position.set(W / 2 - 2.8, 0, -5.5); agentBillets.rotation.y = -Math.PI / 2; K.racine.add(agentBillets);
   I.guichets.push({ id: 'billetterie', nom: 'la billetterie', agent: agentBillets, x: W / 2 - 5.2, z: -5.5 });
   panneauTexte(['← Billetterie · vols pour Ouidah'], 4.2, .5, 9, 4.2, -5.3, 0, { fond: '#1f3d4a', encre: '#f5c21b', px: 1024, py: 122, police: '800 64px system-ui, sans-serif' }); // vu en entrant
   // Porte 2 : portique de sécurité, pupitre de l'agente, porte vitrée sur le tarmac.
   K.boite(3, 3, .12, K.mat('#5d7f8e', { transparent: .55, rugosite: .1 }), 0, 1.5, D / 2 - .3).castShadow = false;
   panneauTexte(['PORTE 2 · EMBARQUEMENT', 'Vol découverte pour Ouidah'], 5.2, 1, 0, 3.7, D / 2 - .5, Math.PI, { fond: '#f2c21b', encre: '#1d1a16', px: 1024, py: 197, police: '800 70px system-ui, sans-serif' });
-  for (const s of [-1, 1]) K.boite(.18, 2.3, .6, '#9aa3a8', s * .55, 1.15, D / 2 - 5.5);
+  for (const s of [-1, 1]) { K.boite(.18, 2.3, .6, '#9aa3a8', s * .55, 1.15, D / 2 - 5.5); bloc(I, .18, .6, s * .55, D / 2 - 5.5); }
   K.boite(1.3, .22, .6, '#9aa3a8', 0, 2.38, D / 2 - 5.5);
-  K.boite(1.1, 1.05, .6, '#2c3a40', 2.4, .52, D / 2 - 2.8); K.boite(1.2, .05, .7, '#e9e6de', 2.4, 1.07, D / 2 - 2.8);
+  K.boite(1.1, 1.05, .6, '#2c3a40', 2.4, .52, D / 2 - 2.8); K.boite(1.2, .05, .7, '#e9e6de', 2.4, 1.07, D / 2 - 2.8); bloc(I, 1.2, .7, 2.4, D / 2 - 2.8);
   const agentPorte = personne(721, { role: 'bureau' }); agentPorte.position.set(2.4, 0, D / 2 - 1.9); agentPorte.rotation.y = Math.PI; K.racine.add(agentPorte);
   I.guichets.push({ id: 'porte', nom: 'la porte 2', agent: agentPorte, x: 1.6, z: D / 2 - 4 });
   // Rangées de sièges face aux pistes ; chaque siège est une place où s'asseoir.
   const assise = K.mat('#2b4f7a', { rugosite: .6 }), pied = K.mat('#6d7478', { metal: .4, rugosite: .5 });
   let n = 0;
-  for (const z of [-1.5, 2, 5.5]) for (const bloc of [-1, 1]) {
-    const x0 = bloc * 7.5;
-    K.boite(6.2, .08, .5, pied, x0, .42, z); for (const dx of [-2.6, 0, 2.6]) K.boite(.08, .42, .08, pied, x0 + dx, .21, z);
+  for (const z of [-1.5, 2, 5.5]) for (const cote of [-1, 1]) {
+    const x0 = cote * 7.5;
+    K.boite(6.2, .08, .5, pied, x0, .42, z); for (const dx of [-2.6, 0, 2.6]) K.boite(.08, .42, .08, pied, x0 + dx, .21, z); bloc(I, 6.2, .5, x0, z - .1);
     for (let k = 0; k < 6; k++) {
       const x = x0 - 2.5 + k; K.boite(.5, .06, .46, assise, x, .46, z); K.boite(.5, .5, .06, assise, x, .74, z - .22);
       I.sieges.push({ x, z, cap: 0 });
@@ -248,4 +256,61 @@ export function declarerAeroport(A) {
     panneauTexte(['Billetterie', 'Vols pour Ouidah'], 1.3, .8, 3.4, 1.55, 1.62, 0, { fond: '#1f5fa8', encre: '#ffffff', px: 512, py: 315, police: '800 84px system-ui, sans-serif' });
   });
   declarerInterieur('aeroport-hall', { nom: 'le hall de l’aéroport', porte: [c[0] + lx * (prof + 1.8), c[1] + lz * (prof + 1.8)], dehors: rot, w: 46, d: 30, entree: [0, -12.5, 0], construire: hallAeroport });
+}
+
+// ---------- Agences : MTN, Moov, accueil de la Cité ministérielle (métiers en entreprise, metiers-ville.js) ----------
+// Une agence générique aux couleurs de l'entreprise : guichets au fond (le 1 est celui du joueur), salle
+// d'attente, borne à tickets, et le bureau vitré de la direction générale dans un coin. Le texte des
+// panneaux est générique : pas de logo ni de vraie campagne.
+function agence(I) {
+  const W = I.w, D = I.d, H = 4.2, A = I.agence;
+  K.boite(W, .2, D, K.tex('terrazzo', W / 4, D / 4), 0, -.1, 0).castShadow = false;
+  K.boite(W, .2, D, '#f6f5f2', 0, H + .1, 0).castShadow = false;
+  const blanc = K.mat('#f2f0ea', { rugosite: .9 });
+  for (const [w, d, x, z] of [[W, .3, 0, -D / 2], [.3, D, -W / 2, 0], [.3, D, W / 2, 0]]) K.boite(w, H, d, blanc, x, H / 2, z).castShadow = false;
+  K.boite(W, H, .3, K.mat(A.couleur, { rugosite: .7 }), 0, H / 2, D / 2); // mur du fond aux couleurs de l'entreprise
+  panneauTexte([A.titre], 12, 1, 0, H - .9, D / 2 - .17, Math.PI, { fond: A.couleur, encre: A.encre, px: 2048, py: 171, police: '800 110px system-ui, sans-serif' });
+  const led = K.mat('#ffffff', { emissif: '#fff4e0' });
+  for (let x = -W / 2 + 3; x < W / 2 - 1; x += 4) for (let z = -D / 2 + 2.5; z < D / 2 - 1; z += 4) K.boite(1.2, .04, .6, led, x, H - .02, z).castShadow = false;
+  K.boite(3.6, 2.6, .08, K.mat('#5d7f8e', { transparent: .6, rugosite: .1 }), 0, 1.3, -D / 2 + .19).castShadow = false; // porte d'entrée vitrée
+  panneauTexte(['SORTIE'], 1.4, .4, 0, 3, -D / 2 + .17, 0, { fond: '#1f7a3e', encre: '#ffffff', px: 512, py: 146 });
+  // Guichets, le long du mur du fond.
+  const gris = K.mat('#3a3f44', { rugosite: .35 });
+  for (let k = 0; k < 4; k++) {
+    const x = -7.5 + k * 4.2, z = D / 2 - 3.2;
+    K.boite(3.4, 1.1, .7, '#ece9e2', x, .55, z); K.boite(3.5, .06, .8, gris, x, 1.12, z); bloc(I, 3.5, .8, x, z);
+    K.boite(.55, .38, .04, '#1d2024', x + .6, 1.42, z + .1); K.boite(.05, .25, .05, gris, x + .6, 1.22, z + .1); // écran
+    panneauTexte([`GUICHET ${k + 1}`], 1.8, .45, x, 2.6, D / 2 - .17, Math.PI, { fond: '#1d2024', encre: '#f5c21b', px: 1024, py: 256, police: '800 120px system-ui, sans-serif' });
+    if (k) { const a = personne(760 + k, { role: 'bureau' }); a.position.set(x, 0, z + 1); a.rotation.y = Math.PI; K.racine.add(a); }
+    else I.guichets.push({ id: 'poste', nom: 'ton guichet', x, z: z + 1 }); // le joueur se tient derrière le 1
+  }
+  // Salle d'attente : rangées de sièges face aux guichets, borne à tickets.
+  const assise = K.mat(A.siege || '#2b4f7a', { rugosite: .6 }), pied = K.mat('#6d7478', { metal: .4, rugosite: .5 });
+  for (const z of [-3.6, -1.6]) for (const cote of [-1, 1]) {
+    const x0 = cote * 4.2; K.boite(4.6, .08, .5, pied, x0, .42, z); bloc(I, 4.6, .5, x0, z - .1);
+    for (let k = 0; k < 4; k++) { const x = x0 - 1.5 + k; K.boite(.5, .06, .46, assise, x, .46, z); K.boite(.5, .5, .06, assise, x, .74, z - .22); I.sieges.push({ x, z, cap: 0 }); }
+  }
+  K.boite(.6, 1.4, .5, '#2c3a40', W / 2 - 2, .7, -D / 2 + 2); bloc(I, .6, .5, W / 2 - 2, -D / 2 + 2); panneauTexte(['TICKETS'], .6, .2, W / 2 - 2, 1.25, -D / 2 + 1.74, 0, { fond: A.couleur, encre: A.encre, px: 512, py: 170 });
+  panneauTexte(A.affiche, 3.2, 1.8, -W / 2 + .17, 2.1, -1, Math.PI / 2, { fond: '#f6f4ee', encre: '#1d1a16', px: 1024, py: 576, police: '700 66px system-ui, sans-serif' });
+  // Le bureau du DG, vitré, dans le coin : bureau, fauteuil (un siège), plante, panneau.
+  const bx = W / 2 - 3.2, bz = D / 2 - 3.4, verre = K.mat('#9fc3d1', { transparent: .45, rugosite: .1 });
+  // Cloisons vitrées : à l'ouest, et devant avec une porte d'1,2 m (de bx − 1,5 à bx − 0,3).
+  K.boite(.08, 2.6, 4.6, verre, bx - 2.6, 1.3, bz).castShadow = false; bloc(I, .12, 4.6, bx - 2.6, bz);
+  K.boite(1.1, 2.6, .08, verre, bx - 2.05, 1.3, bz - 2.3).castShadow = false; bloc(I, 1.1, .12, bx - 2.05, bz - 2.3);
+  K.boite(2.9, 2.6, .08, verre, bx + 1.15, 1.3, bz - 2.3).castShadow = false; bloc(I, 2.9, .12, bx + 1.15, bz - 2.3);
+  K.boite(1.8, .06, .9, K.mat('#5a3a22', { rugosite: .5 }), bx, .76, bz + .4); K.boite(1.7, .72, .08, K.mat('#5a3a22'), bx, .37, bz + .82); bloc(I, 1.8, .9, bx, bz + .4);
+  K.boite(.6, .08, .6, '#1d2024', bx, .5, bz + 1.3); K.boite(.6, .7, .08, '#1d2024', bx, .9, bz + 1.6); I.sieges.push({ x: bx, z: bz + 1.3, cap: Math.PI, dg: true });
+  panneauTexte(['DIRECTION GÉNÉRALE'], 2.4, .35, bx, 2.4, bz - 2.26, 0, { fond: '#1d2024', encre: '#ffffff', px: 1024, py: 150, police: '800 84px system-ui, sans-serif' });
+  K.cyl(.3, .24, .6, 12, '#d9d2c4', bx + 2, .3, bz - 1.6); K.sphere(.6, K.mat('#4f7a3c', { rugosite: .9 }), bx + 2, 1.2, bz - 1.6).scale.set(1, 1.3, 1);
+  I.dg = { x: bx, z: bz - 1 }; // devant le bureau du DG
+  for (const [x, z] of [[-W / 2 + 1, -D / 2 + 1], [-W / 2 + 1, D / 2 - 1]]) { K.cyl(.38, .3, .7, 12, '#d9d2c4', x, .35, z); K.sphere(.75, K.mat('#4f7a3c', { rugosite: .9 }), x, 1.35, z).scale.set(1, 1.3, 1); bloc(I, .8, .8, x, z); }
+}
+/** Une agence et sa porte sur la façade (porte : [x, z] devant la façade ; dehors : regard vers la rue). */
+export function declarerAgence(id, { nom, porte, dehors, ...agenceDef }) {
+  const g = groupeLieu(`porte-${id}`, porte[0] - Math.sin(dehors) * 1.2, porte[1] - Math.cos(dehors) * 1.2); g.rotation.y = dehors;
+  K.into(g, () => {
+    K.boite(3.2, 2.8, .12, K.mat('#4d6f7e', { transparent: .7, rugosite: .1, metal: .2 }), 0, 1.4, 0).castShadow = false;
+    panneauTexte([agenceDef.enseigne], 4, .6, 0, 3.3, .1, 0, { fond: agenceDef.couleur, encre: agenceDef.encre, px: 1024, py: 154, police: '800 84px system-ui, sans-serif' });
+  });
+  declarerInterieur(id, { nom, porte, dehors, w: 24, d: 16, entree: [0, -6.5, 0], agence: agenceDef, construire: agence });
 }

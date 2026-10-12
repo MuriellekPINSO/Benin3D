@@ -232,13 +232,24 @@
     <p>Retrouve tes amis dans Cotonou : promenez-vous à pied, discutez, saluez-vous, dansez, et allez ensemble à l’Amazone, à la Haie Vive ou à la plage.</p>
     <label class="sl-champ">Ton nom <input id="slNom" maxlength="16" autocomplete="nickname" placeholder="Ex. : Murielle"></label>
     <p class="sl-titre">Ton personnage</p>
-    <div class="sl-avatars" id="slAvatars" role="radiogroup" aria-label="Ton personnage"></div>
+    <div class="gr-genre" id="slGenre" role="radiogroup" aria-label="Femme ou homme"></div>
+    <div class="gr-tenues sl-tenues" id="slAvatars" role="radiogroup" aria-label="Ta tenue"></div>
     <div class="ev-actions"><button type="button" class="jouer" id="slCreer">Créer un salon</button></div>
     <div class="sl-rejoindre"><input id="slCode" maxlength="6" placeholder="Code reçu (6 caractères)" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" id="slRejoindre">Rejoindre</button></div>
     <p class="ev-etat" id="slEtat" role="status" aria-live="polite" hidden></p>
   </div>
   <div class="choix" id="choix" hidden role="dialog" aria-labelledby="chTitre">
     <div class="ch-boite panel"><h3 id="chTitre"></h3><div class="ch-liste" id="chListe"></div><button type="button" class="ch-annuler" id="chAnnuler">Annuler</button></div>
+  </div>
+  <div class="choix garderobe" id="garderobe" hidden role="dialog" aria-labelledby="grTitre">
+    <div class="ch-boite gr-boite panel">
+      <h3 id="grTitre">Ta garde-robe</h3>
+      <p class="gr-argent" id="grArgent"></p>
+      <div class="gr-genre" id="grGenre" role="radiogroup" aria-label="Femme ou homme"></div>
+      <div class="gr-tenues" id="grTenues" role="radiogroup" aria-label="Tes tenues"></div>
+      <small class="gr-note">Les tenues de la boutique s’achètent avec l’argent de « Ma vie » et restent à toi.</small>
+      <button type="button" class="ch-annuler" id="grFermer">Fermer</button>
+    </div>
   </div>
   <div class="vie-tirage" id="vieTirage" hidden role="dialog" aria-labelledby="vtTitre">
     <div class="vt-boite panel">
@@ -258,11 +269,12 @@
       <div class="vh-faim"><span>Faim</span><i id="vhFaim"></i><small id="vhFaimTxt"></small></div>
       <small id="vhLogement"></small>
       <small id="vhMetier"></small>
+      <b class="vh-mission" id="vhMission" hidden></b>
       <small class="vh-dette" id="vhDette" hidden></small>
       <div class="vh-faim" id="vhEssenceLigne" hidden><span>Essence</span><i id="vhEssence"></i><small id="vhEssenceTxt"></small></div>
       <b class="vh-vitesse" id="vhVitesse" hidden></b>
       <small class="vh-gps" id="vhGps" hidden></small>
-      <button type="button" class="vh-louer" id="vhLouer" hidden></button>
+      <div class="vh-boutons"><button type="button" class="vh-louer" id="vhTravail">Travailler</button><button type="button" class="vh-louer vh-louer2" id="vhLouer" hidden></button></div>
     </div>
     <div class="sl-haut panel"><div><b>Salon <span id="slCodeAff"></span></b><small id="slNb"></small></div><button type="button" class="jouer" id="slInviter">Inviter</button><button type="button" id="slVue">Vue : de haut</button><button type="button" id="slCopier">Copier le lien</button><button type="button" id="slQuitter">Quitter</button></div>
     <div class="sl-chat panel" id="slChat">
@@ -270,11 +282,11 @@
       <div class="sl-phrases" id="slPhrases"></div>
       <form id="slForm"><input id="slTexte" maxlength="140" placeholder="Écris à tes amis… (Entrée)" autocomplete="off" aria-label="Message"><button type="submit">Envoyer</button></form>
     </div>
-    <div class="sl-actions panel" id="slActions"><div class="sl-gestes" id="slGestes" aria-label="Gestes"></div><button type="button" class="sl-zem" id="slZem">Prendre un zém</button><select id="slAller" aria-label="Aller à un lieu avec tes amis"></select></div>
+    <div class="sl-actions panel" id="slActions"><div class="sl-gestes" id="slGestes" aria-label="Gestes"></div><button type="button" class="sl-zem" id="slZem">Prendre un zém</button><button type="button" class="sl-zem sl-habiller" id="slHabiller">M’habiller</button><select id="slAller" aria-label="Aller à un lieu avec tes amis"></select></div>
     <div class="sl-joy" id="slJoy" hidden aria-hidden="true"><i></i></div>
     <div class="sl-boutons"><button type="button" id="slChatBtn" aria-expanded="false" aria-controls="slChat">Discussion<b id="slNonLus" hidden></b></button><button type="button" id="slGestesBtn" aria-expanded="false" aria-controls="slActions">Gestes</button><button type="button" id="slVue2">Vue</button></div>
-    <div class="sl-agir"><button type="button" class="jouer" id="slEntrer" hidden></button><button type="button" class="sl-agir2" id="slAction2" hidden></button></div>
-    <p class="sl-aide">Flèches ou ZQSD pour marcher · Maj pour courir · glisser pour tourner (vers le bas : de haut) · molette pour zoomer · V : changer de vue · Entrée pour écrire</p>
+    <div class="sl-agir"><button type="button" class="jouer" id="slEntrer" hidden></button><button type="button" class="sl-agir2" id="slAction2" hidden></button><button type="button" class="sl-agir2" id="slAction3" hidden></button></div>
+    <p class="sl-aide">Flèches ou ZQSD pour marcher · Maj pour courir · E, R, F : les actions des boutons · glisser pour tourner (vers le bas : de haut) · molette pour zoomer · V : changer de vue · Entrée pour écrire</p>
   </div>
 
   <div id="loader">

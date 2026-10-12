@@ -1,11 +1,13 @@
 // Vignettes du catalogue de la boutique de mode : les aperçus de Tripo (sources/, non versionnés),
-// détourés puis posés sur un fond crème, en 240 × 240 (public/modeles/mode/vignettes/<id>.webp).
+// détourés puis posés sur un fond crème, en 240 × 240 (public/modeles/mode/vignettes/<id>.webp). Les tenues de
+// base du salon (vendeuse, étudiante, maman, jeune, bureau, ancien) ont aussi la leur, pour choisir son personnage.
 //   node scripts/vignettes-mode.mjs
 import fs from 'fs';
 import sharp from 'sharp';
 const SORTIE = 'public/modeles/mode/vignettes';
 const sources = id => [`sources/personnages/${id}-apercu.webp`, `sources/tripo/${id}-apercu.png`].find(f => fs.existsSync(f));
-const ids = [...Object.keys(JSON.parse(fs.readFileSync('public/modeles/mode/index.json', 'utf8'))),
+const BASE = ['vendeuse', 'etudiante', 'maman', 'jeune', 'bureau', 'ancien'];
+const ids = [...BASE, ...Object.keys(JSON.parse(fs.readFileSync('public/modeles/mode/index.json', 'utf8'))),
   ...Object.keys(fs.existsSync('public/modeles/mode/objets/index.json') ? JSON.parse(fs.readFileSync('public/modeles/mode/objets/index.json', 'utf8')) : {})];
 fs.mkdirSync(SORTIE, { recursive: true });
 for (const id of ids) {

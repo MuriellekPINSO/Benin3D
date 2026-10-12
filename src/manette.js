@@ -74,7 +74,7 @@ export function majManette(dt) {
     if (appuye(1)) (p.querySelector('.bq-x, .op-x, #reelFermer, #jpReprendre, #jmRetour, #acPasser, #chAnnuler, #slFermer') || {}).click?.();
     if (appuye(9) && p.id === 'jeuPause') $('#jpReprendre').click();
   } else if (salonActif()) {
-    manetteSalon({ lx, ly, rx, ry, rt, lt, court: !!enfonce[5], lb: appuye(4), a: appuye(0), b: appuye(1), x: appuye(2), y: appuye(3), select: appuye(8), start: appuye(9) });
+    manetteSalon({ lx, ly, rx, ry, rt, lt, court: !!enfonce[5], lb: appuye(4), a: appuye(0), b: appuye(1), x: appuye(2), y: appuye(3), select: appuye(8), start: appuye(9), ps: /dualsense|dualshock|wireless controller|playstation|sony|054c/i.test(g.id) }); // ps : les boutons s'affichent ✕ □ ○
   } else if (JEU.actif && JEU.etat && !JEU.fini) {
     const st = JEU.etat;
     if (!JEU.pause) {

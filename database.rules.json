@@ -75,6 +75,21 @@
         "vehiculeFin": {
           ".validate": "newData.isNumber() && newData.val() >= 0"
         },
+        "versement": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+        },
+        "journeeFin": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "garderobe": {
+          ".validate": "newData.isString() && newData.val().length <= 200"
+        },
+        "carrieres": {
+          ".validate": "newData.isString() && newData.val().length <= 120"
+        },
+        "courses": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
         "billet": {
           ".validate": "newData.isString() && newData.val().length <= 20"
         },

@@ -20,9 +20,35 @@ export const LOGEMENTS = {
   villa: { nom: 'Villa à Fidjrossè', loyer: 20000 },
 };
 export const LOCATION_MOTO = 1500; // F par jour
-const RESERVOIRS = { moto: 3, voiture: 6 }; // litres (échelle du jeu, voir conduite.js)
+const RESERVOIRS = { moto: 3, voiture: 6, taxi: 6, tokpa: 10 }; // litres (échelle du jeu, voir conduite.js)
+// Les métiers du transport (étape 2, première vague) : metiers.js. Sans véhicule à soi, on travaille avec celui
+// d'un patron, qu'on lui rembourse par un versement en fin de journée (comme les vrais zémidjans).
+// nomF : au féminin, quand le personnage est une femme (VIE.femme, tenu à jour par le salon).
+export const METIERS = {
+  zem: { famille: 'transport', nom: 'Zémidjan', veh: 'moto', propre: 'moto', versement: 1000 },
+  taxi: { famille: 'transport', nom: 'Chauffeur de taxi', nomF: 'Chauffeuse de taxi', veh: 'taxi', propre: 'voiture', versement: 3000 },
+  chauffeur: { famille: 'transport', nom: 'Chauffeur de tokpa-tokpa', nomF: 'Chauffeuse de tokpa-tokpa', veh: 'tokpa', versement: 3000 },
+  apprenti: { famille: 'transport', nom: 'Apprenti de tokpa-tokpa', nomF: 'Apprentie de tokpa-tokpa', veh: '', versement: 0 },
+  marche: { famille: 'commerce', nom: 'Vendeur à Dantokpa', nomF: 'Vendeuse à Dantokpa', veh: '', versement: 0 },
+  cuisinier: { famille: 'commerce', nom: 'Cuisinier au food court', nomF: 'Cuisinière au food court', veh: '', versement: 0 },
+  serveur: { famille: 'commerce', nom: 'Serveur au food court', nomF: 'Serveuse au food court', veh: '', versement: 0 },
+  mtn: { famille: 'entreprise', nom: 'Agent MTN', nomF: 'Agente MTN', entreprise: 'MTN', veh: '', versement: 0 },
+  moov: { famille: 'entreprise', nom: 'Conseiller Moov', nomF: 'Conseillère Moov', entreprise: 'Moov', veh: '', versement: 0 },
+  cite: { famille: 'entreprise', nom: 'Agent à la Cité ministérielle', nomF: 'Agente à la Cité ministérielle', entreprise: 'la Cité', veh: '', versement: 0 },
+};
+export const nomMetier = M => (VIE.femme && M.nomF) || M.nom;
+// La carrière en entreprise : des clients bien servis, et l'on monte jusqu'à DG (salaire par client multiplié).
+export const CARRIERE = [[0, 'Agent', 'Agente', 1], [10, 'Superviseur', 'Superviseure', 1.5], [25, 'Chef de service', 'Cheffe de service', 2], [50, 'Directeur', 'Directrice', 3], [90, 'DG', 'DG', 5]];
+export const carriere = id => Number(((VIE.data?.carrieres || '').match(new RegExp(`(?:^|;)${id}:(\\d+)`)) || [])[1] || 0);
+export const posteDe = n => CARRIERE.reduce((g, c, i) => (n >= c[0] ? i : g), 0);
+export const titrePoste = i => (VIE.femme ? CARRIERE[i][2] : CARRIERE[i][1]);
+/** Le titre dans une phrase (« tu es cheffe de service », mais « tu es DG »). */
+export const titreDans = i => { const t = titrePoste(i); return t === 'DG' ? t : t.toLowerCase(); };
+// L'expérience (une course, un arrêt servi) fait monter en grade : 10 % de recette en plus par grade.
+export const GRADES = [[0, 'Débutant'], [10, 'Habitué'], [30, 'Confirmé'], [70, 'As de la route']];
+export const gradeDe = xp => GRADES.reduce((g, [seuil], i) => (xp >= seuil ? i : g), 0);
 const JOUR = 864e5, FAIM_PAS = 90, CLE_LOCALE = 'cotonou3d.vie'; // un point de faim en moins toutes les 90 s de jeu
-export const VIE = { data: null, local: false, faimT: 0, sauveT: 0, alerte: '' };
+export const VIE = { data: null, local: false, faimT: 0, sauveT: 0, alerte: '', travail: null, mission: '' }; // travail : véhicule du patron { type, carburant } (le temps de la partie)
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 
 // ---------- Stockage ----------
@@ -33,7 +59,7 @@ async function lire() {
   return (await d.get(VIE.ref)).val();
 }
 /** Enregistre des changements ; `argent` : la base exige l'heure du serveur avec chaque gain. */
-async function ecrire(patch) {
+export async function ecrire(patch) {
   Object.assign(VIE.data, patch);
   if (VIE.local) { try { localStorage.setItem(CLE_LOCALE, JSON.stringify(VIE.data)); } catch { /* navigation privée */ } return true; }
   const { d } = await firebase();
@@ -82,7 +108,7 @@ export async function assurerVie(local, { nom, modele }) {
     VIE.data = v;
     if (v.nom !== nom || v.modele !== modele) await ecrire({ nom, modele });
   }
-  payerLoyers();
+  payerLoyers(); await versementEchu();
   if (VIE.data.vehicule === 'moto' && VIE.data.vehiculeFin && Date.now() > VIE.data.vehiculeFin) { ecrire({ vehicule: '', carburant: 0, vehiculeFin: 0 }); VIE.alerte ||= 'Ta location de moto est terminée : tu peux en relouer une.'; }
   VIE.faimT = 0; rendreVie();
   return VIE.data;
@@ -92,6 +118,9 @@ export async function assurerVie(local, { nom, modele }) {
 /** Ajoute de l'argent (métiers, étape 2). La base refuse plus de 5 000 F d'un coup, ou deux gains en moins de 3 s. */
 export async function gagner(montant, raison = '') {
   if (!VIE.data || !(montant > 0)) return false;
+  const attente = 3200 - (Date.now() - (VIE.dernierGain || 0)); // la base refuse deux gains à moins de 3 s : on patiente
+  VIE.dernierGain = Date.now() + Math.max(0, attente);
+  if (attente > 0) await new Promise(r => setTimeout(r, attente));
   const ok = await ecrire({ argent: VIE.data.argent + Math.min(5000, montant) });
   if (ok) annonce(`+${fmt(Math.min(5000, montant))}${raison ? ` · ${raison}` : ''}`);
   rendreVie(); return ok;
@@ -115,6 +144,14 @@ function payerLoyers() {
   else VIE.alerte = `Loyer payé : −${fmt(paye)}.`;
   ecrire(patch);
 }
+/** La journée de travail avec le véhicule d'un patron est finie (24 h) : il passe prendre son versement. */
+async function versementEchu() {
+  const v = VIE.data; if (!(v.versement > 0) || !v.journeeFin || Date.now() < v.journeeFin) return;
+  const paye = Math.min(v.argent, v.versement);
+  if (paye > 0) await depenser(paye);
+  await ecrire({ versement: v.versement - paye, journeeFin: 0 });
+  VIE.alerte = v.versement > 0 ? `Ton patron est passé prendre son versement : il te reste ${fmt(v.versement)} à lui rendre.` : `Ton patron est passé prendre son versement : −${fmt(paye)}.`;
+}
 /** À chaque image du salon : la faim baisse en jouant (enregistrée toutes les 30 s). */
 export function majVie(dt) {
   const v = VIE.data; if (!v) return;
@@ -132,10 +169,19 @@ export async function louerMoto() {
   if (!(await depenser(LOCATION_MOTO, 'location de moto (24 h)'))) { annonce(`Il te faut ${fmt(LOCATION_MOTO)} pour louer une moto.`); return false; }
   await ecrire({ vehicule: 'moto', carburant: RESERVOIRS.moto, vehiculeFin: Date.now() + JOUR }); rendreVie(); return true;
 }
-export const reservoir = () => RESERVOIRS[VIE.data?.vehicule] || 0;
+// Le véhicule du patron (VIE.travail) a son propre réservoir : il le confie plein, l'essence ajoutée en route est pour soi.
+export const reservoir = () => RESERVOIRS[VIE.travail?.type || VIE.data?.vehicule] || 0;
+export const carburant = () => (VIE.travail ? VIE.travail.carburant : VIE.data?.carburant || 0);
 /** L'essence consommée en roulant (litres), enregistrée de temps en temps. */
-export function consommer(litres) { const v = VIE.data; if (!v || !litres) return; v.carburant = Math.max(0, (v.carburant || 0) - litres); rendreVie(); }
-export async function faireLePlein(litres) { const v = VIE.data; v.carburant = Math.min(reservoir(), (v.carburant || 0) + litres); await ecrire({ carburant: Math.round(v.carburant * 100) / 100 }); rendreVie(); }
+export function consommer(litres) {
+  const v = VIE.data; if (!v || !litres) return;
+  if (VIE.travail) VIE.travail.carburant = Math.max(0, VIE.travail.carburant - litres); else v.carburant = Math.max(0, (v.carburant || 0) - litres);
+  rendreVie();
+}
+export async function faireLePlein(litres) {
+  if (VIE.travail) { VIE.travail.carburant = Math.min(reservoir(), VIE.travail.carburant + litres); rendreVie(); return; }
+  const v = VIE.data; v.carburant = Math.min(reservoir(), (v.carburant || 0) + litres); await ecrire({ carburant: Math.round(v.carburant * 100) / 100 }); rendreVie();
+}
 /** Manger : la faim remonte petit à petit (appelé pendant le repas). */
 export function manger(points) { const v = VIE.data; if (!v) return; v.faim = Math.min(100, v.faim + points); rendreVie(); }
 /** Ralentissement quand on a trop faim. */
@@ -165,10 +211,15 @@ export function rendreVie() {
   $('#vhDepart').textContent = DEPARTS[v.depart]?.nom || '';
   const faim = Math.round(v.faim); $('#vhFaim').style.setProperty('--faim', `${faim}%`); $('#vhFaim').classList.toggle('bas', faim <= 20); $('#vhFaimTxt').textContent = `${faim} %`;
   $('#vhLogement').textContent = L.loyer ? `${L.nom} · loyer ${fmt(L.loyer)} dans ${h} h` : L.nom;
-  $('#vhMetier').textContent = v.metier ? v.metier : 'Sans métier pour l’instant';
-  $('#vhDette').hidden = !v.dette; $('#vhDette').textContent = v.dette ? `Dette : ${fmt(v.dette)}` : '';
-  const R = reservoir(), c = v.carburant || 0;
+  const M = METIERS[v.metier], g = GRADES[gradeDe(v.xp || 0)][1];
+  $('#vhMetier').textContent = !M ? 'Sans métier pour l’instant' : M.famille === 'entreprise' ? `${M.entreprise} · ${titrePoste(posteDe(carriere(v.metier)))} · ${carriere(v.metier)} client${carriere(v.metier) > 1 ? 's' : ''}`
+    : M.famille === 'transport' ? `${nomMetier(M)} · ${g}${v.courses ? ` · ${v.courses} ${v.metier === 'zem' || v.metier === 'taxi' ? 'course' : 'arrêt'}${v.courses > 1 ? 's' : ''}` : ''}` : `${nomMetier(M)} · ${g}`;
+  $('#vhDette').hidden = !v.dette && !(v.versement > 0);
+  $('#vhDette').textContent = [v.dette ? `Dette : ${fmt(v.dette)}` : '', v.versement > 0 ? `Versement au patron : ${fmt(v.versement)}` : ''].filter(Boolean).join(' · ');
+  $('#vhMission').hidden = !VIE.mission; $('#vhMission').textContent = VIE.mission;
+  $('#vhTravail').textContent = VIE.service ? 'Mon travail' : 'Travailler';
+  const R = reservoir(), c = carburant();
   $('#vhEssenceLigne').hidden = !R;
   if (R) { $('#vhEssence').style.setProperty('--faim', `${Math.round(c / R * 100)}%`); $('#vhEssence').classList.toggle('bas', c / R <= .2); $('#vhEssenceTxt').textContent = `${c.toFixed(1).replace('.', ',')} L / ${R} L`; }
-  $('#vhLouer').hidden = !!v.vehicule; $('#vhLouer').textContent = `Louer une moto · ${fmt(LOCATION_MOTO)} / jour`;
+  $('#vhLouer').hidden = !!v.vehicule || !!VIE.travail || !!VIE.service; $('#vhLouer').textContent = `Louer une moto · ${fmt(LOCATION_MOTO)} / jour`;
 }

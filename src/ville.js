@@ -402,11 +402,13 @@ export async function buildBuildings(B) {
   for (const c of C) { const m = meshCellule(c); scene.add(m); buildingMeshes.push(m); }
 }
 /** Un seul maillage pour un lot de bâtiments (tuiles Google Open Buildings) ; `base` varie les graines. */
-export function maillageLot(B, base = 0) {
-  const L = preparerLot(B, i => base + i); let v = 0, ix = 0;
+/** `ids` : numéro d'origine de chaque bâtiment, quand on en a retiré du lot (chacun garde son aspect). */
+export function maillageLot(B, base = 0, ids = null) {
+  const graine = i => base + (ids ? ids[i] : i);
+  const L = preparerLot(B, graine); let v = 0, ix = 0;
   for (let i = 0; i < L.N; i++) { const [a, b] = tailleBatiment(B, L, i); v += a; ix += b; }
   const c = nouvelleCellule(v, ix);
-  for (let i = 0; i < L.N; i++) ajouterBatiment(c, B, L, i, base + i);
+  for (let i = 0; i < L.N; i++) ajouterBatiment(c, B, L, i, graine(i));
   return meshCellule(c);
 }
 export function putV(c, x, y, z, nx, ny, nz, rgb, seed) {

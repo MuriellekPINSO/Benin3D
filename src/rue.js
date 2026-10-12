@@ -350,6 +350,8 @@ function genererCarre(cx, cz) {
       }
     }
   });
+  // ---------- Obstacles : on ne traverse ni les murs, ni les portails, ni les maisons (dansObstacleRue) ----------
+  groupe.userData.obstacles = indexerObstacles([...murs, ...portails, ...piliers, ...boutiques, ...maisons].map(([x, z, a, l, , e]) => [x, z, a, l, e]));
   // ---------- Maillages instanciés ----------
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
   const inst = (liste, mat, f, ombre = true) => {
@@ -546,7 +548,7 @@ export function profilRoute(x, z, dx, dz) {
  * Avec une direction de marche (dx, dz), les rues qui la croisent sont permises : on les traverse.
  */
 export function pietonOk(x, z, dx = 0, dz = 0) {
-  if (!R.grilleR || dansBatiment(x, z) || dansTerrePlein(x, z, .3)) return false;
+  if (!R.grilleR || dansBatiment(x, z) || dansTerrePlein(x, z, .3) || dansObstacleRue(x, z, .25)) return false;
   for (const [ax, az, r0, r1] of R.anneaux) { const d = Math.hypot(x - ax, z - az); if (d > r0 - .3 && d < r1 + .3) return false; }
   const l = R.grilleR.get(cle(x, z, CR)); if (!l) return true;
   for (const [, ax, az, bx, bz, hw] of l) {
@@ -595,6 +597,28 @@ function vider() { for (const g of R.carres.values()) liberer(g); R.carres.clear
 const PARTAGEES = () => new Set([GEO.boite, GEO.lampe, GEO.voiture, GEO.poteau, GEO.plan, GEO.cuve]);
 function liberer(g) { scene.remove(g); const p = PARTAGEES(); g.traverse(o => { if (o.geometry && !p.has(o.geometry)) o.geometry.dispose(); }); }
 let attente = 0;
+// Les obstacles d'un carré, rangés par cases de 8 m (coordonnées de la ville) : boîtes tournées { x, z, c, s, hl, he }.
+const CO = 8;
+function indexerObstacles(liste) {
+  const g = new Map();
+  for (const [x, z, a, l, e] of liste) {
+    const o = { x, z, c: Math.cos(a), s: Math.sin(a), hl: l / 2, he: Math.max(e, .08) / 2 }, r = Math.hypot(o.hl, o.he) + .6;
+    for (let i = Math.floor((x - r) / CO); i <= Math.floor((x + r) / CO); i++) for (let j = Math.floor((z - r) / CO); j <= Math.floor((z + r) / CO); j++) { const k = i + ',' + j; let li = g.get(k); if (!li) g.set(k, li = []); li.push(o); }
+  }
+  return g;
+}
+/** De combien (x, z), avec un rayon r, entre dans un mur, un portail ou une maison générés le long des rues (0 : libre). */
+export function profondeurRue(x, z, r = .3) {
+  const kx = Math.floor(x / CARRE), kz = Math.floor(z / CARRE), cle = Math.floor(x / CO) + ',' + Math.floor(z / CO); let p = 0;
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const l = R.carres.get((kx + i) + ',' + (kz + j))?.userData.obstacles?.get(cle); if (!l) continue;
+    for (const o of l) { const dx = x - o.x, dz = z - o.z, u = Math.abs(dx * o.c - dz * o.s), v = Math.abs(dx * o.s + dz * o.c); if (u < o.hl + r && v < o.he + r) p = Math.max(p, Math.min(o.hl + r - u, o.he + r - v)); }
+  }
+  return p;
+}
+export const dansObstacleRue = (x, z, r = .3) => profondeurRue(x, z, r) > 0;
+/** Pour les tests : les obstacles (murs…) autour de (x, z). */
+export function obstaclesPres(x, z) { const kx = Math.floor(x / CARRE), kz = Math.floor(z / CARRE), out = new Set(); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const l of R.carres.get((kx + i) + ',' + (kz + j))?.userData.obstacles?.values() || []) for (const o of l) if (Math.hypot(o.x - x, o.z - z) < 60) out.add(o); return [...out]; }
 export const STATS_RUE = { ms: 0, n: 0 };
 /** À appeler à chaque image : génère au plus un carré à la fois autour du point suivi. */
 export function majRue(dt, centre, proche) {
