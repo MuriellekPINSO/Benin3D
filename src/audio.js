@@ -15,12 +15,12 @@ export async function radio(on) {
 // Musique de la visite (mode Présentation) : « Agolo » d'Angélique Kidjo.
 const VISITE = { el: null, fondu: 0 };
 export function dureeVisite() { const d = VISITE.el?.duration; return Number.isFinite(d) ? d : 248; }
-/** Commence à charger le morceau, pour que la visite démarre sans attendre. */
-export function prechargerMusique() { if (!VISITE.el) { VISITE.el = new Audio(import.meta.env.BASE_URL + 'audio/agolo.mp3'); VISITE.el.preload = 'auto'; } return VISITE.el; }
+/** Prépare le morceau : seulement sa durée à l'accueil (4 Mo, la visite n'est pas toujours choisie) ; il se télécharge en jouant. */
+export function prechargerMusique() { if (!VISITE.el) { VISITE.el = new Audio(import.meta.env.BASE_URL + 'audio/agolo.mp3'); VISITE.el.preload = 'metadata'; } return VISITE.el; }
 export async function musiqueVisite(on) {
   clearInterval(VISITE.fondu);
   if (on) {
-    const a = prechargerMusique(); a.currentTime = 0; a.volume = .9;
+    const a = prechargerMusique(); a.preload = 'auto'; a.currentTime = 0; a.volume = .9;
     try { await a.play(); return true; } catch (e) { console.warn('musique', e); return false; }
   }
   const a = VISITE.el; if (!a || a.paused) return false;
@@ -37,6 +37,17 @@ export function moteur(type) {
 }
 export function moteurMaj(v, actif) { const m = AUDIO.moteur; if (!m) return; const t = AUDIO.ctx.currentTime; m.o.frequency.setTargetAtTime(m.base + v * m.k, t, .08); m.o2.frequency.setTargetAtTime((m.base + v * m.k) * .5, t, .08); m.g.gain.setTargetAtTime(actif ? .045 : 0, t, .1); }
 export function moteurStop() { const m = AUDIO.moteur; if (!m) return; try { m.g.gain.value = 0; m.o.stop(); m.o2.stop(); } catch (e) { } AUDIO.moteur = null; }
+/** Bruit continu (douche, friture) pendant `duree` secondes ; renvoie de quoi l'arrêter plus tôt. */
+export function bruit(type, duree) {
+  const ctx = AUDIO.ctx; if (!ctx || AUDIO.muet) return () => { };
+  const t = ctx.currentTime, n = ctx.createBufferSource(), b = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * duree), ctx.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = type === 'eau' ? Math.random() * 2 - 1 : (Math.random() < .004 ? Math.random() * 2 - 1 : 0) + (Math.random() * 2 - 1) * .05; // l'eau qui tombe ; l'huile qui crépite
+  const f = ctx.createBiquadFilter(); f.type = type === 'eau' ? 'bandpass' : 'highpass'; f.frequency.value = type === 'eau' ? 2600 : 1500; f.Q.value = .6;
+  const g = ctx.createGain(), v = type === 'eau' ? .1 : .16;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .4); g.gain.setValueAtTime(v, t + Math.max(.5, duree - .5)); g.gain.linearRampToValueAtTime(0, t + duree);
+  n.buffer = b; n.connect(f).connect(g).connect(ctx.destination); n.start();
+  return () => { try { g.gain.cancelScheduledValues(ctx.currentTime); g.gain.setTargetAtTime(0, ctx.currentTime, .08); n.stop(ctx.currentTime + .4); } catch { /* déjà fini */ } };
+}
 export function son(nom, variante) {
   const ctx = AUDIO.ctx; if (!ctx || AUDIO.muet) return; const t = ctx.currentTime;
   const bip = (type, f0, f1, d, v = .12, t0 = 0) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t + t0); o.frequency.exponentialRampToValueAtTime(f1, t + t0 + d); g.gain.setValueAtTime(v, t + t0); g.gain.exponentialRampToValueAtTime(.001, t + t0 + d); o.connect(g).connect(ctx.destination); o.start(t + t0); o.stop(t + t0 + d + .02); };

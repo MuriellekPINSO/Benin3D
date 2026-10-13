@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { LITE } from './base.js';
+import { plusTard } from './telechargements.js';
 
 // ---------- Bâtiments reconnaissables : modèles Tripo générés à partir de photos ----------
 // scripts/tripo.mjs fabrique public/modeles/batiments/<id>.glb à partir d'une photo
@@ -30,8 +31,9 @@ const chargeur = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 export function poserTripo(id, parent, opts = {}) {
   const R = REGLAGES[id] || {}, { hauteur, largeur } = { ...opts, ...R }, rot = (opts.rot || 0) + (R.rot || 0), x = (opts.x || 0) + (R.dx || 0), y = (opts.y || 0) + (R.dy || 0), z = (opts.z || 0) + (R.dz || 0);
   const pivot = new THREE.Group(); pivot.name = `tripo-${id}`; pivot.position.set(x, y, z); pivot.rotation.y = rot; parent.add(pivot);
-  // La taille du fichier sert de version : un modèle refait n'est pas repris du cache du navigateur.
-  chargeur.loadAsync(import.meta.env.BASE_URL + `modeles/batiments/${id}.glb?v=${TRIPO.info[id]?.octets || 0}`).then(gltf => {
+  // La taille du fichier sert de version : un modèle refait n'est pas repris du cache du navigateur. Téléchargé une fois
+  // la ville affichée (telechargements.js) : en attendant, le monument dessiné en code reste en place.
+  plusTard(() => chargeur.loadAsync(import.meta.env.BASE_URL + `modeles/batiments/${id}.glb?v=${TRIPO.info[id]?.octets || 0}`)).then(gltf => {
     const obj = gltf.scene, boite = new THREE.Box3().setFromObject(obj), t = boite.getSize(new THREE.Vector3());
     const k = hauteur ? hauteur / t.y : largeur / Math.max(t.x, t.z);
     obj.scale.setScalar(k);

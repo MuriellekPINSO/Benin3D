@@ -6,7 +6,7 @@ import { $ } from './base.js';
 import { son } from './audio.js';
 import { JEU, fmtF, sauver } from './jeu.js';
 import { chargerTenue, personnage3d } from './personnages.js';
-import { paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
+import { echecCertain, paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
 
 // ---------- Boutique de mode (version de test) ----------
 // « Joue, trouve ton style, porte-le pour de vrai. » On essaie les tenues sur son personnage dans une
@@ -241,6 +241,8 @@ const ETATS = {
   reseau: ['FedaPay ne répond pas. Vérifie ta connexion, puis réessaie.', 'mal'],
   pending: ['Paiement pas encore confirmé. Valide-le sur ton téléphone, puis touche « Vérifier mon paiement ».', ''],
   'non-configure': ['Le paiement MoMo n’est pas encore activé sur ce site.', 'mal'],
+  declined: ['Paiement refusé par l’opérateur : rien n’a été prélevé. Tu peux réessayer.', 'mal'],
+  canceled: ['Paiement annulé : rien n’a été prélevé.', ''],
 };
 async function payerCommande() {
   const id = MD.choisi, A = ARTICLES[id], tailles = taillesDe(A), btn = $('#mdPayer');
@@ -256,7 +258,7 @@ async function payerCommande() {
   const [prenom, ...reste] = MD.nom.trim().split(/\s+/), client = { firstname: prenom, lastname: reste.join(' ') || prenom };
   const r = MD.attente ? await verifierTransaction(MD.attente, total)
     : await payerMoMo({ montant: total, description: `${A.nom}${MD.taille ? ` · ${MD.taille}` : ''} · livraison ${MD.quartier}`, objet: 'boutique', infos, client });
-  MD.attente = r.statut === 'pending' ? r.id : null;
+  MD.attente = !r.paye && r.id && !echecCertain(r.statut) ? r.id : null; // en attente ou vérification impossible : on garde le numéro
   if (r.paye) {
     const p = prog();
     p.commandes.push({ id, taille: MD.taille, quartier: MD.quartier, total, date: new Date().toISOString().slice(0, 10), transaction: r.id });
@@ -265,7 +267,7 @@ async function payerCommande() {
     MD.etape = 'fiche'; MD.msg = [`Commande payée ! L’atelier t’appelle au numéro qui a payé pour la livraison à ${MD.quartier}.${A.type === 'tenue' ? ' La tenue est aussi dans ta garde-robe du jeu.' : ''}`, 'bien'];
     rendreListe(); rendreFiche(); return;
   }
-  MD.msg = ETATS[r.statut] || ['Le paiement n’a pas abouti : rien n’a été prélevé. Tu peux réessayer.', 'mal'];
+  MD.msg = ETATS[r.statut] || ['Ton paiement n’a pas encore pu être vérifié. Ne repaie pas : si ton compte MoMo a été débité, touche « Vérifier mon paiement » dans un moment.', 'mal']; // jamais « rien n'a été prélevé » sans que FedaPay l'ait dit
   rendreCommande();
 }
 

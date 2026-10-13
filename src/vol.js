@@ -4,6 +4,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $ } from './base.js';
 import { TRIPO } from './batiments-tripo.js';
+import { plusTard } from './telechargements.js';
 import { personne } from './discussions.js';
 import { INTERIEURS, dansLaPiece, declarerAeroport, guichetProche } from './interieurs.js';
 import { K, groupeLieu, panneauTexte } from './lieux.js';
@@ -145,7 +146,7 @@ function gabaritAvion(obj) {
 }
 function chargerAvion() {
   const info = TRIPO.info['avion-tourisme']; if (!info) return;
-  new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`${import.meta.env.BASE_URL}modeles/batiments/avion-tourisme.glb?v=${info.octets}`)
+  plusTard(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`${import.meta.env.BASE_URL}modeles/batiments/avion-tourisme.glb?v=${info.octets}`))
     .then(g => { VOL.gabarit = gabaritAvion(g.scene); for (const A of VOL.attendent) habiller(A); VOL.attendent.length = 0; })
     .catch(e => console.warn('modèle avion-tourisme', e.message));
 }

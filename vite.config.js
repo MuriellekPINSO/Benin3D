@@ -5,8 +5,11 @@ import { langue } from './scripts/i18n/vite-langue.mjs';
 // en local, `npm run dev` et `npm run preview` la servent eux-mêmes, avec la clé de .env.local.
 const apiLocale = () => {
   const brancher = server => {
-    Object.assign(process.env, loadEnv('development', process.cwd(), 'FEDAPAY_'));
-    server.middlewares.use('/api/fedapay', async (req, res) => (await import('./api/fedapay.js')).default(req, res));
+    // Clé relue à chaque démarrage et passée directement, sans la copier dans process.env : au redémarrage qui suit
+    // une modification de .env.local, loadEnv donne la priorité à ce que process.env contient déjà, et le serveur
+    // vérifiait des paiements réels avec l'ancienne clé de test (« introuvable » : le joueur croyait n'avoir rien payé).
+    const cle = loadEnv('development', process.cwd(), 'FEDAPAY_').FEDAPAY_SECRET_KEY;
+    server.middlewares.use('/api/fedapay', async (req, res) => (await import('./api/fedapay.js')).default(req, res, cle));
   };
   return { name: 'api-locale', configureServer: brancher, configurePreviewServer: brancher };
 };

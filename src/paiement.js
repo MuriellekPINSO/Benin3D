@@ -6,6 +6,10 @@ const CLE = import.meta.env.VITE_FEDAPAY_PUBLIC_KEY || '';
 export const paiementReel = () => !!CLE;
 /** Clé de test (sandbox) : aucun vrai argent ; le joueur paie avec « Momo Test » et un numéro de test. */
 export const paiementTest = () => CLE.startsWith('pk_sandbox_');
+const MODE = CLE.startsWith('pk_live_') ? 'live' : 'sandbox';
+/** Seuls ces statuts disent que rien n'a été prélevé ; les autres (réseau, vérification impossible…) laissent un doute :
+ *  on garde alors le numéro de la transaction pour la vérifier de nouveau. */
+export const echecCertain = statut => ['annule', 'declined', 'canceled'].includes(statut);
 
 let script = null;
 const chargerCheckout = () => script ??= new Promise((ok, ko) => {
@@ -43,7 +47,7 @@ export async function payerMoMo({ montant, description, objet, infos = {}, clien
 export async function verifierTransaction(id, montant = 0) {
   let r = { paye: false, statut: 'reseau' };
   for (let essai = 0; essai < 8; essai++) {
-    try { r = await (await fetch(`/api/fedapay?id=${encodeURIComponent(id)}&min=${montant}`, { cache: 'no-store' })).json(); }
+    try { r = await (await fetch(`/api/fedapay?id=${encodeURIComponent(id)}&min=${montant}&mode=${MODE}`, { cache: 'no-store' })).json(); }
     catch { r = { paye: false, statut: 'reseau' }; }
     if (r.paye || r.statut !== 'pending') break;
     await pause(3000);

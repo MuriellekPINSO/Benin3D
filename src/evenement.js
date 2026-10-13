@@ -11,7 +11,7 @@ import { musiqueEvenement } from './musique.js';
 import { fouleCorps, fouleTete, fouleTissus } from './lieux.js';
 import { chargerDanses, personnage3d, personnagesPrets } from './personnages.js';
 import { LITE } from './base.js';
-import { paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
+import { echecCertain, paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
 import { avatarPorte } from './mode.js';
 
 // ---------- Événement en 3D : concert sur l'esplanade de l'Amazone (priorité 4) ----------
@@ -132,6 +132,10 @@ export function quitterEvenement() {
 const CLE_BILLET = 'cotonou3d-billet-concert', aujourdhui = () => new Date().toISOString().slice(0, 10);
 const billetDuJour = () => { try { return localStorage.getItem(CLE_BILLET) === aujourdhui(); } catch { return false; } };
 const garderBillet = () => { try { localStorage.setItem(CLE_BILLET, aujourdhui()); } catch { /* navigation privée */ } };
+// Un paiement MoMo dont on n'a pas encore la confirmation : gardé dans le navigateur, pour le vérifier même après avoir rechargé la page.
+const CLE_ATTENTE = 'cotonou3d-paiement-concert';
+const memoriserAttente = id => { try { if (id) localStorage.setItem(CLE_ATTENTE, String(id)); else localStorage.removeItem(CLE_ATTENTE); } catch { /* navigation privée */ } };
+const attenteGardee = () => { try { const v = localStorage.getItem(CLE_ATTENTE); return /^\d{1,15}$/.test(v || '') ? v : null; } catch { return null; } };
 
 /** Fenêtre d'entrée : 100 F pris sur la cagnotte du jeu, ou payés par MoMo. */
 function ouvrir() {
@@ -142,6 +146,7 @@ function ouvrir() {
   el.querySelector('.ev-manque').hidden = assez;
   el.querySelector('#evMomo').hidden = el.querySelector('.ev-momo').hidden = !momo;
   el.querySelector('.ev-test-momo').hidden = !momo || !paiementTest();
+  EV.enAttente ??= attenteGardee(); $('#evMomo span').textContent = EV.enAttente ? 'Vérifier mon paiement' : `Payer ${PRIX_ENTREE} F par MoMo`;
   if (!EV.enAttente) etatMomo('');
   el.hidden = false;
 }
@@ -155,7 +160,11 @@ const MESSAGES = {
   reseau: ['FedaPay ne répond pas. Vérifie ta connexion, puis réessaie.', 'mal'],
   pending: ['Paiement pas encore confirmé. Valide-le sur ton téléphone, puis touche « Vérifier mon paiement ».', ''],
   'non-configure': ['Le paiement MoMo n’est pas encore activé sur ce site.', 'mal'],
+  declined: ['Paiement refusé par l’opérateur : rien n’a été prélevé. Tu peux réessayer.', 'mal'],
+  canceled: ['Paiement annulé : rien n’a été prélevé.', ''],
+  'cles-incoherentes': ['Le paiement est mal réglé sur ce site : ton paiement ne peut pas être vérifié pour l’instant. Ne repaie pas ; touche « Vérifier mon paiement » un peu plus tard.', 'mal'],
 };
+const DOUTE = ['Ton paiement n’a pas encore pu être vérifié. Ne repaie pas : si ton compte MoMo a été débité, touche « Vérifier mon paiement » dans un moment.', 'mal'];
 async function payerEnMoMo() {
   const btn = $('#evMomo'), autres = [$('#evPayer'), $('#evAnnuler')];
   if (btn.disabled) return;
@@ -164,17 +173,20 @@ async function payerEnMoMo() {
   etatMomo(EV.enAttente ? 'Vérification du paiement…' : 'Ouverture de FedaPay…');
   const r = EV.enAttente ? await verifierTransaction(EV.enAttente, PRIX_ENTREE) : await payerMoMo({ montant: PRIX_ENTREE, description: 'Entrée au concert de l’Esplanade', objet: 'concert' });
   btn.disabled = false; autres.forEach((b, i) => { b.disabled = dispo[i]; }); btn.classList.remove('charge');
-  EV.enAttente = r.statut === 'pending' ? r.id : null;
+  EV.enAttente = !r.paye && r.id && !echecCertain(r.statut) ? r.id : null; // en attente ou vérification impossible : on garde le numéro
+  memoriserAttente(EV.enAttente);
   btn.querySelector('span').textContent = EV.enAttente ? 'Vérifier mon paiement' : `Payer ${PRIX_ENTREE} F par MoMo`;
   if (r.paye) {
     garderBillet(); son('piece'); etatMomo('Paiement reçu, bon concert !', 'bien');
     setTimeout(() => { etatMomo(''); entrer(); }, 1100);
     return;
   }
-  const [txt, cls] = MESSAGES[r.statut] || ['Le paiement n’a pas abouti : rien n’a été prélevé. Tu peux réessayer.', 'mal'];
+  const [txt, cls] = MESSAGES[r.statut] || DOUTE; // jamais « rien n'a été prélevé » sans que FedaPay l'ait dit
   etatMomo(txt, cls);
 }
 export function initEvenement() {
+  // En local seulement : ?verifier=<transaction> reprend un paiement déjà fait (Concert, puis « Vérifier mon paiement »).
+  if (import.meta.env.DEV) { const v = new URLSearchParams(location.search).get('verifier'); if (/^\d{1,15}$/.test(v || '')) memoriserAttente(v); }
   $('#btnConcert')?.addEventListener('click', ouvrir);
   $('#evAnnuler')?.addEventListener('click', () => { $('#evenement').hidden = true; });
   $('#evPayer')?.addEventListener('click', () => {

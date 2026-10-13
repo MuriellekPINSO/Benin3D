@@ -14,9 +14,10 @@ const LARGE = 7000, ALT = 40; // z (vers le sud) des pièces, en pleine mer, et 
 export const INTERIEURS = new Map();
 /**
  * Déclare un intérieur. def : { nom, porte: [x, z] devant la façade, dehors: regard vers la rue (radians),
- * w, d (pièce rectangulaire, mètres), entree: [x, z, regard] dans la pièce, construire(I) }.
+ * w, d (pièce rectangulaire, mètres), entree: [x, z, regard] dans la pièce, construire(I) }. Facultatif : centre
+ * (où construire la pièce, en mer), plafond (hauteur sous laquelle la caméra reste), entrer (texte du bouton).
  */
-export function declarerInterieur(id, def) { INTERIEURS.set(id, { id, ...def, centre: [def.porte[0], LARGE], g: null, sieges: [], comptoirs: [], guichets: [], assis: [], obstacles: [] }); }
+export function declarerInterieur(id, def) { INTERIEURS.set(id, { id, ...def, centre: def.centre ?? [def.porte[0], LARGE], g: null, sieges: [], comptoirs: [], guichets: [], assis: [], obstacles: [] }); }
 /** L’intérieur dont on est devant la porte (moins de 5 m), sinon null. */
 export function porteProche(x, z) { for (const I of INTERIEURS.values()) if (Math.hypot(x - I.porte[0], z - I.porte[1]) < 5) return I; return null; }
 /** Construit la pièce à la première visite et l'affiche. */
@@ -32,8 +33,18 @@ export function limiter(I, x, z, marge = .45) {
   const [cx, cz] = I.centre;
   return [THREE.MathUtils.clamp(x, cx - I.w / 2 + marge, cx + I.w / 2 - marge), THREE.MathUtils.clamp(z, cz - I.d / 2 + marge, cz + I.d / 2 - marge)];
 }
-// Meubles qu'on ne traverse pas (comptoirs, tables, guichets, colonnes…) : boîtes [x, z, demi-largeur, demi-profondeur] de la pièce.
+// Meubles qu'on ne traverse pas (comptoirs, tables, guichets, colonnes…) : boîtes [x, z, demi-largeur, demi-profondeur] de la pièce,
+// et leur hauteur quand c'est une cloison (la caméra ne passe pas au travers, voir murEntre).
 const bloc = (I, w, d, x, z) => I.obstacles.push([x, z, w / 2, d / 2]);
+/** Part du trajet de (ax, az) vers (bx, bz) (coordonnées de la ville) faite avant de buter sur une cloison : 1 si rien ne gêne. */
+export function murEntre(I, ax, az, bx, bz) {
+  const lx = ax - I.centre[0], lz = az - I.centre[1], dx = bx - ax, dz = bz - az;
+  for (let i = 1; i <= 16; i++) {
+    const f = i / 16, x = lx + dx * f, z = lz + dz * f;
+    for (const [ox, oz, hw, hd, h] of I.obstacles) if (h > 1.8 && Math.abs(x - ox) < hw + .15 && Math.abs(z - oz) < hd + .15) return Math.max(.12, (i - 1) / 16);
+  }
+  return 1;
+}
 /** De combien (x, z) de la ville, avec un rayon r, entre dans un meuble de la pièce (0 : libre). */
 export function profondeurInterieur(I, x, z, r = .3) {
   const lx = x - I.centre[0], lz = z - I.centre[1]; let p = 0;

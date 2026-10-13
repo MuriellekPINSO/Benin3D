@@ -135,7 +135,10 @@
   "'Le paiement n’a pas abouti : rien n’a été prélevé. Tu peux réessayer.'": "'The payment didn’t go through: nothing was charged. You can try again.'",
   "Payer ": "Pay ",
   " F par MoMo": " F with MoMo",
-  "'Toi'": "'You'"
+  "'Toi'": "'You'",
+  "'Paiement refusé par l’opérateur : rien n’a été prélevé. Tu peux réessayer.'": "'Payment refused by the operator: nothing was taken. You can try again.'",
+  "'Ton paiement n’a pas encore pu être vérifié. Ne repaie pas : si ton compte MoMo a été débité, touche « Vérifier mon paiement » dans un moment.'": "'Your payment couldn’t be checked yet. Don’t pay again: if your MoMo account was charged, tap “Check my payment” in a moment.'",
+  "'Le paiement est mal réglé sur ce site : ton paiement ne peut pas être vérifié pour l’instant. Ne repaie pas ; touche « Vérifier mon paiement » un peu plus tard.'": "'Payments are misconfigured on this site: your payment can’t be checked right now. Don’t pay again; tap “Check my payment” a little later.'"
  },
  "src/mode.js": {
   "'Robe sirène en wax'": "'Wax mermaid dress'",
@@ -218,7 +221,9 @@
   "' La tenue est aussi dans ta garde-robe du jeu.'": "' The outfit is also in your in-game wardrobe.'",
   "'Le paiement n’a pas abouti : rien n’a été prélevé. Tu peux réessayer.'": "'The payment didn’t go through: nothing was charged. You can try again.'",
   "'Achat réel : bientôt disponible'": "'Real purchase: coming soon'",
-  "'Achat réel : bientôt disponible. Aucune commande n’a été envoyée.'": "'Real purchase: coming soon. No order was sent.'"
+  "'Achat réel : bientôt disponible. Aucune commande n’a été envoyée.'": "'Real purchase: coming soon. No order was sent.'",
+  "'Paiement refusé par l’opérateur : rien n’a été prélevé. Tu peux réessayer.'": "'Payment refused by the operator: nothing was taken. You can try again.'",
+  "'Ton paiement n’a pas encore pu être vérifié. Ne repaie pas : si ton compte MoMo a été débité, touche « Vérifier mon paiement » dans un moment.'": "'Your payment couldn’t be checked yet. Don’t pay again: if your MoMo account was charged, tap “Check my payment” in a moment.'"
  },
  "src/donnees-lieux.js": {
   "'Siège de Moov Africa Bénin'": "'Moov Africa Bénin headquarters'",
@@ -327,7 +332,8 @@
   "'M’habiller'": "'Get dressed'",
   "'Allô ? Oui, je suis à Cotonou !'": "'Hello? Yes, I’m in Cotonou!'",
   "'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · L1 vue · R2/L2 gaz et frein · ✕ □ ○ : les actions affichées sur les boutons (○ klaxonne en roulant) · △ gestes, travail, habits · Select aller à · Start phrases'": "'Controller: left stick to walk or drive · right stick to turn and look from higher up · L1 view · R2/L2 throttle and brake · ✕ □ ○: the actions shown on the buttons (○ honks while driving) · △ gestures, work, clothes · Select go to · Start quick phrases'",
-  "'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · LB vue · RT/LT gaz et frein · A X B : les actions affichées sur les boutons (B klaxonne en roulant) · Y gestes, travail, habits · Select aller à · Start phrases'": "'Controller: left stick to walk or drive · right stick to turn and look from higher up · LB view · RT/LT throttle and brake · A X B: the actions shown on the buttons (B honks while driving) · Y gestures, work, clothes · Select go to · Start quick phrases'"
+  "'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · LB vue · RT/LT gaz et frein · A X B : les actions affichées sur les boutons (B klaxonne en roulant) · Y gestes, travail, habits · Select aller à · Start phrases'": "'Controller: left stick to walk or drive · right stick to turn and look from higher up · LB view · RT/LT throttle and brake · A X B: the actions shown on the buttons (B honks while driving) · Y gestures, work, clothes · Select go to · Start quick phrases'",
+  "'Chez moi'": "'My home'"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -984,5 +990,58 @@
   " » : travaille un peu !": "”: do some work!",
   "tenue « ": "outfit “",
   "Tu as ": "You have "
+ },
+ "src/maison.js": {
+  "'ta chambre'": "'your room'",
+  "'Rentrer dans ta chambre'": "'Go into your room'",
+  "'dans ta chambre, au fond d’une cour commune d’Akpakpa'": "'in your room, at the back of a shared courtyard in Akpakpa'",
+  "'Gbégamey'": "'Gbégamey'",
+  "'chez ton ami'": "'at your friend’s'",
+  "'Rentrer chez ton ami'": "'Go into your friend’s place'",
+  "'chez ton ami, à Gbégamey, sur une natte'": "'at your friend’s place in Gbégamey, on a sleeping mat'",
+  "'ton appartement'": "'your flat'",
+  "'Rentrer dans ton appartement'": "'Go into your flat'",
+  "'dans ton appartement de la Haie Vive'": "'in your flat in Haie Vive'",
+  "'Fidjrossè'": "'Fidjrossè'",
+  "'ta villa'": "'your villa'",
+  "'Rentrer dans ta villa'": "'Go into your villa'",
+  "'dans ta villa de Fidjrossè'": "'in your villa in Fidjrossè'",
+  "'Bouillie de maïs et beignets'": "'Corn porridge and fritters'",
+  "'Haricots, gari et huile rouge'": "'Beans, gari and red palm oil'",
+  "'Riz sauce tomate'": "'Rice with tomato sauce'",
+  "'Pâte de maïs, sauce gombo'": "'Corn paste with okra sauce'",
+  "'Omelette et pain'": "'Omelette and bread'",
+  "'Spaghetti sauce tomate'": "'Spaghetti with tomato sauce'",
+  "'Igname pilée, sauce arachide'": "'Pounded yam with peanut sauce'",
+  "'Poulet braisé et aloko'": "'Grilled chicken and aloko'",
+  "'RÉSIDENCE'": "'RESIDENCE'",
+  "'Chez toi'": "'Home'",
+  "'ALLEZ'": "'GO'",
+  "'LES GUÉPARDS !'": "'CHEETAHS!'",
+  "Bonjour ! Ici, tu peux te doucher, cuisiner et manger à table. Quand tu es prêt, « Sortir » pour aller en ville.": "Good morning! Here you can shower, cook and eat at the table. When you’re ready, “Exit” to head into town.",
+  "' Tu as faim : prépare quelque chose avant de sortir.'": "' You’re hungry: make something to eat before you go out.'",
+  "Tu te réveilles ": "You wake up ",
+  ". « Se lever » (ou avance) pour commencer ta journée.": ". “Get up” (or move) to start your day.",
+  "Ah, ça fait du bien ! Tu es ": "Ah, that feels good! You’re ",
+  "'toute fraîche'": "'all fresh'",
+  "'tout frais'": "'all fresh'",
+  "'Un seau d’eau, un gobelet : à la douche !'": "'A bucket of water, a cup: shower time!'",
+  "'Sous la douche…'": "'In the shower…'",
+  "'Cuisiner au réchaud · Que prépares-tu ?'": "'Cook on the stove · What are you making?'",
+  "'Cuisiner · Que prépares-tu ?'": "'Cook · What are you making?'",
+  "Ingrédients ": "Ingredients ",
+  "ingrédients · ": "ingredients · ",
+  "Il te faut ": "You need ",
+  " pour les ingrédients.": " for the ingredients.",
+  " : ça mijote… Reste au fourneau.": ": it’s simmering… Stay by the stove.",
+  "'Tu as quitté le fourneau : le plat a brûlé !'": "'You left the stove: the food burnt!'",
+  "'Tu sors de la douche.'": "'You step out of the shower.'",
+  "'Se lever'": "'Get up'",
+  "'Arrêter la cuisson'": "'Stop cooking'",
+  "'Sortir de la douche'": "'Leave the shower'",
+  "'S’asseoir pour manger'": "'Sit down to eat'",
+  "'Se doucher'": "'Take a shower'",
+  "'Se coucher'": "'Lie down'",
+  "'Petite sieste… Avance pour te lever.'": "'A little nap… Move to get up.'"
  }
 }

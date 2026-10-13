@@ -30,6 +30,7 @@ import { initOffre } from './publicites.js';
 import { initMode } from './mode.js';
 import { initSalon, majSalon } from './salon.js';
 import { chargerTokpa, chargerZems } from './vehicules.js';
+import { demarrerTelechargements, plusTard } from './telechargements.js';
 import { buildBuildings, buildContainers, buildFoam, buildPalms, buildRoads, buildShips, buildSurfaces, buildingMeshes } from './ville.js';
 
 // ---------- Boucle ----------
@@ -127,7 +128,7 @@ async function main() {
   status('Zémidjans de 3D monde…', 94); await frame();
   await chargerZems();
   // Le vrai minibus des tokpa-tokpa (Tripo) remplace celui dessiné en code dans la circulation de la ville.
-  if (TRIPO.info.tokpa) chargerTokpa(TRIPO.info.tokpa.octets).then(t => { if (t.geo && E.tokpas) { E.tokpas.geometry = t.geo; E.tokpas.material = t.mat; E.tokpas.castShadow = !LITE; } });
+  if (TRIPO.info.tokpa) plusTard(() => chargerTokpa(TRIPO.info.tokpa.octets)).then(t => { if (t.geo && E.tokpas) { E.tokpas.geometry = t.geo; E.tokpas.material = t.mat; E.tokpas.castShadow = !LITE; } });
   buildZems(); zemsDetailles(); buildLamps(); buildLabels();
   initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initBoutique(); initOffre(); initMode(); initSalon(data);
   if (reduceMotion) finishRise();
@@ -139,13 +140,13 @@ async function main() {
   camera.lookAt(target);
   if (!reduceMotion) startFlight(target.clone(), 12500, 0.98, 0.42, 6.5);
   requestAnimationFrame(t => { last = t; loop(t); });
-  setTimeout(() => $('#loader').classList.add('done'), 150);
+  setTimeout(() => { $('#loader').classList.add('done'); demarrerTelechargements(); }, 150); // les modèles détaillés, une fois la ville affichée
   accueil(); // d'abord la visite en musique, ou la ville tout de suite
   // Le temps qu'il faisait la dernière fois.
   try { const m = localStorage.getItem('cotonou3d.meteo'); if (m && m !== 'soleil') changerMeteo(m); } catch { }
   // La vue réelle Google est la vue par défaut (sauf si on l'a coupée la dernière fois).
   let vueReelle = '1'; try { vueReelle = localStorage.getItem('cotonou3d.vueReelle') ?? '1'; } catch { }
-  if (googleDispo && vueReelle !== '0') setTimeout(() => { if ($('#togGoogle').getAttribute('aria-pressed') !== 'true') $('#togGoogle').click(); }, reduceMotion ? 300 : 2500);
+  if (googleDispo && vueReelle !== '0') setTimeout(() => { if ($('#togGoogle').getAttribute('aria-pressed') !== 'true' && !JEU.actif && !document.getElementById('app').classList.contains('mode-salon')) $('#togGoogle').click(); }, reduceMotion ? 300 : 2500); // pas si l'on est déjà entré dans le salon : à pied, il faut la maquette
 }
 // En développement, l'état est accessible depuis la console : __cotonou.E, __cotonou.camera…
 if (import.meta.env.DEV) Promise.all([import('./jeu.js'), import('./bordure.js'), import('./discussions.js'), import('./personnages.js'), import('./pietons.js')]).then(([j, b, d, p, pi]) => { window.__cotonou = { E, camera, controls, JEU, scene, renderer, creerObjet: j.creerObjet, BORD: b.BORD, DISC: d.DISC, personnage3d: p.personnage3d, personnagesPrets: p.personnagesPrets, personne: d.personne, traverser: pi.traverser, marchandeReelle: pi.marchandeReelle }; });

@@ -4,6 +4,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { clone as clonerSquelette } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { LITE, hash } from './base.js';
 import { camera } from './scene.js';
+import { plusTard } from './telechargements.js';
 
 // ---------- Personnages béninois réalistes et animés ----------
 // scripts/personnages.mjs fabrique public/modeles/personnages/<id>.glb avec Tripo : un modèle
@@ -27,7 +28,7 @@ export async function chargerPersonnages() {
   const chargeur = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   await Promise.all(Object.entries(idx).map(async ([id, info]) => {
     try {
-      const g = await chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/personnages/${id}.glb?v=${info.octets}`);
+      const g = await plusTard(() => chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/personnages/${id}.glb?v=${info.octets}`), true); // avant les monuments : on les voit de près
       P.modeles[id] = preparer(id, g, info);
     } catch (e) { console.warn('personnage', id, e.message); }
   }));

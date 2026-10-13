@@ -2,15 +2,18 @@
 // Moov Money. La page envoie l'identifiant de la transaction et le montant attendu ; on la relit chez
 // FedaPay avec la clé secrète, qui ne quitte jamais le serveur (FEDAPAY_SECRET_KEY sur Vercel et dans
 // .env.local).
-//   GET /api/fedapay?id=<transaction>&min=<montant attendu>  →  { paye: true | false, statut, montant }
+//   GET /api/fedapay?id=<transaction>&min=<montant attendu>&mode=live|sandbox  →  { paye: true | false, statut, montant }
+// `mode` : celui de la clé publique de la page. S'il ne correspond pas à la clé secrète, on ne peut pas retrouver la
+// transaction : on le dit (« cles-incoherentes ») au lieu de laisser croire au joueur qu'il n'a rien payé.
 // Le montant attendu vient de la page, mais il ne descend jamais sous MONTANT_MIN : avec la clé live,
 // seule l'entrée du concert (100 F) se paie pour de vrai. Pour vendre les articles de la boutique, le
 // serveur devra connaître lui-même leur prix et créer la transaction.
 // La même fonction sert en local : vite.config.js la branche sur le serveur de développement.
 export const MONTANT_MIN = 100;
 
-export async function verifierPaiement(id, min = MONTANT_MIN, cle = process.env.FEDAPAY_SECRET_KEY) {
+export async function verifierPaiement(id, min = MONTANT_MIN, cle = process.env.FEDAPAY_SECRET_KEY, mode = '') {
   if (!cle) return { code: 503, corps: { paye: false, statut: 'non-configure' } };
+  if (mode && mode !== (cle.startsWith('sk_live_') ? 'live' : 'sandbox')) return { code: 500, corps: { paye: false, statut: 'cles-incoherentes' } };
   if (!/^\d{1,15}$/.test(String(id ?? ''))) return { code: 400, corps: { paye: false, statut: 'identifiant-invalide' } };
   // sk_live_… : vrais paiements ; sk_sandbox_… : mode test.
   const hote = cle.startsWith('sk_live_') ? 'https://api.fedapay.com' : 'https://sandbox-api.fedapay.com';
@@ -21,10 +24,10 @@ export async function verifierPaiement(id, min = MONTANT_MIN, cle = process.env.
   return { code: 200, corps: { paye: t.status === 'approved' && Number(t.amount) >= attendu, statut: t.status, montant: Number(t.amount) } };
 }
 
-export default async function handler(req, res) {
+export default async function handler(req, res, cle = process.env.FEDAPAY_SECRET_KEY) { // en local, vite.config.js passe la clé de .env.local
   const q = new URL(req.url, 'http://local').searchParams;
   let r;
-  try { r = await verifierPaiement(q.get('id'), q.get('min')); } catch { r = { code: 502, corps: { paye: false, statut: 'fedapay-injoignable' } }; }
+  try { r = await verifierPaiement(q.get('id'), q.get('min'), cle, q.get('mode') || ''); } catch { r = { code: 502, corps: { paye: false, statut: 'fedapay-injoignable' } }; }
   res.statusCode = r.code;
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'no-store');

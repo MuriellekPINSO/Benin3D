@@ -3,7 +3,7 @@ import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $ } from './base.js';
 import { construireReseau, noeudsPres } from './carrefours.js';
 import { PRIX_LITRE, VEHICULES, creerVehicule, initStations, itineraire, longueur, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
-import { comptoirProche, devantChaise, siegeProche } from './interieurs.js';
+import { arriveeDehors, comptoirProche, devantChaise, siegeProche } from './interieurs.js';
 import { payerEtRecevoir, remettre } from './remise.js';
 import { scene } from './scene.js';
 import { VIE, carburant, consommer, depenser, faireLePlein, manger, reservoir, sauverVie } from './vie.js';
@@ -42,10 +42,11 @@ export function entrerMonde() {
 }
 export function garerSonVehicule() {
   const type = VIE.data?.vehicule; if (!type || !VEHICULES[type] || T.veh) return;
-  const p = pointDeRoute(S.x + Math.sin(S.cap + Math.PI / 2) * 4, S.z + Math.cos(S.cap + Math.PI / 2) * 4, 0, 150); if (!p) return;
-  T.veh = creerVehicule(type, { couleur: type === 'voiture' ? '#7a1f2b' : '#a32b26' }); placer(T.veh, p[0], p[1], Math.atan2(p[0] - S.x, p[1] - S.z));
+  const o = S.lieu ? arriveeDehors(S.lieu) : S; // dans un bâtiment (chez soi au réveil) : dans la rue, devant la porte
+  const p = pointDeRoute(o.x + Math.sin(o.cap + Math.PI / 2) * 4, o.z + Math.cos(o.cap + Math.PI / 2) * 4, 0, 150); if (!p) return;
+  T.veh = creerVehicule(type, { couleur: type === 'voiture' ? '#7a1f2b' : '#a32b26' }); placer(T.veh, p[0], p[1], Math.atan2(p[0] - o.x, p[1] - o.z));
   const nom = type === 'voiture' ? 'Ta voiture' : 'Ta moto', e = etiquette(nom); e.position.y = type === 'voiture' ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
-  const d = Math.round(Math.hypot(p[0] - S.x, p[1] - S.z) / 5) * 5; if (d > 8) ligne(`${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
+  const d = Math.round(Math.hypot(p[0] - o.x, p[1] - o.z) / 5) * 5; if (d > 8 && !S.lieu) ligne(`${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
 }
 // Étiquette au-dessus de son véhicule, pour le retrouver (cachée quand on est dessus).
 function etiquette(texte) {
@@ -191,7 +192,8 @@ function assiette() {
   const repas = m(new THREE.SphereGeometry(.1, 12, 7, 0, Math.PI * 2, 0, Math.PI / 2), '#c8642c'); repas.position.y = .015; g.userData.repas = repas;
   return g;
 }
-function tenirPlat(nom, points) {
+/** Une assiette dans la main (commandée au food court, ou cuisinée chez soi : maison.js). */
+export function tenirPlat(nom, points) {
   jeterPlat();
   const g = assiette(); (S.moi?.userData.main || scene).add(g); g.position.set(0, .05, .05);
   T.plat = { g, nom, points, reste: 1 };
