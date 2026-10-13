@@ -14,9 +14,15 @@ export function firebase() {
   });
   return FB;
 }
-/** Le joueur connecté : on attend que la session enregistrée soit relue, sinon chaque visite créerait un nouveau compte. */
-export async function joueur() {
-  const { au, auth } = await firebase();
-  await auth.authStateReady();
-  return auth.currentUser || (await au.signInAnonymously(auth)).user;
+/** Le joueur connecté : on attend que la session enregistrée soit relue, sinon chaque visite créerait un nouveau compte.
+ *  Une seule demande à la fois : la vie et le salon se connectent en même temps, et deux connexions anonymes simultanées
+ *  d'un nouveau joueur lui donneraient deux comptes (sa vie serait perdue à la visite suivante). */
+let JOUEUR = null;
+export function joueur() {
+  JOUEUR ??= (async () => {
+    const { au, auth } = await firebase();
+    await auth.authStateReady();
+    return auth.currentUser || (await au.signInAnonymously(auth)).user;
+  })().catch(e => { JOUEUR = null; throw e; }); // en cas d'échec (hors ligne), on réessaiera
+  return JOUEUR;
 }

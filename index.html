@@ -109,13 +109,13 @@
         <button type="button" class="btn-ghost" id="jmPub">Annonceurs</button>
         <button type="button" class="btn-ghost" id="jmRetour">Retour à la carte</button>
       </div>
-      <p class="jm-aide"><b>↑</b> accélérer (le zém n'avance que si tu appuies, il ralentit dès que tu relâches) · <b>↓</b> freiner · <b>arrête-toi au feu rouge</b>, sinon la police te met une amende · demande au client s'il a son casque · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
+      <p class="jm-aide"><b>↑</b> accélérer (le zém n'avance que si tu appuies, il ralentit dès que tu relâches) · <b>↓</b> freiner (maintenu à l'arrêt : <b>marche arrière</b>) · <b>U</b> demi-tour · <b>arrête-toi au feu rouge</b>, sinon la police te met une amende · demande au client s'il a son casque · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
       <label class="jm-option"><input type="checkbox" id="jmVoix"> Voix des personnages (ils parlent à voix haute)</label>
     </div>
     <div class="jeu-hud" id="jeuHud" hidden>
       <div class="jh-haut">
         <div class="jh-ligne panel"><b id="jhNom"></b><span id="jhProchain"></span><div class="jh-barre"><i id="jhProg"></i><span id="jhArrets"></span></div></div>
-        <div class="jh-stats panel"><b id="jhArgent">0 F</b><span id="jhVies"></span><span id="jhVitesse">0 km/h</span><span id="jhPassagers"></span><span class="jh-essence" id="jhEssence" title="Essence"><i></i></span></div>
+        <div class="jh-stats panel"><b id="jhArgent">0 F</b><span id="jhVies"></span><span id="jhVitesse">0 km/h</span><span id="jhPassagers"></span><span class="jh-carbu"><small>Essence</small><span class="jh-essence" id="jhEssence"><i></i></span><b id="jhLitres"></b></span></div>
       </div>
       <div class="jh-quartier" id="jhQuartier"></div>
       <div class="jh-carrefour" id="jhCarrefour" hidden></div>
@@ -130,6 +130,7 @@
       <div class="jh-mission" id="jhMission"><b></b><small></small></div>
       <div class="jh-toast" id="jhToast"></div>
       <button type="button" class="jh-action" id="jhAction" hidden><kbd>E</kbd><span></span></button>
+      <button type="button" class="jh-demi" id="jhDemi" hidden>↶ Demi-tour <kbd>U</kbd></button>
       <div class="jh-dialogue panel" id="jhDialogue" hidden><small class="qui"></small><p class="dit"></p><div class="choix"></div><i class="minuteur"></i></div>
       <div class="jh-carte panel" id="jhCarte" hidden><div class="jh-photo" id="jhArretPhoto" hidden></div><small>Arrêt desservi</small><h3></h3><p></p></div>
       <div class="jh-boutons">
@@ -274,7 +275,7 @@
       <div class="vh-faim" id="vhEssenceLigne" hidden><span>Essence</span><i id="vhEssence"></i><small id="vhEssenceTxt"></small></div>
       <b class="vh-vitesse" id="vhVitesse" hidden></b>
       <small class="vh-gps" id="vhGps" hidden></small>
-      <div class="vh-boutons"><button type="button" class="vh-louer" id="vhTravail">Travailler</button><button type="button" class="vh-louer vh-louer2" id="vhLouer" hidden></button></div>
+      <div class="vh-boutons"><button type="button" class="vh-louer" id="vhTravail">Travailler</button><button type="button" class="vh-louer vh-louer2" id="vhPause" hidden>Pause</button><button type="button" class="vh-louer vh-louer2" id="vhFinir" hidden>Finir la journée</button><button type="button" class="vh-louer vh-louer2" id="vhLouer" hidden></button></div>
     </div>
     <div class="sl-haut panel"><div><b>Salon <span id="slCodeAff"></span></b><small id="slNb"></small></div><button type="button" class="jouer" id="slInviter">Inviter</button><button type="button" id="slVue">Vue : de haut</button><button type="button" id="slCopier">Copier le lien</button><button type="button" id="slQuitter">Quitter</button></div>
     <div class="sl-chat panel" id="slChat">

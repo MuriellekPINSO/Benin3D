@@ -8,14 +8,14 @@ import { E } from './etat.js';
 import { firebase, joueur } from './firebase.js';
 import { startFlight } from './interface.js';
 import { JEU } from './jeu.js';
-import { chargerDanses, chargerTenue, personnage3d, personnagesPrets } from './personnages.js';
+import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personnagesPrets } from './personnages.js';
 import { stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment, obstaclesPres, profondeurRue } from './rue.js';
 import { T, actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, vehiculeDe } from './trajets.js';
 import { creerAvion, etatVol, poserAvion, retirerAvion } from './vol.js';
-import { VIE, alerteDuJour, assurerVie, ecrire as ecrireVie, louerMoto, majVie, rendreVie, sauverVie, surAnnonce, vitesseFaim } from './vie.js';
+import { VIE, alerteDuJour, assurerVie, ecrire as ecrireVie, louerMoto, majVie, prechargerVie, rendreVie, sauverVie, surAnnonce, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
-import { menuTravail } from './metiers.js';
+import { basculerPause, finirJournee, menuTravail } from './metiers.js';
 import { TENUES, choixGenre, estFemme, grilleTenues, initGarderobe, ouvrirGarderobe } from './garderobe.js';
 import { son } from './audio.js';
 import { camera, canvas, controls, scene } from './scene.js';
@@ -99,7 +99,7 @@ function erreur(e) {
 
 // ---------- Personnages ----------
 async function creerAvatar(modele, i) {
-  for (let k = 0; k < 40 && !personnagesPrets(); k++) await attendre(250); // les modèles se chargent en tâche de fond
+  for (let k = 0; k < 6 && !personnagesPrets(); k++) await attendre(250); // les modèles se chargent en tâche de fond : pas plus d'une seconde et demie, le personnage animé remplacera le dessiné à son arrivée
   let id = modele;
   if (id.startsWith('t:')) { id = id.slice(2); if (!(await chargerTenue(id))) id = 'jeune'; } // tenue de la boutique de mode
   const g = personnage3d(i, { role: id }) || personnage3d(i) || personne(i);
@@ -244,13 +244,16 @@ async function entrer(code) {
   S.nom = nom; try { localStorage.setItem(CLE, JSON.stringify({ nom, modele: S.modele })); } catch { /* navigation privée */ }
   statut('Chargement de ta vie…');
   VIE.femme = estFemme(S.modele); // les métiers au féminin ou au masculin
-  const vie = await assurerVie(S.local, { nom, modele: S.modele }); // la première fois : tirage du départ
-  if (!vie) { statut('Impossible de charger ta vie : vérifie ta connexion.', 'mal'); return; }
-  statut('Connexion au salon…');
   S.autres.clear(); S.vus.clear();
   const R = S.R = { etat: surEtat, message: surMessage }; // R.id : mon identifiant, connu avant les premiers messages
-  try { S.canal = S.local ? canalLocal(code, R) : await canalFirebase(code, R); }
-  catch (e) { console.warn('salon', e); statut(erreur(e), 'mal'); return; }
+  // Le salon se connecte pendant que la vie se charge (et pendant le tirage du départ, la première fois).
+  const canal = (S.local ? Promise.resolve().then(() => canalLocal(code, R)) : canalFirebase(code, R)).then(c => ({ c }), e => ({ e }));
+  const vie = await assurerVie(S.local, { nom, modele: S.modele }); // la première fois : tirage du départ
+  if (!vie) { (await canal).c?.quitter(); statut('Impossible de charger ta vie : vérifie ta connexion.', 'mal'); return; }
+  statut('Connexion au salon…');
+  const { c, e } = await canal;
+  if (e) { console.warn('salon', e); statut(erreur(e), 'mal'); return; }
+  S.canal = c;
   S.code = code; S.actif = true; statut('');
   $('#salon').hidden = true; $('#salonHud').hidden = false; $('#slCodeAff').textContent = code; $('#slJoy').hidden = !coarse;
   document.getElementById('app').classList.add('mode-salon');
@@ -268,10 +271,15 @@ async function entrer(code) {
   if (!S.actif) { g.userData.liberer?.(); return; }
   S.moi = g; S.g = g; g.userData.tete.add(etiquette(S.nom, true)); scene.add(g);
   entrerMonde(); // son véhicule garé à côté (Fils à papa, moto louée)
+  if (!personnagesPrets()) personnagesCharges().then(ok => { // arrivés après nous : le personnage animé remplace le dessiné, le sien et ceux des amis
+    if (!ok || !S.actif) return;
+    porter(S.modele, true);
+    for (const A of S.autres.values()) if (!A.enCours && A.etat) { A.modele = ''; habiller(A); }
+  });
 }
 /** Change de tenue pendant le salon : le nouveau personnage remplace l'ancien, là où il est ; les amis le voient. */
-async function porter(modele) {
-  if (!S.actif || modele === S.modele && S.moi) return;
+async function porter(modele, forcer = false) {
+  if (!S.actif || modele === S.modele && S.moi && !forcer) return;
   S.modele = modele; VIE.femme = estFemme(modele); rendreVie(); try { localStorage.setItem(CLE, JSON.stringify({ nom: S.nom, modele })); } catch { /* navigation privée */ }
   if (VIE.data && VIE.data.modele !== modele) ecrireModele(modele);
   const g = await creerAvatar(modele, graine(S.canal?.id || S.nom));
@@ -279,7 +287,7 @@ async function porter(modele) {
   if (S.moi) { retirerBulle(S); scene.remove(S.moi); S.moi.userData.liberer?.(); }
   g.position.set(S.x, S.y, S.z); g.rotation.y = S.cap; g.visible = S.moi?.visible ?? true;
   S.moi = S.g = g; g.userData.tete.add(etiquette(S.nom, true)); scene.add(g);
-  ligne('Nouvelle tenue !');
+  if (!forcer) ligne('Nouvelle tenue !');
 }
 function quitter() {
   if (!S.actif) return;
@@ -445,6 +453,7 @@ function ouvrir() {
   };
   rendre();
   statut(''); $('#salon').hidden = false;
+  prechargerVie(S.local); // la connexion à Firebase commence pendant qu'on écrit son nom
 }
 export function initSalon(data) {
   surAnnonce(t => ligne(t)); // argent gagné ou dépensé, faim : dans le fil du salon
@@ -468,6 +477,8 @@ export function initSalon(data) {
   $('#slAction3')?.addEventListener('click', () => S.actions?.[2]?.f());
   $('#slZem')?.addEventListener('click', helerZem);
   $('#vhTravail')?.addEventListener('click', menuTravail);
+  $('#vhPause')?.addEventListener('click', basculerPause);
+  $('#vhFinir')?.addEventListener('click', () => choisir('Finir ta journée ?', [{ texte: 'Oui, j’arrête pour aujourd’hui', f: finirJournee }], { annuler: 'Non, je continue' }));
   $('#slHabiller')?.addEventListener('click', () => ouvrirGarderobe(S.modele));
   initGarderobe({ porter, ligne });
   $('#vhLouer')?.addEventListener('click', () => louerMoto().then(ok => { if (ok) { garerSonVehicule(); ligne('Ta moto louée t’attend à côté : approche-toi et « Monter sur ta moto ».'); } }));

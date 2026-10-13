@@ -11,7 +11,7 @@ import { QUARTIERS } from './donnees-lieux.js';
 import { E } from './etat.js';
 import { startFlight } from './interface.js';
 import { VEGETATION, texteToile } from './lieux.js';
-import { camera, controls, scene } from './scene.js';
+import { U, camera, controls, scene } from './scene.js';
 import { TOKPA_3D, ZEMS_3D, B3, C3, matVeh, partsChevre, partsMarchande, partsTokpa, partsVoiture, partsZem } from './vehicules.js';
 import { TABLIERS, mergeColored } from './ville.js';
 import { chargerMasques, procession } from './egungun.js';
@@ -25,7 +25,7 @@ import { essenceDepart, facteurEssence, majEssence } from './essence.js';
 import { interagir, majInteractions } from './interactions.js';
 import { METEO } from './meteo.js';
 import { vibrer } from './manette.js';
-import { carrefoursDe, construireReseau, itineraire, itineraireCourt } from './carrefours.js';
+import { carrefoursDe, construireReseau, itineraire, itineraireCourt, itineraireDemiTour, rueSous } from './carrefours.js';
 import { ouvrirOffre } from './publicites.js';
 import { pietonOk, profilRoute, rueRouteJeu } from './rue.js';
 
@@ -44,21 +44,59 @@ export const QUIZ = {
   ouidah: [["Quel animal sacré vit au temple de Dangbé, face à la basilique ?", ['Le python', 'Le crocodile', 'La tortue'], 0], ["Combien de kilomètres mesure la Route des Esclaves, de la place Chacha à la mer ?", ['Environ 1 km', 'Environ 4 km', 'Environ 12 km'], 1], ["Quelle grande fête se tient chaque 10 janvier à Ouidah ?", ['Les Vodun Days', 'La Gaani', 'Le Festival de Porto-Novo'], 0]],
   plage: [["Le long de quelle route s'étend la plage de Fidjrossè ?", ['La route des Pêches', 'Le boulevard Saint-Michel', 'La route de Calavi'], 0], ["Comment s'appelle l'équipe nationale qui joue au stade de l'Amitié ?", ['Les Écureuils', 'Les Guépards', 'Les Lions'], 1], ["Combien de voies se rejoignent à l'Étoile Rouge ?", ['Trois', 'Cinq', 'Huit'], 1]],
 };
-export const LANE = 2.7;
+export const LANE = 2.7, RECUL = 3; // marche arrière : 11 km/h au plus
 export const JEU = { actif: false, pause: false, etat: null, objets: [], decor: null, joueur: null, ligne: null, veh: 'zem', numero: '1234', lignes: [], meilleur: {} };
 JEU.prog = null; JEU.autoGaz = false; // le zém n'avance que si le joueur accélère (↑) ; relâché, il ralentit jusqu'à l'arrêt
 try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; } catch (e) { }
 export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, autoGaz: JEU.autoGaz })); } catch (e) { } };
 export const fmtF = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 
+// Lissage (Chaikin) des virages, mais seulement sur les 7 derniers mètres avant chaque coin et les 7 premiers après :
+// lissées d'un bout à l'autre, les longues lignes droites d'OpenStreetMap coupaient les virages jusqu'à 15 m en
+// dedans, à travers les murs et les maisons du coin (surtout après avoir tourné à un carrefour).
+const COIN = 7;
 export function cheminDe(pts) {
-  let p = pts.map(q => [q[0], q[1]]);
+  const q = [pts[0]]; for (const b of pts) { const a = q[q.length - 1]; if (Math.hypot(b[0] - a[0], b[1] - a[1]) > .3) q.push(b); }
+  arrondirDemiTours(q);
+  if (q.length < 2) q.push(pts[pts.length - 1]);
+  let p = [[q[0][0], q[0][1]]];
+  for (let i = 1; i < q.length; i++) {
+    const a = q[i - 1], b = q[i], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, r = Math.min(COIN, l / 2) / l;
+    if (i > 1) p.push([a[0] + (b[0] - a[0]) * r, a[1] + (b[1] - a[1]) * r]); // juste après le coin a
+    if (i < q.length - 1) p.push([b[0] - (b[0] - a[0]) * r, b[1] - (b[1] - a[1]) * r]); // juste avant le coin b
+    p.push([b[0], b[1]]);
+  }
   for (let it = 0; it < 3; it++) { const o = [p[0]]; for (let i = 0; i < p.length - 1; i++) { const a = p[i], b = p[i + 1]; o.push([a[0] * .75 + b[0] * .25, a[1] * .75 + b[1] * .25], [a[0] * .25 + b[0] * .75, a[1] * .25 + b[1] * .75]); } o.push(p[p.length - 1]); p = o; }
   const cum = [0]; for (let i = 1; i < p.length; i++) cum.push(cum[i - 1] + Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]));
   const L = cum[cum.length - 1], n = Math.floor(L) + 1, X = new Float32Array(n), Z = new Float32Array(n);
   let j = 0; for (let d = 0; d < n; d++) { while (j < p.length - 2 && cum[j + 1] < d) j++; const t = (d - cum[j]) / ((cum[j + 1] - cum[j]) || 1); X[d] = p[j][0] + (p[j + 1][0] - p[j][0]) * t; Z[d] = p[j][1] + (p[j + 1][1] - p[j][1]) * t; }
-  const C = { X, Z, n, L: n - 1 }; profiler(C); return C;
+  const C = { X, Z, n, L: n - 1 }; profiler(C); limiterVirages(C); return C;
 }
+// Là où le chemin rebrousse (on va jusqu'au carrefour ou au bout de l'impasse, puis on revient), un U de 6 m de
+// large par la gauche, au lieu de pivoter sur place.
+function arrondirDemiTours(q) {
+  for (let i = 1; i < q.length - 1; i++) {
+    const [ax, az] = q[i - 1], [bx, bz] = q[i], [cx, cz] = q[i + 1], lu = Math.hypot(bx - ax, bz - az), lv = Math.hypot(cx - bx, cz - bz);
+    if (lu < 4 || lv < 4) continue;
+    const ux = (bx - ax) / lu, uz = (bz - az) / lu; if ((ux * (cx - bx) + uz * (cz - bz)) / lv > -.85) continue;
+    const R = 3, gx = uz, gz = -ux, ox = bx - ux * R + gx * R, oz = bz - uz * R + gz * R, U = [];
+    for (let k = 0; k <= 6; k++) { const t = k / 6 * Math.PI; U.push([ox - gx * R * Math.cos(t) + ux * R * Math.sin(t), oz - gz * R * Math.cos(t) + uz * R * Math.sin(t)]); }
+    q.splice(i, 1, ...U); i += U.length - 1;
+  }
+}
+// Vitesse possible dans les virages, mètre par mètre (le cap change de θ sur 20 m : rayon 20/θ, 6 m/s² sur le côté) :
+// les virages suivent maintenant la vraie rue, un angle droit se prend à 30 km/h, un demi-tour au pas.
+function limiterVirages(C) {
+  const { X, Z, n } = C, lim = new Float32Array(n).fill(99), r = 10;
+  for (let i = r; i < n - r; i++) {
+    const a1 = Math.atan2(X[i] - X[i - r], Z[i] - Z[i - r]), a2 = Math.atan2(X[i + r] - X[i], Z[i + r] - Z[i]);
+    const th = Math.abs(Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1)));
+    if (th > .12) lim[i] = Math.max(3.5, Math.sqrt(6 * 2 * r / th));
+  }
+  C.lim = lim;
+}
+/** Vitesse à ne pas dépasser en s, pour pouvoir prendre les virages des 30 prochains mètres (en freinant à 7 m/s²). */
+export const limiteVirage = (C, s) => { if (!C.lim) return 99; let m = 99; for (let d = 0; d <= 30; d += 2) { const i = Math.min(C.n - 1, Math.max(0, Math.round(s + d))); m = Math.min(m, Math.sqrt(C.lim[i] ** 2 + 2 * 7 * d)); } return m; };
 // La vraie rue sous le trajet, mètre par mètre : demi-largeur de la chaussée (hw) et ligne des murs
 // (front). Les files du jeu s'y resserrent, les piétons se tiennent sur le bas-côté, pas dans les murs.
 function profiler(C) {
@@ -141,11 +179,31 @@ export function geosJeu() {
   GJ.voit = ['#e8e8e4', '#9da3a6', '#c8382f', '#1f2326', '#2f6fb0'].map(c => mergeColored(partsVoiture(c)));
   GJ.chevre = mergeColored(partsChevre());
   GJ.marchande = ['#e2672a', '#2f6fb0', '#8e3c8f', '#2f8a4a'].map(c => mergeColored(partsMarchande(c)));
-  GJ.trou = new THREE.CircleGeometry(1, 14).rotateX(-Math.PI / 2).scale(1.3, 1, .8);
+  // Nid-de-poule : un trou noir (au fond, de l'eau boueuse) cerclé de bitume cassé, clair, qui se voit de loin ; la
+  // nuit, ce bord s'éclaire un peu. Avant, un disque brun foncé sur le bitume : on ne le voyait pas, de nuit encore moins.
+  const plat = g => g.rotateX(-Math.PI / 2).scale(1.3, 1, .8);
+  GJ.trou = mergeColored([[plat(new THREE.CircleGeometry(.95, 20)), '#120f0c'], [plat(new THREE.CircleGeometry(.55, 16)).translate(.12, .01, .05), '#465659']]);
+  GJ.trouBord = plat(new THREE.RingGeometry(.9, 1.32, 22));
+  GJ.matTrouBord = new THREE.MeshStandardMaterial({ color: '#cdbb93', roughness: .9, emissive: '#8a7348', emissiveIntensity: 0 });
   GJ.travaux = mergeColored([[B3(2.2, .9, .3).translate(0, .75, 0), '#e2672a'], [B3(2.2, .22, .32).translate(0, .95, 0), '#f4f1ea'], [C3(.04, .04, .7, 6).translate(-.9, .35, 0), '#555'], [C3(.04, .04, .7, 6).translate(.9, .35, 0), '#555'], [new THREE.ConeGeometry(.22, .6, 8).translate(1.4, .3, .5), '#e2672a'], [new THREE.ConeGeometry(.22, .6, 8).translate(-1.4, .3, -.5), '#e2672a']]);
   GJ.jeton = new THREE.CylinderGeometry(.42, .42, .1, 18).rotateZ(Math.PI / 2);
   GJ.matJeton = new THREE.MeshStandardMaterial({ color: '#f2c21b', metalness: .6, roughness: .3, emissive: '#5a4300' });
-  GJ.matTrou = new THREE.MeshStandardMaterial({ color: '#3d3a33', roughness: .3, metalness: .1 });
+  GJ.matTrou = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .2, metalness: .1 });
+  GJ.phares = phares();
+}
+// Phares : la nuit, un faisceau éclaire la route devant soi (une tache de lumière posée sur la chaussée, sans vraie
+// lampe : une lumière de plus ferait recompiler tous les matériaux de la ville).
+function phares() {
+  const W = 256, H = 128, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const c = cv.getContext('2d'), img = c.createImageData(W, H);
+  for (let i = 0; i < W; i++) for (let j = 0; j < H; j++) {
+    const f = i / W, y = Math.abs(j / H - .5) * 2, w = .3 + .7 * f, dedans = Math.max(0, 1 - y / w) ** 1.6;
+    const a = .75 * dedans * (1 - f) ** 1.4 * Math.min(1, f / .08), k = (j * W + i) * 4;
+    img.data[k] = 255; img.data[k + 1] = 238; img.data[k + 2] = 196; img.data[k + 3] = Math.round(255 * a);
+  }
+  c.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  return { geo: new THREE.PlaneGeometry(22, 8).rotateX(-Math.PI / 2).translate(12.5, .14, 0), mat: new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(1.25, 1.18, 1), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }) };
 }
 export const TYPES = {
   zem: { long: 2.1, larg: .8, saut: false, v: [8, 12.5], p: 30 },
@@ -169,7 +227,7 @@ export function creerObjet(type, s, file) {
   else if (type === 'voiture') mesh = new THREE.Mesh(GJ.voit[Math.floor(hash(s, 2) * 5)], matVeh);
   else if (type === 'chevre') mesh = new THREE.Mesh(GJ.chevre, matVeh);
   else if (type === 'marchande') mesh = marchandeReelle(Math.floor(hash(s, 3) * 1e5), true) || new THREE.Mesh(GJ.marchande[Math.floor(hash(s, 3) * 4)], matVeh);
-  else if (type === 'trou') mesh = new THREE.Mesh(GJ.trou, GJ.matTrou);
+  else if (type === 'trou') { mesh = new THREE.Group(); mesh.add(new THREE.Mesh(GJ.trou, GJ.matTrou), new THREE.Mesh(GJ.trouBord, GJ.matTrouBord)); }
   else if (type === 'travaux') mesh = new THREE.Mesh(GJ.travaux, matVeh);
   else if (type === 'egungun') mesh = procession(3, Math.floor(Math.random() * 4));
   else mesh = new THREE.Mesh(GJ.jeton, GJ.matJeton);
@@ -229,6 +287,49 @@ function remettreVegetation() {
   for (const m of vus) m.instanceMatrix.needsUpdate = true;
   ecartes.length = 0;
 }
+// Arrêts intermédiaires : il y avait jusqu'à 3,4 km entre deux arrêts (de l'Étoile Rouge à Dantokpa : 2 à 3 minutes
+// sans s'arrêter, trop long). On en ajoute pour ne jamais dépasser ~850 m, devant un repère au bord de la route
+// (marché, église, mosquée, pharmacie, station…) sinon au nom du quartier ; le client descend au prochain arrêt.
+const ECART_ARRETS = 850, REPERES = ['marche', 'eglise', 'mosquee', 'pharmacie', 'station', 'ecole', 'sante', 'gare', 'supermarche', 'banque', 'hotel'];
+export const nbIntermediaires = g => (g > 1100 ? Math.ceil(g / ECART_ARRETS) - 1 : 0);
+// Les noms d'OpenStreetMap ne font pas tous un nom d'arrêt (« AGF Regard de jonction 1 », « PASE C 527 ») ; les postes
+// électriques sont rangés en « poste ».
+const nomPropre = n => n && n.length <= 32 && !/\d|\s{2}|\b(sté|sarl|sas|regard|jonction|direction)\b/i.test(n) && !/\s[A-Z]\.?$/.test(n) && !/^(restaurant|bar|maquis|buvette|boutique|pharmacie|station|supermarché|marché|église|mosquée|école|hôtel|banque|garage|kiosque)$/i.test(n.trim());
+const nomRepere = c => (c.t === 'station' && !/station/i.test(c.nom) ? `Station ${c.nom}` : c.nom);
+/** Le point du trajet C le plus proche de (x, z) : { s, d }. */
+function surLeTrajet(C, x, z) {
+  let best = { s: 0, d: Infinity }; for (let i = 0; i < C.n; i += 2) { const d = Math.hypot(C.X[i] - x, C.Z[i] - z); if (d < best.d) best = { s: i, d }; }
+  return best;
+}
+function arretsIntermediaires(L, C, arrets) {
+  const out = [arrets[0]], pris = new Set(arrets.map(a => a.nom)), q = { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 };
+  const reperes = (L.commerces || []).filter(c => c.t !== 'poste' && c.t !== 'bureau' && nomPropre(c.nom)).map(c => ({ c, ...surLeTrajet(C, c.x, c.z) })).filter(r => r.d < 120);
+  for (let k = 1; k < arrets.length; k++) {
+    const A = arrets[k - 1], B = arrets[k], n = nbIntermediaires(B.s - A.s);
+    for (let i = 1; i <= n; i++) {
+      let s = out[out.length - 1].s + (B.s - out[out.length - 1].s) / (n - i + 2), nom = '', fait = ''; // réparti sur ce qui reste
+      // Un repère au bord de la route près de l'endroit prévu : les grands repères d'abord, puis les commerces, à 70 m de
+      // la route (120 m au besoin) ; jamais à moins de 300 m d'un autre arrêt.
+      const prec = out[out.length - 1].s; let best = null, score = 600;
+      for (const r of reperes) {
+        if (r.s < prec + 300 || r.s > B.s - 300 || pris.has(nomRepere(r.c))) continue;
+        const sc = Math.abs(r.s - s) + (REPERES.includes(r.c.t) ? 0 : 150) + (r.d > 70 ? 150 : 0); if (sc < score) { score = sc; best = r; }
+      }
+      if (best) s = best.s;
+      pose(C, s, 0, q);
+      const quartier = QUARTIERS_J.reduce((m, [nq, x, z]) => { const d = Math.hypot(x - q.x, z - q.z); return d < m.d ? { nom: nq, d } : m; }, { nom: '', d: 2500 }).nom;
+      const rue = (L.rues || []).reduce((m, r) => { const d = Math.hypot(r.x - q.x, r.z - q.z); return d < m.d && !pris.has(r.nom) ? { nom: r.nom, d } : m; }, { nom: '', d: 900 }).nom;
+      if (best) { nom = nomRepere(best.c); fait = `Un arrêt de zém devant ${nom}${quartier ? `, à ${quartier}` : ''}.`; }
+      else if (quartier && !pris.has(quartier)) { nom = quartier; fait = `Un arrêt de quartier, à ${quartier}${rue ? `, sur ${rue}` : ''}.`; }
+      else if (rue) { nom = rue; fait = `Un arrêt sur ${rue}${quartier ? `, à ${quartier}` : ''}.`; }
+      else if (quartier && L.rues?.length) { const r = L.rues.reduce((m, r) => (Math.hypot(r.x - q.x, r.z - q.z) < Math.hypot(m.x - q.x, m.z - q.z) ? r : m)); nom = `${quartier} · ${r.nom}`; if (pris.has(nom)) continue; fait = `Un arrêt de quartier, à ${quartier}, sur ${r.nom}.`; }
+      else continue; // rien pour le nommer : pas d'arrêt ici
+      pris.add(nom); out.push({ nom, fait, s, petit: true });
+    }
+    out.push(B);
+  }
+  return out;
+}
 export function lancerLigne(L, veh) {
   geosJeu(); chargerMasques(); // les processions d'Egungun prennent les modèles 3D dès qu'ils sont là
   JEU.ligne = L; JEU.veh = veh; JEU.chemin = cheminDe(L.pts);
@@ -236,6 +337,7 @@ export function lancerLigne(L, veh) {
   // Recale les arrêts sur le chemin lissé.
   const tot = L.arrets[L.arrets.length - 1].s || 1; L.arretsJ = L.arrets.map(a => ({ ...a, s: Math.min(C.L - 2, a.s / tot * C.L) }));
   L.arretsJ[0].s = 0;
+  L.arretsJ = arretsIntermediaires(L, C, L.arretsJ);
   L.arretsXZ = L.arretsJ.map(a => { const p = pose(C, a.s, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }); return [p.x, p.z]; });
   if (JEU.decor) scene.remove(JEU.decor);
   JEU.decor = new THREE.Group(); JEU.decor.renderOrder = 11; scene.add(JEU.decor);
@@ -255,8 +357,9 @@ export function lancerLigne(L, veh) {
     if (detaille) d.position.set(NUMERO_DOS.x, NUMERO_DOS.y, 0); else { d.position.set(-.27, 1.38, 0); d.rotation.x = .28; }
     grp.add(d);
   }
+  const faisceau = new THREE.Mesh(GJ.phares.geo, GJ.phares.mat); faisceau.renderOrder = 12; faisceau.visible = false; grp.add(faisceau); grp.userData.phares = faisceau;
   JEU.decor.add(grp); JEU.joueur = grp;
-  JEU.etat = { s: 4, v: 0, file: 0, lat: 0, y: 0, vy: 0, vies: 3, argent: 0, passagers: veh === 'tokpa' ? 6 : 0, prochain: 1, servis: 0, manques: 0, frolements: 0, pieces: 0, invul: 0, service: 0, secousse: 0, frein: false, spawn: 40, quartier: '', temps: 0, carte: 0, casque: 0, superSaut: false };
+  JEU.etat = { s: 4, v: 0, file: 0, lat: 0, y: 0, vy: 0, vies: 3, argent: 0, passagers: veh === 'tokpa' ? 6 : 0, prochain: 1, servis: 0, manques: 0, frolements: 0, pieces: 0, invul: 0, service: 0, secousse: 0, frein: false, spawn: 40, quartier: '', temps: 0, carte: 0, casque: 0, superSaut: false, parcouru: 0, voyageurs: 0 };
   // Bonus achetés au garage, série de jours, le collecteur, et le premier client.
   const P = JEU.prog, st0 = JEU.etat; essenceDepart(st0);
   if (P.bonus.casque > 0) { P.bonus.casque--; st0.casque = 1; }
@@ -270,9 +373,9 @@ export function lancerLigne(L, veh) {
   $('#jeuMenu').hidden = true; $('#jeuFin').hidden = true; $('#jeuHud').hidden = false; $('#jeuPause').hidden = true;
   $('#jhNom').textContent = `${L.nom} · ${V.nom}`;
   audioCtx(); moteur(veh); if (AUDIO.radio) radio(true); demarrerMusique();
-  const p = pose(C, 0); camera.position.set(p.x - p.dx * 30, 14, p.z - p.dz * 30); JEU.regard = new THREE.Vector3(p.x, 1, p.z);
+  const p = pose(C, 0); camera.position.set(p.x - p.dx * 30, 14, p.z - p.dz * 30); JEU.regard = new THREE.Vector3(p.x, 1, p.z); JEU.capCam = null;
   if (METEO.pluie > .3) setTimeout(() => toast('Il pleut : la route glisse, freine plus tôt', 2.4, 'mal'), 3200);
-  toast(`${L.arretsJ[0].nom} · ↑ accélérer (relâche pour ralentir), ↓ freiner, E interagir · arrête-toi au feu rouge`, 3.4);
+  toast(`${L.arretsJ[0].nom} · ↑ accélérer (relâche pour ralentir), ↓ freiner (maintenu à l’arrêt : marche arrière), U demi-tour, E interagir · arrête-toi au feu rouge`, 3.4);
 }
 // Tout ce qui dépend du trajet : arrêts, bord de route, gens, habillage des rues, végétation, carrefours.
 function installerTrajet(L, C, debut, garderClient) {
@@ -289,7 +392,7 @@ function installerTrajet(L, C, debut, garderClient) {
   }
   rueRouteJeu(C, occupees);
   degagerVegetation(C);
-  const bar = $('#jhArrets'); if (bar) bar.innerHTML = L.arretsJ.map((a, k) => k < debut && k ? '' : `<i style="left:${(a.s / C.L * 100).toFixed(2)}%" title="${a.nom}"></i>`).join('');
+  const bar = $('#jhArrets'); if (bar) bar.innerHTML = L.arretsJ.map((a, k) => k < debut && k ? '' : `<i${a.petit ? ' class="petit"' : ''} style="left:${(a.s / C.L * 100).toFixed(2)}%" title="${a.nom}"></i>`).join('');
   try { construireReseau(); JEU.carrefours = carrefoursDe(C); } catch (e) { console.warn('carrefours', e); JEU.carrefours = []; }
   preparerFeux(C); // feux tricolores aux carrefours (cahier des charges, priorité 1)
   preparerPietons(C); // passants sur les trottoirs et aux passages piétons
@@ -309,6 +412,24 @@ export function virage(dir) {
   if (!pts || pts.length < 3) { toast('Pas de route par là', 1.2, 'mal'); return false; }
   appliquerItineraire(pts);
   son('piece'); toast(`${droit ? '↑ Tout droit' : dir < 0 ? '↰ À gauche' : '↱ À droite'} · itinéraire recalculé`, 1.6, 'bien');
+  return true;
+}
+/** Demi-tour (U, arrêté ou au pas) : un U vers la gauche, on repart en sens inverse, le GPS recalcule jusqu'aux arrêts suivants. */
+export function demiTour() {
+  const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || JEU.pause || st.service > 0 || st.auto || st.prochain >= L.arretsJ.length) return false;
+  if (Math.abs(st.v) > 3) { toast('Ralentis pour faire demi-tour', 1.2); return false; }
+  const lat = st.lat * kFiles(C, st.s), p = pose(C, st.s, lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), gx = p.dz, gz = -p.dx; // (gx, gz) : vers la gauche
+  const R = THREE.MathUtils.clamp((demiChaussee(C, st.s) + lat - .6) / 2, 1.8, 3.5), boucle = [];
+  for (let k = 1; k <= 6; k++) { const a = k / 6 * Math.PI, cx = p.x + gx * R, cz = p.z + gz * R; boucle.push([cx - gx * R * Math.cos(a) + p.dx * R * Math.sin(a), cz - gz * R * Math.cos(a) + p.dz * R * Math.sin(a)]); }
+  // Sur la rue où l'on est ; hors du réseau des rues (une petite route), on revient d'abord sur ses pas jusqu'à lui.
+  const debut = [[p.x, p.z], ...boucle], q = { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }; let pts = null;
+  for (let recul = 0; recul <= 600 && st.s - recul >= 0; recul += 8) {
+    pose(C, st.s - recul, 0, q); const rue = rueSous(q.x, q.z, q.dx, q.dz); if (recul) debut.push([q.x, q.z]);
+    if (rue) { pts = itineraireDemiTour(q.x, q.z, rue, L.arretsXZ.slice(st.prochain), debut); break; }
+  }
+  if (!pts || pts.length < 3) { toast('Pas de demi-tour possible ici', 1.4, 'mal'); return false; }
+  appliquerItineraire(pts); st.v = 0; st.recul = 0;
+  son('piece'); toast('↶ Demi-tour · itinéraire recalculé', 1.6, 'bien');
   return true;
 }
 /** Remplace le trajet par `pts` (à partir de la position du zém) et recale les arrêts restants. */
@@ -384,12 +505,17 @@ export function majJeu(dt) {
   else {
     // Conduite : ↑ accélère, ↓ freine ; sans rien, la moto ralentit en roue libre jusqu'à l'arrêt.
     // Sur le bas-côté (files ±2), on roule au pas, le long des kiosques et des vendeurs.
-    const vmax = V.vmax * (1 + Math.min(.15, st.s / C.L * .2)) * facteurEssence(st) * (Math.abs(st.file) === 2 ? .3 : 1);
-    if (st.frein || st.freinM) st.v = Math.max(0, st.v - 15 * (1 - .35 * METEO.pluie) * dt); // route mouillée : on freine moins bien
+    const vmax = Math.min(V.vmax * (1 + Math.min(.15, st.s / C.L * .2)) * facteurEssence(st) * (Math.abs(st.file) === 2 ? .3 : 1), limiteVirage(C, st.s));
+    // Frein maintenu une fois arrêté : marche arrière, au pas.
+    if (st.frein || st.freinM) {
+      if (st.v > .05) { st.v = Math.max(0, st.v - 15 * (1 - .35 * METEO.pluie) * dt); st.recul = 0; } // route mouillée : on freine moins bien
+      else { st.recul = (st.recul || 0) + dt; if (st.recul > .45) st.v = Math.max(-RECUL, st.v - 3 * dt); }
+    }
     else if (st.gaz || st.gazM || JEU.autoGaz) st.v = st.v > vmax ? Math.max(vmax, st.v - 8 * dt) : Math.min(vmax, st.v + V.accel * dt * (st.v < 6 ? 1.6 : 1));
-    else st.v = Math.max(0, st.v - (st.v > vmax ? 8 : 2.4) * dt);
+    else st.v = st.v < 0 ? Math.min(0, st.v + 5 * dt) : Math.max(0, st.v - (st.v > vmax ? 8 : 2.4) * dt);
   }
-  st.s += st.v * dt;
+  st.s += st.v * dt; if (st.s < 1) { st.s = 1; st.v = Math.max(0, st.v); }
+  st.parcouru += Math.abs(st.v) * dt; // st.s repart de 0 à chaque itinéraire recalculé (virage, demi-tour)
   majFeux(st);
   majEssence(st, dt);
   const latAv = st.lat; st.lat += (st.file * LANE - st.lat) * Math.min(1, dt * 9);
@@ -402,7 +528,9 @@ export function majJeu(dt) {
   if (C.H) { const i = Math.max(2, Math.min(C.n - 3, Math.floor(st.s))); j.rotateZ(Math.atan((C.H[i + 2] - C.H[i - 2]) / 4)); } // penché dans la rampe du pont
   j.visible = true; // un accident n'est plus un clignotement : voir regles.js (constat de police ou client perdu)
   controls.target.set(p.x, 0, p.z);
-  moteurMaj(st.v, true);
+  const nuit = U.uNight.value, f = j.userData.phares; if (f) { f.visible = nuit > .05; GJ.phares.mat.opacity = Math.min(1, nuit * 1.1); }
+  GJ.matTrouBord.emissiveIntensity = nuit * .55;
+  moteurMaj(Math.abs(st.v), true);
   // Apparition des obstacles et des jetons devant le joueur.
   const diff = Math.min(1, st.s / C.L * 1.3);
   while (st.spawn < st.s + 420 && st.spawn < C.L - 30) {
@@ -462,8 +590,8 @@ export function majJeu(dt) {
     } else if (dansZone && st.file >= 1 && st.v < 7.5 && st.service <= 0) {
       // Zém : le client descend et paie le prix discuté ; tokpa : l'apprenti encaisse.
       let gain;
-      if (avecClients(JEU.veh)) gain = deposerClient();
-      else { const n = 2 + Math.floor(Math.random() * 5); gain = n * (V.tarif[0] + Math.round(Math.random() * (V.tarif[1] - V.tarif[0]) / 25) * 25); st.passagers = Math.min(V.places, st.passagers + Math.floor(Math.random() * 4)); setTimeout(departApprenti, 1300); }
+      if (avecClients(JEU.veh)) { gain = deposerClient(); st.voyageurs++; }
+      else { const n = 2 + Math.floor(Math.random() * 5); st.voyageurs += n; gain = n * (V.tarif[0] + Math.round(Math.random() * (V.tarif[1] - V.tarif[0]) / 25) * 25); st.passagers = Math.min(V.places, st.passagers + Math.floor(Math.random() * 4)); setTimeout(departApprenti, 1300); }
       st.argent += gain; st.servis++;
       st.service = 1.4; son('arret'); vibrer('arret'); toast(gain ? `${a.nom} : +${gain} F` : a.nom, 1.8, 'bien'); carteQuartier(a); st.prochain++;
       if (st.prochain >= L.arretsJ.length) { majHud(st, C, V); return setTimeout(() => finJeu(true), 1500); }
@@ -507,17 +635,22 @@ export function majJeu(dt) {
   if (st.pneus > 0) st.pneus -= dt;
   if (JEU.fini !== true && Math.floor(st.temps * 20) !== Math.floor((st.temps - dt) * 20)) majMiniCarte(st, C);
   // Caméra de poursuite : elle se lève et regarde le monument que l'on longe.
-  const vise = rep && rep.d < 260 && rep.s > st.s - 15 ? Math.max(0, 1 - Math.abs(st.s - rep.s) / 140) : 0;
-  JEU.vise = (JEU.vise || 0) + (vise - (JEU.vise || 0)) * Math.min(1, dt * 2.5);
+  const virageCam = JEU.capCam == null ? 0 : Math.abs(Math.atan2(Math.sin(Math.atan2(p.dx, p.dz) - JEU.capCam), Math.cos(Math.atan2(p.dx, p.dz) - JEU.capCam))); // en plein virage, on regarde la route
+  const vise = rep && rep.d < 260 && rep.s > st.s - 15 && virageCam < .35 ? Math.max(0, 1 - Math.abs(st.s - rep.s) / 140) : 0;
+  JEU.vise = (JEU.vise || 0) + (vise - (JEU.vise || 0)) * Math.min(1, dt * (vise < (JEU.vise || 0) ? 5 : 2.5));
   const pax = JEU.veh === 'zem' && st.passagers ? 1 : 0; // client assis derrière : la caméra se lève pour voir la route
   const [d0, h0] = V.cam, d = d0 + JEU.vise * 3 + pax * 1.1, h = h0 + JEU.vise * 2.6 + pax * .9, k = 1 - Math.exp(-dt * 5);
   const sh = st.secousse > 0 ? (Math.random() - .5) * .5 : 0;
-  const cx = p.x - p.dx * d, cz = p.z - p.dz * d;
+  // Elle suit le cap du véhicule avec un temps de retard et tourne autour de lui, toujours à `d` mètres : placée d'un
+  // coup dans l'axe de la route, elle passait au travers du zém dans un virage serré ou un demi-tour, et le perdait.
+  const cap = Math.atan2(p.dx, p.dz); if (JEU.capCam == null) JEU.capCam = cap;
+  JEU.capCam += Math.atan2(Math.sin(cap - JEU.capCam), Math.cos(cap - JEU.capCam)) * Math.min(1, dt * 3);
+  const hx = Math.sin(JEU.capCam), hz = Math.cos(JEU.capCam), cx = p.x - hx * d, cz = p.z - hz * d;
   camera.position.x += (cx - camera.position.x) * k; camera.position.z += (cz - camera.position.z) * k; camera.position.y += (h + p.y + st.y * .5 - camera.position.y) * k;
   camera.position.y += sh;
-  let rx = p.x + p.dx * 11, rz = p.z + p.dz * 11, ry = 1.5 + p.y;
+  let rx = p.x + hx * 11, rz = p.z + hz * 11, ry = 1.5 + p.y;
   if (rep && JEU.vise > .01) { const w = JEU.vise * .22; rx += (rep.x - rx) * w; rz += (rep.z - rz) * w; ry += JEU.vise * 2.5; }
-  JEU.regard.x += (rx - JEU.regard.x) * k * .8; JEU.regard.z += (rz - JEU.regard.z) * k * .8; JEU.regard.y += (ry - JEU.regard.y) * k;
+  JEU.regard.x = rx; JEU.regard.z = rz; JEU.regard.y += (ry - JEU.regard.y) * k; // le cap est déjà lissé : un second retard faisait regarder à côté pendant un demi-tour
   camera.lookAt(JEU.regard);
   camera.fov = 56 + st.v * .7; camera.updateProjectionMatrix();
   // Quartier traversé.
@@ -530,19 +663,23 @@ export function majJeu(dt) {
 export let QUARTIERS_J = [];
 export function majHud(st, C, V) {
   $('#jhArgent').textContent = fmtF(st.argent);
-  $('#jhVitesse').textContent = `${Math.round(st.v * 3.6)} km/h`;
+  $('#jhVitesse').textContent = `${Math.round(Math.abs(st.v) * 3.6)} km/h${st.v < -.2 ? ' · marche arrière' : ''}`;
+  $('#jhDemi').hidden = !(Math.abs(st.v) < 2.5 && st.service <= 0 && !st.auto && st.prochain < JEU.ligne.arretsJ.length);
   $('#jhVies').innerHTML = [0, 1, 2].map(i => `<i class="${i < st.vies ? '' : 'perdu'}"></i>`).join('');
   $('#jhProg').style.width = `${Math.min(100, st.s / C.L * 100).toFixed(1)}%`;
   const a = JEU.ligne.arretsJ[st.prochain];
   $('#jhProchain').textContent = a ? `Prochain arrêt : ${a.nom} · ${Math.max(0, Math.round(a.s - st.s))} m` : 'Terminus';
   $('#jhPassagers').textContent = JEU.veh === 'tokpa' ? `${st.passagers}/${V.places} passagers` : etiquetteClient();
 }
-export function finJeu(arrive) {
+/** Bilan de la course : au terminus (`arrive`), après trois accidents, ou quand on la quitte (`quitte`, menu Pause). */
+export function finJeu(arrive, quitte = false) {
   const st = JEU.etat; if (!st || JEU.fini) return; JEU.fini = true; JEU.pause = true; moteurMaj(0, false); taire(); arreterMusique();
-  const L = JEU.ligne, el = $('#jeuFin');
-  el.querySelector('h2').textContent = arrive ? 'Terminus !' : 'Fin de la course';
-  el.querySelector('.jf-sous').textContent = arrive ? `${L.nom} : ${L.arretsJ[0].nom} → ${L.arretsJ[L.arretsJ.length - 1].nom}` : 'Trois accidents : le casque a servi. Repars quand tu veux.';
-  const stats = [['Recette', fmtF(st.argent)], ['Arrêts desservis', `${st.servis}/${L.arretsJ.length - 1}`], ['Frôlements', st.frolements], ['Distance', `${(st.s / 1000).toFixed(1)} km`]];
+  const L = JEU.ligne, el = $('#jeuFin'), prochain = L.arretsJ[st.prochain];
+  el.querySelector('h2').textContent = arrive ? 'Terminus !' : quitte ? 'Course arrêtée' : 'Fin de la course';
+  el.querySelector('.jf-sous').textContent = arrive ? `${L.nom} : ${L.arretsJ[0].nom} → ${L.arretsJ[L.arretsJ.length - 1].nom}` : quitte ? `${L.nom}${prochain ? ` · arrêtée avant ${prochain.nom}` : ''}. Ta recette va dans ta cagnotte.` : 'Trois accidents : le casque a servi. Repars quand tu veux.';
+  const duree = Math.round(st.temps), km = st.parcouru / 1000;
+  const stats = [['Recette', fmtF(st.argent)], [JEU.veh === 'tokpa' ? 'Passagers payants' : 'Clients transportés', st.voyageurs], ['Arrêts desservis', `${st.servis}/${L.arretsJ.length - 1}`],
+    ['Distance parcourue', `${km.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`], ['Durée', `${Math.floor(duree / 60)} min ${String(duree % 60).padStart(2, '0')} s`], ['Frôlements', st.frolements]];
   const duo = arriveeDuo(arrive); if (duo) stats.push(['Course à deux', duo]); // qui est arrivé le premier au terminus
   el.querySelector('.jf-stats').innerHTML = stats.map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('');
   const qz = el.querySelector('.jf-quiz'), Q = QUIZ[L.id] || []; let i = 0, bonus = 0;
@@ -575,7 +712,7 @@ export function remplirLignes() {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'jm-ligne';
     const km = (L.arrets[L.arrets.length - 1].s / 1000).toFixed(1);
     const veh = L.veh === 'zem' && JEU.prog?.voiture && JEU.prog.vehicule === 'voiture' ? 'voiture' : L.veh;
-    b.innerHTML = `<span class="jm-veh ${veh}">${veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : 'Tokpa'}</span><b>${L.nom}</b><small>${L.arrets.map(a => a.nom).join(' → ')}</small><span class="jm-meta">${km} km · ${L.arrets.length - 1} arrêts${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
+    b.innerHTML = `<span class="jm-veh ${veh}">${veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : 'Tokpa'}</span><b>${L.nom}</b><small>${L.arrets.map(a => a.nom).join(' → ')}</small><span class="jm-meta">${km} km · ${L.arrets.slice(1).reduce((n, a, k) => n + 1 + nbIntermediaires(a.s - L.arrets[k].s), 0)} arrêts${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
     b.addEventListener('click', () => { JEU.numero = ($('#jmNumero').value || '1234').slice(0, 5); sauver(); JEU.fini = false; lancerLigne(L, veh); annoncerDepart(L.id, veh); }); // à deux : l'autre part sur la même ligne
     el.appendChild(b);
   }
@@ -599,7 +736,7 @@ export function initJeu(data) {
   $('#jfLignes').addEventListener('click', () => { JEU.actif = false; moteurStop(); nettoyerBordure(); nettoyerDiscussions(); viderPietons(); remettreVegetation(); if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; } ouvrirJeu(); });
   $('#jfCarte').addEventListener('click', quitterJeu);
   $('#jpReprendre').addEventListener('click', () => { JEU.pause = false; $('#jeuPause').hidden = true; });
-  $('#jpQuitter').addEventListener('click', quitterJeu);
+  $('#jpQuitter').addEventListener('click', () => { $('#jeuPause').hidden = true; if (JEU.etat && !JEU.fini) finJeu(false, true); else quitterJeu(); }); // d'abord le bilan (et la recette versée dans la cagnotte)
   $('#jhPause').addEventListener('click', () => { if (JEU.fini) return; JEU.pause = true; moteurMaj(0, false); taire(); $('#jeuPause').hidden = false; });
   $('#jhSon').addEventListener('click', e => { AUDIO.muet = !AUDIO.muet; e.currentTarget.setAttribute('aria-pressed', String(!AUDIO.muet)); if (AUDIO.muet) { moteurMaj(0, false); radio(false); taire(); } });
   const st = () => JEU.etat;
@@ -614,6 +751,7 @@ export function initJeu(data) {
     if (k === 'arrowleft' || k === 'a' || k === 'q') gauche();
     else if (k === 'arrowright' || k === 'd') droite();
     else if (k === 't') virage(0); // tout droit au carrefour où l'itinéraire tourne
+    else if (k === 'u') demiTour();
     else if (k === 'arrowup' || k === 'w' || k === 'z') st().gaz = true;
     else if (k === ' ') sauter();
     else if (k === 'arrowdown' || k === 's') st().frein = true;
@@ -631,6 +769,7 @@ export function initJeu(data) {
   zone.addEventListener('pointerdown', e => { if (JEU.actif) t0 = [e.clientX, e.clientY]; });
   zone.addEventListener('pointerup', e => { if (!JEU.actif || !t0) return; const dx = e.clientX - t0[0], dy = e.clientY - t0[1]; t0 = null; if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return; if (Math.abs(dx) > Math.abs(dy)) (dx < 0 ? gauche : droite)(); else if (dy < 0) sauter(); });
   const btn = (id, fn) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); fn(); });
+  btn('#jhDemi', demiTour);
   btn('#jbG', gauche); btn('#jbD', droite); btn('#jbS', sauter); btn('#jbK', klaxonner); btn('#jbE', interagir); btn('#jhAction', interagir);
   const maintenu = (id, cle) => { const b = $(id); b.addEventListener('pointerdown', e => { e.preventDefault(); if (st()) st()[cle] = true; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { if (st()) st()[cle] = false; }); };
   maintenu('#jbF', 'frein'); maintenu('#jbA', 'gaz');

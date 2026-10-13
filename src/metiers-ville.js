@@ -418,6 +418,8 @@ export function optionsVille() {
   if (V.ag) return [{ texte: 'Retourner à mon guichet', f: () => demarrerAgence(V.ag.id) }];
   return [];
 }
+/** Fin de la pause : à l'agence, on retrouve son guichet (on avait pu aller manger ailleurs). */
+export function reprendreVille() { if (V.ag) demarrerAgence(V.ag.id); }
 export function arreterVille() {
   if (!V.id) return;
   if (V.m) { if (V.m.g) scene.remove(V.m.g); if (V.m.client) { A.retirerPerso(V.m.client.p); X.retirerBulle(V.m.client); } if (V.m.stock && V.m.produit !== 'pagnes') X.ligne('Ce qui reste de ton stock ne se garde pas : il est perdu.'); V.m = null; }

@@ -63,6 +63,10 @@
  "Retour à la carte": "Back to the map",
  "accélérer (le zém n'avance que si tu appuies, il ralentit dès que tu relâches) ·": "accelerate (the zém only moves while you hold it, and slows down as soon as you let go) ·",
  "freiner ·": "brake ·",
+ "freiner (maintenu à l'arrêt :": "brake (hold it when stopped:",
+ "marche arrière": "reverse",
+ "demi-tour ·": "U-turn ·",
+ "↶ Demi-tour": "↶ U-turn",
  "arrête-toi au feu rouge": "stop at red lights",
  ", sinon la police te met une amende · demande au client s'il a son casque ·": ", or the police will fine you · ask your passenger if they have a helmet ·",
  "changer de file,": "change lanes,",
@@ -132,5 +136,7 @@
  "Payer 100 F et entrer": "Pay 100 F and go in",
  "Pas maintenant": "Not now",
  "Quitter le concert": "Leave the concert",
- "Préparation…": "Getting ready…"
+ "Préparation…": "Getting ready…",
+ "Finir la journée": "End the day",
+ "Pause": "Break"
 }

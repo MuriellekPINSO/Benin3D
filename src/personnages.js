@@ -21,7 +21,11 @@ const TAILLE = { femme: [1.6, 1.7], homme: [1.68, 1.82], ancien: [1.64, 1.72], m
 const v = new THREE.Vector3(), v2 = new THREE.Vector3();
 
 /** Charge les personnages (en tâche de fond : le jeu marche sans eux). */
-export async function chargerPersonnages() {
+let PRETS = null;
+export function chargerPersonnages() { return PRETS ??= chargerTous(); }
+/** Promesse : true quand les personnages animés sont chargés, false s'ils ne le seront pas. */
+export const personnagesCharges = () => PRETS ?? Promise.resolve(false);
+async function chargerTous() {
   let idx = {};
   try { const r = await fetch(import.meta.env.BASE_URL + 'modeles/personnages/index.json'); if (r.ok && /json/.test(r.headers.get('content-type') || '')) idx = await r.json(); } catch { }
   P.index = idx;

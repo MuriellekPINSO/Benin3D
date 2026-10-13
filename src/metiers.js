@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { $, toXZ } from './base.js';
 import { moteurStop, son } from './audio.js';
-import { construireReseau, noeudsPres } from './carrefours.js';
+import { construireReseau, noeudsPres, relie } from './carrefours.js';
 import { VEHICULES, creerVehicule, itineraire, longueur, placer, pontPres, retirerRuban, retirerVehicule, ruban, suivreChemin, surRoute } from './conduite.js';
 import { PLACES, QUARTIERS } from './donnees-lieux.js';
 import { personne } from './discussions.js';
@@ -12,7 +12,7 @@ import { dansBatiment, pietonOk } from './rue.js';
 import { scene } from './scene.js';
 import { roadLines } from './ville.js';
 import { GRADES, METIERS, VIE, carriere, depenser, ecrire, gagner, gradeDe, nomMetier, posteDe, rendreVie, titreDans } from './vie.js';
-import { actionsVille, arreterVille, demarrerVille, initVille, majVille, missionVille, optionsVille, suiviVille } from './metiers-ville.js';
+import { actionsVille, arreterVille, demarrerVille, initVille, majVille, missionVille, optionsVille, reprendreVille, suiviVille } from './metiers-ville.js';
 
 // ---------- Les métiers du transport (Vivre à Cotonou, étape 2, première vague) ----------
 // Zémidjan et chauffeur de taxi : on roule, quelqu'un fait signe au bord de la rue, on s'arrête, il dit où il
@@ -24,9 +24,9 @@ import { actionsVille, arreterVille, demarrerVille, initVille, majVille, mission
 
 const JOUR = 864e5, PLACES_TOKPA = 14, PRIX_TOKPA = 200, PART_APPRENTI = 50;
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
-const W = { id: '', patron: false, client: null, attente: 3, n: 0, gilet: null, ligne: null, tk: null, marcheurs: [], dests: [], mission: '' };
+const W = { id: '', pause: false, patron: false, client: null, attente: 3, n: 0, gilet: null, ligne: null, tk: null, marcheurs: [], dests: [], mission: '' };
 let S = null, T = null, X = {}; // salon, trajets et leurs fonctions (ligne, bulle, gps, choisir…)
-export const enService = () => W.id;
+export const enService = () => (W.pause ? '' : W.id); // en pause : on n'est plus « en service » (on peut commander au food court)
 
 export function initMetiers(data, ctx) {
   S = ctx.S; T = ctx.T; X = ctx;
@@ -43,9 +43,9 @@ export function menuTravail() {
   const v = VIE.data; if (!v) return;
   if (W.id) {
     const M = METIERS[W.id];
-    X.choisir(`${nomMetier(M)} · en service`, [
-      { texte: 'Continuer à travailler', f: () => { } },
-      ...optionsVille(),
+    X.choisir(`${nomMetier(M)} · ${W.pause ? 'en pause' : 'en service'}`, [
+      W.pause ? { texte: 'Reprendre le travail', f: reprendre } : { texte: 'Continuer à travailler', f: () => { } },
+      ...(W.pause ? [] : [{ texte: 'Prendre une pause', sous: 'Pour aller manger : plus de nouveaux clients jusqu’à ton retour', f: pause }, ...optionsVille()]),
       { texte: 'Finir la journée', sous: W.patron ? `Tu rends ${nomVeh[M.veh]} au patron et tu lui verses ${fmt(v.versement || 0)}` : 'Tu arrêtes le service pour aujourd’hui', f: finirJournee },
     ], { annuler: 'Fermer' });
     return;
@@ -115,8 +115,29 @@ async function payerPatron() {
   X.ligne(v.versement > 0 ? `Il reste ${fmt(v.versement)} à rendre au patron.` : 'Ton patron est payé : tu peux retravailler avec lui.');
 }
 /** Fin de journée : on rend le véhicule du patron et on lui paie le versement (ce qu'on peut, le reste est dû). */
+// ---------- Pause : aller manger, puis reprendre ----------
+// Plus de nouveaux clients, rien n'avance au poste ; on peut aller au food court de la Cité ou rentrer cuisiner.
+// Pas au milieu d'une course, ni avec des passagers dans le tokpa-tokpa.
+export function pause() {
+  if (!W.id || W.pause) return;
+  if (W.client?.etat === 'course') { X.ligne('Termine d’abord ta course : ton client est derrière toi.'); return; }
+  if (T.mode === 'apprenti') { X.ligne('Descends d’abord du tokpa-tokpa, à un arrêt.'); return; }
+  if (W.tk?.occ > 0 && W.id === 'chauffeur') { X.ligne('Dépose d’abord tes passagers à un arrêt.'); return; }
+  retirerClient(); // celui qui faisait signe trouvera un autre zém
+  W.pause = true; VIE.pause = true; rendreVie();
+  X.ligne('C’est la pause ! Va manger : le food court de la Cité (« Aller à »), un maquis, ou chez toi. Puis « Reprendre le travail ».');
+}
+export function reprendre() {
+  if (!W.id || !W.pause) return;
+  W.pause = false; VIE.pause = false; rendreVie();
+  reprendreVille(); X.ligne('Au travail !');
+}
+/** Bouton « Pause » / « Reprendre le travail » de « Ma vie ». */
+export const basculerPause = () => (W.pause ? reprendre() : pause());
+export { finirJournee };
 async function finirJournee() {
   const v = VIE.data, id = W.id, M = METIERS[id]; if (!id) return;
+  W.pause = false; VIE.pause = false;
   if (W.tk?.part > 0) await gagner(W.tk.part, 'ta part d’apprenti'); // ce qu'on a encaissé depuis le dernier départ
   arreterService();
   if (W.patron && v.versement > 0) {
@@ -145,7 +166,7 @@ function arreterService() {
   if (!T.veh) X.garerSonVehicule(); // ton véhicule à toi revient
 }
 /** Quitter le salon : on range tout, la journée (versement) reste enregistrée. */
-export function quitterMetiers() { if (!W.id && !W.tk) return; arreterService(); W.id = ''; VIE.service = ''; }
+export function quitterMetiers() { if (!W.id && !W.tk) return; arreterService(); W.id = ''; VIE.service = ''; W.pause = false; VIE.pause = false; }
 
 // ---------- Véhicules de travail ----------
 function routeProche(x, z, rMin = 0, rMax = 25) {
@@ -200,7 +221,7 @@ function majGilet() {
 const PHRASES_CLIENT = ['Il fait chaud aujourd’hui !', 'Doucement aux carrefours, hein.', 'Tu connais bien le chemin ?', 'On arrive bientôt ?', 'Tu supportes quelle équipe ?', 'Cotonou a changé, dis donc.'];
 function nouveauClient() {
   const V = T.veh, R = construireReseau(), ax = Math.sin(V.cap), az = Math.cos(V.cap);
-  const cands = noeudsPres(V.x, V.z, 170).filter(([n, d]) => d > 50 && ((R.X[n] - V.x) * ax + (R.Z[n] - V.z) * az) / d > .55); // devant soi
+  const cands = noeudsPres(V.x, V.z, 170).filter(([n, d]) => d > 50 && relie(n) && ((R.X[n] - V.x) * ax + (R.Z[n] - V.z) * az) / d > .55); // devant soi
   for (let essai = 0; essai < 6 && cands.length; essai++) {
     const [n] = cands[Math.floor(Math.random() * cands.length)], voisin = R.adj[n]?.[0]; if (!voisin) continue;
     const NX = R.X[n], NZ = R.Z[n]; let dx = R.X[voisin[0]] - NX, dz = R.Z[voisin[0]] - NZ; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
@@ -566,7 +587,7 @@ function depart(tk) {
 // ---------- Actions et mise à jour ----------
 /** Les actions du métier en cours (avant celles du trajet) : parler au client, monter à la porte, crier, encaisser… */
 export function actionsMetier() {
-  const out = []; if (!W.id) return out;
+  const out = []; if (!W.id || W.pause) return out;
   if (METIERS[W.id].famille !== 'transport') return actionsVille();
   const C = W.client, V = T.veh, tk = W.tk;
   if (C?.etat === 'signe' && T.mode === 'conduit' && Math.hypot(C.x - V.x, C.z - V.z) < 9 && Math.abs(V.v) < 1.5) out.push({ texte: 'Parler au client', f: negocier });
@@ -586,6 +607,11 @@ export function actionsMetier() {
 export function majMetiers(dt) {
   if (!W.id) return null;
   majGilet(); majMarcheurs(dt);
+  if (W.pause) { // rien n'avance au poste
+    W.mission = `${METIERS[W.id].entreprise || nomMetier(METIERS[W.id])} · en pause`; // « Moov · en pause » : le titre (superviseure…) reste dans « Ma vie »
+    if (W.mission !== VIE.mission) { VIE.mission = W.mission; const el = $('#vhMission'); if (el) { el.hidden = false; el.textContent = W.mission; } }
+    return null;
+  }
   let suivi = null;
   if (METIERS[W.id].famille !== 'transport') { majVille(dt); W.mission = missionVille(); suivi = suiviVille(); }
   else if (W.id === 'zem' || W.id === 'taxi') majClient(dt);

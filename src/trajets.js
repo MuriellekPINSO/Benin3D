@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $ } from './base.js';
-import { construireReseau, noeudsPres } from './carrefours.js';
+import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js';
 import { PRIX_LITRE, VEHICULES, creerVehicule, initStations, itineraire, longueur, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
 import { arriveeDehors, comptoirProche, devantChaise, siegeProche } from './interieurs.js';
 import { payerEtRecevoir, remettre } from './remise.js';
@@ -79,7 +79,13 @@ export function actions() {
     if (Math.abs(V.v) < .8) out.push({ texte: `Descendre ${nomDe(V)[1]}`, f: descendre });
     return out;
   }
-  if (T.mode === 'passager') return out;
+  if (T.mode === 'passager') { // on peut toujours descendre : à l'arrivée (prix convenu), ou avant (le bout de chemin fait)
+    const Z = T.zem; if (Z?.phase !== 'course') return out;
+    const pres = Math.hypot(Z.dest[0] - Z.V.x, Z.dest[1] - Z.V.z) < 60, prix = pres ? Z.prix : prixFait(Z), m = reste(Z.P.pts, Z.V.x, Z.V.z).m;
+    if (m > 300 && !Z.saute) out.push({ texte: `Passer le trajet · ${Math.max(1, Math.round(m / 15.5 / 60))} min`, f: passerTrajet });
+    out.push({ texte: pres ? `Descendre · ${fmt(Z.prix)}` : `Descendre ici · ${fmt(prix)}`, f: () => finCourse(prix, !pres) });
+    return out;
+  }
   if (T.zem?.phase === 'attend' && Math.hypot(T.zem.V.x - S.x, T.zem.V.z - S.z) < 4.5) out.push({ texte: `Monter sur le zém · ${fmt(T.zem.prix)}`, f: monterZem });
   if (V && !S.lieu && Math.hypot(V.x - S.x, V.z - S.z) < (V.type === 'tokpa' ? 4.8 : 3.2)) out.push({ texte: `Monter ${V.D.cache ? 'dans' : 'sur'} ${nomDe(V)[0]}`, f: monter });
   if (S.lieu && !['serveur', 'cuisinier'].includes(enService())) { const c = comptoirProche(S.lieu, S.x, S.z); if (c && !T.plat) out.push({ texte: `Commander · ${c.nom}`, f: () => commander(c) }); } // en service au food court, on ne commande pas
@@ -139,8 +145,10 @@ export function prixZem(x, z, cap, dx, dz) {
 /** Le zém accepté arrive (il part d'une rue à 30-60 m). */
 export function appelerZem(dx, dz, nom, prix) {
   if (T.zem) retirerVehicule(T.zem.V);
-  const ici = pointDeRoute(S.x, S.z, 0, 30); if (!ici) { ligne('Pas de route ici : approche-toi d’une rue pour héler un zém.'); return; }
-  const n = noeudsPres(ici[0], ici[1], 90).find(([, d]) => d > 30) || noeudsPres(ici[0], ici[1], 90).pop(); if (!n) return;
+  // Sur une rue (à 30 m près) ; sinon il vient jusqu'à soi, comme il dépose sur le sable de Fidjrossè.
+  const ici = pointDeRoute(S.x, S.z, 0, 30) || (noeudRelie(S.x, S.z, 150) && [S.x + Math.sin(S.cap) * 2.5, S.z + Math.cos(S.cap) * 2.5]);
+  const pres = ici ? noeudsPres(ici[0], ici[1], 160).filter(([k]) => relie(k)) : [], n = pres.find(([, d]) => d > 30) || pres.pop();
+  if (!n) { ligne('Pas de route ici : approche-toi d’une rue pour héler un zém.'); return; }
   const [X, Z] = noeudPos(n[0]), V = creerVehicule('zem'); placer(V, X, Z, Math.atan2(ici[0] - X, ici[1] - Z));
   const pts = itineraire(X, Z, V.cap, ici[0], ici[1]) || [[X, Z], ici];
   T.zem = { V, phase: 'vient', P: { pts, i: 0 }, dest: [dx, dz], nom, prix, attente: 0 };
@@ -153,7 +161,7 @@ function monterZem() {
   T.trans = { t: 0, duree: .8, de: [S.x, S.z], vers: [bx, bz], fin: () => {
     T.mode = 'passager'; Z.phase = 'course';
     const pts = itineraire(Z.V.x, Z.V.z, Z.V.cap, Z.dest[0], Z.dest[1]) || [[Z.V.x, Z.V.z], Z.dest];
-    Z.P = { pts, i: 0 }; retirerRuban(T.gps?.m); T.gps = { pts, m: ruban(pts), nom: Z.nom, x: Z.dest[0], z: Z.dest[1] };
+    Z.P = { pts, i: 0 }; Z.longueur = longueur(pts); retirerRuban(T.gps?.m); T.gps = { pts, m: ruban(pts), nom: Z.nom, x: Z.dest[0], z: Z.dest[1] };
     son('klaxon'); ligne('« On y va ! Tiens-toi bien. »');
   } };
 }
@@ -162,17 +170,48 @@ function majZem(dt) {
   if (Z.phase === 'vient') { if (suivreChemin(Z.V, Z.P, dt, 12)) { Z.phase = 'attend'; son('klaxon'); ligne('Ton zém est là : monte derrière lui !'); } }
   else if (Z.phase === 'attend') { Z.attente += dt; if (Z.attente > 90) { ligne('Le zém est reparti : tu l’as fait trop attendre.'); Z.phase = 'repart'; Z.repart = 0; } }
   else if (Z.phase === 'course') {
-    if (suivreChemin(Z.V, Z.P, dt, 17)) { // arrivé : on descend et on paie
-      T.mode = 'pied'; Z.phase = 'paie';
-      S.x = Z.V.x + Math.sin(Z.V.cap + Math.PI / 2) * 1.1; S.z = Z.V.z + Math.cos(Z.V.cap + Math.PI / 2) * 1.1; S.cap = Z.V.cap; S.y = 0; if (S.moi) S.moi.visible = true;
-      retirerRuban(T.gps?.m); T.gps = null;
-      depenser(Z.prix, `zém jusqu’à ${Z.nom}`).then(ok => {
-        if (S.moi) remettre(S.moi, new THREE.Vector3(Z.V.x, Z.V.y + 1.3, Z.V.z), 'billet', { hautDe: 1.25, garder: .3 });
-        ligne(ok ? `Tu paies le zém : ${fmt(Z.prix)}. « Merci, à la prochaine ! »` : 'Tu n’as pas de quoi payer : le zém râle et repart…');
-        Z.phase = 'repart'; Z.repart = 0;
-      });
-    }
+    const arrive = suivreChemin(Z.V, Z.P, dt, 17) || (Math.hypot(Z.dest[0] - Z.V.x, Z.dest[1] - Z.V.z) < 6 && Z.V.v < 3); // à quelques mètres et presque arrêté : on y est
+    if (arrive) finCourse(Z.prix, false);
   } else if (Z.phase === 'repart') { Z.repart += dt; if (Z.repart > 1.2) { Z.V.v = Math.min(9, Z.V.v + 3 * dt); Z.V.x += Math.sin(Z.V.cap) * Z.V.v * dt; Z.V.z += Math.cos(Z.V.cap) * Z.V.v * dt; Z.V.g.position.set(Z.V.x, Z.V.y, Z.V.z); } if (Z.repart > 8) { retirerVehicule(Z.V); T.zem = null; } }
+}
+
+/** Ce que vaut le bout de chemin déjà fait, si l'on descend avant l'arrivée (au moins 100 F). */
+function prixFait(Z) {
+  const fait = Z.longueur ? 1 - reste(Z.P.pts, Z.V.x, Z.V.z).m / Z.longueur : 0;
+  return Math.min(Z.prix, Math.max(100, Math.ceil(Z.prix * THREE.MathUtils.clamp(fait, 0, 1) / 50) * 50));
+}
+// Passer le trajet : la course se fait en temps réel, à 60 km/h (2 min de Moov à la Haie Vive, 8 d'Akpakpa à
+// l'Amazone, 15 jusqu'à Fidjrossè). On peut la regarder, ou sauter au bout : fondu au noir, et l'on se retrouve à
+// 80 m de l'arrivée, le zém roulant encore.
+function passerTrajet() {
+  const Z = T.zem; if (Z?.phase !== 'course' || Z.saute) return;
+  Z.saute = true; fondu(true);
+  setTimeout(() => {
+    if (T.zem === Z && Z.phase === 'course') {
+      const pts = Z.P.pts; let k = pts.length - 1, d = 0;
+      while (k > 1) { const l = Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]); if (d + l >= 80) break; d += l; k--; }
+      const [ax, az] = pts[k - 1], [bx, bz] = pts[k], l = Math.hypot(bx - ax, bz - az) || 1, f = Math.max(0, 1 - (80 - d) / l);
+      placer(Z.V, ax + (bx - ax) * f, az + (bz - az) * f, Math.atan2(bx - ax, bz - az)); Z.V.v = 8; Z.P.i = k;
+      S.saut = true; ligne(`Quelques minutes plus tard… On arrive : ${Z.nom}.`);
+    }
+    setTimeout(() => fondu(false), 500);
+  }, 450);
+}
+function fondu(noir) {
+  let f = $('#fondu'); if (!f) { f = document.createElement('div'); f.id = 'fondu'; f.className = 'fondu'; document.body.append(f); }
+  f.classList.toggle('noir', noir);
+}
+/** Fin de la course : le zém s'arrête, on descend et on paie (`avant` : on descend avant d'être arrivé). */
+function finCourse(prix, avant) {
+  const Z = T.zem; if (!Z || Z.phase !== 'course') return;
+  T.mode = 'pied'; Z.phase = 'paie'; Z.V.v = 0;
+  S.x = Z.V.x + Math.sin(Z.V.cap + Math.PI / 2) * 1.1; S.z = Z.V.z + Math.cos(Z.V.cap + Math.PI / 2) * 1.1; S.cap = Z.V.cap; S.y = 0; if (S.moi) S.moi.visible = true;
+  retirerRuban(T.gps?.m); T.gps = null;
+  depenser(prix, avant ? 'zém (descendu en route)' : `zém jusqu’à ${Z.nom}`).then(ok => {
+    if (S.moi) remettre(S.moi, new THREE.Vector3(Z.V.x, Z.V.y + 1.3, Z.V.z), 'billet', { hautDe: 1.25, garder: .3 });
+    ligne(!ok ? 'Tu n’as pas de quoi payer : le zém râle et repart…' : avant ? `Tu descends en route et tu paies le bout de chemin : ${fmt(prix)}.` : `Tu paies le zém : ${fmt(prix)}. « Merci, à la prochaine ! »`);
+    Z.phase = 'repart'; Z.repart = 0;
+  });
 }
 
 // ---------- Manger : commander, payer, porter son assiette, s'asseoir, manger ----------

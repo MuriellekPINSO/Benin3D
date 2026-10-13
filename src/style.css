@@ -183,6 +183,7 @@ button { font: inherit; color: inherit; }
 .jh-barre { position: relative; height: 8px; background: var(--chip); border-radius: 99px; margin-top: 4px; }
 .jh-barre > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 99px; }
 .jh-barre span i { position: absolute; top: -3px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--panel-solid); border: 3px solid var(--ink); }
+.jh-barre span i.petit { top: 0; width: 8px; height: 8px; margin-left: -4px; border-width: 2px; } /* arrêts ajoutés entre ceux de la ligne */
 .jh-stats { padding: 10px 14px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-variant-numeric: tabular-nums; }
 .jh-stats b { font: 800 26px/1 var(--font-display); }
 .jh-stats span { font: 500 12px/1.2 var(--font-mono); color: var(--ink-2); }
@@ -411,8 +412,14 @@ button { font: inherit; color: inherit; }
 .op-contact { margin: 0; font-weight: 600; }
 
 /* Jauge d'essence */
-.jh-essence { position: relative; display: block; width: 96px; height: 8px; border-radius: 6px; background: rgba(0,0,0,.12); overflow: hidden; margin-left: auto; }
-.jh-essence::before { content: 'Essence'; position: absolute; right: calc(100% + 6px); top: -4px; font: 600 10px/1 var(--font-mono); color: var(--ink-2); }
+.jh-carbu { display: flex; align-items: center; gap: 7px; }
+.jh-stats .jh-carbu small { font: 700 11px/1 var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.jh-stats .jh-carbu b { font: 700 13px/1 var(--font-mono); min-width: 40px; text-align: right; }
+.jh-essence { position: relative; display: block; width: 110px; height: 12px; border-radius: 6px; background: rgba(0,0,0,.16); box-shadow: inset 0 0 0 1px rgba(0,0,0,.18); overflow: hidden; }
+.jh-demi { position: absolute; left: var(--gutter); bottom: var(--gutter); display: flex; align-items: center; gap: 8px; border: 0; border-radius: 999px; padding: 10px 12px 10px 16px; background: rgba(20, 24, 30, .82); color: #fffaf0; font: 700 15px/1.2 var(--font-body); cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.3); touch-action: none; }
+.jh-demi kbd { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font: 800 13px/1 var(--font-mono); }
+.jh-demi[hidden] { display: none; }
+@media (pointer: coarse), (max-width: 720px) { .jh-demi { bottom: 96px; } .jh-demi kbd { display: none; } }
 .jh-essence i { position: absolute; inset: 0 auto 0 0; background: #2f8a4a; border-radius: 6px; transition: width .3s; }
 .jh-essence.bas i { background: #c8382f; animation: clignote 1s steps(2) infinite; }
 @keyframes clignote { 50% { opacity: .35; } }
@@ -548,6 +555,8 @@ button { font: inherit; color: inherit; }
 .sl-agir2 { border: 0; border-radius: 999px; padding: 11px 18px; font-weight: 800; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); cursor: pointer; }
 .sl-zem { border: 0; border-radius: 999px; padding: 8px 12px; font-weight: 800; background: #f2c21b; color: #17130c; cursor: pointer; }
 .vh-gps { color: #2e8fd6 !important; font-weight: 700; }
+.fondu { position: fixed; inset: 0; z-index: 60; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s ease; }
+.fondu.noir { opacity: 1; }
 .salon .sl-fermer { position: absolute; top: 10px; right: 12px; border: 0; background: var(--chip); width: 32px; height: 32px; border-radius: 50%; font-size: 20px; line-height: 1; cursor: pointer; }
 .salon .sl-champ { display: grid; gap: 4px; font-weight: 700; font-size: 13px; margin: 4px 0 10px; }
 .salon input { font: inherit; color: inherit; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; }

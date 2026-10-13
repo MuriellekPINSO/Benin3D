@@ -52,7 +52,17 @@ export function construireReseau() {
     const n = noeud(bx, bz); lier(prec, n, cls); prec = n;
   }
   const grille = new Map(); for (let n = 0; n < X.length; n++) { const q = cle(X[n], Z[n], CASE); let l = grille.get(q); if (!l) grille.set(q, l = []); l.push(n); }
-  Object.assign(R, { pret: true, X, Z, adj, grille, n: X.length });
+  // 4. Morceaux de rue reliés à rien (parkings, allées privées : une cinquantaine, 1 % des nœuds). On part et on
+  //    arrive par le grand réseau : la rue la plus proche du hall de l'aéroport est un parking, et ni le zém ni le
+  //    GPS ne trouvaient d'itinéraire jusque-là.
+  const comp = new Int32Array(X.length).fill(-1), tailles = [];
+  for (let s = 0; s < X.length; s++) {
+    if (comp[s] >= 0) continue;
+    const pile = [s], c = tailles.length; let t = 0; comp[s] = c;
+    while (pile.length) { const n = pile.pop(); t++; for (const [m] of adj[n]) if (comp[m] < 0) { comp[m] = c; pile.push(m); } }
+    tailles.push(t);
+  }
+  Object.assign(R, { pret: true, X, Z, adj, grille, n: X.length, comp, principal: tailles.indexOf(Math.max(...tailles)) });
   console.info(`réseau routier : ${X.length} nœuds en ${Math.round(performance.now() - t0)} ms`);
   return R;
 }
@@ -62,6 +72,13 @@ export function noeudsPres(x, z, r) {
   for (let i = -k; i <= k; i++) for (let j = -k; j <= k; j++) { const l = R.grille.get((cx + i) + ',' + (cz + j)); if (l) for (const n of l) { const d = Math.hypot(R.X[n] - x, R.Z[n] - z); if (d < r) out.push([n, d]); } }
   return out.sort((a, b) => a[1] - b[1]);
 }
+/** Le nœud du grand réseau le plus proche de (x, z), à moins de r mètres : [n, d], ou undefined. */
+export const noeudRelie = (x, z, r) => noeudsPres(x, z, r).find(([n]) => R.comp[n] === R.principal);
+/** Le nœud du réseau où finir un itinéraire vers un arrêt : à 80 m (ou `r`), sinon jusqu'à 400 m (sur la Marina, un
+ *  arrêt est à plus de 80 m de toute rue du réseau : ni virage ni demi-tour possible avant lui). */
+const cible = (x, z, r = 80) => noeudRelie(x, z, r) || noeudRelie(x, z, 400);
+/** Le nœud n est-il sur le grand réseau (pas sur un parking isolé) ? */
+export const relie = n => R.comp[n] === R.principal;
 
 // Plus court chemin (pondéré : on préfère les grands axes), en évitant éventuellement un nœud.
 function dijkstra(depart, arrivee, interdit = -1, fac = FACTEUR) {
@@ -117,12 +134,53 @@ export function itineraire(x, z, n, m, cibles) {
   const debut = suivre(n, m, 35), pts = [[x, z], ...debut.map(k => [R.X[k], R.Z[k]])];
   let cur = debut[debut.length - 1], avant = debut[debut.length - 2];
   for (const [cx, cz] of cibles) {
-    const t = noeudsPres(cx, cz, 80)[0]; if (!t) return null;
+    const t = cible(cx, cz); if (!t) return null;
     const ch = dijkstra(cur, t[0], avant) || dijkstra(cur, t[0]); if (!ch) return null;
     for (const k of ch.slice(1)) pts.push([R.X[k], R.Z[k]]);
     if (ch.length > 1) { avant = ch[ch.length - 2]; cur = ch[ch.length - 1]; }
   }
   return pts;
+}
+
+/** Le tronçon de rue du réseau sous (x, z), dans l'axe (fx, fz), à 25 m près : [nœud derrière, nœud devant] ou null. */
+export function rueSous(x, z, fx, fz) {
+  if (!R.pret) return null;
+  let rue = null, bd = 25;
+  for (const [a] of noeudsPres(x, z, 80)) for (const [b] of R.adj[a]) {
+    if (!relie(a)) continue;
+    const ux = R.X[b] - R.X[a], uz = R.Z[b] - R.Z[a], l = Math.hypot(ux, uz) || 1; if (Math.abs((ux * fx + uz * fz) / l) < .7) continue;
+    const t = Math.max(0, Math.min(1, ((x - R.X[a]) * ux + (z - R.Z[a]) * uz) / (l * l))), d = Math.hypot(R.X[a] + ux * t - x, R.Z[a] + uz * t - z);
+    if (d < bd) { bd = d; rue = (ux * fx + uz * fz) > 0 ? [a, b] : [b, a]; }
+  }
+  return rue;
+}
+/**
+ * Demi-tour : en (x, z), sur la rue `rue` (rueSous) où l'on roulait vers (fx, fz), on repart en sens inverse, puis on
+ * rejoint les arrêts `cibles`. `debut` : les points déjà décidés jusqu'à (x, z) (le U lui-même).
+ */
+export function itineraireDemiTour(x, z, rue, cibles, debut = []) {
+  if (!R.pret || !rue || !cibles.length) return null;
+  // On remonte la rue derrière soi tant que le chemin vers l'arrêt y ferait aussitôt demi-tour (l'arrêt est devant :
+  // le plus court serait de revenir sur ses pas), jusqu'au carrefour d'où l'on peut repartir par ailleurs.
+  const [derriere, devant] = rue, tete = [derriere]; let prec = devant, de = [x, z];
+  for (let essai = 0; ; essai++) {
+    const pts = [...debut, ...tete.map(n => [R.X[n], R.Z[n]])];
+    let cur = tete[tete.length - 1], avant = prec, premier = -1;
+    for (const [cx, cz] of cibles) {
+      const t = cible(cx, cz); if (!t) return null;
+      const ch = dijkstra(cur, t[0], avant) || dijkstra(cur, t[0]); if (!ch) return null;
+      if (premier < 0 && ch.length > 1) premier = ch[1];
+      for (const n of ch.slice(1)) pts.push([R.X[n], R.Z[n]]);
+      if (ch.length > 1) { avant = ch[ch.length - 2]; cur = ch[ch.length - 1]; }
+    }
+    const s0 = tete[tete.length - 1], ax = R.X[s0] - de[0], az = R.Z[s0] - de[1], la = Math.hypot(ax, az) || 1;
+    const revient = premier >= 0 && ((R.X[premier] - R.X[s0]) * ax + (R.Z[premier] - R.Z[s0]) * az) / (la * (Math.hypot(R.X[premier] - R.X[s0], R.Z[premier] - R.Z[s0]) || 1)) < -.7;
+    if (!revient || essai >= 15) return pts;
+    let suiv = -1, bc = .5; // la suite de la rue, dans le même sens
+    for (const [m, l] of R.adj[s0]) { if (m === prec || l < .5) continue; const c = ((R.X[m] - R.X[s0]) * ax + (R.Z[m] - R.Z[s0]) * az) / (la * l); if (c > bc) { bc = c; suiv = m; } }
+    if (suiv < 0) return pts; // derrière, une impasse : on y refera demi-tour (cheminDe en fait un U)
+    de = [R.X[s0], R.Z[s0]]; prec = s0; tete.push(suiv);
+  }
 }
 
 // Raccourci du client pressé : distance pure, petites rues comprises (pas de préférence pour les grands axes).
@@ -132,11 +190,11 @@ const DIRECT = [1, 1, 1, 1, 1];
  *  `rayon` : jusqu'où chercher la rue la plus proche d'une cible (une cour, un parking en retrait). */
 export function itineraireCourt(x, z, xa, za, cibles, rayon = 80) {
   if (!R.pret || !cibles.length) return null;
-  const d0 = noeudsPres(xa, za, 60)[0]; if (!d0) return null;
+  const d0 = noeudRelie(xa, za, 150); if (!d0) return null;
   const pts = [[x, z], [R.X[d0[0]], R.Z[d0[0]]]];
   let cur = d0[0], avant = -1;
   for (const [k, [cx, cz]] of cibles.entries()) {
-    const t = noeudsPres(cx, cz, rayon)[0]; if (!t) return null;
+    const t = cible(cx, cz, rayon); if (!t) return null;
     const ch = dijkstra(cur, t[0], avant, k === 0 ? DIRECT : FACTEUR) || dijkstra(cur, t[0]); if (!ch) return null;
     for (const n of ch.slice(1)) pts.push([R.X[n], R.Z[n]]);
     if (ch.length > 1) { avant = ch[ch.length - 2]; cur = ch[ch.length - 1]; }

@@ -83,11 +83,20 @@ function tirage(sort) {
     tour();
   });
 }
+// La première connexion à Firebase prend plusieurs secondes (compte anonyme, puis la base) : elle commence dès
+// l'ouverture de la fenêtre du salon, pendant qu'on écrit son nom et qu'on choisit sa tenue.
+const AVANCE = { p: null, t: 0, local: false };
+const avanceFraiche = local => AVANCE.p && AVANCE.local === local && performance.now() - AVANCE.t < 60000;
+export function prechargerVie(local) {
+  if (avanceFraiche(local)) return;
+  VIE.local = local; AVANCE.local = local; AVANCE.t = performance.now(); AVANCE.p = lire(); AVANCE.p.catch(() => { });
+}
 /** La vie du joueur : chargée, ou créée (tirage) à la première visite. Paie les loyers en retard. */
 export async function assurerVie(local, { nom, modele }) {
+  const avance = avanceFraiche(local) ? AVANCE.p : null; AVANCE.p = null;
   VIE.local = local;
   let v = null;
-  try { v = await lire(); }
+  try { v = await (avance || lire()); }
   catch (e) { // base pas encore prête (règles), ou hors ligne : la vie est gardée dans ce navigateur, le salon reste utilisable
     console.warn('vie', e.message); VIE.local = true; VIE.alerte = 'Ta vie est enregistrée sur cet appareil pour l’instant (serveur indisponible).';
     try { v = await lire(); } catch { v = null; }
@@ -218,6 +227,7 @@ export function rendreVie() {
   $('#vhDette').textContent = [v.dette ? `Dette : ${fmt(v.dette)}` : '', v.versement > 0 ? `Versement au patron : ${fmt(v.versement)}` : ''].filter(Boolean).join(' · ');
   $('#vhMission').hidden = !VIE.mission; $('#vhMission').textContent = VIE.mission;
   $('#vhTravail').textContent = VIE.service ? 'Mon travail' : 'Travailler';
+  $('#vhPause').hidden = $('#vhFinir').hidden = !VIE.service; $('#vhPause').textContent = VIE.pause ? 'Reprendre le travail' : 'Pause'; // en service : la pause et la fin de journée en vue
   const R = reservoir(), c = carburant();
   $('#vhEssenceLigne').hidden = !R;
   if (R) { $('#vhEssence').style.setProperty('--faim', `${Math.round(c / R * 100)}%`); $('#vhEssence').classList.toggle('bas', c / R <= .2); $('#vhEssenceTxt').textContent = `${c.toFixed(1).replace('.', ',')} L / ${R} L`; }

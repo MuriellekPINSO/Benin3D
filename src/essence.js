@@ -53,7 +53,7 @@ export function majEssence(st, dt) {
   if (st.essence === undefined) return;
   if (st.toux > 0) st.toux -= dt;
   if (!st.panne) {
-    st.essence -= st.v * dt / 3000 * (JEU.veh === 'tokpa' ? 1.4 : 1);
+    st.essence -= Math.abs(st.v) * dt / 3000 * (JEU.veh === 'tokpa' ? 1.4 : 1);
     if (st.essence <= 0) {
       st.essence = 0; st.panne = true; son('bosse'); toast('Panne sèche ! Trouve une station ou un vendeur de kpayo', 2.8, 'mal');
       if (DISC.client) { DISC.client.humeur = Math.max(0, DISC.client.humeur - .3); bulle(DISC.client.siege, 'Eh ! Tu n’as pas mis d’essence ?!', { ton: 'fort' }); }
@@ -66,5 +66,6 @@ export function majEssence(st, dt) {
     if (ds > 40 && ds < 80 && !it.propose) { it.propose = true; toast(`${it.type === 'station' ? `Station${it.nom ? ' ' + it.nom : ''}` : 'Kpayo'} à ${it.side > 0 ? 'droite' : 'gauche'} : arrête-toi devant, puis E pour le plein`, 2.6); break; }
   }
   // Jauge du HUD.
-  const el = $('#jhEssence'); if (el) { el.firstElementChild.style.width = `${Math.max(0, st.essence / RESERVOIR * 100).toFixed(0)}%`; el.classList.toggle('bas', st.essence < .45); el.title = `Essence : ${st.essence.toFixed(1)} L`; }
+  const el = $('#jhEssence'); if (el) { el.firstElementChild.style.width = `${Math.max(0, st.essence / RESERVOIR * 100).toFixed(0)}%`; el.classList.toggle('bas', st.essence < .45); }
+  const li = $('#jhLitres'); if (li) li.textContent = `${Math.max(0, st.essence).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`;
 }

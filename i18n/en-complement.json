@@ -58,7 +58,23 @@
   " · ": " · "
  },
  "src/jeu.js": {
-  "'Course à deux'": "'Two-player race'"
+  "'Course à deux'": "'Two-player race'",
+  "'Ralentis pour faire demi-tour'": "'Slow down to make a U-turn'",
+  "'Pas de demi-tour possible ici'": "'No U-turn possible here'",
+  "'↶ Demi-tour · itinéraire recalculé'": "'↶ U-turn · route recalculated'",
+  "' · marche arrière'": "' · reverse'",
+  "Un arrêt de zém devant ": "A zém stop in front of ",
+  "Un arrêt de quartier, à ": "A neighbourhood stop in ",
+  ", sur ": ", on ",
+  "Un arrêt sur ": "A stop on ",
+  ", à ": ", in ",
+  "'Course arrêtée'": "'Ride stopped'",
+  " · arrêtée avant ": " · stopped before ",
+  ". Ta recette va dans ta cagnotte.": ". Your takings go into your savings.",
+  "'Passagers payants'": "'Paying passengers'",
+  "'Clients transportés'": "'Customers carried'",
+  "'Distance parcourue'": "'Distance travelled'",
+  "'Durée'": "'Time'"
  },
  "index.html": {
   "Crédits": "Credits",
@@ -333,7 +349,10 @@
   "'Allô ? Oui, je suis à Cotonou !'": "'Hello? Yes, I’m in Cotonou!'",
   "'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · L1 vue · R2/L2 gaz et frein · ✕ □ ○ : les actions affichées sur les boutons (○ klaxonne en roulant) · △ gestes, travail, habits · Select aller à · Start phrases'": "'Controller: left stick to walk or drive · right stick to turn and look from higher up · L1 view · R2/L2 throttle and brake · ✕ □ ○: the actions shown on the buttons (○ honks while driving) · △ gestures, work, clothes · Select go to · Start quick phrases'",
   "'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · LB vue · RT/LT gaz et frein · A X B : les actions affichées sur les boutons (B klaxonne en roulant) · Y gestes, travail, habits · Select aller à · Start phrases'": "'Controller: left stick to walk or drive · right stick to turn and look from higher up · LB view · RT/LT throttle and brake · A X B: the actions shown on the buttons (B honks while driving) · Y gestures, work, clothes · Select go to · Start quick phrases'",
-  "'Chez moi'": "'My home'"
+  "'Chez moi'": "'My home'",
+  "'Finir ta journée ?'": "'End your day?'",
+  "'Oui, j’arrête pour aujourd’hui'": "'Yes, I’m done for today'",
+  "'Non, je continue'": "'No, I’ll keep going'"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -470,7 +489,9 @@
   "'Directeur'": "'Director'",
   "'Directrice'": "'Director'",
   "'DG'": "'CEO'",
-  " client": " customer"
+  " client": " customer",
+  "'Reprendre le travail'": "'Back to work'",
+  "'Pause'": "'Break'"
  },
  "src/trajets.js": {
   "'Ta voiture'": "'Your car'",
@@ -526,7 +547,13 @@
   "'dans'": "'into'",
   "'sur'": "'on'",
   "Tu montes ": "You get ",
-  ". Flèches ou ZQSD : accélérer, freiner puis reculer, tourner.": ". Arrows or WASD: accelerate, brake then reverse, steer."
+  ". Flèches ou ZQSD : accélérer, freiner puis reculer, tourner.": ". Arrows or WASD: accelerate, brake then reverse, steer.",
+  "Descendre · ": "Get off · ",
+  "Descendre ici · ": "Get off here · ",
+  "'zém (descendu en route)'": "'zém (got off on the way)'",
+  "Tu descends en route et tu paies le bout de chemin : ": "You get off on the way and pay for the distance ridden: ",
+  "Passer le trajet · ": "Skip the ride · ",
+  "Quelques minutes plus tard… On arrive : ": "A few minutes later… Almost there: "
  },
  "src/conduite.js": {
   "'zém'": "'zém'",
@@ -756,7 +783,18 @@
   "'Gare-toi et descends d’abord.'": "'Park and get off first.'",
   "tokpa-tokpa · ": "tokpa-tokpa · ",
   "'Apprentie'": "'Apprentice'",
-  "'Apprenti'": "'Apprentice'"
+  "'Apprenti'": "'Apprentice'",
+  "'Reprendre le travail'": "'Back to work'",
+  "'Prendre une pause'": "'Take a break'",
+  "'Pour aller manger : plus de nouveaux clients jusqu’à ton retour'": "'To go and eat: no new customers until you’re back'",
+  "'Termine d’abord ta course : ton client est derrière toi.'": "'Finish your ride first: your customer is behind you.'",
+  "'Descends d’abord du tokpa-tokpa, à un arrêt.'": "'Get off the tokpa-tokpa first, at a stop.'",
+  "'Dépose d’abord tes passagers à un arrêt.'": "'Drop your passengers off at a stop first.'",
+  "'C’est la pause ! Va manger : le food court de la Cité (« Aller à »), un maquis, ou chez toi. Puis « Reprendre le travail ».'": "'Break time! Go and eat: the Cité food court (“Go to”), a maquis, or at home. Then “Back to work”.'",
+  "'Au travail !'": "'Back to work!'",
+  "'en pause'": "'on a break'",
+  "'en service'": "'on duty'",
+  " · en pause": " · on a break"
  },
  "src/metiers-ville.js": {
   "'fr-FR'": "'en-US'",

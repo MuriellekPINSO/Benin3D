@@ -132,21 +132,42 @@ function avancer(V, dt, contraint) {
   V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap;
   return choc;
 }
-/** Le zém (ou tout véhicule sans joueur au guidon) suit un chemin { pts, i } ; vrai à l'arrivée (arrêté). */
+/** Point du chemin à `dist` mètres plus loin que (k, t) (segment pts[k-1] → pts[k], fraction t) ; et la distance qui restait jusqu'au bout. */
+function leLong(pts, k, t, dist) {
+  let [px, pz] = [pts[k - 1][0] + (pts[k][0] - pts[k - 1][0]) * t, pts[k - 1][1] + (pts[k][1] - pts[k - 1][1]) * t], parcouru = 0;
+  for (; k < pts.length; k++) {
+    const l = Math.hypot(pts[k][0] - px, pts[k][1] - pz);
+    if (parcouru + l >= dist) { const f = (dist - parcouru) / (l || 1); return [px + (pts[k][0] - px) * f, pz + (pts[k][1] - pz) * f, dist]; }
+    parcouru += l; [px, pz] = pts[k];
+  }
+  return [px, pz, parcouru];
+}
+/**
+ * Le zém (ou tout véhicule sans joueur au guidon) suit un chemin { pts, i } ; vrai à l'arrivée (arrêté).
+ * On vise un point du chemin 3 à 9 m devant soi (plus loin quand on roule vite), à partir de l'endroit du chemin
+ * le plus proche : on suit ainsi la rue, virages compris. Avant, on visait le point suivant du tracé, parfois des
+ * dizaines de mètres après un virage, et le zém coupait le coin à travers les maisons.
+ */
 export function suivreChemin(V, P, dt, vmax = V.D.vmax) {
-  const pts = P.pts;
-  while (P.i < pts.length - 1 && Math.hypot(pts[P.i][0] - V.x, pts[P.i][1] - V.z) < 7) P.i++;
-  const [tx, tz] = pts[P.i], dx = tx - V.x, dz = tz - V.z, d = Math.hypot(dx, dz), dernier = P.i === pts.length - 1;
-  let da = Math.atan2(dx, dz) - V.cap; da = Math.atan2(Math.sin(da), Math.cos(da));
+  const pts = P.pts; if (pts.length < 2) { V.v = 0; return true; }
+  let k0 = Math.max(1, P.i), bk = k0, bt = 0, bd = Infinity; // où l'on est sur le chemin (jamais en arrière)
+  for (let k = k0; k < Math.min(pts.length, k0 + 8); k++) {
+    const [ax, az] = pts[k - 1], ux = pts[k][0] - ax, uz = pts[k][1] - az, l2 = ux * ux + uz * uz || 1;
+    const t = THREE.MathUtils.clamp(((V.x - ax) * ux + (V.z - az) * uz) / l2, 0, 1), d = Math.hypot(ax + ux * t - V.x, az + uz * t - V.z);
+    if (d < bd - .01) { bd = d; bk = k; bt = t; }
+  }
+  P.i = bk;
+  const [tx, tz] = leLong(pts, bk, bt, THREE.MathUtils.clamp(2.5 + Math.abs(V.v) * .4, 3, 9));
+  let da = Math.atan2(tx - V.x, tz - V.z) - V.cap; da = Math.atan2(Math.sin(da), Math.cos(da));
   V.cap += THREE.MathUtils.clamp(da, -2 * dt, 2 * dt);
   // Pleine vitesse en ligne droite ; on ralentit avant un virage, vu 15 à 45 m devant (plus loin quand on va vite).
-  const loin = 15 + Math.abs(V.v) * 1.5; let j = P.i; while (j < pts.length - 1 && Math.hypot(pts[j][0] - V.x, pts[j][1] - V.z) < loin) j++;
-  let dv = Math.atan2(pts[j][0] - V.x, pts[j][1] - V.z) - V.cap; dv = Math.atan2(Math.sin(dv), Math.cos(dv));
+  const [fx, fz] = leLong(pts, bk, bt, 15 + Math.abs(V.v) * 1.5);
+  let dv = Math.atan2(fx - V.x, fz - V.z) - V.cap; dv = Math.atan2(Math.sin(dv), Math.cos(dv));
   const droit = Math.max(0, Math.cos(Math.max(Math.abs(da), Math.abs(dv)))) ** 3;
-  const reste = dernier ? d : Math.hypot(pts[pts.length - 1][0] - V.x, pts[pts.length - 1][1] - V.z);
-  const voulue = Math.min(vmax, 3.5 + (vmax - 3.5) * droit, Math.max(2, reste * .8)); // et on freine pour s'arrêter au bout
+  const reste = leLong(pts, bk, bt, Infinity)[2] + bd; // le long du chemin jusqu'au bout
+  const voulue = Math.min(vmax, Math.abs(da) > Math.PI / 2 ? 2.2 : 3.5 + (vmax - 3.5) * droit, Math.max(2, reste * .8)); // demi-tour au pas ; et on freine pour s'arrêter au bout
   V.v += THREE.MathUtils.clamp(voulue - V.v, -8 * dt, D_ACCEL * dt);
-  if (dernier && d < 2.5) { V.v = Math.max(0, V.v - 8 * dt); avancer(V, dt, false); return V.v === 0; }
+  if (reste < 2.5) { V.v = Math.max(0, V.v - 8 * dt); avancer(V, dt, false); return V.v === 0; }
   avancer(V, dt, false); return false;
 }
 
@@ -156,6 +177,16 @@ export function itineraire(x, z, cap, xb, zb) {
   construireReseau();
   const pts = itineraireCourt(x, z, x + Math.sin(cap) * 12, z + Math.cos(cap) * 12, [[xb, zb]], 300);
   if (pts) { const f = pts[pts.length - 1]; if (Math.hypot(f[0] - xb, f[1] - zb) > 4) pts.push([xb, zb]); } // dernier bout : jusqu'à la porte, la cour
+  return pts && sansAllerRetour(pts);
+}
+// Pas d'aller-retour dans un chemin : le carrefour devant soi quand la route part derrière, le dernier carrefour quand la
+// porte est déjà passée, les points en double. Le véhicule fait demi-tour tout de suite ; sinon, partagé entre l'aller et
+// le retour, il tournait sur place autour du carrefour (vu en arrivant à la Haie Vive).
+function sansAllerRetour(pts) {
+  for (let i = 1; i < pts.length - 1;) {
+    const [ax, az] = pts[i - 1], [bx, bz] = pts[i], [cx, cz] = pts[i + 1], ux = bx - ax, uz = bz - az, vx = cx - bx, vz = cz - bz, lu = Math.hypot(ux, uz), lv = Math.hypot(vx, vz);
+    if (lu < .5 || lv < .5 || (ux * vx + uz * vz) / (lu * lv) < -.85) { pts.splice(i, 1); if (i > 1) i--; } else i++;
+  }
   return pts;
 }
 export const longueur = pts => pts.reduce((s, p, i) => (i ? s + Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) : 0), 0);
