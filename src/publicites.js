@@ -43,10 +43,10 @@ export function affiche(c) {
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 768; const g = cv.getContext('2d'), w = 1024, h = 768;
   const fond = g.createLinearGradient(0, 0, w, h); fond.addColorStop(0, c.fond); fond.addColorStop(1, ombre(c.fond)); g.fillStyle = fond; g.fillRect(0, 0, w, h);
   g.fillStyle = c.accent; g.globalAlpha = .22; g.beginPath(); g.arc(w * .86, h * .2, 230, 0, 7); g.fill(); g.globalAlpha = 1;
-  g.fillStyle = c.encre; g.font = '700 40px "Plus Jakarta Sans", system-ui, sans-serif'; g.fillText(c.marque.toUpperCase(), 64, 110);
-  let t = 150; g.font = `900 ${t}px "Bricolage Grotesque", Impact, sans-serif`; while (g.measureText(c.titre).width > w - 128 && t > 70) { t -= 8; g.font = `900 ${t}px "Bricolage Grotesque", Impact, sans-serif`; }
+  g.fillStyle = c.encre; g.font = '700 40px "Google Sans", system-ui, sans-serif'; g.fillText(c.marque.toUpperCase(), 64, 110);
+  let t = 150; g.font = `900 ${t}px "Google Sans", Impact, sans-serif`; while (g.measureText(c.titre).width > w - 128 && t > 70) { t -= 8; g.font = `900 ${t}px "Google Sans", Impact, sans-serif`; }
   g.fillText(c.titre, 60, 360);
-  g.font = '600 52px "Plus Jakarta Sans", system-ui, sans-serif'; ligneCoupee(g, c.sous, 64, 470, w - 128, 62);
+  g.font = '600 52px "Google Sans", system-ui, sans-serif'; ligneCoupee(g, c.sous, 64, 470, w - 128, 62);
   g.fillStyle = c.accent; g.fillRect(64, 600, 220, 14);
   // bande aux couleurs du drapeau, comme sur beaucoup de panneaux de Cotonou
   g.fillStyle = '#008751'; g.fillRect(0, h - 40, w * .34, 40); g.fillStyle = '#fcd116'; g.fillRect(w * .34, h - 40, w * .33, 40); g.fillStyle = '#e8112d'; g.fillRect(w * .67, h - 40, w * .33, 40);

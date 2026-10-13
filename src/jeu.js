@@ -29,6 +29,7 @@ import { carrefoursDe, construireReseau, itineraire, itineraireCourt, itineraire
 import { ouvrirOffre } from './publicites.js';
 import { pietonOk, profilRoute, rueRouteJeu } from './rue.js';
 import { creerGuide } from './guide.js';
+import { compterUneFois, lieuStats } from './statistiques.js';
 
 // ---------- Zém Run : le jeu ----------
 /** Véhicules qui prennent un client à la fois, avec négociation (zém et taxi). */
@@ -248,7 +249,7 @@ export function construireDecorLigne(L, C, debut = 1) {
     const kz = kFiles(C, s - 12), p = pose(C, s - 12, LANE * kz); z.scale.z = kz; z.position.set(p.x, p.y + .12, p.z); z.rotation.y = p.a; g.add(z);
     const q = pose(C, s, demiChaussee(C, s) + .7); const post = new THREE.Group(); post.position.set(q.x, q.y, q.z); post.rotation.y = Math.atan2(q.dz * .6 - q.dx * .8, -q.dx * .6 - q.dz * .8);
     const mat = new THREE.Mesh(C3(.08, .08, 3.6, 6), new THREE.MeshStandardMaterial({ color: '#555' })); mat.position.set(0, 1.8, 0); post.add(mat);
-    const t = texteToile(['ARRÊT', a.nom.toUpperCase()], 1024, 400, '#1d1a16', '#f2c21b', '800 110px "Bricolage Grotesque", system-ui, sans-serif');
+    const t = texteToile(['ARRÊT', a.nom.toUpperCase()], 1024, 400, '#1d1a16', '#f2c21b', '800 110px "Google Sans", system-ui, sans-serif');
     const pan = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.25), new THREE.MeshBasicMaterial({ map: t })); pan.position.set(0, 3.9, 0); post.add(pan);
     const dos = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.25), new THREE.MeshBasicMaterial({ color: '#2b2f33' })); dos.position.set(0, 3.9, -.02); dos.rotation.y = Math.PI; post.add(dos); g.add(post);
     for (let i = 0; i < (JEU.veh === 'tokpa' ? 5 : 2); i++) {
@@ -333,7 +334,7 @@ function arretsIntermediaires(L, C, arrets) {
 }
 export function lancerLigne(L, veh) {
   geosJeu(); chargerMasques(); // les processions d'Egungun prennent les modèles 3D dès qu'ils sont là
-  JEU.ligne = L; JEU.veh = veh; JEU.chemin = cheminDe(L.pts);
+  JEU.ligne = L; JEU.veh = veh; JEU.chemin = cheminDe(L.pts); compterUneFois('zemrun'); lieuStats('zemrun');
   const C = JEU.chemin; C.H = calerSurPonts(C);
   // Recale les arrêts sur le chemin lissé.
   const tot = L.arrets[L.arrets.length - 1].s || 1; L.arretsJ = L.arrets.map(a => ({ ...a, s: Math.min(C.L - 2, a.s / tot * C.L) }));
@@ -463,6 +464,7 @@ export function prendreRaccourci() {
   return true;
 }
 export function quitterJeu() {
+  lieuStats('carte');
   JEU.actif = false; moteurStop(); taire(); arreterMusique(); nettoyerBordure(); nettoyerDiscussions(); remettreVegetation(); satelliteVisible(true); rueRouteJeu(null);
   viderPietons(); if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; }
   document.getElementById('app').classList.remove('mode-jeu');

@@ -284,7 +284,7 @@ export function ecranPub(x, z, rot, titre, detail, fond) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; K.racine.add(g);
   K.cyl(.12, .16, 5.2, 8, '#2f3738', 0, 2.6, 0, g);
   K.boite(3.4, 2, .3, '#1d2224', 0, 5.6, 0, g);
-  const t = texteToile([titre, detail], 1024, 600, fond, '#ffffff', '800 110px "Bricolage Grotesque", system-ui, sans-serif');
+  const t = texteToile([titre, detail], 1024, 600, fond, '#ffffff', '800 110px "Google Sans", system-ui, sans-serif');
   for (const s of [1, -1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 1.8), new THREE.MeshBasicMaterial({ map: t, toneMapped: false })); p.position.set(0, 5.6, s * .16); if (s < 0) p.rotation.y = Math.PI; p.userData.garder = true; g.add(p); }
   return g;
 }
@@ -338,7 +338,7 @@ export function texteToile(lignes, w, h, fond, encre, police) {
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 export function panneauTexte(lignes, w, h, x, y, z, rot, opts = {}) {
-  const t = texteToile(lignes, opts.px ?? 1024, opts.py ?? Math.round(1024 * h / w), opts.fond ?? '#f3e9d2', opts.encre ?? '#1d1a16', opts.police ?? `800 ${Math.round((opts.py ?? 1024 * h / w) * .5)}px "Bricolage Grotesque", system-ui, sans-serif`);
+  const t = texteToile(lignes, opts.px ?? 1024, opts.py ?? Math.round(1024 * h / w), opts.fond ?? '#f3e9d2', opts.encre ?? '#1d1a16', opts.police ?? `800 ${Math.round((opts.py ?? 1024 * h / w) * .5)}px "Google Sans", system-ui, sans-serif`);
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, roughness: .7, side: THREE.DoubleSide }));
   m.position.set(x, y, z); m.rotation.y = rot; m.userData.garder = true; K.racine.add(m); return m;
 }
@@ -1253,7 +1253,7 @@ export function semeOne(ring) {
     const ang = o.L >= o.W ? o.ang : o.ang + Math.PI / 2, len = Math.max(o.L, o.W), dep = Math.min(o.L, o.W);
     const sx = Math.cos(ang), sz = Math.sin(ang);
     const nx = -sz, nz = sx; // façade : enseigne sur le toit, des deux côtés
-    for (const s of [1, -1]) { panneauTexte(['SÈMÈ ONE'], 20, 3, nx * s * (dep / 2 + .3), 14.4, nz * s * (dep / 2 + .3), Math.atan2(nx * s, nz * s), { fond: '#f4f1ea', encre: '#9a3d2b', px: 1024, py: 154, police: '800 118px "Bricolage Grotesque", system-ui, sans-serif' }).material.side = THREE.FrontSide; }
+    for (const s of [1, -1]) { panneauTexte(['SÈMÈ ONE'], 20, 3, nx * s * (dep / 2 + .3), 14.4, nz * s * (dep / 2 + .3), Math.atan2(nx * s, nz * s), { fond: '#f4f1ea', encre: '#9a3d2b', px: 1024, py: 154, police: '800 118px "Google Sans", system-ui, sans-serif' }).material.side = THREE.FrontSide; }
     for (let k = -2; k <= 2; k++) voiture(sx * k * 9 + nx * (dep / 2 + 6), sz * k * 9 + nz * (dep / 2 + 6), ['#1f2326', '#e8e8e4', '#9da3a6', '#3c4a4f', '#e8e8e4'][k + 2], -ang);
   });
   bake(g);

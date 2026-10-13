@@ -7,7 +7,9 @@
 <title>Cotonou 3D</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400..700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#1A7D52">
 </head>
 <body>
 <div id="app">
@@ -18,7 +20,7 @@
   <div class="side">
     <header class="brand panel">
       <a class="langue" id="btnLangue" href="en/" hreflang="en" title="Read in English">EN</a>
-      <h1>Cotonou <span class="tag">3D</span></h1>
+      <h1><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#1A7D52"/><circle cx="14" cy="33" r="6.5" fill="none" stroke="#fff" stroke-width="3.6"/><circle cx="35" cy="33" r="6.5" fill="none" stroke="#fff" stroke-width="3.6"/><path d="M14 33 21 24h9l5 9m-5-9 2.5-8H37M23.5 19 21 24" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24.5" cy="13" r="4.6" fill="#F5C518"/></svg>Cotonou <span class="tag">3D</span></h1>
       <p class="sub">Littoral, Bénin · 6°22′ N, 2°25′ E</p>
       <p class="stats" id="stats"></p>
     </header>
@@ -183,16 +185,25 @@
   <div class="pres" id="pres" hidden><div class="bande haut"></div><div class="bande bas"></div><div class="pres-titre"><h2 id="presTitre"></h2><p id="presSous"></p></div><small class="pres-sortie">Cliquer ou Échap pour quitter</small></div>
 
   <div class="accueil" id="accueil" hidden>
+    <header class="ac-barre">
+      <span class="ac-marque"><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#1A7D52"/><circle cx="14" cy="33" r="6.5" fill="none" stroke="#fff" stroke-width="3.6"/><circle cx="35" cy="33" r="6.5" fill="none" stroke="#fff" stroke-width="3.6"/><path d="M14 33 21 24h9l5 9m-5-9 2.5-8H37M23.5 19 21 24" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24.5" cy="13" r="4.6" fill="#F5C518"/></svg>Cotonou 3D</span>
+      <span class="ac-enligne" id="acEnLigne" hidden><i></i><b></b> en ligne</span>
+      <a class="ac-langue" href="en/" hreflang="en">English</a>
+    </header>
+    <nav class="ac-puces" aria-label="Autres façons de jouer">
+      <button class="ac-puce" type="button" id="acZemRun"><i class="zem"></i>Zém Run</button>
+      <button class="ac-puce" type="button" id="acVisite"><i class="visite"></i>Visite en musique</button>
+    </nav>
     <div class="ac-carte" role="dialog" aria-labelledby="acTitre">
-      <p class="ac-sur">Cotonou · Abomey-Calavi · Ganvié · Ouidah</p>
-      <h1 id="acTitre">Le Bénin en 3D</h1>
-      <p class="ac-texte">Vis à Cotonou : un logement, un métier, un zém ou ta propre moto, des sorties avec tes amis. Ou visite les villes en musique, sur « Agolo » d’Angélique Kidjo.</p>
-      <div class="ac-actions">
-        <button class="jouer ac-visite" type="button" id="acVivre">Vivre à Cotonou</button>
-        <button class="ac-passer" type="button" id="acVisite">Lancer la visite en musique</button>
-        <button class="ac-passer" type="button" id="acPasser">Explorer librement</button>
+      <div class="ac-tete">
+        <div class="ac-avatars" aria-hidden="true"><img src="/modeles/mode/vignettes/vendeuse.webp" alt=""><img src="/modeles/mode/vignettes/etudiante.webp" alt=""><img src="/modeles/mode/vignettes/jeune.webp" alt=""><img src="/modeles/mode/vignettes/ancien.webp" alt=""></div>
+        <p id="acTitre"><b>Vis à Cotonou</b> : un logement, un métier, un zém, des amis. Gratuit.</p>
       </div>
-      <p class="ac-son"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>Avec le son, c’est mieux</p>
+      <div class="ac-actions">
+        <button class="jouer ac-jouer" type="button" id="acVivre">Jouer gratuitement</button>
+        <button class="ac-passer" type="button" id="acPasser">Explorer la carte</button>
+      </div>
+      <p class="ac-son">Sans téléchargement · sur téléphone et ordinateur · avec le son, c’est mieux</p>
     </div>
   </div>
 

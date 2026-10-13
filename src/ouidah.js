@@ -59,7 +59,7 @@ function arene() {
     g.fillStyle = '#7A5A36';
     for (let r = 0; r < 3; r++) for (let x = 40; x < w - 30; x += 30) if ((x / 30 + r) % 2 < 1) g.fillRect(x, 26 + r * 26, 12, 12);
     g.fillStyle = '#E9CB92'; g.fillRect(0, 112, w, 52);
-    g.fillStyle = '#4A3020'; g.font = '800 40px "Bricolage Grotesque", "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#4A3020'; g.font = '800 40px "Google Sans", "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     if (g.letterSpacing !== undefined) g.letterSpacing = '10px';
     g.fillText('ARÈNE DE OUIDAH', w / 2, 139);
     if (portes) {

@@ -97,6 +97,27 @@
           ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() <= data.val() + 1)"
         }
       }
+    },
+    "zem_presence": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "!newData.exists() || newData.hasChildren(['ou', 't'])",
+        "ou": { ".validate": "newData.isString() && newData.val().length <= 12" },
+        "t": { ".validate": "newData.isNumber()" },
+        "$autre": { ".validate": false }
+      }
+    },
+    "zem_stats": {
+      ".read": "auth != null",
+      "jours": {
+        "$jour": {
+          "$cle": {
+            ".write": "auth != null && $jour.matches(/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/) && ($cle === 'vues' || $cle === 'visiteurs' || $cle === 'nouveaux' || $cle === 'salon' || $cle === 'zemrun')",
+            ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+          }
+        }
+      }
     }
   }
 }

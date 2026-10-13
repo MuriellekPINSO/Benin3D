@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Tableau de bord · Cotonou 3D</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400..700&display=swap">
+<style>
+  /* Tableau de bord de Cotonou 3D : qui est en ligne, combien de visiteurs, jour par jour (données : statistiques.js). */
+  :root { --fond: #f2f5f3; --carte: #ffffff; --encre: #15211b; --encre-2: #5b6b62; --trait: #dde5e0; --vert: #1a7d52; --vert-clair: #e6f3ec; --jaune: #f5c518; --violet: #7a5bc7; --bleu: #2e86c1; color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--encre); font: 15px/1.45 "Google Sans", system-ui, -apple-system, "Segoe UI", sans-serif; padding-inline: 16px; padding-block: 20px 40px; }
+  .page { max-width: 1080px; margin: 0 auto; display: grid; gap: 18px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 10px; background: var(--carte); border-radius: 999px; box-shadow: 0 6px 22px rgba(21, 33, 27, .08); }
+  .marque { display: flex; align-items: center; gap: 10px; }
+  .marque svg { width: 38px; height: 38px; flex: none; }
+  .marque b { font-size: 19px; font-weight: 700; }
+  .marque small { color: var(--encre-2); font-size: 14px; }
+  .ouvrir { display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 999px; background: var(--vert); color: #fff; font-weight: 500; text-decoration: none; }
+  .tuiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .tuile { background: var(--carte); border-radius: 22px; padding: 18px 20px; box-shadow: 0 6px 22px rgba(21, 33, 27, .06); display: grid; gap: 6px; min-width: 0; }
+  .tuile small { color: var(--encre-2); font-size: 14px; }
+  .tuile b { font-size: 40px; line-height: 1.05; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .tuile .ecart { font-size: 13px; color: var(--encre-2); }
+  .tuile.direct { background: var(--vert); color: #fff; }
+  .tuile.direct small, .tuile.direct .ecart { color: rgba(255, 255, 255, .85); }
+  .pastille { display: inline-flex; align-items: center; gap: 7px; }
+  .pastille i { width: 9px; height: 9px; border-radius: 50%; background: var(--jaune); box-shadow: 0 0 0 0 rgba(245, 197, 24, .7); animation: battement 1.8s ease-out infinite; }
+  @keyframes battement { 70% { box-shadow: 0 0 0 8px rgba(245, 197, 24, 0); } 100% { box-shadow: 0 0 0 0 rgba(245, 197, 24, 0); } }
+  @media (prefers-reduced-motion: reduce) { .pastille i { animation: none; } }
+  .ou { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ou span { padding: 3px 9px; border-radius: 999px; background: rgba(255, 255, 255, .16); font-size: 13px; }
+  section.bloc { background: var(--carte); border-radius: 22px; padding: 20px; box-shadow: 0 6px 22px rgba(21, 33, 27, .06); display: grid; gap: 14px; min-width: 0; }
+  section.bloc h2 { margin: 0; font-size: 18px; font-weight: 700; }
+  .legende { display: flex; flex-wrap: wrap; gap: 14px; color: var(--encre-2); font-size: 13px; }
+  .legende span { display: inline-flex; align-items: center; gap: 6px; }
+  .legende i { width: 12px; height: 12px; border-radius: 4px; }
+  .graphique { overflow-x: auto; }
+  .graphique svg { display: block; width: 100%; min-width: 620px; height: 240px; }
+  .tableau { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; min-width: 560px; }
+  th, td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--trait); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 13px; font-weight: 500; color: var(--encre-2); }
+  tbody tr:first-child td { font-weight: 700; }
+  .totaux { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .totaux div { background: var(--fond); border-radius: 16px; padding: 12px 14px; display: grid; gap: 2px; }
+  .totaux b { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .totaux small, .note { color: var(--encre-2); font-size: 13px; }
+  .note { margin: 0; }
+  .etat { margin: 0; padding: 14px 16px; border-radius: 16px; background: #fff6d6; color: #5a4300; }
+  @media (max-width: 820px) { .tuiles, .totaux { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tuile b { font-size: 32px; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="marque">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#1A7D52"/><circle cx="14" cy="33" r="6.5" fill="none" stroke="#fff" stroke-width="3.6"/><circle cx="35" cy="33" r="6.5" fill="none" stroke="#fff" stroke-width="3.6"/><path d="M14 33 21 24h9l5 9m-5-9 2.5-8H37M23.5 19 21 24" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24.5" cy="13" r="4.6" fill="#F5C518"/></svg>
+      <div><b>Tableau de bord</b><br><small>Cotonou 3D · <span id="aujourdhui"></span></small></div>
+    </div>
+    <a class="ouvrir" href="/">Ouvrir le jeu</a>
+  </header>
+
+  <p class="etat" id="etat">Connexion aux statistiques…</p>
+
+  <div class="tuiles">
+    <div class="tuile direct"><small class="pastille"><i></i>En ligne maintenant</small><b id="enLigne">–</b><div class="ou" id="ou"></div></div>
+    <div class="tuile"><small>Visiteurs aujourd’hui</small><b id="visiteurs">–</b><span class="ecart" id="visiteursEcart"></span></div>
+    <div class="tuile"><small>Nouveaux aujourd’hui</small><b id="nouveaux">–</b><span class="ecart">premier passage sur cet appareil</span></div>
+    <div class="tuile"><small>Pages vues aujourd’hui</small><b id="vues">–</b><span class="ecart">chaque ouverture du site</span></div>
+  </div>
+
+  <section class="bloc">
+    <h2>Les 30 derniers jours</h2>
+    <div class="legende"><span><i style="background: var(--vert)"></i>Visiteurs</span><span><i style="background: var(--jaune)"></i>Parties de Zém Run</span><span><i style="background: var(--violet)"></i>Entrées dans le salon</span></div>
+    <div class="graphique"><svg id="graphique" viewBox="0 0 900 240" role="img" aria-label="Visiteurs, parties de Zém Run et entrées dans le salon, jour par jour"></svg></div>
+  </section>
+
+  <section class="bloc">
+    <h2>Depuis le début</h2>
+    <div class="totaux">
+      <div><small>Visiteurs (par jour, cumulés)</small><b id="tVisiteurs">–</b></div>
+      <div><small>Appareils différents</small><b id="tNouveaux">–</b></div>
+      <div><small>Entrées dans le salon</small><b id="tSalon">–</b></div>
+      <div><small>Parties de Zém Run</small><b id="tZemrun">–</b></div>
+    </div>
+    <p class="note">Un visiteur = un appareil (téléphone ou ordinateur) par jour. Salon et Zém Run : une fois par appareil et par jour. Heure du Bénin.</p>
+  </section>
+
+  <section class="bloc">
+    <h2>Jour par jour</h2>
+    <div class="tableau"><table><thead><tr><th>Jour</th><th>Visiteurs</th><th>Nouveaux</th><th>Pages vues</th><th>Salon</th><th>Zém Run</th></tr></thead><tbody id="jours"></tbody></table></div>
+  </section>
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
+  import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+  import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js';
+  // La configuration web du jeu (publique) ; la lecture est réservée aux comptes connectés (règles de la base).
+  const app = initializeApp({ apiKey: 'AIzaSyBICBd5BGAGoLBgjRb78Zq-shfP9oij1rA', authDomain: 'zem-run-cotonou.firebaseapp.com', projectId: 'zem-run-cotonou', databaseURL: 'https://zem-run-cotonou-default-rtdb.europe-west1.firebasedatabase.app', appId: '1:655292147870:web:e6d7ab3d39a452adb8338f' }, 'tableau');
+  const $ = s => document.querySelector(s), nb = n => (n ?? 0).toLocaleString('fr-FR');
+  const jour = (decalage = 0) => new Date(Date.now() + 3600e3 - decalage * 864e5).toISOString().slice(0, 10); // heure du Bénin
+  const joli = j => new Date(j + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  $('#aujourdhui').textContent = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Africa/Porto-Novo' });
+  const etat = (t) => { $('#etat').hidden = !t; $('#etat').textContent = t || ''; };
+  const NOMS = { carte: 'carte', salon: 'salon', zemrun: 'Zém Run' };
+
+  try {
+    const auth = getAuth(app); await signInAnonymously(auth);
+    const db = getDatabase(app);
+    onValue(ref(db, 'zem_presence'), s => {
+      const par = {}; s.forEach(c => { const o = c.val()?.ou || 'carte'; par[o] = (par[o] || 0) + 1; });
+      $('#enLigne').textContent = nb(s.size);
+      $('#ou').innerHTML = Object.entries(par).map(([o, n]) => `<span>${nb(n)} · ${NOMS[o] || o}</span>`).join('');
+      etat('');
+    }, e => etat(`Impossible de lire qui est en ligne (${e.code || e.message}). Les règles Firebase sont-elles déployées ?`));
+    onValue(ref(db, 'zem_stats/jours'), s => {
+      const J = s.val() || {}, auj = J[jour()] || {}, hier = J[jour(1)] || {};
+      $('#visiteurs').textContent = nb(auj.visiteurs); $('#nouveaux').textContent = nb(auj.nouveaux); $('#vues').textContent = nb(auj.vues);
+      const d = (auj.visiteurs || 0) - (hier.visiteurs || 0);
+      $('#visiteursEcart').textContent = `hier : ${nb(hier.visiteurs)}${d ? ` (${d > 0 ? '+' : ''}${nb(d)})` : ''}`;
+      const tot = k => Object.values(J).reduce((a, v) => a + (v[k] || 0), 0);
+      $('#tVisiteurs').textContent = nb(tot('visiteurs')); $('#tNouveaux').textContent = nb(tot('nouveaux')); $('#tSalon').textContent = nb(tot('salon')); $('#tZemrun').textContent = nb(tot('zemrun'));
+      const derniers = Array.from({ length: 30 }, (_, k) => jour(29 - k));
+      dessiner(derniers.map(j => ({ j, ...J[j] })));
+      $('#jours').innerHTML = derniers.slice().reverse().filter(j => J[j]).map(j => { const v = J[j]; return `<tr><td>${joli(j)}</td><td>${nb(v.visiteurs)}</td><td>${nb(v.nouveaux)}</td><td>${nb(v.vues)}</td><td>${nb(v.salon)}</td><td>${nb(v.zemrun)}</td></tr>`; }).join('') || '<tr><td colspan="6" style="text-align:left;color:var(--encre-2)">Pas encore de visite enregistrée.</td></tr>';
+    }, e => etat(`Impossible de lire les statistiques (${e.code || e.message}). Les règles Firebase sont-elles déployées ?`));
+  } catch (e) { etat(`Connexion impossible : ${e.code || e.message}`); }
+
+  // Barres groupées par jour (visiteurs, Zém Run, salon), à une seule échelle.
+  function dessiner(jours) {
+    const W = 900, H = 240, g = 34, b = 24, h = H - b - 14, max = Math.max(4, ...jours.map(v => Math.max(v.visiteurs || 0, v.zemrun || 0, v.salon || 0)));
+    const pas = Math.pow(10, Math.floor(Math.log10(max))), haut = Math.ceil(max / pas) * pas, y = v => 14 + h - (v / haut) * h, col = (W - g) / jours.length;
+    let svg = '';
+    for (let k = 0; k <= 4; k++) { const v = haut * k / 4; svg += `<line x1="${g}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="#dde5e0"/><text x="${g - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#5b6b62">${nb(Math.round(v))}</text>`; }
+    jours.forEach((v, i) => {
+      const x = g + i * col, l = Math.max(2, (col - 6) / 3);
+      [['visiteurs', '#1a7d52'], ['zemrun', '#f5c518'], ['salon', '#7a5bc7']].forEach(([k, c], n) => { const val = v[k] || 0; if (val) svg += `<rect x="${x + 3 + n * l}" y="${y(val)}" width="${l - 1}" height="${14 + h - y(val)}" rx="2" fill="${c}"><title>${joli(v.j)} · ${k === 'zemrun' ? 'Zém Run' : k} : ${nb(val)}</title></rect>`; });
+      if (i % 5 === 4 || i === jours.length - 1) svg += `<text x="${x + col / 2}" y="${H - 6}" text-anchor="middle" font-size="11" fill="#5b6b62">${new Date(v.j + 'T12:00:00Z').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</text>`;
+    });
+    $('#graphique').innerHTML = svg;
+  }
+</script>
+</body>
+</html>

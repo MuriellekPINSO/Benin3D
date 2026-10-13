@@ -3,37 +3,28 @@ body { font: 14px system-ui, sans-serif; }
 [hidden] { display: none !important; }
 img { max-width: 100%; }
 
-/* Concept : la ville en plein écran ; l'interface flotte dans des cartouches arrondis couleur sable, accent jaune zémidjan. */
+/* Concept : la ville en plein écran ; l'interface flotte dans des cartouches blancs arrondis, un seul vert pour les
+   boutons (« Lagune ») et le jaune des gilets de zém en petite touche. Toujours clair, comme Lagos Life. Police : Google Sans. */
 :root {
-  --bg: #e6dac3;
-  --ink: #1f1b16;
-  --ink-2: #625849;
-  --panel: rgba(255, 250, 240, 0.86);
-  --panel-solid: #fffaf0;
-  --line: rgba(74, 54, 24, 0.14);
-  --chip: rgba(74, 54, 24, 0.07);
-  --accent: #f2b705;
-  --accent-ink: #1f1b16;
-  --sea: #1f6f8b;
-  --shadow: 0 12px 32px rgba(48, 32, 10, 0.16);
-  --font-display: "Bricolage Grotesque", "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --bg: #e9efeb;
+  --ink: #15211b;
+  --ink-2: #5b6b62;
+  --panel: rgba(255, 255, 255, 0.94);
+  --panel-solid: #ffffff;
+  --line: rgba(21, 33, 27, 0.12);
+  --chip: #f2f5f3;
+  --accent: #1a7d52;
+  --accent-ink: #ffffff;
+  --zem: #f5c518;
+  --sea: #2e86c1;
+  --shadow: 0 10px 30px rgba(21, 33, 27, 0.16);
+  --font-display: "Google Sans", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body: "Google Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --r-lg: 22px;
   --r-md: 14px;
   --gutter: 16px;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0e131b; --ink: #f3ecdf; --ink-2: #b6ab95; --panel: rgba(16, 21, 30, 0.84); --panel-solid: #141a25;
-    --line: rgba(255, 236, 200, 0.13); --chip: rgba(255, 236, 200, 0.08); --accent: #f5c21b; --accent-ink: #17130c;
-    --sea: #5fb3cf; --shadow: 0 12px 32px rgba(0, 0, 0, 0.45); color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0e131b; --ink: #f3ecdf; --ink-2: #b6ab95; --panel: rgba(16, 21, 30, 0.84); --panel-solid: #141a25;
-  --line: rgba(255, 236, 200, 0.13); --chip: rgba(255, 236, 200, 0.08); --accent: #f5c21b; --accent-ink: #17130c;
-  --sea: #5fb3cf; --shadow: 0 12px 32px rgba(0, 0, 0, 0.45); color-scheme: dark;
+  color-scheme: light;
 }
 html, body { height: 100%; }
 body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font-body); overflow: hidden; -webkit-font-smoothing: antialiased; }
@@ -57,8 +48,9 @@ button { font: inherit; color: inherit; }
 .langue { position: absolute; top: 14px; right: 14px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); color: var(--ink); font: 800 12px/1 var(--font-body); letter-spacing: .06em; text-decoration: none; }
 .langue:hover { background: var(--accent); color: #1d1a16; border-color: transparent; }
 .langue:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.brand h1 { margin: 0; font: 800 34px/0.95 var(--font-display); letter-spacing: -0.02em; text-wrap: balance; display: flex; align-items: baseline; gap: 10px; }
-.brand h1 .tag { font: 600 11px/1 var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); padding: 5px 8px; border-radius: 999px; transform: translateY(-5px); }
+.brand h1 { margin: 0; font: 700 30px/1 var(--font-display); letter-spacing: -0.01em; text-wrap: balance; display: flex; align-items: center; gap: 10px; }
+.brand h1 .logo { width: 38px; height: 38px; flex: none; }
+.brand h1 .tag { font: 600 11px/1 var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); padding: 5px 8px; border-radius: 999px; transform: none; }
 .brand .sub { margin: 8px 0 0; color: var(--ink-2); font-size: 13px; }
 .brand .stats { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .brand .stats span { font: 500 11.5px/1 var(--font-mono); padding: 6px 8px; border-radius: 999px; background: var(--chip); font-variant-numeric: tabular-nums; }
@@ -146,7 +138,8 @@ button { font: inherit; color: inherit; }
 .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .chip[aria-pressed="true"] span { color: inherit; opacity: .7; }
 .places li[hidden] { display: none; }
-.jouer { border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 800; font-size: 14px; padding: 10px 18px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 4px 14px rgba(242,183,5,.35); }
+.jouer { border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 14px; padding: 10px 18px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 4px 14px rgba(26, 125, 82, .28); }
+.jouer:hover { background: #166b46; }
 .jouer svg { width: 16px; height: 16px; }
 .jouer-flottant { position: absolute; top: var(--gutter); left: 50%; transform: translateX(-50%); z-index: 2; font-size: 15px; padding: 12px 22px; }
 /* « Vivre à Cotonou » et « Jouer à Zém Run » côte à côte en haut de la carte */
@@ -267,22 +260,40 @@ button { font: inherit; color: inherit; }
 .jf-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 
 /* Accueil : la visite en musique, ou la ville tout de suite */
-.accueil { position: absolute; inset: 0; z-index: 5; display: grid; grid-template-columns: minmax(0, 460px); place-content: center; padding: 0 var(--gutter); background: radial-gradient(ellipse at center, rgba(14,19,27,.18), rgba(14,19,27,.62)); animation: acEntre .8s ease both; }
+.accueil { position: absolute; inset: 0; z-index: 5; background: linear-gradient(to bottom, rgba(21, 33, 27, 0) 55%, rgba(21, 33, 27, .28)); animation: acEntre .8s ease both; }
 .accueil.sort { animation: acSort .5s ease both; pointer-events: none; }
 @keyframes acEntre { from { opacity: 0; } } @keyframes acSort { to { opacity: 0; } }
-.ac-carte { box-sizing: border-box; width: 100%; max-height: calc(100dvh - 2 * var(--gutter)); overflow-y: auto; background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 28px 28px 20px; }
-.ac-sur { margin: 0 0 10px; color: var(--ink-2); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.ac-carte h1 { margin: 0; font: 800 clamp(38px, 8vw, 56px)/.92 var(--font-display); letter-spacing: -.03em; }
-.ac-texte { margin: 14px 0 20px; color: var(--ink-2); font-size: 15px; line-height: 1.5; }
-.ac-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.ac-visite { font-size: 16px; padding: 14px 24px; }
-.ac-visite svg { width: 18px; height: 18px; }
-.ac-passer { border: 1px solid var(--line); background: var(--chip); padding: 13px 18px; border-radius: 999px; font-weight: 700; font-size: 14px; cursor: pointer; }
-.ac-passer:hover { background: var(--line); }
-.ac-visite:focus-visible, .ac-passer:focus-visible { outline: 3px solid var(--sea); outline-offset: 2px; }
-.ac-son { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; color: var(--ink-2); font-size: 12px; }
-.ac-son svg { width: 14px; height: 14px; flex: none; }
-@media (max-width: 480px) { .ac-carte { padding: 22px 20px 16px; } .ac-actions > button { flex: 1 1 100%; justify-content: center; } }
+/* Accueil comme Lagos Life : la ville en 3D derrière, une barre blanche en haut, une carte « Jouer » en bas */
+.ac-barre { position: absolute; top: var(--gutter); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 18px; padding: 8px 18px 8px 10px; border-radius: 999px; background: var(--panel-solid); box-shadow: var(--shadow); white-space: nowrap; max-width: calc(100% - 2 * var(--gutter)); box-sizing: border-box; }
+.ac-marque { display: flex; align-items: center; gap: 10px; font: 700 20px/1 var(--font-display); letter-spacing: -.01em; }
+.ac-marque .logo { width: 36px; height: 36px; flex: none; }
+.ac-enligne { display: flex; align-items: center; gap: 7px; color: var(--accent); font-weight: 500; font-size: 15px; }
+.ac-enligne i { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+.ac-langue { color: var(--ink-2); font-weight: 500; text-decoration: none; }
+.ac-langue:hover { color: var(--ink); }
+.ac-puces { position: absolute; top: calc(var(--gutter) + 68px); left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: max-content; max-width: calc(100% - 2 * var(--gutter)); }
+.ac-puce { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border: 0; border-radius: 999px; background: var(--panel-solid); color: var(--ink); box-shadow: 0 4px 14px rgba(21, 33, 27, .14); font-weight: 500; font-size: 15px; cursor: pointer; }
+.ac-puce:hover { background: var(--chip); }
+.ac-puce i { width: 9px; height: 9px; border-radius: 50%; background: var(--zem); }
+.ac-puce i.visite { background: #7a5bc7; }
+.ac-carte { position: absolute; left: 50%; bottom: calc(var(--gutter) + 10px); transform: translateX(-50%); box-sizing: border-box; width: min(620px, calc(100% - 2 * var(--gutter))); max-height: calc(100dvh - 160px); overflow-y: auto; padding: 22px 22px 16px; border-radius: 28px; background: var(--panel-solid); box-shadow: 0 14px 40px rgba(21, 33, 27, .22); display: grid; gap: 16px; }
+.ac-tete { display: flex; align-items: center; gap: 14px; }
+.ac-avatars { display: flex; flex: none; }
+.ac-avatars img { width: 42px; height: 42px; border-radius: 50%; border: 3px solid var(--panel-solid); background: #e6f3ec; object-fit: cover; }
+.ac-avatars img + img { margin-left: -12px; }
+.ac-tete p { margin: 0; font-size: 17px; line-height: 1.35; color: var(--ink-2); }
+.ac-tete b { color: var(--ink); font-weight: 700; }
+.ac-actions { display: flex; gap: 12px; }
+.ac-jouer { flex: 1; justify-content: center; height: 62px; font-size: 21px; font-weight: 500; }
+.ac-passer { height: 62px; padding: 0 24px; border: 2px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; font-weight: 500; font-size: 18px; cursor: pointer; }
+.ac-passer:hover { background: var(--chip); }
+.ac-jouer:focus-visible, .ac-passer:focus-visible, .ac-puce:focus-visible { outline: 3px solid var(--sea); outline-offset: 2px; }
+.ac-son { margin: 0; text-align: center; font-size: 13px; color: var(--ink-2); }
+@media (max-width: 560px) {
+  .ac-barre { gap: 10px; padding: 6px 14px 6px 6px; } .ac-marque { font-size: 17px; } .ac-marque .logo { width: 30px; height: 30px; }
+  .ac-puces { top: calc(var(--gutter) + 56px); }
+  .ac-carte { padding: 18px 16px 14px; } .ac-actions { flex-direction: column; } .ac-jouer, .ac-passer { height: 54px; font-size: 18px; } .ac-tete p { font-size: 15px; }
+}
 .mode-accueil .side, .mode-accueil .hud, .mode-accueil .dock, .mode-accueil .card, .mode-accueil .jouer-flottant { display: none !important; }
 .mode-accueil #labels { opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .accueil, .accueil.sort { animation: none; } }
@@ -586,7 +597,9 @@ button { font: inherit; color: inherit; }
 .sl-agir { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; max-width: calc(100% - 2 * var(--gutter)); }
 .sl-agir .jouer { font-size: 15px; padding: 12px 22px; }
 .sl-agir2 { border: 0; border-radius: 999px; padding: 11px 18px; font-weight: 800; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); cursor: pointer; }
-.sl-zem { border: 0; border-radius: 999px; padding: 8px 12px; font-weight: 800; background: #f2c21b; color: #17130c; cursor: pointer; }
+.sl-zem { border: 0; border-radius: 999px; padding: 10px 14px; font-weight: 600; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+.sl-zem.sl-habiller { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); }
+.sl-actions select { background: var(--panel-solid) !important; color: var(--ink) !important; box-shadow: inset 0 0 0 1.5px var(--line); }
 .vh-gps { color: #2e8fd6 !important; font-weight: 700; }
 .fondu { position: fixed; inset: 0; z-index: 60; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s ease; }
 .fondu.noir { opacity: 1; }

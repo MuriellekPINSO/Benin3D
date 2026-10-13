@@ -24,7 +24,8 @@ export function traduireHtml(h, html) {
     .replace(/\b(title|aria-label|placeholder|alt|content)="([^"]*)"/g, (m, a, v) => html[v] !== undefined ? `${a}="${html[v]}"` : m)
     .replace(/>([^<]+)</g, (m, x) => `>${t(x)}<`)
     // le bouton de langue ramène au français
-    .replace(/<a class="langue" id="btnLangue" href="en\/" hreflang="en"([^>]*)>EN<\/a>/, '<a class="langue" id="btnLangue" href="/" hreflang="fr" title="Lire en français">FR</a>');
+    .replace(/<a class="langue" id="btnLangue" href="en\/" hreflang="en"([^>]*)>EN<\/a>/, '<a class="langue" id="btnLangue" href="/" hreflang="fr" title="Lire en français">FR</a>')
+    .replace(/<a class="ac-langue" href="en\/" hreflang="en">English<\/a>/, '<a class="ac-langue" href="/" hreflang="fr">Français</a>'); // accueil
 }
 export function langue(code) {
   if (code !== 'en') return { name: 'langue' };

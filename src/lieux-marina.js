@@ -27,7 +27,7 @@ const loc = (g, ring) => ring.map(([x, z]) => [x - g.position.x, z - g.position.
 // Bâtiment simple : murs d'un polygone, toit plat, acrotère.
 function bloc(ring, y0, y1, murs, tu, tv, toit = '#cfcac0') { mursPoly(ring, y0, y1, murs, tu, tv); solPoly([ring], K.mat(toit), y1, 4); }
 // Texte sur fond transparent (enseignes en lettres découpées).
-function lettres(txt, w, h, x, y, z, rot, encre, police = '900 150px "Bricolage Grotesque", system-ui, sans-serif', fond = null) {
+function lettres(txt, w, h, x, y, z, rot, encre, police = '900 150px "Google Sans", system-ui, sans-serif', fond = null) {
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = Math.max(64, Math.round(1024 * h / w)); const c = cv.getContext('2d');
   if (fond) { c.fillStyle = fond; c.fillRect(0, 0, cv.width, cv.height); }
   c.fillStyle = encre; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = police;

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { $, coarse, toXZ } from './base.js';
 import { PLACES } from './donnees-lieux.js';
 import { creerGuide } from './guide.js';
+import { compterUneFois, lieuStats } from './statistiques.js';
 import { personne } from './discussions.js';
 import { INTERIEURS, arriveeDedans, arriveeDehors, cacherInterieurs, limiter, murEntre, ouvrirInterieur, porteProche, profondeurInterieur, siegeProche } from './interieurs.js';
 import { actionsMaison, initMaison, maisonActuelle, majMaison, occupe, quitterMaison, reveil } from './maison.js';
@@ -256,7 +257,7 @@ async function entrer(code) {
   const { c, e } = await canal;
   if (e) { console.warn('salon', e); statut(erreur(e), 'mal'); return; }
   S.canal = c;
-  S.code = code; S.actif = true; statut('');
+  S.code = code; S.actif = true; statut(''); compterUneFois('salon'); lieuStats('salon');
   $('#salon').hidden = true; $('#salonHud').hidden = false; $('#slCodeAff').textContent = code; $('#slJoy').hidden = !coarse;
   document.getElementById('app').classList.add('mode-salon');
   // À pied, il faut la ville en 3D autour de soi : la « Vue réelle » (images Google à plat) attendra la sortie.
@@ -293,6 +294,7 @@ async function porter(modele, forcer = false) {
 }
 function quitter() {
   if (!S.actif) return;
+  lieuStats('carte');
   quitterMonde(); dehors(); sauverVie(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
   S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;

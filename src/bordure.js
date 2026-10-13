@@ -77,7 +77,7 @@ function icone(c, nom, x, y, r, col) {
 }
 function lignesDe(c, txt, w, taille) {
   const mots = txt.split(/\s+/), out = []; let cur = '';
-  c.font = `800 ${taille}px "Plus Jakarta Sans", system-ui, sans-serif`;
+  c.font = `800 ${taille}px "Google Sans", system-ui, sans-serif`;
   for (const m of mots) { const t = cur ? cur + ' ' + m : m; if (c.measureText(t).width > w && cur) { out.push(cur); cur = m; } else cur = t; }
   if (cur) out.push(cur); return out;
 }
@@ -93,8 +93,8 @@ function texEnseigne(type, nom) {
   const sous = s.label && !titre.includes(s.label.split(' ')[0]) ? s.label : '';
   const hTot = lg.length * taille * 1.05 + (sous ? 34 : 0); let y = (H - 22 - hTot) / 2 + taille * .85;
   c.fillStyle = s.encre; c.textBaseline = 'alphabetic';
-  if (sous) { c.font = '700 26px "Plus Jakarta Sans", system-ui, sans-serif'; c.globalAlpha = .75; c.fillText(sous, x0, y - taille * .85 + 26); c.globalAlpha = 1; y += 34; }
-  c.font = `800 ${taille}px "Plus Jakarta Sans", system-ui, sans-serif`;
+  if (sous) { c.font = '700 26px "Google Sans", system-ui, sans-serif'; c.globalAlpha = .75; c.fillText(sous, x0, y - taille * .85 + 26); c.globalAlpha = 1; y += 34; }
+  c.font = `800 ${taille}px "Google Sans", system-ui, sans-serif`;
   for (const l of lg) { c.fillText(l, x0, y); y += taille * 1.05; }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
@@ -395,7 +395,7 @@ export function majMiniCarte(st, C) {
   // Noms des arrêts à venir.
   c.save(); c.beginPath(); c.arc(w / 2, h / 2, w / 2 - 2, 0, 7); c.clip();
   const cs = Math.cos(rot), sn = Math.sin(rot);
-  c.font = `700 ${Math.round(w / 15)}px "Plus Jakarta Sans", system-ui, sans-serif`; c.textAlign = 'center';
+  c.font = `700 ${Math.round(w / 15)}px "Google Sans", system-ui, sans-serif`; c.textAlign = 'center';
   for (const a of M.arrets) {
     if (a.s < st.s) continue; const q = pose(C, a.s, 0, tmpPQ); const dx = (q.x - p.x) / MPX * echelle, dz = (q.z - p.z) / MPX * echelle;
     const sx = w / 2 + dx * cs - dz * sn, sy = h * .62 + dx * sn + dz * cs;
@@ -403,7 +403,7 @@ export function majMiniCarte(st, C) {
     c.lineWidth = 4; c.strokeStyle = '#ffffff'; c.strokeText(a.nom, sx, sy - 10); c.fillStyle = '#1d1a16'; c.fillText(a.nom, sx, sy - 10);
   }
   // Les lieux connus dans le cercle : point coloré et nom (pour se repérer, comme le demande la joueuse).
-  c.font = `600 ${Math.round(w / 19)}px "Plus Jakarta Sans", system-ui, sans-serif`;
+  c.font = `600 ${Math.round(w / 19)}px "Google Sans", system-ui, sans-serif`;
   const proches = PLACES.filter(q => q.x !== undefined && Math.hypot(q.x - p.x, q.z - p.z) < (w / 2) / echelle * MPX * 1.05).sort((q1, q2) => Math.hypot(q1.x - p.x, q1.z - p.z) - Math.hypot(q2.x - p.x, q2.z - p.z)).slice(0, 7);
   for (const q of proches) {
     const dx = (q.x - p.x) / MPX * echelle, dz = (q.z - p.z) / MPX * echelle, sx = w / 2 + dx * cs - dz * sn, sy = h * .62 + dx * sn + dz * cs;

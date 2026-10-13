@@ -124,7 +124,7 @@ function foodCourt(I) {
   COMPTOIRS.forEach(([nom, genre, couleur, plats], k) => {
     const x = -14.4 + k * 7.2;
     K.boite(6.4, 3.4, .1, K.mat(couleur, { rugosite: .7 }), x, 1.7, D / 2 - .2).castShadow = false;
-    panneauTexte([nom, genre], 4.6, .9, x, 3.05, D / 2 - .26, Math.PI, { fond: couleur, encre: '#ffffff', px: 1024, py: 200, police: '800 72px "Bricolage Grotesque", system-ui, sans-serif' });
+    panneauTexte([nom, genre], 4.6, .9, x, 3.05, D / 2 - .26, Math.PI, { fond: couleur, encre: '#ffffff', px: 1024, py: 200, police: '800 72px "Google Sans", system-ui, sans-serif' });
     menu(nom, plats, couleur, 2, 1.3, x + 1.9, 1.85, D / 2 - .27, Math.PI);
     K.boite(5.4, 1.05, .9, '#f2efe8', x, .52, D / 2 - 2.4); K.boite(5.5, .06, 1, K.mat('#3a3f44', { rugosite: .35 }), x, 1.08, D / 2 - 2.4); bloc(I, 5.5, 1, x, D / 2 - 2.4);
     for (let p = 0; p < 3; p++) K.cyl(.22, .22, .12, 14, K.mat(['#c25a2a', '#e9d8a6', '#6b8e4e'][(p + k) % 3]), x - 1.4 + p * 1.1, 1.17, D / 2 - 2.4); // plats exposés

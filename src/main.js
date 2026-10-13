@@ -31,6 +31,7 @@ import { initMode } from './mode.js';
 import { initSalon, majSalon } from './salon.js';
 import { chargerTokpa, chargerZems } from './vehicules.js';
 import { demarrerTelechargements, plusTard } from './telechargements.js';
+import { demarrerStats } from './statistiques.js';
 import { buildBuildings, buildContainers, buildFoam, buildPalms, buildRoads, buildShips, buildSurfaces, buildingMeshes } from './ville.js';
 
 // ---------- Boucle ----------
@@ -141,6 +142,7 @@ async function main() {
   if (!reduceMotion) startFlight(target.clone(), 12500, 0.98, 0.42, 6.5);
   requestAnimationFrame(t => { last = t; loop(t); });
   setTimeout(() => { $('#loader').classList.add('done'); demarrerTelechargements(); }, 150); // les modèles détaillés, une fois la ville affichée
+  setTimeout(demarrerStats, 2500); // présence et compteurs du tableau de bord (statistiques.js)
   accueil(); // d'abord la visite en musique, ou la ville tout de suite
   // Le temps qu'il faisait la dernière fois.
   try { const m = localStorage.getItem('cotonou3d.meteo'); if (m && m !== 'soleil') changerMeteo(m); } catch { }
