@@ -74,7 +74,26 @@
   "'Passagers payants'": "'Paying passengers'",
   "'Clients transportés'": "'Customers carried'",
   "'Distance parcourue'": "'Distance travelled'",
-  "'Durée'": "'Time'"
+  "'Durée'": "'Time'",
+  "'Le GPS tourne à droite'": "'The GPS turns right'",
+  "'Le GPS tourne à gauche'": "'The GPS turns left'",
+  "'Le GPS va tout droit'": "'The GPS goes straight on'",
+  "'Tourner à gauche'": "'Turn left'",
+  "'Tout droit'": "'Straight on'",
+  "'Tourner à droite'": "'Turn right'",
+  "'Ton client demande le prix : clique sur une réponse, ou appuie sur [1] [2] [3].'": "'Your customer asks the fare: click an answer, or press [1] [2] [3].'",
+  "'Maintiens [↑] (ou « Gaz ») pour rouler. Relâche pour ralentir, [↓] pour freiner.'": "'Hold [↑] (or “Gas”) to ride. Let go to slow down, [↓] to brake.'",
+  "'[←] [→] : change de file pour éviter les zems, les trous et les chèvres. [Espace] : sauter par-dessus un trou.'": "'[←] [→]: change lane to dodge zems, potholes and goats. [Space]: jump over a pothole.'",
+  "Bientôt l’arrêt ": "Stop coming up: ",
+  " : mets-toi à droite [→], puis freine [↓] dans la zone jaune. ": ". Move right [→], then brake [↓] in the yellow zone. ",
+  "'Ton client descend et paie.'": "'Your customer gets off and pays.'",
+  "'L’apprenti encaisse les passagers.'": "'The apprentice collects the fares.'",
+  "'Pas de client à bord : quelqu’un te fait signe au bord de la route. Arrête-toi à sa hauteur, puis [E].'": "'No customer on board: someone is waving at the roadside. Stop next to them, then press [E].'",
+  "'Carrefour : sans rien faire, tu suis le GPS. Pour prendre une autre rue, ralentis puis [←] [→], ou touche les boutons du panneau.'": "'Junction: do nothing and you follow the GPS. To take another street, slow down then press [←] [→], or tap the panel buttons.'",
+  "'Ton réservoir baisse : arrête-toi devant un vendeur de kpayo ou une station, puis [E] pour faire le plein.'": "'Your tank is getting low: stop next to a kpayo seller or a filling station, then press [E] to fill up.'",
+  "'Bien joué ! [Échap] met le jeu en pause. Quand tu quittes la course, tu vois ton bilan et ta recette va dans ta cagnotte.'": "'Well done! [Esc] pauses the game. When you leave the ride, you see your summary and your takings go into your savings.'",
+  "'Prise en main'": "'Getting started'",
+  "'Le guide s’affichera à la prochaine course'": "'The guide will show on your next ride'"
  },
  "index.html": {
   "Crédits": "Credits",
@@ -352,7 +371,17 @@
   "'Chez moi'": "'My home'",
   "'Finir ta journée ?'": "'End your day?'",
   "'Oui, j’arrête pour aujourd’hui'": "'Yes, I’m done for today'",
-  "'Non, je continue'": "'No, I’ll keep going'"
+  "'Non, je continue'": "'No, I’ll keep going'",
+  "'Tu te réveilles chez toi. Appuie sur [E] (ou le bouton jaune en bas) pour te lever.'": "'You wake up at home. Press [E] (or the yellow button below) to get up.'",
+  "'Marche avec les flèches ou [Z] [Q] [S] [D] (sur téléphone, le joystick). Les boutons jaunes en bas changent selon ce qui est près de toi.'": "'Walk with the arrow keys or [W] [A] [S] [D] (on a phone, the joystick). The yellow buttons below change with what is near you.'",
+  "'Chez toi, approche-toi de la douche ou du fourneau et appuie sur le bouton pour te laver ou cuisiner, puis mange à table. Le bouton « Sortir » t’emmène dans la rue.'": "'At home, walk up to the shower or the stove and press the button to wash or cook, then eat at the table. The “Go out” button takes you to the street.'",
+  "'Te voilà dans la rue. En bas à droite, « Aller à » t’emmène vers un lieu et « Prendre un zém » appelle un zém. En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.'": "'You are in the street. Bottom right, “Go to” takes you to a place and “Hail a zém” calls a zém. Top left, “Work” finds you a job to earn money.'",
+  "'En haut à gauche, « Ma vie » : ton argent, ta faim et ta mission. Mange quand la faim baisse : au maquis, au food court de la Cité ou chez toi.'": "'Top left, “My life”: your money, your hunger and your task. Eat when your hunger drops: at a maquis, at the Cité food court or at home.'",
+  "'Prise en main'": "'Getting started'",
+  "'Sortir'": "'Go out'",
+  "Viens vivre à Cotonou avec moi ! Salon ": "Come and live in Cotonou with me! Room ",
+  "'Vivre à Cotonou'": "'Live in Cotonou'",
+  "'Lien du salon copié : colle-le où tu veux, ou envoie-le sur WhatsApp.'": "'Room link copied: paste it anywhere, or send it on WhatsApp.'"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -1080,6 +1109,11 @@
   "'S’asseoir pour manger'": "'Sit down to eat'",
   "'Se doucher'": "'Take a shower'",
   "'Se coucher'": "'Lie down'",
-  "'Petite sieste… Avance pour te lever.'": "'A little nap… Move to get up.'"
+  "'Petite sieste… Avance pour te lever.'": "'A little nap… Move to get up.'",
+  "'Tu as faim : prépare quelque chose avant de sortir.'": "'You are hungry: cook something before going out.'",
+  "' « Se lever » (ou avance) pour commencer ta journée.'": "' “Get up” (or walk) to start your day.'"
+ },
+ "src/guide.js": {
+  "</p><button type=\"button\" data-masquer>Masquer le guide</button>": "</p><button type=\"button\" data-masquer>Hide the guide</button>"
  }
 }

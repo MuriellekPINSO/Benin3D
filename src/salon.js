@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { $, coarse, toXZ } from './base.js';
 import { PLACES } from './donnees-lieux.js';
+import { creerGuide } from './guide.js';
 import { personne } from './discussions.js';
 import { INTERIEURS, arriveeDedans, arriveeDehors, cacherInterieurs, limiter, murEntre, ouvrirInterieur, porteProche, profondeurInterieur, siegeProche } from './interieurs.js';
 import { actionsMaison, initMaison, maisonActuelle, majMaison, occupe, quitterMaison, reveil } from './maison.js';
@@ -232,7 +233,8 @@ function dedans(I) {
 function dehors(replacer = true) {
   const I = S.lieu; if (!I) return;
   quitterMaison(); // plus couché ni sous la douche
-  S.lieu = null; S.y = 0; S.geste = 'idle'; // assis à table dedans : debout dans la rue cacherInterieurs(); document.getElementById('app').classList.remove('dedans');
+  S.lieu = null; S.y = 0; S.geste = 'idle'; // assis à table dedans : debout dans la rue
+  cacherInterieurs(); document.getElementById('app').classList.remove('dedans');
   if (replacer) { const a = arriveeDehors(I); S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; }
 }
 function porte() { S.actions?.[0]?.f(); } // touche E : l'action principale du moment
@@ -292,7 +294,8 @@ async function porter(modele, forcer = false) {
 function quitter() {
   if (!S.actif) return;
   quitterMonde(); dehors(); sauverVie(); S.actif = false;
-  for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi » S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
+  for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
+  S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
   for (const A of S.autres.values()) retirer(A); S.autres.clear();
   if (S.moi) { retirerBulle(S); scene.remove(S.moi); S.moi.userData.liberer?.(); S.moi = S.g = null; }
   for (const A of S.autres.values()) vehiculeDe(A, null);
@@ -302,9 +305,11 @@ function quitter() {
   if (S.vueReelle && $('#togGoogle')?.getAttribute('aria-pressed') !== 'true') $('#togGoogle').click();
   startFlight(new THREE.Vector3(S.x, 0, S.z), 160, 1.05, S.cap + Math.PI, 1.6);
 }
+/** Inviter : le partage du téléphone, sinon le lien copié (pour le coller où l'on veut) et WhatsApp ouvert. */
 async function inviter() {
-  const url = `${location.origin}${location.pathname}?salon=${S.code}`, texte = `Viens me retrouver à Cotonou dans Zém Run ! Salon ${S.code} :`;
-  try { if (navigator.share) { await navigator.share({ title: 'Entre amis à Cotonou', text: texte, url }); return; } } catch (e) { if (e.name === 'AbortError') return; }
+  const url = `${location.origin}${location.pathname}?salon=${S.code}`, texte = `Viens vivre à Cotonou avec moi ! Salon ${S.code} :`;
+  try { if (navigator.share) { await navigator.share({ title: 'Vivre à Cotonou', text: texte, url }); return; } } catch (e) { if (e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(url); ligne('Lien du salon copié : colle-le où tu veux, ou envoie-le sur WhatsApp.'); } catch { ligne(`Envoie ce lien à tes amis : ${url}`); }
   window.open(`https://wa.me/?text=${encodeURIComponent(`${texte} ${url}`)}`, '_blank', 'noopener');
 }
 async function copier() {
@@ -313,8 +318,28 @@ async function copier() {
 }
 
 // ---------- À chaque image (avant controls.update, qui fait regarder la caméra vers la cible) ----------
+// ---------- Prise en main du salon (la première fois) : se lever, marcher, la maison, la rue, « Ma vie » ----------
+const GS = { vuCouche: false, marche: 0, px: null, pz: 0, activite: false, dehorsT: 0 };
+let guideSalon = null;
+const etapesSalon = () => [
+  { id: 'lever', texte: 'Tu te réveilles chez toi. Appuie sur [E] (ou le bouton jaune en bas) pour te lever.', quand: () => !!S.couche, fait: () => GS.vuCouche && !S.couche },
+  { id: 'marcher', texte: 'Marche avec les flèches ou [Z] [Q] [S] [D] (sur téléphone, le joystick). Les boutons jaunes en bas changent selon ce qui est près de toi.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
+  { id: 'maison', texte: 'Chez toi, approche-toi de la douche ou du fourneau et appuie sur le bouton pour te laver ou cuisiner, puis mange à table. Le bouton « Sortir » t’emmène dans la rue.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.activite || GS.dehorsT > 0 },
+  { id: 'rue', texte: 'Te voilà dans la rue. En bas à droite, « Aller à » t’emmène vers un lieu et « Prendre un zém » appelle un zém. En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.', quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier, duree: 15 },
+  { id: 'vie', texte: 'En haut à gauche, « Ma vie » : ton argent, ta faim et ta mission. Mange quand la faim baisse : au maquis, au food court de la Cité ou chez toi.', quand: () => GS.dehorsT > 16, fait: () => false, duree: 10 },
+];
+function majGuideSalon(dt) {
+  if (!guideSalon?.actif()) return;
+  if (S.couche) GS.vuCouche = true;
+  if (S.activite) GS.activite = true;
+  if (!S.lieu) GS.dehorsT += dt;
+  if (GS.px !== null && T.mode === 'pied') GS.marche += Math.min(2, Math.hypot(S.x - GS.px, S.z - GS.pz)); // les sauts (entrer, sortir) ne comptent pas
+  GS.px = S.x; GS.pz = S.z;
+  guideSalon.maj(dt);
+}
 export function majSalon(dt) {
   if (!S.actif) return;
+  majGuideSalon(dt);
   const t = S.touches, j = S.joy;
   const pad = S.pad && performance.now() - S.padT < 250 ? S.pad : null; // manette (voir manette.js), si elle vient de parler : débranchée ou menu ouvert, on n'avance plus
   const av = THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
@@ -458,10 +483,12 @@ function ouvrir() {
 export function initSalon(data) {
   surAnnonce(t => ligne(t)); // argent gagné ou dépensé, faim : dans le fil du salon
   S.dire = dire; initTrajets(data, { S, ligne, dedans, dehors, bulle, retirerBulle });
-  initMaison({ S, ligne, geste }); // chez soi : se lever, se doucher, cuisiner (maison.js)
+  initMaison({ S, ligne, geste, guide: () => !!guideSalon?.actif() }); // chez soi : se lever, se doucher, cuisiner (maison.js)
+  guideSalon = creerGuide({ cle: 'cotonou3d.guide', el: $('#slGuide'), titre: 'Prise en main', etapes: etapesSalon() });
   if (import.meta.env.DEV) window.__salon = { S, T, VIE, surRoute, profondeurRue, dansBatiment, profondeurInterieur, obstaclesPres }; // pour les tests (console, scripts)
   S.local = new URLSearchParams(location.search).has('salon-local');
-  $('#btnSalon')?.addEventListener('click', ouvrir);
+  $('#btnSalon')?.addEventListener('click', ouvrir); $('#btnVivre')?.addEventListener('click', ouvrir);
+  $('#slGestesTog')?.addEventListener('click', e => { const o = !$('#slActions').classList.contains('gestes'); $('#slActions').classList.toggle('gestes', o); e.currentTarget.setAttribute('aria-expanded', String(o)); });
   $('#slFermer')?.addEventListener('click', () => { $('#salon').hidden = true; });
   $('#slCreer')?.addEventListener('click', () => entrer(codeAleatoire()));
   const rejoindre = () => { const c = nettoyer($('#slCode').value, 6).toUpperCase(); if (!/^[A-Z2-9]{6}$/.test(c)) return statut('Le code du salon fait 6 caractères (lettres et chiffres).', 'mal'); entrer(c); };

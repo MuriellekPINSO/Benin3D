@@ -149,6 +149,10 @@ button { font: inherit; color: inherit; }
 .jouer { border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 800; font-size: 14px; padding: 10px 18px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 4px 14px rgba(242,183,5,.35); }
 .jouer svg { width: 16px; height: 16px; }
 .jouer-flottant { position: absolute; top: var(--gutter); left: 50%; transform: translateX(-50%); z-index: 2; font-size: 15px; padding: 12px 22px; }
+/* « Vivre à Cotonou » et « Jouer à Zém Run » côte à côte en haut de la carte */
+.jouer-flottants { position: absolute; top: var(--gutter); left: 50%; transform: translateX(-50%); z-index: 2; display: flex; gap: 10px; }
+.jouer-flottants .jouer-flottant { position: static; transform: none; white-space: nowrap; }
+.jouer-flottant svg { width: 16px; height: 16px; }
 .mode-jeu .jouer-flottant, .mode-pres .jouer-flottant, .mode-jeu .side, .mode-jeu .hud, .mode-jeu .dock, .mode-jeu .credits, .mode-jeu .card,
 .mode-pres .side, .mode-pres .hud, .mode-pres .dock, .mode-pres .credits, .mode-pres .card { display: none !important; }
 .mode-pres #labels { opacity: 0; }
@@ -303,6 +307,7 @@ button { font: inherit; color: inherit; }
   .chips { display: none; }
   .jouer { padding: 9px 13px; }
   .jouer-flottant { top: auto; left: auto; transform: none; right: var(--gutter); bottom: 132px; font-size: 14px; }
+  .jouer-flottants { top: auto; left: auto; transform: none; right: var(--gutter); bottom: 132px; flex-direction: column; align-items: flex-end; gap: 8px; }
   .side { position: static; width: auto; display: contents; }
   .brand { position: absolute; top: var(--gutter); left: var(--gutter); right: calc(var(--gutter) + 86px); padding: 12px 14px; }
   .brand h1 { font-size: 26px; }
@@ -456,12 +461,40 @@ button { font: inherit; color: inherit; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* Carrefour devant : flèches pour tourner */
-.jh-carrefour { position: absolute; left: 50%; top: 212px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-radius: 14px; background: rgba(20, 24, 30, .78); color: #fffaf0; font: 700 14px/1.1 var(--font-body); pointer-events: none; }
+.jh-carrefour { position: absolute; left: 50%; top: 212px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 14px; background: rgba(20, 24, 30, .78); color: #fffaf0; font: 700 14px/1.15 var(--font-body); pointer-events: none; max-width: calc(100% - 2 * var(--gutter)); }
 .jh-carrefour[hidden] { display: none; }
-.jh-carrefour span { font: 900 26px/1 var(--font-display); color: #f2c21b; }
-.jh-carrefour span.non { opacity: .2; }
+.jh-carrefour > span { display: grid; gap: 2px; padding: 0 4px; text-align: center; }
+.jh-carrefour em { font-style: normal; }
+.jh-carrefour small { font: 600 12px/1.2 var(--font-body); opacity: .8; }
+.jh-carrefour button { pointer-events: auto; display: grid; justify-items: center; gap: 2px; min-width: 52px; border: 0; border-radius: 10px; padding: 5px 8px; background: rgba(255, 255, 255, .12); color: inherit; cursor: pointer; touch-action: none; }
+.jh-carrefour button i { font: 900 24px/1 var(--font-display); font-style: normal; color: #f2c21b; }
+.jh-carrefour button kbd { font: 700 10px/1 var(--font-mono); opacity: .75; }
+.jh-carrefour button:disabled { opacity: .3; cursor: default; }
 .jh-carrefour.maintenant { background: #f2c21b; color: #1d1a16; }
-.jh-carrefour.maintenant span { color: #1d1a16; }
+.jh-carrefour.maintenant button { background: rgba(0, 0, 0, .1); }
+.jh-carrefour.maintenant button i { color: #1d1a16; }
+.jh-carrefour.maintenant button:not(:disabled):hover { background: rgba(0, 0, 0, .2); }
+/* Prise en main (guide.js) : une consigne à la fois */
+.jh-guide, .sl-guide { display: grid; gap: 6px; padding: 12px 14px; border-radius: 16px; z-index: 6; }
+.jh-guide[hidden], .sl-guide[hidden] { display: none; }
+.jh-guide { position: absolute; left: var(--gutter); top: 128px; width: min(360px, calc(100% - 2 * var(--gutter))); }
+.sl-guide { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); width: min(460px, calc(100% - 2 * var(--gutter))); }
+.jh-guide small, .sl-guide small { font: 700 11px/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.jh-guide p, .sl-guide p { margin: 0; font: 600 15px/1.4 var(--font-body); color: var(--ink); }
+.jh-guide kbd, .sl-guide kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font: 800 12px/1 var(--font-mono); vertical-align: 1px; }
+.jh-guide button, .sl-guide button { justify-self: start; border: 0; padding: 0; background: none; color: var(--ink-2); font: 600 12px/1.2 var(--font-body); text-decoration: underline; cursor: pointer; }
+@media (max-width: 720px) {
+  .jh-guide { top: auto; bottom: 150px; left: 12px; right: 12px; width: auto; }
+  .jh-dialogue:not([hidden]) ~ .jh-guide { bottom: 372px; } /* au-dessus des réponses au client */
+  .sl-guide { bottom: 182px; left: 12px; right: 12px; width: auto; transform: none; } /* au-dessus du joystick et des boutons */
+  .jh-carbu small { display: none; } .jh-essence { width: 64px; } /* la jauge ne doit pas écraser le panneau de la ligne */
+}
+.jm-guide { justify-self: start; border: 0; padding: 0; background: none; color: var(--ink-2); font: 600 13px/1.2 var(--font-body); text-decoration: underline; cursor: pointer; }
+/* Petits gains (frôlements) à côté de la recette */
+.jh-stats { position: relative; }
+.jh-pop { position: absolute; right: calc(100% + 8px); top: 14px; white-space: nowrap; font: 800 16px/1 var(--font-display); color: #ffe27a; text-shadow: 0 1px 3px #000, 0 0 2px #000; opacity: 0; pointer-events: none; }
+.jh-pop.on { animation: gainpop 1.2s ease-out; }
+@keyframes gainpop { 0% { opacity: 0; transform: translateY(6px); } 15% { opacity: 1; transform: none; } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
 
 /* Code de la route (cahier des charges de Schekina) : voyant du prochain feu, écran de paiement en fin de course. */
 .jh-feu { position: absolute; left: 50%; top: 172px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 999px; background: rgba(20, 24, 30, .82); color: #fff; font-size: 13px; pointer-events: none; }
@@ -596,6 +629,14 @@ button { font: inherit; color: inherit; }
 .sl-chat form input { flex: 1; min-width: 0; font: inherit; color: inherit; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; }
 .sl-actions { position: absolute; right: var(--gutter); bottom: var(--gutter); width: min(260px, calc(100% - 2 * var(--gutter))); padding: 10px; border-radius: var(--r-lg); display: grid; gap: 8px; }
 .sl-gestes button { font-size: 13px; padding: 6px 12px; font-weight: 600; }
+/* Moins de boutons à l'écran : gestes derrière « Gestes », phrases rapides quand on écrit, pas de zém ni de moto à l'intérieur */
+.sl-gestes-tog { justify-self: start; border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.sl-gestes-tog[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.sl-actions .sl-gestes { display: none; }
+.sl-actions.gestes .sl-gestes { display: flex; }
+.sl-chat:not(:focus-within) .sl-phrases { display: none; }
+#slCopier { display: none; }
+.mode-salon.dedans #slZem, .mode-salon.dedans #vhLouer { display: none !important; }
 .sl-actions select { font: inherit; font-weight: 700; color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 999px; padding: 8px 12px; cursor: pointer; }
 .sl-aide { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); margin: 0; font-size: 12px; color: var(--ink-2); background: var(--panel); padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .sl-joy { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); width: 110px; height: 110px; border-radius: 50%; background: var(--panel); border: 2px solid var(--line); touch-action: none; }
@@ -619,6 +660,7 @@ button { font: inherit; color: inherit; }
   .sl-agir { bottom: 26px; flex-direction: column; max-width: calc(100% - 290px); }
   .sl-agir .jouer, .sl-agir2 { font-size: 14px; padding: 10px 14px; white-space: normal; line-height: 1.2; }
   .sl-aide { display: none; }
+  .sl-gestes-tog { display: none; } .sl-actions.ouvert .sl-gestes, .sl-chat.ouvert .sl-phrases { display: flex; }
 }
 
 /* ---------- Ma vie : tirage du départ et panneau ---------- */
@@ -654,7 +696,7 @@ button { font: inherit; color: inherit; }
 }
 
 /* ---------- Fenêtre de choix (zém, menu du comptoir) ---------- */
-.choix { position: absolute; inset: 0; z-index: 35; display: grid; place-items: center; background: rgba(10, 12, 16, .45); padding: var(--gutter); }
+.choix[role="dialog"] { position: absolute; inset: 0; z-index: 35; display: grid; place-items: center; background: rgba(10, 12, 16, .45); padding: var(--gutter); }
 .ch-boite { width: min(420px, 100%); max-height: 80vh; overflow: auto; padding: 18px; border-radius: var(--r-lg); display: grid; gap: 10px; }
 .ch-boite h3 { margin: 0; font: 800 20px/1.25 var(--font-display); }
 .ch-liste { display: grid; gap: 8px; }

@@ -34,7 +34,7 @@ const DUREE_DOUCHE = 8, DUREE_CUISSON = 12;
 const H = { S: null, ligne: () => { }, geste: () => { }, eau: null, vapeur: null, arreterBruit: null, gobelet: null };
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 
-export function initMaison(ctx) { H.S = ctx.S; H.ligne = ctx.ligne; H.geste = ctx.geste; }
+export function initMaison(ctx) { H.S = ctx.S; H.ligne = ctx.ligne; H.geste = ctx.geste; H.guide = ctx.guide; }
 
 // ---------- La porte : sur une rue de quartier, près du centre du quartier ----------
 // Dans un mur de parcelle pour une maison en cour commune (rue.js y bâtit la clôture), sur la façade d'un
@@ -289,14 +289,15 @@ function lever() {
   if (H.reveil) {
     H.reveil = false;
     const faim = VIE.data?.faim ?? 100;
-    H.ligne(`Bonjour ! Ici, tu peux te doucher, cuisiner et manger à table. Quand tu es prêt, « Sortir » pour aller en ville.${faim < 60 ? ' Tu as faim : prépare quelque chose avant de sortir.' : ''}`);
+    if (!H.guide?.()) H.ligne(`Bonjour ! Ici, tu peux te doucher, cuisiner et manger à table. Quand tu es prêt, « Sortir » pour aller en ville.${faim < 60 ? ' Tu as faim : prépare quelque chose avant de sortir.' : ''}`); // sinon le guide le dit
+    else if (faim < 60) H.ligne('Tu as faim : prépare quelque chose avant de sortir.');
     I.pnj?.userData.jouer?.('salut');
   }
 }
 /** Au début de la partie : on se réveille chez soi, couché. */
 export function reveil(I) {
   H.reveil = true; coucher(I);
-  H.ligne(`Tu te réveilles ${I.titre}. « Se lever » (ou avance) pour commencer ta journée.`);
+  H.ligne(`Tu te réveilles ${I.titre}.${H.guide?.() ? '' : ' « Se lever » (ou avance) pour commencer ta journée.'}`);
 }
 let rond = null; // gouttes et vapeur : des points ronds et flous, pas des carrés
 const texRonde = () => rond ??= (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d'), g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.45, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); })();

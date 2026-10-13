@@ -63,7 +63,7 @@ export function majEssence(st, dt) {
   if (st.essence < 1 || st.panne) for (const it of BORD.items) {
     if (it.type !== 'station' && it.type !== 'kpayo') continue;
     const ds = it.s - st.s;
-    if (ds > 40 && ds < 80 && !it.propose) { it.propose = true; toast(`${it.type === 'station' ? `Station${it.nom ? ' ' + it.nom : ''}` : 'Kpayo'} à ${it.side > 0 ? 'droite' : 'gauche'} : arrête-toi devant, puis E pour le plein`, 2.6); break; }
+    if (ds > 40 && ds < 80 && !it.propose && !(st.temps < (st.proposeT ?? -99) + 25)) { it.propose = true; st.proposeT = st.temps; toast(`${it.type === 'station' ? `Station${it.nom ? ' ' + it.nom : ''}` : 'Kpayo'} à ${it.side > 0 ? 'droite' : 'gauche'} : arrête-toi devant, puis E pour le plein`, 2.6); break; }
   }
   // Jauge du HUD.
   const el = $('#jhEssence'); if (el) { el.firstElementChild.style.width = `${Math.max(0, st.essence / RESERVOIR * 100).toFixed(0)}%`; el.classList.toggle('bas', st.essence < .45); }

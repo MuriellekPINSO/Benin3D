@@ -28,6 +28,7 @@ import { vibrer } from './manette.js';
 import { carrefoursDe, construireReseau, itineraire, itineraireCourt, itineraireDemiTour, rueSous } from './carrefours.js';
 import { ouvrirOffre } from './publicites.js';
 import { pietonOk, profilRoute, rueRouteJeu } from './rue.js';
+import { creerGuide } from './guide.js';
 
 // ---------- Zém Run : le jeu ----------
 /** Véhicules qui prennent un client à la fois, avec négociation (zém et taxi). */
@@ -375,7 +376,9 @@ export function lancerLigne(L, veh) {
   audioCtx(); moteur(veh); if (AUDIO.radio) radio(true); demarrerMusique();
   const p = pose(C, 0); camera.position.set(p.x - p.dx * 30, 14, p.z - p.dz * 30); JEU.regard = new THREE.Vector3(p.x, 1, p.z); JEU.capCam = null;
   if (METEO.pluie > .3) setTimeout(() => toast('Il pleut : la route glisse, freine plus tôt', 2.4, 'mal'), 3200);
-  toast(`${L.arretsJ[0].nom} · ↑ accélérer (relâche pour ralentir), ↓ freiner (maintenu à l’arrêt : marche arrière), U demi-tour, E interagir · arrête-toi au feu rouge`, 3.4);
+  Object.assign(G, { file: 0, changements: 0, cf: null, carrefours: 0, essence: st0.essence, plein: false });
+  if (guideJeu?.actif()) toast(L.arretsJ[0].nom, 2);
+  else toast(`${L.arretsJ[0].nom} · ↑ accélérer (relâche pour ralentir), ↓ freiner (maintenu à l’arrêt : marche arrière), U demi-tour, E interagir · arrête-toi au feu rouge`, 3.4);
 }
 // Tout ce qui dépend du trajet : arrêts, bord de route, gens, habillage des rues, végétation, carrefours.
 function installerTrajet(L, C, debut, garderClient) {
@@ -411,7 +414,7 @@ export function virage(dir) {
   const pts = itineraire(p.x, p.z, j.n, br.m, L.arretsXZ.slice(st.prochain));
   if (!pts || pts.length < 3) { toast('Pas de route par là', 1.2, 'mal'); return false; }
   appliquerItineraire(pts);
-  son('piece'); toast(`${droit ? '↑ Tout droit' : dir < 0 ? '↰ À gauche' : '↱ À droite'} · itinéraire recalculé`, 1.6, 'bien');
+  son('piece'); toast(`${droit ? '↑ Tout droit' : dir < 0 ? '↰ À gauche' : '↱ À droite'} · itinéraire recalculé`, 1.6, 'bien'); G.carrefours++; G.cf = null;
   return true;
 }
 /** Demi-tour (U, arrêté ou au pas) : un U vers la gauche, on repart en sens inverse, le GPS recalcule jusqu'aux arrêts suivants. */
@@ -478,7 +481,15 @@ function afficherPaiement() {
   el.hidden = false; clearTimeout(minuteurPaiement); minuteurPaiement = setTimeout(() => { el.hidden = true; }, 4500);
 }
 export let toastT = 0;
-export function toast(txt, d = 1.6, cls = '') { const el = $('#jhToast'); el.textContent = txt; el.className = 'jh-toast on ' + cls; toastT = d; }
+// Un message à la fois, lisible : le même message n'est pas répété avant 6 s, et un message mineur (`mineur`) ne
+// remplace pas celui qui est affiché. Avant, « Kpayo à gauche… » revenait 8 fois en 30 s.
+const toastsVus = new Map();
+export function toast(txt, d = 1.6, cls = '', mineur = false) {
+  const t = performance.now(); if (toastsVus.get(txt) > t - 6000 || (mineur && toastT > 0)) return;
+  toastsVus.set(txt, t); const el = $('#jhToast'); el.textContent = txt; el.className = 'jh-toast on ' + cls; toastT = d;
+}
+/** Petit gain affiché à côté de la recette (frôlements, pièces) au lieu d'un grand message au milieu de l'écran. */
+function gainPetit(txt) { const el = $('#jhPop'); if (!el) return; el.textContent = txt; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); }
 export function carteQuartier(a) {
   const c = $('#jhCarte'); c.querySelector('h3').textContent = a.nom; c.querySelector('p').textContent = a.fait; c.hidden = false; JEU.etat.carte = 5.5;
   const p = pose(JEU.chemin, a.s, 0, { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); photoJeu($('#jhArretPhoto'), p.x, p.z);
@@ -577,7 +588,7 @@ export function majJeu(dt) {
         accident(st);
       }
     }
-    if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(o.lat - st.lat) * kj < (o.T.larg + V.larg) / 2 + 1.1) { o.frole = true; st.frolements++; st.argent += 15; toast('Ça passe ! +15 F', .9, 'bien'); evenement('frole'); progres('frolements', st.frolements); }
+    if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(o.lat - st.lat) * kj < (o.T.larg + V.larg) / 2 + 1.1) { o.frole = true; st.frolements++; st.argent += 15; gainPetit('Ça passe ! +15 F'); evenement('frole'); progres('frolements', st.frolements); }
     restants.push(o);
   }
   JEU.objets = restants;
@@ -616,21 +627,24 @@ export function majJeu(dt) {
   const rep = majBordure(st, C);
   majDiscussions(st, C, dt);
   majPietons(st, dt);
-  // Carrefour devant : « ← / → pour tourner » (ralentir d'abord).
+  // Carrefour devant : ce que fait le GPS, et les rues possibles en boutons (actifs une fois ralenti, juste avant).
+  // Sans rien faire, on suit le GPS ; ← → (ou les boutons) prennent une autre rue, T (ou ↑ Tout droit) continue tout droit.
   const cf = JEU.carrefours?.find(c => c.s - st.s > -4 && c.s - st.s < 70), elC = $('#jhCarrefour');
   if (elC) {
     elC.hidden = !cf;
     if (cf) {
-      const d = Math.max(0, Math.round(cf.s - st.s)), lent = st.v <= 12, ici = cf.s - st.s < 18;
-      elC.className = 'jh-carrefour' + (ici && lent ? ' maintenant' : '');
-      // La flèche opposée au virage prévu sert à continuer tout droit quand il n'y a pas de rue de ce côté.
-      const gDroit = cf.droit && !cf.gauche && cf.sens > 0, dDroit = cf.droit && !cf.droite && cf.sens < 0;
-      const titre = ici ? (lent ? 'À toi de choisir' : 'Ralentis pour choisir') : `Carrefour · ${d} m`;
-      // C'est le joueur qui décide : ← / → pour les rues de côté, T (ou manette ↑) pour continuer tout droit quand le GPS voulait tourner.
-      const aide = cf.droit ? (gDroit ? ' · ← ou T : tout droit' : dDroit ? ' · → ou T : tout droit' : ' · T : tout droit') : '';
-      elC.innerHTML = `<span class="${cf.gauche || gDroit ? '' : 'non'}">${gDroit ? '↑' : '↰'}</span><b>${titre}${aide}</b><span class="${cf.droite || dDroit ? '' : 'non'}">${dDroit ? '↑' : '↱'}</span>`;
-    }
+      const d = Math.max(0, Math.round(cf.s - st.s)), lent = st.v <= 12, ici = cf.s - st.s < 18, actif = ici && lent;
+      const cle = `${cf.s}|${actif}|${ici}`;
+      if (elC.dataset.cle !== cle) {
+        elC.dataset.cle = cle; elC.className = 'jh-carrefour' + (actif ? ' maintenant' : '');
+        const gps = cf.droit ? (cf.sens > 0 ? 'Le GPS tourne à droite' : 'Le GPS tourne à gauche') : 'Le GPS va tout droit';
+        const b = (dir, sym, nom, k, ok) => `<button type="button" data-dir="${dir}"${ok && actif ? '' : ' disabled'} aria-label="${nom}"><i>${sym}</i><kbd>${k}</kbd></button>`;
+        elC.innerHTML = `${b(-1, '↰', 'Tourner à gauche', '←', !!cf.gauche)}<span><b>${ici ? (lent ? 'À toi de choisir' : 'Ralentis pour choisir') : 'Carrefour'}<em></em></b><small>${gps}</small></span>${cf.droit ? b(0, '↑', 'Tout droit', 'T', true) : ''}${b(1, '↱', 'Tourner à droite', '→', !!cf.droite)}`;
+      }
+      const em = elC.querySelector('em'); if (em) em.textContent = ici ? '' : ` · ${d} m`;
+    } else delete elC.dataset.cle;
   }
+  majGuideJeu(st, dt);
   majInteractions(st, C, dt);
   if (st.pneus > 0) st.pneus -= dt;
   if (JEU.fini !== true && Math.floor(st.temps * 20) !== Math.floor((st.temps - dt) * 20)) majMiniCarte(st, C);
@@ -661,6 +675,29 @@ export function majJeu(dt) {
   majHud(st, C, V);
 }
 export let QUARTIERS_J = [];
+// ---------- Prise en main (la première fois) : une consigne à la fois, quand elle devient utile ----------
+const G = { file: 0, changements: 0, cf: null, carrefours: 0, essence: 0, plein: false };
+let guideJeu = null;
+function etapesJeu() {
+  const st = () => JEU.etat, clients = () => avecClients(JEU.veh), prochain = () => JEU.ligne?.arretsJ[st().prochain];
+  return [
+    { id: 'client', texte: 'Ton client demande le prix : clique sur une réponse, ou appuie sur [1] [2] [3].', quand: () => clients() && !!DISC.client && !DISC.client.accord && !$('#jhDialogue').hidden, fait: () => !clients() || !!DISC.client?.accord },
+    { id: 'rouler', texte: 'Maintiens [↑] (ou « Gaz ») pour rouler. Relâche pour ralentir, [↓] pour freiner.', quand: () => true, fait: () => st().v > 8 },
+    { id: 'files', texte: '[←] [→] : change de file pour éviter les zems, les trous et les chèvres. [Espace] : sauter par-dessus un trou.', quand: () => st().v > 5, fait: () => G.changements >= 2 },
+    { id: 'arret', texte: () => `Bientôt l’arrêt ${prochain()?.nom || ''} : mets-toi à droite [→], puis freine [↓] dans la zone jaune. ${clients() ? 'Ton client descend et paie.' : 'L’apprenti encaisse les passagers.'}`, quand: () => { const a = prochain(); return !!a && a.s - st().s < 260 && (!clients() || !!DISC.client); }, fait: () => st().servis >= 1 },
+    { id: 'signe', texte: 'Pas de client à bord : quelqu’un te fait signe au bord de la route. Arrête-toi à sa hauteur, puis [E].', quand: () => clients() && !DISC.client && st().servis >= 1, fait: () => !clients() || (st().servis >= 1 && !!DISC.client) },
+    { id: 'carrefour', texte: 'Carrefour : sans rien faire, tu suis le GPS. Pour prendre une autre rue, ralentis puis [←] [→], ou touche les boutons du panneau.', quand: () => !$('#jhCarrefour').hidden, fait: () => G.carrefours >= 1 },
+    { id: 'essence', texte: 'Ton réservoir baisse : arrête-toi devant un vendeur de kpayo ou une station, puis [E] pour faire le plein.', quand: () => st().essence < 1, fait: () => G.plein },
+    { id: 'bilan', texte: 'Bien joué ! [Échap] met le jeu en pause. Quand tu quittes la course, tu vois ton bilan et ta recette va dans ta cagnotte.', quand: () => st().servis >= 2, fait: () => false, duree: 8 },
+  ];
+}
+function majGuideJeu(st, dt) {
+  if (!guideJeu?.actif()) return;
+  if (st.file !== G.file) { G.changements++; G.file = st.file; }
+  const cf = JEU.carrefours?.find(c => c.s - st.s > -4 && c.s - st.s < 70); if (cf) G.cf = cf; else if (G.cf && st.s > G.cf.s) { G.carrefours++; G.cf = null; }
+  if (st.essence > G.essence + .2) G.plein = true; G.essence = st.essence;
+  guideJeu.maj(dt);
+}
 export function majHud(st, C, V) {
   $('#jhArgent').textContent = fmtF(st.argent);
   $('#jhVitesse').textContent = `${Math.round(Math.abs(st.v) * 3.6)} km/h${st.v < -.2 ? ' · marche arrière' : ''}`;
@@ -770,6 +807,9 @@ export function initJeu(data) {
   zone.addEventListener('pointerup', e => { if (!JEU.actif || !t0) return; const dx = e.clientX - t0[0], dy = e.clientY - t0[1]; t0 = null; if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return; if (Math.abs(dx) > Math.abs(dy)) (dx < 0 ? gauche : droite)(); else if (dy < 0) sauter(); });
   const btn = (id, fn) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); fn(); });
   btn('#jhDemi', demiTour);
+  $('#jhCarrefour').addEventListener('pointerdown', e => { const b = e.target.closest('button[data-dir]'); if (b && !b.disabled) { e.preventDefault(); virage(+b.dataset.dir); } });
+  guideJeu = creerGuide({ cle: 'zemrun.guide', el: $('#jhGuide'), titre: 'Prise en main', etapes: etapesJeu() });
+  $('#jmGuide')?.addEventListener('click', () => { guideJeu.revoir(); $('#jmGuide').textContent = 'Le guide s’affichera à la prochaine course'; });
   btn('#jbG', gauche); btn('#jbD', droite); btn('#jbS', sauter); btn('#jbK', klaxonner); btn('#jbE', interagir); btn('#jhAction', interagir);
   const maintenu = (id, cle) => { const b = $(id); b.addEventListener('pointerdown', e => { e.preventDefault(); if (st()) st()[cle] = true; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { if (st()) st()[cle] = false; }); };
   maintenu('#jbF', 'frein'); maintenu('#jbA', 'gaz');

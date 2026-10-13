@@ -69,11 +69,11 @@
     <button class="tog" type="button" id="togSat" aria-pressed="false" hidden title="Poser la ville sur les vraies images satellite Google (API Map Tiles)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7 9 3 5 7l4 4"/><path d="m17 11 4 4-4 4-4-4"/><path d="m8 12 4 4 6-6-4-4Z"/><path d="m16 8 3-3"/><path d="M9 21a6 6 0 0 0-6-6"/></svg><span class="t-long">Sol satellite</span></button>
     <button class="tog" type="button" id="btnConcert" title="Concert sur l’esplanade de l’Amazone (entrée 100 F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span class="t-long">Concert</span></button>
     <button class="tog" type="button" id="btnMode" title="Boutique de mode : essaie des tenues, porte-les dans le jeu ou achète-les pour de vrai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6a2 2 0 1 1 3 1.7c-.6.4-1 .9-1 1.6V10"/><path d="M12 10 3.6 16.2A1.6 1.6 0 0 0 4.6 19h14.8a1.6 1.6 0 0 0 1-2.8z"/></svg><span class="t-long">Boutique</span></button>
-    <button class="tog" type="button" id="btnSalon" title="Entre amis : retrouve tes amis dans Cotonou, promenez-vous et discutez ensemble"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.3A5 5 0 0 1 21 19"/></svg><span class="t-long">Entre amis</span></button>
+    <button class="tog" type="button" id="btnSalon" title="Vivre à Cotonou : un logement, un métier, des sorties avec tes amis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.3A5 5 0 0 1 21 19"/></svg><span class="t-long">Vivre à Cotonou</span></button>
     <button class="tog" type="button" id="togMeteo" aria-pressed="false" title="Changer le temps : soleil, nuages, pluie, orage (touche M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17a4.5 4.5 0 1 1 1.2-8.8A5.5 5.5 0 0 1 18.5 10 3.5 3.5 0 0 1 18 17Z"/><path d="M9 20l-1 2M13 20l-1 2M17 20l-1 2"/></svg><span class="t-long">Soleil</span></button>
     <button class="tog" type="button" id="togTour" aria-pressed="false" title="Faire tourner la caméra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4.5h-4.5"/></svg><span class="t-long">Survol</span></button>
   </div>
-  <button class="jouer jouer-flottant" type="button" id="btnJouer"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Jouer à Zém Run</button>
+  <div class="jouer-flottants"><button class="jouer jouer-flottant jouer-vivre" type="button" id="btnVivre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/></svg>Vivre à Cotonou</button><button class="jouer jouer-flottant" type="button" id="btnJouer"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Jouer à Zém Run</button></div>
 
   <div class="credits">
     <p class="credits-court"><span class="credit-google">© Google · </span>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · Google Open Buildings · <button type="button" class="credits-btn" aria-expanded="false" aria-controls="creditsDetail">Crédits</button><span id="satCredit" hidden></span></p>
@@ -111,11 +111,12 @@
       </div>
       <p class="jm-aide"><b>↑</b> accélérer (le zém n'avance que si tu appuies, il ralentit dès que tu relâches) · <b>↓</b> freiner (maintenu à l'arrêt : <b>marche arrière</b>) · <b>U</b> demi-tour · <b>arrête-toi au feu rouge</b>, sinon la police te met une amende · demande au client s'il a son casque · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
       <label class="jm-option"><input type="checkbox" id="jmVoix"> Voix des personnages (ils parlent à voix haute)</label>
+      <button type="button" class="jm-guide" id="jmGuide">Revoir la prise en main</button>
     </div>
     <div class="jeu-hud" id="jeuHud" hidden>
       <div class="jh-haut">
         <div class="jh-ligne panel"><b id="jhNom"></b><span id="jhProchain"></span><div class="jh-barre"><i id="jhProg"></i><span id="jhArrets"></span></div></div>
-        <div class="jh-stats panel"><b id="jhArgent">0 F</b><span id="jhVies"></span><span id="jhVitesse">0 km/h</span><span id="jhPassagers"></span><span class="jh-carbu"><small>Essence</small><span class="jh-essence" id="jhEssence"><i></i></span><b id="jhLitres"></b></span></div>
+        <div class="jh-stats panel"><b id="jhArgent">0 F</b><span id="jhVies"></span><span id="jhVitesse">0 km/h</span><span id="jhPassagers"></span><span class="jh-carbu"><small>Essence</small><span class="jh-essence" id="jhEssence"><i></i></span><b id="jhLitres"></b></span><span class="jh-pop" id="jhPop" aria-hidden="true"></span></div>
       </div>
       <div class="jh-quartier" id="jhQuartier"></div>
       <div class="jh-carrefour" id="jhCarrefour" hidden></div>
@@ -132,6 +133,7 @@
       <button type="button" class="jh-action" id="jhAction" hidden><kbd>E</kbd><span></span></button>
       <button type="button" class="jh-demi" id="jhDemi" hidden>↶ Demi-tour <kbd>U</kbd></button>
       <div class="jh-dialogue panel" id="jhDialogue" hidden><small class="qui"></small><p class="dit"></p><div class="choix"></div><i class="minuteur"></i></div>
+      <div class="jh-guide panel" id="jhGuide" hidden role="status"></div>
       <div class="jh-carte panel" id="jhCarte" hidden><div class="jh-photo" id="jhArretPhoto" hidden></div><small>Arrêt desservi</small><h3></h3><p></p></div>
       <div class="jh-boutons">
         <button type="button" id="jbG" aria-label="File de gauche">◀</button>
@@ -184,9 +186,10 @@
     <div class="ac-carte" role="dialog" aria-labelledby="acTitre">
       <p class="ac-sur">Cotonou · Abomey-Calavi · Ganvié · Ouidah</p>
       <h1 id="acTitre">Le Bénin en 3D</h1>
-      <p class="ac-texte">Une visite des villes en musique, sur « Agolo » d’Angélique Kidjo. Ensuite, la ville est à toi : explore-la, ou prends un zémidjan dans ses rues.</p>
+      <p class="ac-texte">Vis à Cotonou : un logement, un métier, un zém ou ta propre moto, des sorties avec tes amis. Ou visite les villes en musique, sur « Agolo » d’Angélique Kidjo.</p>
       <div class="ac-actions">
-        <button class="jouer ac-visite" type="button" id="acVisite"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Lancer la visite</button>
+        <button class="jouer ac-visite" type="button" id="acVivre">Vivre à Cotonou</button>
+        <button class="ac-passer" type="button" id="acVisite">Lancer la visite en musique</button>
         <button class="ac-passer" type="button" id="acPasser">Explorer librement</button>
       </div>
       <p class="ac-son"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>Avec le son, c’est mieux</p>
@@ -228,15 +231,16 @@
 
   <div class="evenement panel salon" id="salon" hidden role="dialog" aria-labelledby="slTitre">
     <button type="button" class="sl-fermer" id="slFermer" aria-label="Fermer">×</button>
-    <small class="ev-sur">Nouveau · version de test</small>
-    <h2 id="slTitre">Entre amis</h2>
-    <p>Retrouve tes amis dans Cotonou : promenez-vous à pied, discutez, saluez-vous, dansez, et allez ensemble à l’Amazone, à la Haie Vive ou à la plage.</p>
+    <small class="ev-sur">Nouveau</small>
+    <h2 id="slTitre">Vivre à Cotonou</h2>
+    <p>Réveille-toi chez toi, trouve un métier, gagne ta vie, prends un zém ou ta moto, et retrouve tes amis à l’Amazone, à la Haie Vive ou à la plage.</p>
     <label class="sl-champ">Ton nom <input id="slNom" maxlength="16" autocomplete="nickname" placeholder="Ex. : Murielle"></label>
     <p class="sl-titre">Ton personnage</p>
     <div class="gr-genre" id="slGenre" role="radiogroup" aria-label="Femme ou homme"></div>
     <div class="gr-tenues sl-tenues" id="slAvatars" role="radiogroup" aria-label="Ta tenue"></div>
-    <div class="ev-actions"><button type="button" class="jouer" id="slCreer">Créer un salon</button></div>
-    <div class="sl-rejoindre"><input id="slCode" maxlength="6" placeholder="Code reçu (6 caractères)" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" id="slRejoindre">Rejoindre</button></div>
+    <div class="ev-actions"><button type="button" class="jouer" id="slCreer">Commencer</button></div>
+    <p class="sl-titre">Un ami t’a envoyé un code ?</p>
+    <div class="sl-rejoindre"><input id="slCode" maxlength="6" placeholder="Code reçu (6 caractères)" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" id="slRejoindre">Rejoindre mon ami</button></div>
     <p class="ev-etat" id="slEtat" role="status" aria-live="polite" hidden></p>
   </div>
   <div class="choix" id="choix" hidden role="dialog" aria-labelledby="chTitre">
@@ -283,9 +287,10 @@
       <div class="sl-phrases" id="slPhrases"></div>
       <form id="slForm"><input id="slTexte" maxlength="140" placeholder="Écris à tes amis… (Entrée)" autocomplete="off" aria-label="Message"><button type="submit">Envoyer</button></form>
     </div>
-    <div class="sl-actions panel" id="slActions"><div class="sl-gestes" id="slGestes" aria-label="Gestes"></div><button type="button" class="sl-zem" id="slZem">Prendre un zém</button><button type="button" class="sl-zem sl-habiller" id="slHabiller">M’habiller</button><select id="slAller" aria-label="Aller à un lieu avec tes amis"></select></div>
+    <div class="sl-actions panel" id="slActions"><button type="button" class="sl-gestes-tog" id="slGestesTog" aria-expanded="false" aria-controls="slGestes">Gestes</button><div class="sl-gestes" id="slGestes" aria-label="Gestes"></div><button type="button" class="sl-zem" id="slZem">Prendre un zém</button><button type="button" class="sl-zem sl-habiller" id="slHabiller">M’habiller</button><select id="slAller" aria-label="Aller à un lieu avec tes amis"></select></div>
     <div class="sl-joy" id="slJoy" hidden aria-hidden="true"><i></i></div>
     <div class="sl-boutons"><button type="button" id="slChatBtn" aria-expanded="false" aria-controls="slChat">Discussion<b id="slNonLus" hidden></b></button><button type="button" id="slGestesBtn" aria-expanded="false" aria-controls="slActions">Gestes</button><button type="button" id="slVue2">Vue</button></div>
+    <div class="sl-guide panel" id="slGuide" hidden role="status"></div>
     <div class="sl-agir"><button type="button" class="jouer" id="slEntrer" hidden></button><button type="button" class="sl-agir2" id="slAction2" hidden></button><button type="button" class="sl-agir2" id="slAction3" hidden></button></div>
     <p class="sl-aide">Flèches ou ZQSD pour marcher · Maj pour courir · E, R, F : les actions des boutons · glisser pour tourner (vers le bas : de haut) · molette pour zoomer · V : changer de vue · Entrée pour écrire</p>
   </div>

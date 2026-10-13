@@ -66,8 +66,9 @@ export function accueil() {
   };
   $('#acVisite').addEventListener('click', () => { fermer(); presentation(); }, { once: true });
   $('#acPasser').addEventListener('click', fermer, { once: true });
+  $('#acVivre')?.addEventListener('click', () => { fermer(); $('#btnSalon')?.click(); }, { once: true }); // la vie à Cotonou (salon.js)
   window.addEventListener('keydown', clavier);
-  $('#acVisite').focus({ preventScroll: true });
+  ($('#acVivre') || $('#acVisite')).focus({ preventScroll: true });
 }
 export function initExplorer() {
   initCategories();
