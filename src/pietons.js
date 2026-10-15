@@ -14,7 +14,7 @@ import { mergeColored } from './ville.js';
 // Qui brûle le feu et touche un piéton a un accident (constat de police ou client qui descend).
 // Ce sont les personnages réalistes de personnages.js : sans eux, pas de passants.
 
-const PT = { C: null, marcheurs: [], traversees: [] };
+export const PT = { C: null, marcheurs: [], traversees: [] };
 const NB = LITE ? 8 : 22, tmp = { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 };
 
 /** Une bassine de fruits ou de légumes, à poser sur la tête (userData.tete d'un personnage) :
@@ -102,14 +102,18 @@ export function majPietons(st, dt) {
       if (p.attente > 0) { p.attente = 0; p.dir = Math.sign(p.lat) || 1; }
       else if (Math.abs(p.lat) < p.hw) { p.dir = Math.sign(p.lat) || p.dir; p.v = 2.6; }
     }
+    const latJ = st.latM ?? st.lat * kFiles(C, st.s); // le zém, en vrais mètres
+    // Le zém est arrêté sur le passage : on ne lui passe pas au travers, on attend qu'il reparte (ou on le contourne).
+    const bloque = Math.abs(p.s - st.s) < 1.5 && Math.abs(p.lat + p.dir * p.v * dt - latJ) < .9 && Math.abs(p.lat + p.dir * p.v * dt - latJ) < Math.abs(p.lat - latJ);
     if (p.attente > 0) { p.attente -= dt; p.m.userData.jouer(p.attente > 0 ? 'idle' : 'marche'); }
+    else if (bloque) p.m.userData.jouer('idle');
     else p.lat += p.dir * p.v * dt;
     if ((Math.sign(p.lat) === p.dir && Math.abs(p.lat) > p.hw + 1.6) || p.s < st.s - 40) { retirer(p); return false; } // arrivé sur l'autre bas-côté
     const q = pose(C, p.s, p.lat, tmp); p.m.position.set(q.x, q.y, q.z); regarder(p.m, p.dir * -q.dz, p.dir * q.dx);
     // Le zém qui fonce sur le passage piéton au rouge : accident. Au vert, le piéton s'écarte d'un bond.
-    const latJ = st.lat * kFiles(C, st.s); // le zém, en vrais mètres
+    if (Math.abs(p.s - st.s) < 1.3 && Math.abs(p.lat - latJ) < .9 && st.v <= 2 && p.s > st.s) { st.s = Math.max(st.s - .2, p.s - 1.3); st.v = Math.min(st.v, 0); } // au pas : le zém s'arrête devant lui
     if (!p.touche && Math.abs(p.s - st.s) < 1.3 && Math.abs(p.lat - latJ) < .9 && st.v > 2) {
-      p.touche = true; p.dir = Math.sign(p.lat - latJ) || 1; p.v = 3; p.attente = 0; p.m.userData.jouer('marche');
+      p.touche = true; p.dir = Math.sign(p.lat - latJ) || 1; p.v = 3; p.attente = 0; p.m.userData.jouer('marche'); p.lat = latJ + p.dir * 1; // il s'écarte d'un bond, pas à travers le zém
       if (p.feu?.etat === 'rouge') { toast('Tu as failli renverser un piéton !', 1.8, 'mal'); accident(st); }
       else toast('Le piéton s’écarte de justesse', 1.4);
     }

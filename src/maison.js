@@ -3,7 +3,7 @@ import { bruit, son } from './audio.js';
 import { toXZ } from './base.js';
 import { personne } from './discussions.js';
 import { PLACES, QUARTIERS } from './donnees-lieux.js';
-import { INTERIEURS, dansLaPiece, declarerInterieur } from './interieurs.js';
+import { INTERIEURS, dansLaPiece, declarerInterieur, etiquette } from './interieurs.js';
 import { K, groupeLieu, panneauTexte } from './lieux.js';
 import { dansBatiment, surChaussee } from './rue.js';
 import { scene } from './scene.js';
@@ -65,12 +65,10 @@ function chercherPorte(x0, z0, facade, classes = [4, 5]) {
   }
   return best;
 }
-function etiquette(texte) {
-  const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const c = cv.getContext('2d');
-  c.font = '800 30px system-ui, sans-serif'; const w = Math.min(300, c.measureText(texte).width + 44);
-  c.fillStyle = '#f2b705'; c.beginPath(); c.roundRect(160 - w / 2, 8, w, 54, 27); c.fill(); c.fillStyle = '#17130c'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(texte, 160, 36);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); sp.scale.set(.145, .033, 1); sp.renderOrder = 30; return sp;
+// Repères au-dessus de la douche et du fourneau, vus à travers les cloisons : la douche de l'appartement est
+// dans la salle de bains, derrière une porte, et on ne la trouvait pas.
+function reperes(I) {
+  for (const [texte, p] of [['Douche', I.douche], ['Cuisine', I.fourneau]]) if (p) { const e = etiquette(texte); e.position.set(p.x, 1.9, p.z); K.racine.add(e); }
 }
 // Portail bleu dans le mur de la parcelle (repère local : la rue vers +z), numéro de lot peint à la main.
 function portail(P) {
@@ -98,7 +96,7 @@ function declarer(logement) {
   declarerInterieur(id, {
     nom: D.nom, entrer: D.entrer, titre: D.titre, logis: D, prive: true, plafond: 2.7, etiquette: etq,
     porte: [P.x - P.nx * 1.4, P.z - P.nz * 1.4], dehors, centre: [P.x, 7400], // en mer, plus loin que les autres pièces
-    ...(appart ? { w: 12, d: 9, entree: [1, -3.7, 0], construire: appartement } : { w: 12, d: 10, entree: [1.5, -4.2, 0], construire: cour }),
+    ...(appart ? { w: 12, d: 9, entree: [1, -3.7, 0], construire: I => { appartement(I); reperes(I); } } : { w: 12, d: 10, entree: [1.5, -4.2, 0], construire: I => { cour(I); reperes(I); } }),
   });
   return INTERIEURS.get(id);
 }
@@ -283,7 +281,7 @@ export function coucher(I) {
 function lever() {
   const S = H.S, I = S.lieu; if (!S.couche || !I?.lit) return;
   const L = I.lit, [x, z, cap] = L.leve, p = dansLaPiece(I, x, z);
-  S.couche = null; L.deplie.visible = false; L.plie.visible = true;
+  S.couche = null; S.leveT = performance.now(); L.deplie.visible = false; L.plie.visible = true;
   if (S.moi) S.moi.rotation.set(0, cap, 0);
   S.x = p.x; S.z = p.z; S.cap = cap; S.tangage = .4; S.saut = true;
   if (H.reveil) {
@@ -291,6 +289,7 @@ function lever() {
     const faim = VIE.data?.faim ?? 100;
     if (!H.guide?.()) H.ligne(`Bonjour ! Ici, tu peux te doucher, cuisiner et manger à table. Quand tu es prêt, « Sortir » pour aller en ville.${faim < 60 ? ' Tu as faim : prépare quelque chose avant de sortir.' : ''}`); // sinon le guide le dit
     else if (faim < 60) H.ligne('Tu as faim : prépare quelque chose avant de sortir.');
+    if (I.logis?.plan === 'appart') H.ligne('La douche est dans la salle de bains : en sortant de la chambre, la porte suivante sur ta droite (étiquette jaune « Douche »).');
     I.pnj?.userData.jouer?.('salut');
   }
 }
@@ -361,7 +360,8 @@ export function actionsMaison() {
   if (T.plat && !T.repas && S.anim !== 'assis') out.push({ texte: 'S’asseoir pour manger', f: () => H.geste('assis') });
   if (pres(I.douche, 1.9)) out.push({ texte: 'Se doucher', f: doucher });
   if (pres(I.fourneau, 1.9) && !T.plat) out.push({ texte: 'Cuisiner', f: cuisiner });
-  if (pres(I.lit, 2.2)) out.push({ texte: 'Se coucher', f: () => { coucher(I); H.ligne('Petite sieste… Avance pour te lever.'); } });
+  // Pas tout de suite après le lever : E, E recouchait le joueur.
+  if (pres(I.lit, 2.2) && performance.now() - (S.leveT || 0) > 4000) out.push({ texte: 'Se coucher', f: () => { coucher(I); H.ligne('Petite sieste… Avance pour te lever.'); } });
   return out;
 }
 

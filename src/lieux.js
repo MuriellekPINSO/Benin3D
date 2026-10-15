@@ -885,8 +885,32 @@ export const VEGETATION = [];
 export const fouleCorps = new THREE.CylinderGeometry(.2, .27, 1.2, 6).translate(0, .62, 0);
 export const fouleTete = new THREE.SphereGeometry(.15, 6, 5).translate(0, 1.38, 0);
 export const fouleTissus = ['#e2672a', '#2f6fb0', '#e9b62c', '#2f8a4a', '#8e3c8f', '#c8382f', '#1f8f8a', '#f2efe6', '#3b3b44', '#d9548a'].map(h => new THREE.Color(h));
+// Les troncs des arbres et des palmiers ne se traversent pas à pied : grille de 8 m faite à la première demande (après
+// degagerChaussees, qui a retiré les arbres des chaussées).
+let TRONCS = null;
+export function dansArbre(x, z, r = .3) {
+  if (!TRONCS) {
+    TRONCS = new Map(); const m4 = new THREE.Matrix4();
+    for (const m of VEGETATION) { const xz = m.userData.xz; if (!xz) continue; for (let k = 0; k < m.count; k++) { m.getMatrixAt(k, m4); if (m4.elements[0] === 0 && m4.elements[2] === 0) continue; const tx = xz[2 * k], tz = xz[2 * k + 1], c = Math.floor(tx / 8) + ',' + Math.floor(tz / 8); let l = TRONCS.get(c); if (!l) TRONCS.set(c, l = []); l.push(tx, tz); } }
+  }
+  const l = TRONCS.get(Math.floor(x / 8) + ',' + Math.floor(z / 8)); let p = 0;
+  for (const [a, b] of [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]]) { const q = a || b ? TRONCS.get((Math.floor(x / 8) + a) + ',' + (Math.floor(z / 8) + b)) : l; if (!q) continue; for (let k = 0; k < q.length; k += 2) { const d = Math.hypot(x - q[k], z - q[k + 1]); if (d < .28 + r) p = Math.max(p, .28 + r - d); } }
+  return p;
+}
+// Les figurines des foules (esplanade de l'Amazone, Corniche, plage) ne se traversent pas : leurs places par cases de 4 m.
+const FOULE = new Map();
+/** De combien (x, z), avec un rayon r, entre dans une figurine de la foule (0 : libre). */
+export function dansFoule(x, z, r = .3) {
+  let p = 0;
+  for (let a = Math.floor(x / 4) - 1; a <= Math.floor(x / 4) + 1; a++) for (let b = Math.floor(z / 4) - 1; b <= Math.floor(z / 4) + 1; b++) {
+    const l = FOULE.get(a + ',' + b); if (!l) continue;
+    for (let k = 0; k < l.length; k += 2) { const d = Math.hypot(x - l[k], z - l[k + 1]); if (d < .26 + r) p = Math.max(p, .26 + r - d); }
+  }
+  return p;
+}
 export function foule(arr, graine, y = 0) {
   const n = arr.length / 2; if (!n) return;
+  if (y === 0) for (let i = 0; i < n; i++) { const x = arr[2 * i] / 10, z = arr[2 * i + 1] / 10, k = Math.floor(x / 4) + ',' + Math.floor(z / 4); let l = FOULE.get(k); if (!l) FOULE.set(k, l = []); l.push(x, z); }
   const corps = new THREE.InstancedMesh(fouleCorps, new THREE.MeshLambertMaterial(), n);
   const tetes = new THREE.InstancedMesh(fouleTete, new THREE.MeshLambertMaterial({ color: '#4a2f22' }), n);
   const m4 = new THREE.Matrix4();
@@ -1224,9 +1248,12 @@ export async function construireLieux(data) {
 }
 export const TOUJOURS = new Set(['piste', 'ponts', 'corniche', 'plage']);
 // En « Vue réelle » sans maquette, les monuments reconstitués s'effacent devant les images Google.
-export const LIEUX = { caches: false };
+// Exception : le monument du lieu dont la fiche est ouverte (`focus`, une entrée de PLACES), que Google n'a pas en 3D
+// (la Porte du Non-Retour n'était qu'une plage vide).
+export const LIEUX = { caches: false, focus: null };
+const auFocus = g => !!LIEUX.focus && (g.name === LIEUX.focus.id || g.name === LIEUX.focus.name);
 export function visibiliteLieux(cam) {
-  for (const g of lieux) g.visible = !LIEUX.caches && (TOUJOURS.has(g.name) || cam.distanceTo(g.userData.centre) < (g.userData.portee ?? 4500));
+  for (const g of lieux) g.visible = (!LIEUX.caches || auFocus(g)) && (TOUJOURS.has(g.name) || cam.distanceTo(g.userData.centre) < (g.userData.portee ?? 4500));
   for (const m of detailsProches) {
     if (!m.boundingSphere) m.computeBoundingSphere();
     const bs = m.boundingSphere;

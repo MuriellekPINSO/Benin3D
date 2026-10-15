@@ -5,7 +5,8 @@ import { KCOL, PLACES, QUARTIERS, WATER_LABELS } from './donnees-lieux.js';
 import { E } from './etat.js';
 import { camera, controls } from './scene.js';
 import { initVoirEnVrai } from './google.js';
-import { basculerMondeReel, maquetteVisible } from './monde-reel.js';
+import { basculerMondeReel, maquetteVisible, recalerMondeReel } from './monde-reel.js';
+import { LIEUX, visibiliteLieux } from './lieux.js';
 import { etalPres, ouvrirBoutique, sitesAvecEtal } from './artisans.js';
 import { changerMeteo } from './meteo.js';
 import { basculerSatellite } from './satellite.js';
@@ -81,7 +82,7 @@ for (const p of PLACES) {
 }
 export const card = $('#card');
 export function select(p) {
-  E.selected = p;
+  E.selected = p; LIEUX.focus = p; visibiliteLieux(camera.position); // son monument s'affiche, même en Vue réelle seule
   for (const q of PLACES) { q.btn.setAttribute('aria-pressed', String(q === p)); q.label?.classList.toggle('sel', q === p); }
   $('#cardKind').textContent = p.kind; $('#cardName').textContent = p.name; $('#cardText').textContent = p.text;
   $('#cardDot').style.setProperty('--k', KCOL[p.k]);
@@ -91,7 +92,7 @@ export function select(p) {
   p.btn.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
   flyTo(p.x, p.z, p.view);
 }
-$('#cardClose').addEventListener('click', () => { card.hidden = true; E.selected = null; for (const q of PLACES) { q.btn.setAttribute('aria-pressed', 'false'); q.label?.classList.remove('sel'); } });
+$('#cardClose').addEventListener('click', () => { card.hidden = true; E.selected = null; LIEUX.focus = null; for (const q of PLACES) { q.btn.setAttribute('aria-pressed', 'false'); q.label?.classList.remove('sel'); } });
 $('#cardGo').addEventListener('click', () => E.selected && flyTo(E.selected.x, E.selected.z, E.selected.view));
 // Marché artisanal : on vole jusqu'à l'étal, puis la vendeuse accueille.
 $('#cardMarche').addEventListener('click', () => {
@@ -113,7 +114,13 @@ initVoirEnVrai(() => E.selected);
 toggle('#togQ', on => { E.showQ = on; });
 $('#togMeteo').addEventListener('click', () => changerMeteo());
 window.addEventListener('keydown', e => { if (e.key.toLowerCase() === 'm' && !e.target.closest?.('input, textarea')) changerMeteo(); });
-toggle('#togTour', on => { controls.autoRotate = on; });
+toggle('#togTour', on => { controls.autoRotate = on; if (!on) recalerMondeReel(); });
+// Téléphone : la barre du bas défile au doigt ; une flèche › au bout dit qu'il reste des boutons, jusqu'au dernier.
+const defil = $('.dock-defil');
+if (defil) {
+  const auBout = () => defil.parentElement.classList.toggle('dock-fin', defil.scrollLeft + defil.clientWidth >= defil.scrollWidth - 4);
+  defil.addEventListener('scroll', auBout, { passive: true }); new ResizeObserver(auBout).observe(defil); // aussi quand la barre apparaît (cachée à l'accueil)
+}
 $('#compass').addEventListener('click', () => { const t = controls.target; const sph = new THREE.Spherical().setFromVector3(camera.position.clone().sub(t)); startFlight(t.clone(), sph.radius, sph.phi, 0); });
 
 // ---------- Caméra : vols ----------

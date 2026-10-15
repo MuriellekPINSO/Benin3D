@@ -3,7 +3,7 @@ import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { AUDIO, audioCtx, moteur, moteurMaj, moteurStop, radio, son } from './audio.js';
 import { VOIX, taire, voixActives, voixDispo } from './voix.js';
 import { accident, majFeux, preparerFeux } from './regles.js';
-import { majPietons, marchandeReelle, preparerPietons, regarder, viderPietons } from './pietons.js';
+import { PT, majPietons, marchandeReelle, preparerPietons, regarder, viderPietons } from './pietons.js';
 import { annoncerDepart, arriveeDuo } from './multijoueur.js';
 import { arreterMusique, demarrerMusique, musiqueQuartier } from './musique.js';
 import { $, LITE, hash, toXZ } from './base.js';
@@ -27,9 +27,10 @@ import { METEO } from './meteo.js';
 import { vibrer } from './manette.js';
 import { carrefoursDe, construireReseau, itineraire, itineraireCourt, itineraireDemiTour, rueSous } from './carrefours.js';
 import { ouvrirOffre } from './publicites.js';
-import { pietonOk, profilRoute, rueRouteJeu } from './rue.js';
+import { dansBatiment, pietonOk, profilRoute, profondeurRue, rueRouteJeu } from './rue.js';
 import { creerGuide } from './guide.js';
 import { compterUneFois, lieuStats } from './statistiques.js';
+import { suspendreChanson } from './lecteur.js';
 
 // ---------- Zém Run : le jeu ----------
 /** Véhicules qui prennent un client à la fois, avec négociation (zém et taxi). */
@@ -51,7 +52,7 @@ export const JEU = { actif: false, pause: false, etat: null, objets: [], decor: 
 JEU.prog = null; JEU.autoGaz = false; // le zém n'avance que si le joueur accélère (↑) ; relâché, il ralentit jusqu'à l'arrêt
 try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; } catch (e) { }
 export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, autoGaz: JEU.autoGaz })); } catch (e) { } };
-export const fmtF = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
+export const fmtF = n => `${Math.round(n).toLocaleString('fr-FR')}\u00a0F`; // espace insécable : « 2 000 » et « F » restent sur la même ligne
 
 // Lissage (Chaikin) des virages, mais seulement sur les 7 derniers mètres avant chaque coin et les 7 premiers après :
 // lissées d'un bout à l'autre, les longues lignes droites d'OpenStreetMap coupaient les virages jusqu'à 15 m en
@@ -117,7 +118,30 @@ const ixC = (C, s) => Math.max(0, Math.min(C.n - 1, Math.round(s)));
 /** Demi-largeur réelle de la chaussée au point s du trajet. */
 export const demiChaussee = (C, s) => C.hw ? C.hw[ixC(C, s)] : LANE * 2.5;
 /** Les 5 files du jeu resserrées dans la largeur réelle de la rue : facteur des décalages latéraux. */
-export const kFiles = (C, s) => C.hw ? THREE.MathUtils.clamp((C.hw[ixC(C, s)] - .9) / (2 * LANE), .45, 1) : 1;
+export const kFiles = (C, s) => C.hw ? THREE.MathUtils.clamp((C.hw[ixC(C, s)] - .9) / (2 * LANE), .3, 1) : 1; // .3 : dans une ruelle, le bas-côté reste au bord de la chaussée, pas dans les étals
+// Place libre de chaque côté du trajet avant le premier bâtiment (OpenStreetMap, Google), mètre par mètre, calculée
+// à la demande : les files ±2 (bas-côté) passaient dans les façades des rues étroites, et les virages dans les coins.
+const LIBRE_MAX = 6;
+function libre1(C, i, cote) {
+  const t = C.libre ??= new Float32Array(2 * C.n).fill(-1), k = 2 * i + (cote > 0 ? 0 : 1);
+  if (t[k] >= 0) return t[k];
+  const i0 = Math.max(0, i - 2), i1 = Math.min(C.n - 1, i + 2); let dx = C.X[i1] - C.X[i0], dz = C.Z[i1] - C.Z[i0]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+  let r = LIBRE_MAX;
+  try { for (let q = .25; q < LIBRE_MAX; q += .25) if (dansBatiment(C.X[i] - dz * cote * q, C.Z[i] + dx * cote * q)) { r = q - .25; break; } } catch { /* bâtiments pas encore chargés */ }
+  return (t[k] = r);
+}
+// Sur toute la longueur de la moto (±1,5 m), puis en pente douce (0,5 m de côté par mètre) : le zém glisse le long d'un
+// coin de maison au lieu de sauter, et son avant ne mord pas dans la façade.
+function libreJeu(C, s, cote) { const i = ixC(C, s); let m = LIBRE_MAX; for (let d = -7; d <= 7; d++) { const j = i + d; if (j < 0 || j >= C.n) continue; m = Math.min(m, libre1(C, j, cote) + Math.max(0, Math.abs(d) - 1.5) * .5); } return m; }
+/** Décalage latéral réel (m) d'une position de file `lat` au point s : files resserrées dans la largeur de la rue, et jamais
+ *  dans un bâtiment (`m` : demi-largeur du véhicule et marge). Si l'axe lui-même est pris, on n'y touche pas. */
+export function latJeu(C, s, lat, m = .6) {
+  const v = lat * kFiles(C, s); if (!C.hw) return v;
+  const d = libreJeu(C, s, 1) - m, g = libreJeu(C, s, -1) - m;
+  return d + g < .3 ? v : THREE.MathUtils.clamp(v, -g, d);
+}
+/** La file f a-t-elle la place sur les prochains mètres ? (sinon on ne s'y met pas : il y a un mur) */
+const placeFile = (C, s, f) => [0, 3, 6].every(d => Math.abs(latJeu(C, s + d, f * LANE) - f * LANE * kFiles(C, s + d)) < .7);
 const tmpT = { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 };
 /**
  * Décalage latéral d'une place sur le bas-côté, à `recul` m du bord de la chaussée, côté `cote` (+1 à droite,
@@ -245,8 +269,11 @@ export function construireDecorLigne(L, C, debut = 1) {
   const g = JEU.decor;
   for (let k = Math.max(1, debut); k < L.arrets.length; k++) {
     const a = L.arrets[k], s = a.s;
-    const z = new THREE.Mesh(new THREE.PlaneGeometry(30, LANE * .9).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#f2c21b', transparent: true, opacity: .55, depthWrite: false }));
-    const kz = kFiles(C, s - 12), p = pose(C, s - 12, LANE * kz); z.scale.z = kz; z.position.set(p.x, p.y + .12, p.z); z.rotation.y = p.a; g.add(z);
+    // Zone jaune sur les deux files de droite (on s'y arrête en file 1 ou 2), et un repère « ARRÊT » visible de loin.
+    const z = new THREE.Mesh(new THREE.PlaneGeometry(30, LANE * 1.9).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#f2c21b', transparent: true, opacity: .55, depthWrite: false }));
+    const kz = kFiles(C, s - 12), p = pose(C, s - 12, latJeu(C, s - 12, LANE * 1.5)); z.scale.z = kz; z.position.set(p.x, p.y + .12, p.z); z.rotation.y = p.a; g.add(z);
+    const rep = new THREE.Sprite(new THREE.SpriteMaterial({ map: texteToile(['▼ ARRÊT ▼'], 512, 150, '#f2c21b', '#1d1a16', '800 92px "Google Sans", system-ui, sans-serif'), depthWrite: false }));
+    rep.scale.set(5.4, 1.6, 1); rep.position.set(p.x, p.y + 6.5, p.z); g.add(rep);
     const q = pose(C, s, demiChaussee(C, s) + .7); const post = new THREE.Group(); post.position.set(q.x, q.y, q.z); post.rotation.y = Math.atan2(q.dz * .6 - q.dx * .8, -q.dx * .6 - q.dz * .8);
     const mat = new THREE.Mesh(C3(.08, .08, 3.6, 6), new THREE.MeshStandardMaterial({ color: '#555' })); mat.position.set(0, 1.8, 0); post.add(mat);
     const t = texteToile(['ARRÊT', a.nom.toUpperCase()], 1024, 400, '#1d1a16', '#f2c21b', '800 110px "Google Sans", system-ui, sans-serif');
@@ -361,7 +388,7 @@ export function lancerLigne(L, veh) {
   }
   const faisceau = new THREE.Mesh(GJ.phares.geo, GJ.phares.mat); faisceau.renderOrder = 12; faisceau.visible = false; grp.add(faisceau); grp.userData.phares = faisceau;
   JEU.decor.add(grp); JEU.joueur = grp;
-  JEU.etat = { s: 4, v: 0, file: 0, lat: 0, y: 0, vy: 0, vies: 3, argent: 0, passagers: veh === 'tokpa' ? 6 : 0, prochain: 1, servis: 0, manques: 0, frolements: 0, pieces: 0, invul: 0, service: 0, secousse: 0, frein: false, spawn: 40, quartier: '', temps: 0, carte: 0, casque: 0, superSaut: false, parcouru: 0, voyageurs: 0 };
+  JEU.etat = { s: 4, v: 0, file: 0, lat: 0, y: 0, vy: 0, vies: 3, argent: 0, passagers: veh === 'tokpa' ? 6 : 0, prochain: 1, servis: 0, manques: 0, frolements: 0, pieces: 0, invul: 0, service: 0, secousse: 0, frein: false, spawn: 40, quartier: '', temps: 0, carte: 0, casque: 0, superSaut: false, parcouru: 0, voyageurs: 0, doux: !!L.express || !Object.keys(JEU.meilleur).length };
   // Bonus achetés au garage, série de jours, le collecteur, et le premier client.
   const P = JEU.prog, st0 = JEU.etat; essenceDepart(st0);
   if (P.bonus.casque > 0) { P.bonus.casque--; st0.casque = 1; }
@@ -374,12 +401,12 @@ export function lancerLigne(L, veh) {
   document.getElementById('app').classList.add('mode-jeu');
   $('#jeuMenu').hidden = true; $('#jeuFin').hidden = true; $('#jeuHud').hidden = false; $('#jeuPause').hidden = true;
   $('#jhNom').textContent = `${L.nom} · ${V.nom}`;
-  audioCtx(); moteur(veh); if (AUDIO.radio) radio(true); demarrerMusique();
+  audioCtx(); moteur(veh); if (AUDIO.radio) radio(true); demarrerMusique(); suspendreChanson(true); // le lecteur YouTube recouvrirait la conduite
   const p = pose(C, 0); camera.position.set(p.x - p.dx * 30, 14, p.z - p.dz * 30); JEU.regard = new THREE.Vector3(p.x, 1, p.z); JEU.capCam = null;
   if (METEO.pluie > .3) setTimeout(() => toast('Il pleut : la route glisse, freine plus tôt', 2.4, 'mal'), 3200);
   Object.assign(G, { file: 0, changements: 0, cf: null, carrefours: 0, essence: st0.essence, plein: false });
   if (guideJeu?.actif()) toast(L.arretsJ[0].nom, 2);
-  else toast(`${L.arretsJ[0].nom} · ↑ accélérer (relâche pour ralentir), ↓ freiner (maintenu à l’arrêt : marche arrière), U demi-tour, E interagir · arrête-toi au feu rouge`, 3.4);
+  else toast(`${L.arretsJ[0].nom} · ↑ accélérer (relâche pour ralentir), ↓ freiner (à l’arrêt, appuie encore : marche arrière), U demi-tour, E interagir · arrête-toi au feu rouge`, 3.4);
 }
 // Tout ce qui dépend du trajet : arrêts, bord de route, gens, habillage des rues, végétation, carrefours.
 function installerTrajet(L, C, debut, garderClient) {
@@ -411,7 +438,7 @@ export function virage(dir) {
   let br = j && (dir === 0 ? j.droit : dir < 0 ? j.gauche : j.droite), droit = dir === 0;
   if (j && !br && j.droit && dir === -j.sens) { br = j.droit; droit = true; }
   if (!br || st.prochain >= L.arretsJ.length) return false;
-  const p = pose(C, st.s, st.lat * kFiles(C, st.s), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  const p = pose(C, st.s, latJeu(C, st.s, st.lat), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   const pts = itineraire(p.x, p.z, j.n, br.m, L.arretsXZ.slice(st.prochain));
   if (!pts || pts.length < 3) { toast('Pas de route par là', 1.2, 'mal'); return false; }
   appliquerItineraire(pts);
@@ -422,7 +449,7 @@ export function virage(dir) {
 export function demiTour() {
   const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || JEU.pause || st.service > 0 || st.auto || st.prochain >= L.arretsJ.length) return false;
   if (Math.abs(st.v) > 3) { toast('Ralentis pour faire demi-tour', 1.2); return false; }
-  const lat = st.lat * kFiles(C, st.s), p = pose(C, st.s, lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), gx = p.dz, gz = -p.dx; // (gx, gz) : vers la gauche
+  const lat = latJeu(C, st.s, st.lat), p = pose(C, st.s, lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), gx = p.dz, gz = -p.dx; // (gx, gz) : vers la gauche
   const R = THREE.MathUtils.clamp((demiChaussee(C, st.s) + lat - .6) / 2, 1.8, 3.5), boucle = [];
   for (let k = 1; k <= 6; k++) { const a = k / 6 * Math.PI, cx = p.x + gx * R, cz = p.z + gz * R; boucle.push([cx - gx * R * Math.cos(a) + p.dx * R * Math.sin(a), cz - gz * R * Math.cos(a) + p.dz * R * Math.sin(a)]); }
   // Sur la rue où l'on est ; hors du réseau des rues (une petite route), on revient d'abord sur ses pas jusqu'à lui.
@@ -438,8 +465,9 @@ export function demiTour() {
 }
 /** Remplace le trajet par `pts` (à partir de la position du zém) et recale les arrêts restants. */
 function appliquerItineraire(pts) {
-  const st = JEU.etat, L = JEU.ligne;
+  const st = JEU.etat, L = JEU.ligne, avant = JEU.chemin ? JEU.chemin.L - st.s : 0;
   const C2 = cheminDe(pts); C2.H = calerSurPonts(C2);
+  if (avant && C2.L - avant > 600) setTimeout(() => toast(`Détour : ${((C2.L - avant) / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km de plus jusqu’au terminus`, 2.6, 'mal'), 900);
   let depuis = 0;
   L.arretsJ = L.arretsJ.map((a, k) => {
     if (k < st.prochain) return { ...a, s: 0 };
@@ -448,13 +476,13 @@ function appliquerItineraire(pts) {
     depuis = best; return { ...a, s: Math.min(C2.L - 2, best) };
   });
   L.arretsJ[L.arretsJ.length - 1].s = C2.L - 2;
-  JEU.chemin = C2; st.s = 1; st.spawn = 40; st.lat = 0; st.file = 0; st.plein = -1;
+  JEU.chemin = C2; st.s = 1; st.spawn = 40; st.lat = 0; st.latM = 0; st.file = 0; st.plein = -1;
   installerTrajet(L, C2, st.prochain, true);
 }
 /** Client pressé (cahier des charges, priorité 3) : le GPS prend le plus court, petites rues comprises. */
 export function prendreRaccourci() {
   const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || st.prochain >= L.arretsJ.length) return false;
-  const p = pose(C, st.s, st.lat * kFiles(C, st.s), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(C, Math.min(C.L - 1, st.s + 18), 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  const p = pose(C, st.s, latJeu(C, st.s, st.lat), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(C, Math.min(C.L - 1, st.s + 18), 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   const avant = Math.max(0, L.arretsJ[st.prochain].s - st.s);
   const pts = itineraireCourt(p.x, p.z, q.x, q.z, L.arretsXZ.slice(st.prochain));
   if (!pts || pts.length < 3) { toast('Pas de raccourci par ici', 1.4, 'mal'); return false; }
@@ -464,7 +492,7 @@ export function prendreRaccourci() {
   return true;
 }
 export function quitterJeu() {
-  lieuStats('carte');
+  lieuStats('carte'); suspendreChanson(false);
   JEU.actif = false; moteurStop(); taire(); arreterMusique(); nettoyerBordure(); nettoyerDiscussions(); remettreVegetation(); satelliteVisible(true); rueRouteJeu(null);
   viderPietons(); if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; }
   document.getElementById('app').classList.remove('mode-jeu');
@@ -501,6 +529,17 @@ export const tmpP2 = { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 };
 export function sauter() { const s = JEU.etat; if (s && s.y === 0 && s.service <= 0) { s.vy = s.superSaut ? 10.5 : 7.8; son('saut'); evenement('saut'); } }
 /** Le zém se range à l'abscisse `s`, du côté `side`, puis exécute `action`. */
 export function arretAuto(s, side, action) { const st = JEU.etat; if (st) st.auto = { s, side, action }; }
+/** Avant l'arrêt `a` : dit une fois ce qui manque pour s'y arrêter (arrêté trop tôt, pas à droite, trop vite),
+ *  et retient la raison pour le message « Arrêt manqué ». */
+function indiceArret(st, a) {
+  if (st.service > 0) return;
+  const d = a.s - st.s, dits = st.indices ??= new Set(), dire = (k, t) => { const c = `${st.prochain}|${k}`; if (!dits.has(c)) { dits.add(c); toast(t, 2.2); } };
+  if (d <= 32) st.raisonArret = st.file < 1 ? 'file' : st.v >= 7.5 ? 'vite' : '';
+  else if (d > 70) st.raisonArret = '';
+  if (d > 32 && d < 100 && Math.abs(st.v) < .5) dire('loin', `Trop loin de l’arrêt : avance encore de ${Math.round(d - 30)} m`);
+  else if (d < 75 && st.file < 1) dire('file', 'Serre à droite (→) pour t’arrêter');
+  else if (d < 55 && st.v >= 7.5) dire('vite', `Ralentis (↓) : l’arrêt est dans ${Math.max(0, Math.round(d))} m`);
+}
 export function majJeu(dt) {
   const st = JEU.etat, C = JEU.chemin, L = JEU.ligne, V = VEH[JEU.veh];
   if (!st || JEU.pause) return;
@@ -508,6 +547,7 @@ export function majJeu(dt) {
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('#jhToast').className = 'jh-toast'; }
   if (st.carte > 0) { st.carte -= dt; if (st.carte <= 0) $('#jhCarte').hidden = true; }
   // Vitesse, file, saut.
+  if (!st.frein && !st.freinM) st.tenu = false; // frein relâché : le prochain appui à l'arrêt fera reculer
   if (st.service > 0) { st.service -= dt; st.v = 0; }
   else if (st.auto) { // arrêt demandé en roulant (client qui fait signe, plein d'essence) : le zém se range seul
     const a = st.auto, reste = a.s - st.s; st.file = a.side;
@@ -519,10 +559,12 @@ export function majJeu(dt) {
     // Conduite : ↑ accélère, ↓ freine ; sans rien, la moto ralentit en roue libre jusqu'à l'arrêt.
     // Sur le bas-côté (files ±2), on roule au pas, le long des kiosques et des vendeurs.
     const vmax = Math.min(V.vmax * (1 + Math.min(.15, st.s / C.L * .2)) * facteurEssence(st) * (Math.abs(st.file) === 2 ? .3 : 1), limiteVirage(C, st.s));
-    // Frein maintenu une fois arrêté : marche arrière, au pas.
+    // Marche arrière, au pas : un nouvel appui sur le frein une fois arrêté. Le frein qui vient d'arrêter la moto
+    // la tient arrêtée (au feu rouge, à l'arrêt), sans repartir en arrière.
     if (st.frein || st.freinM) {
-      if (st.v > .05) { st.v = Math.max(0, st.v - 15 * (1 - .35 * METEO.pluie) * dt); st.recul = 0; } // route mouillée : on freine moins bien
-      else { st.recul = (st.recul || 0) + dt; if (st.recul > .45) st.v = Math.max(-RECUL, st.v - 3 * dt); }
+      if (st.v > .05) { st.v = Math.max(0, st.v - 15 * (1 - .35 * METEO.pluie) * dt); st.recul = 0; st.tenu = true; } // route mouillée : on freine moins bien
+      else if (st.tenu) st.v = Math.min(0, st.v + 5 * dt);
+      else { st.recul = (st.recul || 0) + dt; if (st.recul > .45) { st.v = Math.max(-RECUL, st.v - 3 * dt); if (!st.reculVu) { st.reculVu = true; toast('Marche arrière', 1.2); } } }
     }
     else if (st.gaz || st.gazM || JEU.autoGaz) st.v = st.v > vmax ? Math.max(vmax, st.v - 8 * dt) : Math.min(vmax, st.v + V.accel * dt * (st.v < 6 ? 1.6 : 1));
     else st.v = st.v < 0 ? Math.min(0, st.v + 5 * dt) : Math.max(0, st.v - (st.v > vmax ? 8 : 2.4) * dt);
@@ -531,13 +573,14 @@ export function majJeu(dt) {
   st.parcouru += Math.abs(st.v) * dt; // st.s repart de 0 à chaque itinéraire recalculé (virage, demi-tour)
   majFeux(st);
   majEssence(st, dt);
-  const latAv = st.lat; st.lat += (st.file * LANE - st.lat) * Math.min(1, dt * 9);
+  st.lat += (st.file * LANE - st.lat) * Math.min(1, dt * 9);
   if (st.y > 0 || st.vy > 0) { st.vy -= 24 * dt; st.y = Math.max(0, st.y + st.vy * dt); if (st.y === 0) st.vy = 0; }
   if (st.invul > 0) st.invul -= dt;
   if (st.secousse > 0) st.secousse -= dt;
-  const kj = kFiles(C, st.s), p = pose(C, st.s, st.lat * kj); // files resserrées dans la vraie largeur de la rue
+  const kj = kFiles(C, st.s), latM = latJeu(C, st.s, st.lat, V.larg / 2 + .25), p = pose(C, st.s, latM); // files resserrées dans la vraie largeur de la rue, jamais dans un mur
+  const latMAv = st.latM ?? latM; st.latM = latM;
   const j = JEU.joueur; j.position.set(p.x, p.y + st.y, p.z); j.rotation.set(0, p.a, 0);
-  j.rotateX(JEU.veh === 'zem' ? Math.max(-.32, Math.min(.32, -(st.lat - latAv) * kj / Math.max(dt, .001) * .014)) : 0);
+  j.rotateX(JEU.veh === 'zem' ? Math.max(-.32, Math.min(.32, -(latM - latMAv) / Math.max(dt, .001) * .014)) : 0);
   if (C.H) { const i = Math.max(2, Math.min(C.n - 3, Math.floor(st.s))); j.rotateZ(Math.atan((C.H[i + 2] - C.H[i - 2]) / 4)); } // penché dans la rampe du pont
   j.visible = true; // un accident n'est plus un clignotement : voir regles.js (constat de police ou client perdu)
   controls.target.set(p.x, 0, p.z);
@@ -560,14 +603,24 @@ export function majJeu(dt) {
     }
     st.spawn += 26 + Math.random() * 30 - diff * 12;
   }
-  // Mise à jour et collisions.
-  const restants = [];
+  // Mise à jour et collisions. Véhicules, gens, chèvres et travaux sont solides, avant comme après un choc : on ne
+  // traverse plus rien. Seul celui qui fonce dans l'autre a l'accident ; un véhicule qui arrive derrière freine.
+  const restants = [], latJ = st.latM;
   for (const o of JEU.objets) {
-    if (o.T.v[1]) o.s += o.v * dt;
+    if (o.T.v[1]) {
+      o.vMax ??= o.v;
+      const derr = st.s - o.s, sep = (o.T.long + V.long) / 2;
+      if (derr > 0 && derr < sep + 10 && Math.abs((o.latM ?? o.lat) - latJ) < (o.T.larg + V.larg) / 2 + .3) { // dans notre file, juste derrière
+        o.v = Math.max(0, Math.min(o.v, Math.max(0, st.v) + (derr - sep - 2) * .9)); o.bloque = (o.bloque || 0) + dt;
+        if (o.bloque > 1.6 && o.latCible === undefined) o.latCible = THREE.MathUtils.clamp(st.lat + (st.lat > 0 ? -LANE : LANE), -LANE, LANE); // il double
+      } else { o.bloque = 0; if (o.v < o.vMax) o.v = Math.min(o.vMax, o.v + 3 * dt); }
+      if (o.latCible !== undefined) { const e = o.latCible - o.lat; o.lat += Math.sign(e) * Math.min(Math.abs(e), 2.2 * dt); if (Math.abs(e) < .01) o.latCible = undefined; }
+      o.s += o.v * dt;
+    }
     if (o.dirLat) o.lat += o.dirLat * dt;
     const ds = o.s - st.s;
     if (ds < -25 || Math.abs(o.lat) > (o.type === 'egungun' ? 11 : 9)) { retirerObjet(o); continue; }
-    const q = pose(C, o.s, o.lat * kFiles(C, o.s), tmpP2);
+    const latO = o.latM = latJeu(C, o.s, o.lat, Math.min(1.2, o.T.larg / 2 + .2)), q = pose(C, o.s, latO, tmpP2);
     o.mesh.position.set(q.x, q.y + (o.type === 'trou' ? .1 : 0), q.z); o.mesh.rotation.y = o.dirLat ? q.a + Math.sign(o.dirLat) * Math.PI / 2 : q.a;
     if (o.mesh.userData.modele) { const sg = Math.sign(o.dirLat); if (sg) regarder(o.mesh, -sg * q.dz, sg * q.dx); else { regarder(o.mesh, -q.dx, -q.dz); o.mesh.userData.jouer('idle'); } } // personnage réaliste (face à +z)
     if (o.type === 'jeton') { o.mesh.position.y = q.y + 1.1 + Math.sin(st.temps * 4 + o.s) * .15; o.mesh.rotation.y = st.temps * 3 + o.s; }
@@ -576,24 +629,46 @@ export function majJeu(dt) {
       if (!o.annonce && ds < 70) { o.annonce = true; toast('Sortie d’Egungun ! Freine : on ne touche pas les revenants.', 2.6); son('klaxon'); }
       if (!o.respect && ds > 4 && ds < 32 && Math.abs(o.lat) < 7 && st.v < 3) { o.respect = true; st.argent += 100; toast('Respect aux Egungun : +100 F', 1.6, 'bien'); son('piece'); evenement('egungun'); progres('egungun', 1); }
     }
-    const proche = Math.abs(ds) < (o.T.long + V.long) / 2 && Math.abs(o.lat - st.lat) * kj < (o.T.larg + V.larg) / 2 * .85;
-    if (!o.touche && proche) {
+    const sepL = (o.T.long + V.long) / 2, sepT = (o.T.larg + V.larg) / 2, ecart = latO - latJ; // pleine largeur : on ne se chevauche pas
+    if (Math.abs(ds) < sepL && Math.abs(ecart) < sepT) {
       if (o.type === 'jeton') { st.argent += 25; st.pieces++; son('piece'); vibrer('piece'); retirerObjet(o); if (st.pieces % 5 === 0) progres('pieces', st.pieces); continue; }
       if (o.T.saut && st.y > .55) { /* sauté */ }
-      else if (o.type === 'trou') { o.touche = true; st.v *= st.pneus > 0 ? .8 : .5; st.secousse = .35; if (!(st.pneus > 0)) { st.argent = Math.max(0, st.argent - 50); toast('Nid-de-poule ! −50 F', 1.2, 'mal'); } son('bosse'); evenement('trou'); }
-      else if (st.invul <= 0 && st.casque > 0) { o.touche = true; st.casque--; st.v *= .4; st.invul = 1.8; st.secousse = .4; son('choc'); toast('Le casque neuf a encaissé le choc !', 1.6, 'bien'); evenement('choc'); }
-      else if (st.invul <= 0) {
-        o.touche = true; st.vies--; st.v *= .2; st.invul = 1.8; st.secousse = .5; son('choc'); evenement('choc'); vibrer('choc');
-        const noms = { zem: 'à l’autre zém', tokpa: 'au tokpa-tokpa', voiture: 'à la voiture', chevre: 'à la chèvre', marchande: 'à la marchande', travaux: 'aux travaux', egungun: ': on ne touche pas un Egungun' };
-        toast(st.vies > 0 ? `Accident ! Attention ${noms[o.type]}` : 'Accident…', 1.6, 'mal');
-        if (st.vies <= 0) { majHud(st, C, V); return finJeu(false); }
-        accident(st);
+      else if (o.type === 'trou') { if (!o.touche) { o.touche = true; st.v *= st.pneus > 0 ? .8 : .5; st.secousse = .35; if (!(st.pneus > 0)) { st.argent = Math.max(0, st.argent - 50); toast('Nid-de-poule ! −50 F', 1.2, 'mal'); } son('bosse'); evenement('trou'); } }
+      else if (o.dirLat && st.v < 1.5) { // zém arrêté : la chèvre, la marchande ne le traversent pas
+        const loin = Math.sign(ecart) || 1;
+        if (Math.abs(ecart) < sepT * .7) o.dirLat = loin * Math.abs(o.dirLat); // déjà contre lui : elle s'écarte
+        else if (Math.sign(o.dirLat) !== loin) o.lat -= o.dirLat * dt; // elle allait vers lui : elle attend qu'il reparte
+      }
+      else {
+        // Solide : on sépare les deux, par le côté le moins enfoncé.
+        const vo = o.T.v[1] ? o.v : 0, parCote = sepT - Math.abs(ecart) < (sepL - Math.abs(ds)) * .6;
+        let fonce; // le joueur est-il celui qui rentre dans l'autre ?
+        if (parCote) { // il s'est rabattu sur lui : retour dans sa file
+          const cote = Math.sign(-ecart) || (st.lat >= o.lat ? 1 : -1);
+          st.file = THREE.MathUtils.clamp(Math.round(o.lat / LANE) + cote, -2, 2); st.lat = (latO + cote * sepT) / kj;
+          fonce = Math.abs(st.v - vo) > 3 || st.v > 6;
+        } else if (ds > 0) { fonce = st.v - vo > 2.5; st.s = Math.max(1, o.s - sepL - .02); st.v = Math.min(st.v, vo); } // devant nous
+        else { fonce = false; o.s = st.s - sepL - .02; o.v = Math.min(o.v, Math.max(0, st.v)); } // il nous rentre dedans par derrière : pas notre faute
+        if (o.dirLat && !o.touche && fonce) o.dirLat = Math.sign(o.dirLat) * 3; // la chèvre, la marchande s'écartent en vitesse
+        if (parCote && Math.abs(ecart) > sepT * .85) fonce = false; // on l'a juste frôlé de côté : ça racle, sans accident
+        if (fonce && !o.touche && st.invul <= 0) {
+          o.touche = true;
+          if (st.casque > 0) { st.casque--; st.v *= .4; st.invul = 1.8; st.secousse = .4; son('choc'); toast('Le casque neuf a encaissé le choc !', 1.6, 'bien'); evenement('choc'); }
+          else {
+            st.vies--; st.v *= .2; st.invul = 1.8; st.secousse = .5; son('choc'); evenement('choc'); vibrer('choc');
+            const noms = { zem: 'à l’autre zém', tokpa: 'au tokpa-tokpa', voiture: 'à la voiture', chevre: 'à la chèvre', marchande: 'à la marchande', travaux: 'aux travaux', egungun: ': on ne touche pas un Egungun' };
+            toast(st.vies > 0 ? `Accident ! Attention ${noms[o.type]}` : 'Accident…', 1.6, 'mal');
+            if (st.vies <= 0) { majHud(st, C, V); return finJeu(false); }
+            accident(st);
+          }
+        } else if (!o.contact && st.v > .5) { o.contact = true; son('bosse'); } // simple contact au pas
       }
     }
-    if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(o.lat - st.lat) * kj < (o.T.larg + V.larg) / 2 + 1.1) { o.frole = true; st.frolements++; st.argent += 15; gainPetit('Ça passe ! +15 F'); evenement('frole'); progres('frolements', st.frolements); }
+    if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(ecart) < (o.T.larg + V.larg) / 2 + 1.1) { o.frole = true; st.frolements++; st.argent += 15; gainPetit('Ça passe ! +15 F'); evenement('frole'); progres('frolements', st.frolements); }
     restants.push(o);
   }
   JEU.objets = restants;
+  if (corpsDuBord(st, C, V, dt)) return;
   // Arrêts : file de droite, presque à l'arrêt, dans la zone jaune.
   const a = L.arretsJ[st.prochain];
   if (a) {
@@ -620,9 +695,9 @@ export function majJeu(dt) {
       }
     } else if (st.s > a.s + 6) {
       if (avecClients(JEU.veh)) { clientRate(a); st.passagers = 0; }
-      st.manques++; st.argent = Math.max(0, st.argent - 100); toast(`Arrêt manqué : ${a.nom} −100 F`, 1.8, 'mal'); st.prochain++;
+      st.manques++; st.argent = Math.max(0, st.argent - 100); toast(`Arrêt manqué : ${a.nom} −100 F${st.raisonArret === 'file' ? ' · il fallait serrer à droite' : st.raisonArret === 'vite' ? ' · trop vite' : ''}`, 2.4, 'mal'); st.prochain++;
       if (st.prochain >= L.arretsJ.length) { majHud(st, C, V); return finJeu(true); }
-    }
+    } else indiceArret(st, a);
   }
   if (st.s >= C.L - 1) return finJeu(true);
   // Bord de route, monuments, plaques de rue, mini-carte.
@@ -652,7 +727,7 @@ export function majJeu(dt) {
   if (JEU.fini !== true && Math.floor(st.temps * 20) !== Math.floor((st.temps - dt) * 20)) majMiniCarte(st, C);
   // Caméra de poursuite : elle se lève et regarde le monument que l'on longe.
   const virageCam = JEU.capCam == null ? 0 : Math.abs(Math.atan2(Math.sin(Math.atan2(p.dx, p.dz) - JEU.capCam), Math.cos(Math.atan2(p.dx, p.dz) - JEU.capCam))); // en plein virage, on regarde la route
-  const vise = rep && rep.d < 260 && rep.s > st.s - 15 && virageCam < .35 ? Math.max(0, 1 - Math.abs(st.s - rep.s) / 140) : 0;
+  const vise = rep && rep.d < 260 && rep.s > st.s - 15 && virageCam < .35 ? Math.max(0, 1 - Math.abs(st.s - rep.s) / 140) * THREE.MathUtils.clamp(st.v / 6, 0, 1) : 0; // à l'arrêt, on garde le zém dans l'image
   JEU.vise = (JEU.vise || 0) + (vise - (JEU.vise || 0)) * Math.min(1, dt * (vise < (JEU.vise || 0) ? 5 : 2.5));
   const pax = JEU.veh === 'zem' && st.passagers ? 1 : 0; // client assis derrière : la caméra se lève pour voir la route
   const [d0, h0] = V.cam, d = d0 + JEU.vise * 3 + pax * 1.1, h = h0 + JEU.vise * 2.6 + pax * .9, k = 1 - Math.exp(-dt * 5);
@@ -661,8 +736,12 @@ export function majJeu(dt) {
   // coup dans l'axe de la route, elle passait au travers du zém dans un virage serré ou un demi-tour, et le perdait.
   const cap = Math.atan2(p.dx, p.dz); if (JEU.capCam == null) JEU.capCam = cap;
   JEU.capCam += Math.atan2(Math.sin(cap - JEU.capCam), Math.cos(cap - JEU.capCam)) * Math.min(1, dt * 3);
-  const hx = Math.sin(JEU.capCam), hz = Math.cos(JEU.capCam), cx = p.x - hx * d, cz = p.z - hz * d;
-  camera.position.x += (cx - camera.position.x) * k; camera.position.z += (cz - camera.position.z) * k; camera.position.y += (h + p.y + st.y * .5 - camera.position.y) * k;
+  const hx = Math.sin(JEU.capCam), hz = Math.cos(JEU.capCam);
+  // Pas de caméra dans un mur : si une façade, un mur ou une maison se trouve entre le zém et elle, elle s'approche et se lève.
+  let kc = 1; for (let i = 2; i <= 10; i++) { const f = i / 10, x = p.x - hx * d * f, z = p.z - hz * d * f; if (dansBatiment(x, z) || profondeurRue(x, z, .3) > 0) { kc = Math.max(.35, (i - 1) / 10); break; } }
+  JEU.kCam = (JEU.kCam ?? 1) + (kc - (JEU.kCam ?? 1)) * Math.min(1, dt * (kc < (JEU.kCam ?? 1) ? 12 : 2));
+  const cx = p.x - hx * d * JEU.kCam, cz = p.z - hz * d * JEU.kCam;
+  camera.position.x += (cx - camera.position.x) * k; camera.position.z += (cz - camera.position.z) * k; camera.position.y += (h + (1 - JEU.kCam) * 2.5 + p.y + st.y * .5 - camera.position.y) * k;
   camera.position.y += sh;
   let rx = p.x + hx * 11, rz = p.z + hz * 11, ry = 1.5 + p.y;
   if (rep && JEU.vise > .01) { const w = JEU.vise * .22; rx += (rep.x - rx) * w; rz += (rep.z - rz) * w; ry += JEU.vise * 2.5; }
@@ -685,8 +764,8 @@ function etapesJeu() {
   return [
     { id: 'client', texte: 'Ton client demande le prix : clique sur une réponse, ou appuie sur [1] [2] [3].', quand: () => clients() && !!DISC.client && !DISC.client.accord && !$('#jhDialogue').hidden, fait: () => !clients() || !!DISC.client?.accord },
     { id: 'rouler', texte: 'Maintiens [↑] (ou « Gaz ») pour rouler. Relâche pour ralentir, [↓] pour freiner.', quand: () => true, fait: () => st().v > 8 },
-    { id: 'files', texte: '[←] [→] : change de file pour éviter les zems, les trous et les chèvres. [Espace] : sauter par-dessus un trou.', quand: () => st().v > 5, fait: () => G.changements >= 2 },
     { id: 'arret', texte: () => `Bientôt l’arrêt ${prochain()?.nom || ''} : mets-toi à droite [→], puis freine [↓] dans la zone jaune. ${clients() ? 'Ton client descend et paie.' : 'L’apprenti encaisse les passagers.'}`, quand: () => { const a = prochain(); return !!a && a.s - st().s < 260 && (!clients() || !!DISC.client); }, fait: () => st().servis >= 1 },
+    { id: 'files', texte: '[←] [→] : change de file pour éviter les zems, les trous et les chèvres. [Espace] : sauter par-dessus un trou.', quand: () => st().v > 5, fait: () => G.changements >= 1 },
     { id: 'signe', texte: 'Pas de client à bord : quelqu’un te fait signe au bord de la route. Arrête-toi à sa hauteur, puis [E].', quand: () => clients() && !DISC.client && st().servis >= 1, fait: () => !clients() || (st().servis >= 1 && !!DISC.client) },
     { id: 'carrefour', texte: 'Carrefour : sans rien faire, tu suis le GPS. Pour prendre une autre rue, ralentis puis [←] [→], ou touche les boutons du panneau.', quand: () => !$('#jhCarrefour').hidden, fait: () => G.carrefours >= 1 },
     { id: 'essence', texte: 'Ton réservoir baisse : arrête-toi devant un vendeur de kpayo ou une station, puis [E] pour faire le plein.', quand: () => st().essence < 1, fait: () => G.plein },
@@ -707,15 +786,45 @@ export function majHud(st, C, V) {
   $('#jhVies').innerHTML = [0, 1, 2].map(i => `<i class="${i < st.vies ? '' : 'perdu'}"></i>`).join('');
   $('#jhProg').style.width = `${Math.min(100, st.s / C.L * 100).toFixed(1)}%`;
   const a = JEU.ligne.arretsJ[st.prochain];
-  $('#jhProchain').textContent = a ? `Prochain arrêt : ${a.nom} · ${Math.max(0, Math.round(a.s - st.s))} m` : 'Terminus';
+  // Trop vite pour s'arrêter dans la zone jaune (freinage à 7 m/s²) : on prévient.
+  const reste = a ? a.s - st.s : 0, ralentir = !!a && reste > 0 && st.v > 7.5 && reste < (st.v * st.v - 56) / 14 + 45;
+  $('#jhProchain').textContent = a ? `Prochain arrêt : ${a.nom} · ${Math.max(0, Math.round(reste))} m${ralentir ? ' · Ralentis !' : ''}` : 'Terminus';
+  $('#jhProchain').classList.toggle('alerte', ralentir);
   $('#jhPassagers').textContent = JEU.veh === 'tokpa' ? `${st.passagers}/${V.places} passagers` : etiquetteClient();
+}
+// Les gens et les étals du bord de la route (vendeuses, groupes qui causent, marcheurs, client qui fait signe) et les
+// poteaux ne se traversent pas : sur le bas-côté (files ±2), on s'arrête devant eux ; trop vite, c'est l'accident.
+const RAYONS = { poteau: .25, vendeuse: .7, kpayo: .7, momo: .7, vulca: .7, peinte: .5, zems: 1.1 }, vP = new THREE.Vector3();
+function corpsDuBord(st, C, V, dt) {
+  const j = JEU.joueur.position, c = pose(C, st.s, 0, tmpP2), hl = V.long / 2, hw = V.larg / 2, corps = [];
+  for (const o of BORD.vivants) if (RAYONS[o.type]) corps.push([o.g.position, RAYONS[o.type], o.type === 'poteau' ? 'au poteau' : 'à l’étal']);
+  for (const g of DISC.vivants) for (const m of g.membres) corps.push([m.getWorldPosition(vP).clone(), .3, 'aux passants']);
+  for (const h of DISC.signes) if (h.m) corps.push([h.m.position, .3, 'au client qui te faisait signe']);
+  for (const p of PT.marcheurs) corps.push([p.m.position, .3, 'au piéton']);
+  for (const [q, r, nom] of corps) {
+    const x = q.x - j.x, z = q.z - j.z; if (x * x + z * z > 9) continue;
+    const u = x * c.dx + z * c.dz, v = -x * c.dz + z * c.dx;
+    if (Math.abs(u) >= hl + r || Math.abs(v) >= hw + r) continue;
+    const v0 = st.v;
+    if (hw + r - Math.abs(v) < (hl + r - Math.abs(u)) * .6) { st.file = THREE.MathUtils.clamp(st.file - Math.sign(v), -2, 2); st.lat -= Math.sign(v) * (hw + r - Math.abs(v) + .05) / Math.max(kFiles(C, st.s), .3); } // de côté : on s'écarte
+    else if (u > 0) { st.s = Math.max(1, st.s - (hl + r - u) - .02); st.v = Math.min(st.v, 0); } // devant : on s'arrête
+    if (v0 > 4.2 && st.invul <= 0) {
+      st.vies--; st.v = 0; st.invul = 1.8; st.secousse = .5; son('choc'); vibrer('choc'); evenement('choc');
+      toast(st.vies > 0 ? `Accident ! Attention ${nom}` : 'Accident…', 1.6, 'mal');
+      if (st.vies <= 0) { majHud(st, C, V); finJeu(false); return true; }
+      accident(st);
+    } else if (v0 > .5 && !st.bute) { st.bute = .6; son('bosse'); }
+    break;
+  }
+  if (st.bute > 0) st.bute = Math.max(0, st.bute - dt); // à 0 pile : sinon un reste négatif bloquait le son des bosses suivantes
+  return false;
 }
 /** Bilan de la course : au terminus (`arrive`), après trois accidents, ou quand on la quitte (`quitte`, menu Pause). */
 export function finJeu(arrive, quitte = false) {
   const st = JEU.etat; if (!st || JEU.fini) return; JEU.fini = true; JEU.pause = true; moteurMaj(0, false); taire(); arreterMusique();
   const L = JEU.ligne, el = $('#jeuFin'), prochain = L.arretsJ[st.prochain];
   el.querySelector('h2').textContent = arrive ? 'Terminus !' : quitte ? 'Course arrêtée' : 'Fin de la course';
-  el.querySelector('.jf-sous').textContent = arrive ? `${L.nom} : ${L.arretsJ[0].nom} → ${L.arretsJ[L.arretsJ.length - 1].nom}` : quitte ? `${L.nom}${prochain ? ` · arrêtée avant ${prochain.nom}` : ''}. Ta recette va dans ta cagnotte.` : 'Trois accidents : le casque a servi. Repars quand tu veux.';
+  el.querySelector('.jf-sous').textContent = arrive ? `${L.nom} : ${L.arretsJ[0].nom} → ${L.arretsJ[L.arretsJ.length - 1].nom}` : quitte ? `${L.nom}${prochain ? ` · arrêtée avant ${prochain.nom}` : ''}. Ta recette va dans ta cagnotte.` : 'Trois accidents : ta journée s’arrête là. Repars quand tu veux.';
   const duree = Math.round(st.temps), km = st.parcouru / 1000;
   const stats = [['Recette', fmtF(st.argent)], [JEU.veh === 'tokpa' ? 'Passagers payants' : 'Clients transportés', st.voyageurs], ['Arrêts desservis', `${st.servis}/${L.arretsJ.length - 1}`],
     ['Distance parcourue', `${km.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`], ['Durée', `${Math.floor(duree / 60)} min ${String(duree % 60).padStart(2, '0')} s`], ['Frôlements', st.frolements]];
@@ -723,9 +832,9 @@ export function finJeu(arrive, quitte = false) {
   el.querySelector('.jf-stats').innerHTML = stats.map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('');
   const qz = el.querySelector('.jf-quiz'), Q = QUIZ[L.id] || []; let i = 0, bonus = 0;
   const finir = () => {
-    const total = st.argent + bonus, prev = JEU.meilleur[L.id] || 0; if (total > prev) JEU.meilleur[L.id] = total;
+    const total = st.argent + bonus, prev = JEU.meilleur[L.id] || 0, record = arrive && total > prev; if (record) JEU.meilleur[L.id] = total; // un record se fait au terminus
     JEU.prog.cagnotte += Math.max(0, total); if (arrive && st.vies === 3) progres('lignes', 1); assurerMissions(); sauver();
-    qz.innerHTML = `<p class="jf-total">Total : <b>${fmtF(total)}</b>${bonus ? ` (dont ${fmtF(bonus)} de quiz)` : ''}<br><small>${total > prev ? 'Nouveau record sur cette ligne !' : `Record : ${fmtF(prev)}`} · versé dans ta cagnotte (${fmtF(JEU.prog.cagnotte)})</small></p>`;
+    qz.innerHTML = `<p class="jf-total">Total : <b>${fmtF(total)}</b>${bonus ? ` (dont ${fmtF(bonus)} de quiz)` : ''}<br><small>${record ? 'Nouveau record sur cette ligne !' : prev ? `Record : ${fmtF(prev)}` : 'Va jusqu’au terminus pour faire un record'} · versé dans ta cagnotte (${fmtF(JEU.prog.cagnotte)})</small></p>`;
     remplirLignes();
   };
   const poser = () => {
@@ -749,9 +858,9 @@ export function remplirLignes() {
   const el = $('#jmLignes'); el.innerHTML = '';
   for (const L of JEU.lignes) {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'jm-ligne';
-    const km = (L.arrets[L.arrets.length - 1].s / 1000).toFixed(1);
+    const km = (L.arrets[L.arrets.length - 1].s / 1000).toFixed(1), court = L === JEU.lignes.reduce((m, l) => l.arrets[l.arrets.length - 1].s < m.arrets[m.arrets.length - 1].s ? l : m, JEU.lignes[0]);
     const veh = L.veh === 'zem' && JEU.prog?.voiture && JEU.prog.vehicule === 'voiture' ? 'voiture' : L.veh;
-    b.innerHTML = `<span class="jm-veh ${veh}">${veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : 'Tokpa'}</span><b>${L.nom}</b><small>${L.arrets.map(a => a.nom).join(' → ')}</small><span class="jm-meta">${km} km · ${L.arrets.slice(1).reduce((n, a, k) => n + 1 + nbIntermediaires(a.s - L.arrets[k].s), 0)} arrêts${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
+    b.innerHTML = `<span class="jm-veh ${veh}">${veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : 'Tokpa'}</span><b>${L.nom}</b>${court ? '<em class="jm-debut">Pour commencer</em>' : ''}<small>${L.arrets.map(a => a.nom).join(' → ')}</small><span class="jm-meta">${km} km · ${Math.max(5, Math.round(km * 2.6))} min environ · ${L.arrets.slice(1).reduce((n, a, k) => n + 1 + nbIntermediaires(a.s - L.arrets[k].s), 0)} arrêts${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
     b.addEventListener('click', () => { JEU.numero = ($('#jmNumero').value || '1234').slice(0, 5); sauver(); JEU.fini = false; lancerLigne(L, veh); annoncerDepart(L.id, veh); }); // à deux : l'autre part sur la même ligne
     el.appendChild(b);
   }
@@ -763,13 +872,28 @@ export function ouvrirJeu() {
   $('#jmNumero').value = JEU.numero;
   remplirLignes();
 }
+/** Ligne express pour débuter : le début de « Sur la Marina », de Haie Vive au carrefour d'Erevan (1,6 km).
+ *  Sur cette ligne, et tant qu'on n'a fini aucune course, la police est indulgente (voir `police`). */
+function ligneExpress(lignes) {
+  const M = lignes.find(l => l.id === 'marina'), fin = M?.arrets[1]; if (!fin) return null;
+  const pts = [M.pts[0]]; let cum = 0;
+  for (let i = 1; i < M.pts.length && cum < fin.s; i++) {
+    const a = M.pts[i - 1], b = M.pts[i], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (cum + l <= fin.s) pts.push(b); else { const t = (fin.s - cum) / l; pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+    cum += l;
+  }
+  return { ...M, id: 'express', nom: 'Ligne express', express: true, pts, arrets: M.arrets.slice(0, 2) };
+}
 export function initJeu(data) {
-  JEU.lignes = data.L.lignes || []; JEU.data = data;
+  const ex = ligneExpress(data.L.lignes || []);
+  JEU.lignes = ex ? [ex, ...data.L.lignes] : data.L.lignes || []; JEU.data = data;
   JEU.prog = Object.assign(progDefaut(), JEU.progSauve || {}); assurerMissions();
   QUARTIERS_J = [...QUARTIERS, ['Abomey-Calavi', 6.448, 2.355], ['Zogbadjè', 6.4236, 2.3348], ['Godomey', 6.3870, 2.3420], ['Togoudo', 6.4071, 2.3345]].map(([n, la, lo]) => { const [x, z] = toXZ(la, lo); return [n, x, z]; });
   JEU.quartiersNoms = [...new Set(QUARTIERS_J.map(q => q[0]))];
   $('#btnJouer').addEventListener('click', ouvrirJeu);
-  $('#jmRetour').addEventListener('click', () => { $('#jeu').hidden = true; document.getElementById('app').classList.remove('mode-jeu'); });
+  const retourCarte = () => { $('#jeu').hidden = true; document.getElementById('app').classList.remove('mode-jeu'); };
+  $('#jmRetour').addEventListener('click', retourCarte); $('#jmFermer').addEventListener('click', retourCarte); // la croix en haut : le bouton du bas sortait de l'écran
+  window.addEventListener('keydown', e => { if (e.key === 'Escape' && !JEU.actif && !$('#jeu').hidden && !$('#jeuMenu').hidden) retourCarte(); });
   $('#jmPub').addEventListener('click', ouvrirOffre);
   $('#jfRejouer').addEventListener('click', () => { JEU.fini = false; lancerLigne(JEU.ligne, JEU.veh); });
   $('#jfLignes').addEventListener('click', () => { JEU.actif = false; moteurStop(); nettoyerBordure(); nettoyerDiscussions(); viderPietons(); remettreVegetation(); if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; } ouvrirJeu(); });
@@ -779,7 +903,9 @@ export function initJeu(data) {
   $('#jhPause').addEventListener('click', () => { if (JEU.fini) return; JEU.pause = true; moteurMaj(0, false); taire(); $('#jeuPause').hidden = false; });
   $('#jhSon').addEventListener('click', e => { AUDIO.muet = !AUDIO.muet; e.currentTarget.setAttribute('aria-pressed', String(!AUDIO.muet)); if (AUDIO.muet) { moteurMaj(0, false); radio(false); taire(); } });
   const st = () => JEU.etat;
-  const gauche = () => { if (!st() || virage(-1)) return; if (st().file > -2) st().file--; }, droite = () => { if (!st() || virage(1)) return; if (st().file < 2) st().file++; };
+  // Pas de file dans un mur : on le sent (bosse, secousse) et la moto reste où elle est.
+  const changer = sens => { const e = st(), f = e.file + sens; if (Math.abs(f) > 2) return; if (JEU.chemin && !placeFile(JEU.chemin, e.s, f)) { son('bosse'); vibrer('piece'); e.secousse = .2; toast('Pas de place de ce côté : il y a un mur', 1.1, 'mal'); return; } e.file = f; };
+  const gauche = () => { if (!st() || virage(-1)) return; changer(-1); }, droite = () => { if (!st() || virage(1)) return; changer(1); };
 
   window.addEventListener('keydown', e => {
     if (!JEU.actif || JEU.fini) return;

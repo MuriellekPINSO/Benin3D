@@ -20,10 +20,10 @@ import { actionsMetier, chocMetier, enService, initMetiers, majMetiers, quitterM
 export const T = { mode: 'pied', veh: null, zem: null, gps: null, plat: null, repas: null, trans: null, conso: 0, panneDite: false, ctx: null, gpsT: 0 };
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 const v3 = new THREE.Vector3();
-let S = null, ligne = () => { };
+let S = null, ligne = () => { }, bulleLocale = null;
 
 export function initTrajets(data, ctx) {
-  initStations(data.L.stations); S = ctx.S; ligne = ctx.ligne; initVol(data, { ...ctx, T });
+  initStations(data.L.stations); S = ctx.S; ligne = ctx.ligne; bulleLocale = ctx.bulle; initVol(data, { ...ctx, T });
   initMetiers(data, { ...ctx, T, gps, choisir, asseoirSur, garerSonVehicule, etiquette }); // zém, taxi, tokpa-tokpa (metiers.js)
 }
 // Comment on nomme le véhicule : monter dans…, descendre de…
@@ -249,7 +249,7 @@ function majRepas(dt) {
   const R = T.repas, P = T.plat; if (!R || !P) return;
   if (S.anim !== 'assis' || Math.hypot(S.x - R.chaise[0], S.z - R.chaise[1]) > .3) return; // on mange assis
   R.t += dt; manger(P.points * dt / R.duree); P.g.userData.repas.scale.setScalar(Math.max(.05, 1 - R.t / R.duree));
-  R.dit += dt; if (R.dit > 7) { R.dit = 0; S.dire?.(['Hmm, c’est bon !', 'Ça, c’est du bon.', 'Il faut revenir ici.'][Math.floor(Math.random() * 3)]); }
+  R.dit += dt; if (R.dit > 7) { R.dit = 0; bulleLocale?.(S, (['Hmm, c’est bon !', 'Ça, c’est du bon.', 'Il faut revenir ici.'][Math.floor(Math.random() * 3)])); } // une bulle, pas un message à tout le salon
   if (R.t >= R.duree) { jeterPlat(); T.repas = null; sauverVie(); ligne(`Tu as bien mangé : faim ${Math.round(VIE.data.faim)} %.`); }
 }
 

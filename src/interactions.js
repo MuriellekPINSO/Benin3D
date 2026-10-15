@@ -62,6 +62,8 @@ function actionsObjet(st, o) {
     bulle(o.g, conseil, { duree: 3.4 });
     dialogue('Les zémidjans', `« ${conseil} »`, [['Merci, mon frère !', () => bulle(o.g, 'On est ensemble !')], ['Tu as eu combien aujourd’hui ?', () => bulle(o.g, 'Hum… pas grand-chose. Et toi ?')]], { defaut: -1, duree: 9 });
   } };
+  // Un commissariat, une mairie, une école… ne vendent pas de boissons : on n'y entre pas.
+  if (t === 'enseigne' && /commissariat|police|gendarmerie|mairie|minist|ambassade|tribunal|école|ecole|lycée|collège|église|eglise|mosquée|hôpital|hopital|banque/i.test(`${it.nom || ''} ${it.t || ''}`)) return null;
   if (t === 'enseigne') return { label: `Entrer chez ${it.nom || 'le commerçant'}`, go: () => {
     const nom = it.nom || 'la boutique', ty = it.t || '';
     const offre = /pharmac/.test(ty) ? ['Du paracétamol · 500 F', 500, 'Prends-le avec de l’eau !'] : /restau|maquis|bar|fast/.test(ty) ? ['Un plat de riz · 1 000 F', 1000, 'Bon appétit !'] : /coiff/.test(ty) ? ['Une coupe · 1 500 F', 1500, 'Te voilà beau !'] : ['Une boisson fraîche · 300 F', 300, 'Merci, à bientôt !'];

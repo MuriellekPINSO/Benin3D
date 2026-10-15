@@ -11,7 +11,7 @@ import { remettre } from './remise.js';
 import { dansBatiment, pietonOk } from './rue.js';
 import { scene } from './scene.js';
 import { roadLines } from './ville.js';
-import { GRADES, METIERS, VIE, carriere, depenser, ecrire, gagner, gradeDe, nomMetier, posteDe, rendreVie, titreDans } from './vie.js';
+import { GRADES, METIERS, VIE, carriere, depenser, ecrire, gagner, gradeDe, nomMetier, posteDe, rendreVie, signaler, titreDans } from './vie.js';
 import { actionsVille, arreterVille, demarrerVille, initVille, majVille, missionVille, optionsVille, reprendreVille, suiviVille } from './metiers-ville.js';
 
 // ---------- Les métiers du transport (Vivre à Cotonou, étape 2, première vague) ----------
@@ -296,7 +296,7 @@ async function arriveeClient(C) {
   remettre(C.p, S.moi?.visible ? S.moi : new THREE.Vector3(T.veh.x, T.veh.y + 1.1, T.veh.z), 'billet', { hautDe: 1.2, garder: .4 });
   dire(C, pourboire === 100 ? 'Merci ! Tu roules bien, garde la monnaie.' : 'Merci, à la prochaine !');
   await gagner(C.prix + pourboire, `course jusqu’à ${C.dest.nom}${pourboire ? ` (dont ${pourboire} F de pourboire)` : ''}`);
-  experience(); son('piece');
+  experience(); son('piece'); signaler('course');
   setTimeout(() => partir(C), 1200);
 }
 /** Une course ou un arrêt servi : un point d'expérience ; tous les quelques points, on monte en grade. */

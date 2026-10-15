@@ -364,6 +364,38 @@ function porte() {
 // Egungun qui dansent en cercle, la paire aux masques sculptés, et les Zangbeto de
 // raphia qui tournoient. Les modèles 3D ne se chargent qu'à l'approche de Ouidah.
 const SP = { arene: null, groupe: null, acteurs: [], charge: false };
+// Les gradins (voir arene()) : deux secteurs ouverts côté mer, 24 rangées de 0,9 m de profondeur et 0,45 m de haut.
+const SECTEURS = [[41, 159], [-158, -27]], RANG_R = i => 33 + i * .9, RANG_Y = i => 1.2 + i * .45;
+/**
+ * Une place dans les gradins de l'arène près de (x, z), pour regarder le spectacle : { x, y, z, cap, bas } (bas : le
+ * bord de la piste en face, où l'on redescend), ou null si l'on n'est pas près des gradins.
+ */
+/** De combien (x, z), avec un rayon r, entre dans le mur d'enceinte, un pavillon, les gradins ou le muret de l'arène (0 : libre). */
+export function obstacleArene(x, z, r = .3) {
+  const g = SP.arene?.parent; if (!g) return 0;
+  const dx = x - g.position.x, dz = z - g.position.z; if (dx * dx + dz * dz > 90 * 90) return 0;
+  const c = Math.cos(g.rotation.y), s = Math.sin(g.rotation.y), lx = dx * c - dz * s, lz = dx * s + dz * c, rr = Math.hypot(lx, lz), th = Math.atan2(lx, lz) / D2R;
+  let p = 0; const bande = (r0, r1) => { if (rr > r0 - r && rr < r1 + r) p = Math.max(p, Math.min(rr - (r0 - r), r1 + r - rr)); };
+  if (th > -170 && th < 148) bande(77, 77.4); // mur d'enceinte (l'entrée est au sud-est)
+  for (const [t, rp] of PAVILLONS) { const u = lx - rp * Math.sin(t * D2R), v = lz - rp * Math.cos(t * D2R), d = Math.hypot(u, v); if (d < 4 + r) p = Math.max(p, 4 + r - d); }
+  if (SECTEURS.some(([a, b]) => th > a - .5 && th < b + .5)) bande(32.95, 55); // gradins : on y monte par « S'asseoir dans les gradins »
+  else if (th > -27 && th < 41) bande(53, 53.45); // muret côté mer
+  return p;
+}
+const PAVILLONS = [[110, 82], [89, 80], [58, 78], [-46, 75], [-94, 78]];
+export function siegeGradins(x, z) {
+  const g = SP.arene?.parent; if (!g) return null;
+  const c = Math.cos(g.rotation.y), s = Math.sin(g.rotation.y), dx = x - g.position.x, dz = z - g.position.z;
+  const lx = dx * c - dz * s, lz = dx * s + dz * c, r = Math.hypot(lx, lz); // dans le repère de l'arène
+  if (r < 24 || r > 60) return null;
+  let th = Math.atan2(lx, lz) / D2R;
+  const sect = SECTEURS.find(([a, b]) => th > a - 12 && th < b + 12); if (!sect) return null; // la piste ouverte côté mer : pas de gradins
+  th = Math.min(sect[1] - 3, Math.max(sect[0] + 3, th)) * D2R;
+  const i = r < 36 ? 3 : Math.min(20, Math.round((r - RANG_R(0)) / .9)), rs = RANG_R(i) + .48;
+  const monde = (u, v) => [g.position.x + u * c + v * s, g.position.z - u * s + v * c];
+  const [sx, sz] = monde(rs * Math.sin(th), rs * Math.cos(th)), [bx, bz] = monde(31 * Math.sin(th), 31 * Math.cos(th));
+  return { x: sx, y: g.position.y + RANG_Y(i), z: sz, cap: Math.atan2(-Math.sin(th), -Math.cos(th)) + g.rotation.y, bas: [bx, bz], rang: i + 1 };
+}
 function monterSpectacle() {
   const G = new THREE.Group(), k = 1.2; // un peu plus grands que nature, pour qu'on les voie depuis les gradins
   const place = (o, x, z, ry, anim) => { if (!o) return; o.position.set(x, .06, z); o.rotation.y = ry; o.scale.multiplyScalar(k); G.add(o); SP.acteurs.push({ o, anim, x, z }); };

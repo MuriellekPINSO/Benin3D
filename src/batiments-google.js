@@ -3,6 +3,7 @@ import { scene } from './scene.js';
 import { maillageLot, roadLines } from './ville.js';
 import { ajouterEmprises } from './rue.js';
 import { lireJsonGz } from './chargement.js';
+import { rectSansConstruction } from './zones.js';
 
 // ---------- Bâtiments Google Open Buildings ----------
 // Google détecte les bâtiments sur ses images satellite et publie leurs emprises
@@ -52,7 +53,7 @@ function horsChaussee(T) {
   for (let i = 0; i < T.n.length; i++) {
     const n = T.n[i], cx = T.x[i] / 10, cz = T.z[i] / 10, r = new Float64Array(n * 2), bb = [1e9, 1e9, -1e9, -1e9];
     for (let j = 0; j < n; j++) { const x = cx + T.p[o + 2 * j] / 10, z = cz + T.p[o + 2 * j + 1] / 10; r[2 * j] = x; r[2 * j + 1] = z; bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], z); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], z); }
-    const route = surLaChaussee(r, bb);
+    const route = surLaChaussee(r, bb) || (rectSansConstruction(bb[0], bb[1], bb[2], bb[3]) ? 99 : 0); // 99 : piste de Ouidah (zones.js)
     if (route) { retires++; BG.parClasse[route - 1] = (BG.parClasse[route - 1] || 0) + 1; }
     else { out.n.push(n); out.h.push(T.h[i]); out.c.push(T.c[i]); out.x.push(T.x[i]); out.z.push(T.z[i]); for (let j = 0; j < n * 2; j++) out.p.push(T.p[o + j]); ids.push(i); }
     o += n * 2;

@@ -101,7 +101,7 @@ export function personne(i, { assise = false, gilet = null, femme: genre = null,
     },
     liberer: () => g.traverse(o => { if (o.isMesh) o.geometry.dispose(); }),
   };
-  return g;
+  g.userData.pnj = true; return g;
 }
 
 // ---------- Ce qu'on entend au bord de la route ----------
@@ -287,7 +287,7 @@ function demanderCasque(st, c) {
   dit('Ah non… je n’ai pas de casque.');
   dialogue(`${c.nom} · le casque`, '« Tu as ton casque ? » — « Non, je n’en ai pas… »', [
     ['Je te prête le mien', () => { mettreCasque(c.siege); humeur(.12); dit('Merci zém, tu es gentil !'); }],
-    ['Achète-en un au vendeur, là · 2 000 F', () => {
+    ['Achète-en un au vendeur, là · 2\u202f000\u00a0F', () => {
       st.service = Math.max(st.service, 3.4); toast('Le client achète un casque au vendeur du bord de la route…', 2.2);
       const p = pose(JEU.chemin, st.s + 3, latTrottoir(JEU.chemin, st.s + 3, 1, .9) ?? demiChaussee(JEU.chemin, st.s + 3) + .5, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(JEU.chemin, st.s + 3, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
       const vend = personne(4500 + Math.floor(Math.random() * 400), { femme: false }); vend.position.set(p.x, p.y, p.z); vend.lookAt(q.x, p.y, q.z); JEU.decor.add(vend); bulle(vend, 'Casque ! Casque neuf !', { duree: 2.4 });

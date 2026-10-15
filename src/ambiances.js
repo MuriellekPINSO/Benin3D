@@ -16,6 +16,7 @@ export function setMood(name) {
   moodTgt = toMood(MOODS[name]);
   if (reduceMotion) moodCur = toMood(MOODS[name]);
   document.querySelectorAll('[data-mood]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mood === name)));
+  const app = document.getElementById('app'); if (app) app.dataset.moment = name; // la Vue réelle s'assombrit aussi (style.css)
 }
 export const sunDir = new THREE.Vector3();
 export function applyMood(dt) {

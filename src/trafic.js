@@ -29,7 +29,7 @@ export function buildZems() {
     while (lo < hi) { const mid = (lo + hi) >> 1; if (paths[mid].acc < r) lo = mid + 1; else hi = mid; }
     const P = paths[lo];
     // Chaussée à sens unique (moitié de boulevard) : tout le monde roule dans le même sens, réparti sur la largeur.
-    E.zemState.push({ P, s: hash(i, 61) * P.len, v: 7 + hash(i, 62) * 7, dir: P.sens ? 1 : hash(i, 63) < 0.5 ? 1 : -1, seg: 0, lane: P.sens ? (hash(i, 64) - .5) * (P.w - 2) : 0.8 + hash(i, 64) * (P.w * 0.3) });
+    E.zemState.push({ P, s: hash(i, 61) * P.len, v: 7 + hash(i, 62) * 7, dir: P.sens ? 1 : hash(i, 63) < 0.5 ? 1 : -1, seg: 0, lane: P.sens ? (hash(i, 64) - .5) * (P.w - 2) : 0.8 + hash(i, 64) * (P.w * 0.3), hl: 1.05, hw: .42 });
   }
   scene.add(E.zems);
 }
@@ -49,7 +49,7 @@ export function updateZems(dt) {
   let np = 0;
   for (let i = 0; i < E.zemState.length; i++) {
     const z = E.zemState[i], P = z.P;
-    z.s += z.v * dt * z.dir;
+    if (!cede(z)) z.s += z.v * dt * z.dir;
     if (P.sens) { if (z.s >= P.len) z.s = 0.01; } // sens unique : pas de demi-tour, on repart du début
     else if (z.s >= P.len) { z.s = P.len - 0.01; z.dir = -1; } else if (z.s <= 0) { z.s = 0.01; z.dir = 1; }
     const cum = P.cum; let k = z.seg;
@@ -61,6 +61,7 @@ export function updateZems(dt) {
     let dx = (x1 - x0) / sl * z.dir, dz = (z1 - z0) / sl * z.dir;
     const x = x0 + (x1 - x0) * t + (-dz) * z.lane, zz = z0 + (z1 - z0) * t + dx * z.lane;
     const th = Math.atan2(-dz, dx), c = Math.cos(th), s = Math.sin(th), o = i * 16;
+    retenir(z, x, zz, dx, dz);
     if (B && np < PR.userData.max && (x - cam.x) ** 2 + (zz - cam.z) ** 2 < R2) {
       const q = np++ * 16;
       B[q] = c; B[q + 1] = 0; B[q + 2] = -s; B[q + 3] = 0; B[q + 4] = 0; B[q + 5] = 1; B[q + 6] = 0; B[q + 7] = 0;
@@ -72,6 +73,30 @@ export function updateZems(dt) {
   }
   E.zems.instanceMatrix.needsUpdate = true;
   if (PR) { PR.count = np; PR.instanceMatrix.needsUpdate = true; }
+}
+
+// ---------- La circulation et le joueur de « Vivre à Cotonou » ----------
+// Personne ne traverse personne : un zém ou un tokpa qui a le joueur juste devant lui s'arrête (cede), et ceux qui
+// roulent près de lui (retenir → E.circulation) bloquent sa marche et sa conduite (dansCirculation).
+function cede(z) {
+  const J = E.joueur; if (!J || z.px === undefined) return false;
+  const ax = J.x - z.px, az = J.z - z.pz; if (ax * ax + az * az > 64) return false;
+  const devant = ax * z.fx + az * z.fz, cote = Math.abs(ax * z.fz - az * z.fx);
+  return devant > 0 && devant < z.hl + 3 && cote < z.hw + .9;
+}
+function retenir(z, x, zz, dx, dz) {
+  z.px = x; z.pz = zz; z.fx = dx; z.fz = dz; z.cap = Math.atan2(dx, dz);
+  const J = E.joueur; if (J && (x - J.x) ** 2 + (zz - J.z) ** 2 < 1600) E.circulation.push(z);
+}
+/** De combien un corps de rayon r posé en (x, z) entre dans un zém ou un tokpa de la circulation (0 : il est libre). */
+export function dansCirculation(x, z, r = .3) {
+  let p = 0;
+  for (const V of E.circulation) {
+    const dx = x - V.px, dz = z - V.pz, s = Math.sin(V.cap), c = Math.cos(V.cap);
+    const u = V.hl + r - Math.abs(dx * s + dz * c), w = V.hw + r - Math.abs(dx * c - dz * s);
+    if (u > 0 && w > 0) p = Math.max(p, Math.min(u, w));
+  }
+  return p;
 }
 
 // Lampadaires (nuit)
@@ -114,7 +139,7 @@ export function construireTokpas() {
   E.tokpas.instanceMatrix.setUsage(THREE.DynamicDrawUsage); E.tokpas.frustumCulled = false; E.tokpas.visible = false; E.tokpas.castShadow = !LITE;
   for (let i = 0; i < n; i++) {
     const r = hash(i, 160) * total; let lo = 0, hi = paths.length - 1; while (lo < hi) { const mid = (lo + hi) >> 1; if (paths[mid].acc < r) lo = mid + 1; else hi = mid; }
-    const P = paths[lo]; E.tokpaState.push({ P, s: hash(i, 161) * P.len, v: 7 + hash(i, 162) * 5, dir: hash(i, 163) < .5 ? 1 : -1, seg: 0, lane: 2.2 + hash(i, 164) * 1.2 });
+    const P = paths[lo]; E.tokpaState.push({ P, s: hash(i, 161) * P.len, v: 7 + hash(i, 162) * 5, dir: hash(i, 163) < .5 ? 1 : -1, seg: 0, lane: 2.2 + hash(i, 164) * 1.2, hl: 2.45, hw: .93 });
   }
   scene.add(E.tokpas);
 }
@@ -122,12 +147,13 @@ export function majTokpas(dt) {
   if (!E.tokpas) return;
   const A = E.tokpas.instanceMatrix.array;
   for (let i = 0; i < E.tokpaState.length; i++) {
-    const z = E.tokpaState[i], P = z.P; z.s += z.v * dt * z.dir;
+    const z = E.tokpaState[i], P = z.P; if (!cede(z)) z.s += z.v * dt * z.dir;
     if (z.s >= P.len) { z.s = P.len - .01; z.dir = -1; } else if (z.s <= 0) { z.s = .01; z.dir = 1; }
     const cum = P.cum; let k = z.seg; while (k < cum.length - 2 && z.s > cum[k + 1]) k++; while (k > 0 && z.s < cum[k]) k--; z.seg = k;
     const x0 = P.xz[2 * k], z0 = P.xz[2 * k + 1], x1 = P.xz[2 * k + 2], z1 = P.xz[2 * k + 3], sl = cum[k + 1] - cum[k] || 1, t = (z.s - cum[k]) / sl;
     const dx = (x1 - x0) / sl * z.dir, dz = (z1 - z0) / sl * z.dir, x = x0 + (x1 - x0) * t - dz * z.lane, zz = z0 + (z1 - z0) * t + dx * z.lane;
     const th = Math.atan2(-dz, dx), c = Math.cos(th), s = Math.sin(th), o = i * 16;
+    retenir(z, x, zz, dx, dz);
     A[o] = c; A[o + 1] = 0; A[o + 2] = -s; A[o + 3] = 0; A[o + 4] = 0; A[o + 5] = 1; A[o + 6] = 0; A[o + 7] = 0; A[o + 8] = s; A[o + 9] = 0; A[o + 10] = c; A[o + 11] = 0; A[o + 12] = x; A[o + 13] = 0.05; A[o + 14] = zz; A[o + 15] = 1;
   }
   E.tokpas.instanceMatrix.needsUpdate = true;

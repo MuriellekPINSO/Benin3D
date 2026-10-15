@@ -16,7 +16,7 @@ import { batimentsGoogleVisibles } from './batiments-google.js';
 // bâtiments (si l'on veut), les monuments, la circulation, les étiquettes et tout
 // le jeu Zém Run, qui roule ainsi sur les vraies rues vues par Google.
 
-export const MR = { actif: false, m: null, alt: null, maquette: false, enJeu: false, visite: false, ombre: null, envoye: {} };
+export const MR = { actif: false, pret: true, m: null, alt: null, maquette: false, enJeu: false, visite: false, ombre: null, envoye: {} };
 const v = new THREE.Vector3(), deg = 180 / Math.PI;
 
 async function creerCarte() {
@@ -33,8 +33,12 @@ async function creerCarte() {
 // Congrès ou la cathédrale ne seraient qu'une photo à plat), la circulation et les étiquettes.
 // Avec la maquette (bouton, ou toujours pendant Zém Run, où il faut des volumes au ras du sol) :
 // tout sauf le sol.
+// Elle demandait qu'en Vue réelle « on ne voie plus la 3D » : sans la maquette (et hors visite et Zém Run), plus
+// aucun objet dessiné, ni monuments, ni conteneurs, bateaux, palmiers, ni circulation ; seules restent les étiquettes.
+/** Vue réelle seule : Google, sans rien de la maquette. */
+export const vueReelleSeule = () => MR.actif && MR.pret && !MR.maquette && !MR.enJeu && !MR.visite;
 function appliquerVisibilite() {
-  const on = MR.actif, maquette = !on || MR.maquette || MR.enJeu;
+  const on = MR.actif && MR.pret, maquette = !on || MR.maquette || MR.enJeu;
   for (const c of COUCHES_SOL) c.visible = !on || (MR.enJeu && !!c.userData.route); // en jeu : nos routes, nettes au ras du sol
   sky.visible = !on;
   for (const b of buildingMeshes) b.visible = maquette;
@@ -42,15 +46,26 @@ function appliquerVisibilite() {
   for (const m of VEGETATION) m.visible = maquette;
   for (const m of TP.decor) m.visible = maquette; // haies, lampadaires et drapeaux des terre-pleins
   rueActive(maquette);
-  LIEUX.caches = false; visibiliteLieux(camera.position); // nos monuments restent, même sur les images Google
+  LIEUX.caches = vueReelleSeule(); visibiliteLieux(camera.position); // monuments : avec la maquette, en visite et en jeu seulement (et celui du lieu choisi)
+  const z = $('#togZem'); if (z) z.hidden = vueReelleSeule(); // pas de circulation en Vue réelle seule : le bouton ne ferait rien
   if (MR.ombre) MR.ombre.visible = on && maquette;
 }
 /** Active ou coupe la vue réelle ; renvoie un message d'erreur, ou null. */
+// La première fois, la maquette reste affichée tant que Google n'a pas fini de charger ses images (l'écran restait
+// presque vide 3 à 5 s à l'accueil), puis elle s'efface ; au plus 8 s d'attente.
+function attendreImages() {
+  MR.pret = false;
+  const pret = () => { if (MR.pret) return; MR.pret = true; appliquerVisibilite(); };
+  MR.m.addEventListener('gmp-steadychange', e => { if (e.isSteady ?? e.detail?.isSteady) setTimeout(pret, 300); });
+  setTimeout(pret, 8000);
+}
+let demande = 0; // la dernière demande l'emporte (on entrait dans le salon pendant que la carte Google se chargeait : elle restait allumée)
 export async function basculerMondeReel(on) {
-  const app = document.getElementById('app'), el = $('#vueGoogle');
+  const app = document.getElementById('app'), el = $('#vueGoogle'), ma = ++demande;
   if (on) {
-    try { if (!MR.m) MR.m = await creerCarte(); }
-    catch (e) { return e.message; }
+    try { if (!MR.m) { MR.m = await creerCarte(); attendreImages(); } }
+    catch (e) { return ma === demande ? e.message : null; }
+    if (ma !== demande) return null;
     if (!MR.ombre) { // ombres de la maquette posées sur les images Google
       MR.ombre = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ opacity: .3, depthWrite: false }));
       MR.ombre.receiveShadow = true; MR.ombre.renderOrder = 2; MR.ombre.frustumCulled = false; scene.add(MR.ombre);
@@ -61,6 +76,8 @@ export async function basculerMondeReel(on) {
   appliquerVisibilite();
   return null;
 }
+/** Renvoie tout à Google à la prochaine image (fin du survol, retour d'un menu). */
+export function recalerMondeReel() { MR.envoye = {}; }
 /** Pendant la visite : les monuments dessinés (Porte du Non-Retour, Arène, BCEAO…) restent sur les images Google. */
 export function monumentsEnVisite(on) { MR.visite = on; appliquerVisibilite(); }
 /** Maquette (bâtiments et rues dessinés) au-dessus des images Google, ou Google seul. */
@@ -69,6 +86,9 @@ export function maquetteVisible(on) { MR.maquette = on; appliquerVisibilite(); }
 /** À appeler juste avant le rendu : cale la caméra Google sur la nôtre. `centre` = point suivi au sol. */
 export function majMondeReel(centre, enJeu = false) {
   if (!MR.actif || !MR.m) return;
+  // Recalage complet toutes les ~2 s : en survol, à haute altitude, Google corrigeait lui-même son inclinaison et l'écart
+  // restait (on n'envoie que ce qui change), la photo se décalait et les étiquettes flottaient dans le ciel.
+  if ((MR.images = (MR.images || 0) + 1) % 120 === 0) recalerMondeReel();
   if (enJeu !== MR.enJeu) { MR.enJeu = enJeu; appliquerVisibilite(); }
   // Altitude du sol sous le point suivi (lissée), pour passer de « y » à « mètres au-dessus de la mer ».
   const [la, lo] = toLL(centre.x, centre.z), a = altitudeSol(la, lo);

@@ -12,6 +12,7 @@ import { payerEtRecevoir, remettre } from './remise.js';
 import { scene } from './scene.js';
 import { oceanRing } from './ville.js';
 import { VIE, acheterBillet, billet, composterBillet, premierVol } from './vie.js';
+import { pisteOuidah } from './zones.js';
 
 // ---------- Vol découverte : Cotonou → Ouidah en petit avion (salon entre amis) ----------
 // On achète son billet à la billetterie du hall de l'aéroport, on passe la porte 2, le minibus de l'aéroport
@@ -42,7 +43,7 @@ function definir(L) {
   const E = rw[0], W = rw[rw.length - 1], lu = Math.hypot(E[0] - W[0], E[1] - W[1]), u = [(E[0] - W[0]) / lu, (E[1] - W[1]) / lu];
   const a = st.pts[0], b = st.pts[st.pts.length - 1];
   AD.cotonou = { W, u, parking: b, poste: a, entree: [-3817, 1745], bretelle: [[-3723, 1874], [-3763, 1818]], cap: Math.atan2(a[0] - b[0], a[1] - b[1]) };
-  const P = L.ouidah.porte, A = [P[0] + 470, P[1] - 30], B = [P[0] + 990, P[1] - 96], lo = Math.hypot(B[0] - A[0], B[1] - A[1]), e = [(B[0] - A[0]) / lo, (B[1] - A[1]) / lo];
+  const P = L.ouidah.porte, { A, B } = pisteOuidah(P), lo = Math.hypot(B[0] - A[0], B[1] - A[1]), e = [(B[0] - A[0]) / lo, (B[1] - A[1]) / lo]; // zones.js : rien n'y est construit
   const n = [e[1], -e[0]]; // vers le nord (côté route), où l'on se gare
   const pt = (d, k = 0) => [A[0] + e[0] * d + n[0] * k, A[1] + e[1] * d + n[1] * k];
   AD.ouidah = { A, B, e, n, pt, longueur: lo, parking: pt(45, 32), cap: Math.atan2(e[0], e[1]), porte: P };
@@ -235,6 +236,23 @@ export function initVol(data, c) {
   chargerAvion();
   if (import.meta.env.DEV) window.__vol = { VOL, AD, sauter: s => { const C = VOL.chemin; VOL.s = s; VOL.arret = C.arrets.findIndex(k => C[k].s >= s); VOL.attente = 0; let i = 0; while (i < C.length - 2 && C[i + 1].s <= s) i++; VOL.i = i; VOL.v = C[i].v; VOL.phase = C.slice(0, i + 1).reverse().find(c => c.phase)?.phase || ''; } }; // essais : sauter à un point du vol
 }
+/** De combien (x, z), avec un rayon r, entre dans le fuselage d'un avion garé (0 : libre). On monte par l'aile droite. */
+export function obstacleAvions(x, z, r = .3) {
+  let p = 0;
+  for (const A of Object.values(VOL.avions)) {
+    if (!A?.g?.visible || A === VOL.avion) continue;
+    const dx = x - A.x, dz = z - A.z, u = dx * Math.sin(A.cap) + dz * Math.cos(A.cap), v = dx * Math.cos(A.cap) - dz * Math.sin(A.cap);
+    if (Math.abs(u) < 4.2 + r && Math.abs(v) < .75 + r) p = Math.max(p, Math.min(4.2 + r - Math.abs(u), .75 + r - Math.abs(v)));
+  }
+  return p;
+}
+/** Avions garés et pilotes, cachés en Vue réelle seule (monde-reel.js) ; pas l'avion où l'on vole. */
+let avionsMontres = true;
+export function avionsVisibles(on) {
+  if (on === avionsMontres) return; avionsMontres = on; // seulement quand on bascule : le salon gère le reste (avion d'un ami…)
+  for (const A of Object.values(VOL.avions)) if (A?.g && A !== VOL.avion) A.g.visible = on;
+  for (const p of Object.values(VOL.pilotes)) if (p) p.visible = on;
+}
 /** Les pilotes, quand on approche (les personnages animés ont eu le temps de se charger). */
 function majPilotes() {
   for (const k of ['cotonou', 'ouidah']) {
@@ -257,7 +275,7 @@ export function actionsVol() {
   if (S.lieu?.id === 'aeroport-hall') {
     const g = guichetProche(S.lieu, S.x, S.z);
     if (g?.id === 'billetterie' && billet() !== 'ouidah') out.push({ texte: `Billet pour Ouidah · ${premierVol() ? 'offert' : fmt(PRIX_VOL)}`, f: () => vendre('ouidah', g.agent) });
-    if (g?.id === 'porte') out.push(billet() === 'ouidah' ? { texte: 'Embarquer · vol pour Ouidah', f: () => embarquer(g) } : { texte: 'Porte 2 · il te faut un billet', f: () => ligne('Il te faut un billet pour passer : la billetterie est à droite en entrant dans le hall.') });
+    if (g?.id === 'porte') out.push(billet() === 'ouidah' ? { texte: 'Embarquer · vol pour Ouidah', f: () => embarquer(g) } : { texte: 'Porte 2 · il te faut un billet', f: () => ligne('Il te faut un billet pour passer : la billetterie est à gauche en entrant dans le hall, sous l’étiquette jaune.') });
     return out;
   }
   if (S.lieu) return out;

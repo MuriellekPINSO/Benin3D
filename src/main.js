@@ -16,7 +16,8 @@ import { JEU, initJeu, majJeu } from './jeu.js';
 import { VEGETATION, animerLieux, construireLieux, portailUAC, semeOne, visibiliteLieux } from './lieux.js';
 import { U, camera, controls, renderer, scene, sky, sun } from './scene.js';
 import { buildLamps, buildZems, zemsDetailles, construireTokpas, majTokpas, updateZems } from './trafic.js';
-import { majMondeReel } from './monde-reel.js';
+import { majMondeReel, vueReelleSeule } from './monde-reel.js';
+import { avionsVisibles } from './vol.js';
 import { changerMeteo, majMeteo } from './meteo.js';
 import { majManette } from './manette.js';
 import { googleDispo } from './google.js';
@@ -32,6 +33,8 @@ import { initSalon, majSalon } from './salon.js';
 import { chargerTokpa, chargerZems } from './vehicules.js';
 import { demarrerTelechargements, plusTard } from './telechargements.js';
 import { demarrerStats } from './statistiques.js';
+import { initZones } from './zones.js';
+import { initLeger } from './leger.js';
 import { buildBuildings, buildContainers, buildFoam, buildPalms, buildRoads, buildShips, buildSurfaces, buildingMeshes } from './ville.js';
 
 // ---------- Boucle ----------
@@ -80,11 +83,13 @@ function image(now) {
   if (E.foamMat) E.foamMat.uniforms.uTime.value = U.uTime.value;
   if (E.frameN % 12 === 0) visibiliteLieux(camera.position);
   animerLieux(U.uTime.value); animerOuidah(U.uTime.value, camera.position); animerEtals(U.uTime.value, camera.position);
-  if (E.zems) { E.zems.visible = E.zemOn && E.riseDone && dist < 5000 && !JEU.actif; if (E.zemsProches) E.zemsProches.visible = E.zems.visible; if (E.zems.visible) updateZems(dt); }
-  if (E.tokpas) { E.tokpas.visible = E.zemOn && E.riseDone && dist < 6000 && !JEU.actif; if (E.tokpas.visible) majTokpas(dt); }
+  const reelle = vueReelleSeule(); for (const e of extras) e.visible = E.riseDone && !reelle; avionsVisibles(!reelle); // Vue réelle seule : ni palmiers, ni conteneurs, ni bateaux, ni avions
+  E.circulation.length = 0; // refaite par updateZems / majTokpas, vide quand la circulation est cachée
+  if (E.zems) { E.zems.visible = E.zemOn && E.riseDone && dist < 5000 && !JEU.actif && !reelle; if (E.zemsProches) E.zemsProches.visible = E.zems.visible; if (E.zems.visible) updateZems(dt); }
+  if (E.tokpas) { E.tokpas.visible = E.zemOn && E.riseDone && dist < 6000 && !JEU.actif && !reelle; if (E.tokpas.visible) majTokpas(dt); }
   majMondeReel(JEU.actif && JEU.joueur ? JEU.joueur.position : t, JEU.actif);
   majMeteo(dt);
-  majFeuxVille(U.uTime.value, JEU.actif);
+  majFeuxVille(U.uTime.value, JEU.actif || reelle); // feux tricolores cachés en jeu (le jeu a les siens) et en Vue réelle seule
   majMultijoueur(dt);
   majPersonnages(dt);
   renderer.render(scene, camera);
@@ -112,6 +117,7 @@ async function main() {
   buildRoads(data.R);
   initTerrePleins(data.L.terrePleins); construireTerrePleins(); // terre-plein central des boulevards (gazon, haies, lampadaires)
   construireFeux(data.L.feux, data.L.passages); // feux tricolores et passages piétons réels (OSM)
+  initZones(data.L); // zones où rien ne se construit (piste de Ouidah)
   await buildBuildings(data.B);
   initRue(data);
   const nGoogle = await initBatimentsGoogle();
@@ -126,12 +132,12 @@ async function main() {
   semeOne(data.L.semeOne); portailUAC(data.L.campus, data.L.lignes?.find(l => l.id === 'calavi')?.pts); construireTokpas();
   const sansArbres = degagerChaussees(VEGETATION); // pas d'arbre au milieu de la rue
   if (import.meta.env.DEV) console.info(`arbres retirés des chaussées : ${sansArbres}`);
-  status('Zémidjans de 3D monde…', 94); await frame();
+  status('Zémidjans et tokpa-tokpa…', 94); await frame();
   await chargerZems();
   // Le vrai minibus des tokpa-tokpa (Tripo) remplace celui dessiné en code dans la circulation de la ville.
   if (TRIPO.info.tokpa) plusTard(() => chargerTokpa(TRIPO.info.tokpa.octets)).then(t => { if (t.geo && E.tokpas) { E.tokpas.geometry = t.geo; E.tokpas.material = t.mat; E.tokpas.castShadow = !LITE; } });
   buildZems(); zemsDetailles(); buildLamps(); buildLabels();
-  initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initBoutique(); initOffre(); initMode(); initSalon(data);
+  initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initBoutique(); initOffre(); initMode(); initSalon(data); initLeger();
   if (reduceMotion) finishRise();
   status('Lever de la ville…', 100); await frame();
   // Vue d'ensemble depuis le large, au sud-est
@@ -148,11 +154,15 @@ async function main() {
   try { const m = localStorage.getItem('cotonou3d.meteo'); if (m && m !== 'soleil') changerMeteo(m); } catch { }
   // La vue réelle Google est la vue par défaut (sauf si on l'a coupée la dernière fois).
   let vueReelle = '1'; try { vueReelle = localStorage.getItem('cotonou3d.vueReelle') ?? '1'; } catch { }
-  if (googleDispo && vueReelle !== '0') setTimeout(() => { if ($('#togGoogle').getAttribute('aria-pressed') !== 'true' && !JEU.actif && !document.getElementById('app').classList.contains('mode-salon')) $('#togGoogle').click(); }, reduceMotion ? 300 : 2500); // pas si l'on est déjà entré dans le salon : à pied, il faut la maquette
+  if (googleDispo && vueReelle !== '0') setTimeout(() => { if ($('#togGoogle').getAttribute('aria-pressed') !== 'true' && !JEU.actif && !document.getElementById('app').classList.contains('mode-salon') && $('#salon')?.hidden !== false) $('#togGoogle').click(); }, reduceMotion ? 300 : 2500); // pas si l'on est déjà entré dans le salon : à pied, il faut la maquette
 }
 // En développement, l'état est accessible depuis la console : __cotonou.E, __cotonou.camera…
 if (import.meta.env.DEV) Promise.all([import('./jeu.js'), import('./bordure.js'), import('./discussions.js'), import('./personnages.js'), import('./pietons.js')]).then(([j, b, d, p, pi]) => { window.__cotonou = { E, camera, controls, JEU, scene, renderer, creerObjet: j.creerObjet, BORD: b.BORD, DISC: d.DISC, personnage3d: p.personnage3d, personnagesPrets: p.personnagesPrets, personne: d.personne, traverser: pi.traverser, marchandeReelle: pi.marchandeReelle }; });
 // …et de quoi tourner la vidéo de présentation (survols, ambiance, musique) depuis un script.
 if (import.meta.env.DEV) Promise.all([import('./explorer.js'), import('./interface.js'), import('./donnees-lieux.js'), import('./ambiances.js'), import('./monde-reel.js'), import('./musique.js')]).then(([ex, it, dl, am, mr, mu]) => { window.__video = { finVol: ex.finVol, startFlight: it.startFlight, PLACES: dl.PLACES, setMood: am.setMood, monumentsEnVisite: mr.monumentsEnVisite, musique: mu.musiqueForcee, THREE }; });
 
-main().catch(err => { console.error(err); loadTxt.innerHTML = `<span class="err">Impossible d'afficher la ville.</span> ${err.message || err}`; });
+main().catch(err => {
+  console.error(err);
+  const coupe = /fetch|network|réseau/i.test(err.message || ''); // la connexion a lâché : on propose de recommencer
+  loadTxt.innerHTML = `<span class="err">Impossible d'afficher la ville.</span> ${coupe ? 'La connexion a coupé pendant le chargement.' : err.message || err} <button type="button" class="btn-ghost" onclick="location.reload()">Réessayer</button>`;
+});

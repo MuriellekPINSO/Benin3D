@@ -4,6 +4,7 @@ import { PLACES } from './donnees-lieux.js';
 import { K } from './lieux.js';
 import { ZEMS_3D } from './vehicules.js';
 import { roadLines } from './ville.js';
+import { pietonOk } from './rue.js';
 import { GJ, JEU, LANE, demiChaussee, latTrottoir, pose } from './jeu.js';
 import { accessoire, personnage3d } from './personnages.js';
 import { photoJeu } from './google.js';
@@ -283,7 +284,10 @@ export function preparerBordure(L, C, arrets) {
   // sur l'autre chaussée ni dans un bâtiment. Les grands panneaux se dressent derrière les murs.
   const RECUL = { vendeuse: 1.2, kpayo: 1.3, momo: 1.5, vulca: 1.3, peinte: 1, zems: 2.2, enseigne: 1.5, station: 3.2 };
   const places = items.filter(it => {
-    if (it.type === 'poteau') { it.lat = -(demiChaussee(C, it.s) + .5); return true; } // au bord, d'un seul côté (les câbles se suivent)
+    if (it.type === 'poteau') { // au bord, d'un seul côté (les câbles se suivent) ; jamais au milieu d'un carrefour ni dans un mur
+      it.lat = -(demiChaussee(C, it.s) + .5); const q = pose(C, it.s, it.lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+      return pietonOk(q.x, q.z, -q.dz, q.dx); // (direction en travers : la rue suivie ne compte pas, les rues qui la croisent si)
+    }
     if (it.type === 'pub') { const f = C.front ? C.front[Math.max(0, Math.min(C.n - 1, Math.round(it.s)))] : 9.8; it.lat = it.side * (f + 1); return true; }
     const lat = latTrottoir(C, it.s, it.side, RECUL[it.type] ?? 1.3); if (lat === null) return false;
     it.lat = lat; return true;

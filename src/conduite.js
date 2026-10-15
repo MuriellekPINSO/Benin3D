@@ -6,6 +6,7 @@ import { construireReseau, itineraireCourt } from './carrefours.js';
 import { personne } from './discussions.js';
 import { dansBatiment, dansObstacleRue } from './rue.js';
 import { dansTerrePlein } from './terre-pleins.js';
+import { dansCirculation } from './trafic.js';
 import { scene } from './scene.js';
 import { plusTard } from './telechargements.js';
 import { TABLIERS, mergeColored, roadLines } from './ville.js';
@@ -22,11 +23,11 @@ import { TOKPA_3D, ZEMS_3D, gabaritDe, matVeh, partsTokpa, partsVoiture, partsZe
 // baisser en roulant, mais assez de kilomètres par litre pour qu'une course de zém ou de taxi rapporte plus que
 // l'essence qu'elle coûte (metiers.js).
 export const VEHICULES = {
-  moto: { nom: 'moto', vmax: 22, accel: 5.5, frein: 9, recul: 2.5, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.62 },
-  voiture: { nom: 'voiture', vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
-  taxi: { nom: 'taxi', vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
-  tokpa: { nom: 'tokpa-tokpa', vmax: 20, accel: 3.8, frein: 7.5, recul: 2.5, braquage: 1.05, reservoir: 10, kmParLitre: 4, cache: true }, // l'apprenti se tient à la porte latérale, à droite (metiers.js)
-  zem: { nom: 'zém', vmax: 18, accel: 5, frein: 9, recul: 2, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.62 },
+  moto: { nom: 'moto', long: 2, larg: .8, vmax: 22, accel: 5.5, frein: 9, recul: 2.5, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.62 },
+  voiture: { nom: 'voiture', long: 4.4, larg: 1.8, vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
+  taxi: { nom: 'taxi', long: 4.3, larg: 1.8, vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
+  tokpa: { nom: 'tokpa-tokpa', long: 5, larg: 1.9, vmax: 20, accel: 3.8, frein: 7.5, recul: 2.5, braquage: 1.05, reservoir: 10, kmParLitre: 4, cache: true }, // l'apprenti se tient à la porte latérale, à droite (metiers.js)
+  zem: { nom: 'zém', long: 2, larg: .8, vmax: 18, accel: 5, frein: 9, recul: 2, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.62 },
 };
 export const PRIX_LITRE = 680; // à la pompe (Zém Run : 680 F à la station, 500 F le kpayo)
 const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote automatique
@@ -124,9 +125,17 @@ export function piloter(V, av, tour, dt, { panne = false } = {}) {
   V.cap += tour * D.braquage * k * Math.sign(V.v || 1) * dt;
   return avancer(V, dt, true);
 }
+// Le centre sur la route, et l'avant (l'arrière en marche arrière) avec ses deux coins hors des murs et des
+// bâtiments : avant, seul le centre comptait, et tout le capot rentrait dans la clôture.
+const horsMur = (x, z) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && !dansCirculation(x, z, .05); // ni dans un zém ou un tokpa qui roule
+function passe(V, x, z) {
+  if (!surRoute(x, z)) return false;
+  const L = (V.D.long ?? 2) / 2 * .92 * (Math.sign(V.v) || 1), W = (V.D.larg ?? .8) / 2 * .9, sx = Math.sin(V.cap), cz = Math.cos(V.cap), fx = x + sx * L, fz = z + cz * L;
+  return horsMur(fx, fz) && horsMur(fx + cz * W, fz - sx * W) && horsMur(fx - cz * W, fz + sx * W);
+}
 function avancer(V, dt, contraint) {
   const nx = V.x + Math.sin(V.cap) * V.v * dt, nz = V.z + Math.cos(V.cap) * V.v * dt; let choc = null;
-  if (!contraint || surRoute(nx, nz)) { V.km += Math.hypot(nx - V.x, nz - V.z) / 1000; V.x = nx; V.z = nz; }
+  if (!contraint || passe(V, nx, nz)) { V.km += Math.hypot(nx - V.x, nz - V.z) / 1000; V.x = nx; V.z = nz; }
   else { if (Math.abs(V.v) > 3) choc = 'choc'; V.v *= Math.abs(V.v) > .3 ? -.2 : 0; }
   V.y = hauteur(V.x, V.z, V.y);
   V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap;

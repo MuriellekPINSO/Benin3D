@@ -56,27 +56,39 @@
   </section>
 
   <div class="dock panel" role="toolbar" aria-label="Réglages de la vue">
-    <div class="seg" role="group" aria-label="Moment de la journée">
-      <button type="button" data-mood="jour" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>Jour</button>
-      <button type="button" data-mood="soir" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 16a5.5 5.5 0 0 1 11 0"/><path d="M2.5 19.5h19M12 5v2.5M4.6 9.6l1.7 1.5M19.4 9.6l-1.7 1.5"/></svg>Soir</button>
-      <button type="button" data-mood="nuit" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10Z"/></svg>Nuit</button>
+    <div class="dock-defil">
+      <div class="seg" role="group" aria-label="Moment de la journée">
+        <button type="button" data-mood="jour" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>Jour</button>
+        <button type="button" data-mood="soir" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 16a5.5 5.5 0 0 1 11 0"/><path d="M2.5 19.5h19M12 5v2.5M4.6 9.6l1.7 1.5M19.4 9.6l-1.7 1.5"/></svg>Soir</button>
+        <button type="button" data-mood="nuit" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10Z"/></svg>Nuit</button>
+      </div>
+      <span class="sep"></span>
+      <button class="tog" type="button" id="togZem" aria-pressed="true" title="Afficher les zémidjans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3"/><circle cx="18.5" cy="17" r="3"/><path d="M8.5 17h5l3-6h-4l-2-3H8M16.5 11l2 6"/></svg><span class="t-long">Zémidjans</span></button>
+      <button class="tog" type="button" id="togQ" aria-pressed="true" title="Afficher les noms des quartiers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg><span class="t-long">Quartiers</span></button>
+      <button class="tog" type="button" id="btnRadio" aria-pressed="false" aria-haspopup="menu" aria-expanded="false" aria-controls="radioMenu" title="Écouter de la musique béninoise"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><span class="t-long">Musique</span></button>
+      <button class="tog" type="button" id="togGoogle" aria-pressed="false" title="Poser la maquette sur la vraie ville en 3D (Google)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span class="t-long">Vue réelle</span></button>
+      <button class="tog" type="button" id="togMaquette" aria-pressed="false" hidden title="Bâtiments et rues de la maquette au-dessus des images Google"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l5-3v15M10 21V4l9 4v13"/></svg><span class="t-long">Maquette</span></button>
+      <button class="tog" type="button" id="togSat" aria-pressed="false" hidden title="Poser la ville sur les vraies images satellite Google (API Map Tiles)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7 9 3 5 7l4 4"/><path d="m17 11 4 4-4 4-4-4"/><path d="m8 12 4 4 6-6-4-4Z"/><path d="m16 8 3-3"/><path d="M9 21a6 6 0 0 0-6-6"/></svg><span class="t-long">Sol satellite</span></button>
+      <button class="tog" type="button" id="btnConcert" title="Concert sur l’esplanade de l’Amazone (entrée 100 F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span class="t-long">Concert</span></button>
+      <button class="tog" type="button" id="btnSalon" hidden title="Vivre à Cotonou : un logement, un métier, des sorties avec tes amis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.3A5 5 0 0 1 21 19"/></svg><span class="t-long">Vivre à Cotonou</span></button>
+      <button class="tog" type="button" id="btnPlus" aria-haspopup="menu" aria-expanded="false" aria-controls="plusMenu" title="Plus : visite en musique, boutique, météo, survol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span class="t-long">Plus</span></button>
     </div>
-    <span class="sep"></span>
-    <button class="tog" type="button" id="togZem" aria-pressed="true" title="Afficher les zémidjans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3"/><circle cx="18.5" cy="17" r="3"/><path d="M8.5 17h5l3-6h-4l-2-3H8M16.5 11l2 6"/></svg><span class="t-long">Zémidjans</span></button>
-    <button class="tog" type="button" id="togQ" aria-pressed="true" title="Afficher les noms des quartiers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg><span class="t-long">Quartiers</span></button>
-    <button class="tog" type="button" id="btnRadio" aria-pressed="false" title="Écouter la musique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><span class="t-long">Radio</span></button>
-    <button class="tog" type="button" id="btnPres" title="Lancer la visite de présentation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><span class="t-long">Présentation</span></button>
-    <button class="tog" type="button" id="togGoogle" aria-pressed="false" title="Poser la maquette sur la vraie ville en 3D (Google)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span class="t-long">Vue réelle</span></button>
-    <button class="tog" type="button" id="togMaquette" aria-pressed="false" hidden title="Bâtiments et rues de la maquette au-dessus des images Google"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l5-3v15M10 21V4l9 4v13"/></svg><span class="t-long">Maquette</span></button>
-    <button class="tog" type="button" id="togSat" aria-pressed="false" hidden title="Poser la ville sur les vraies images satellite Google (API Map Tiles)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7 9 3 5 7l4 4"/><path d="m17 11 4 4-4 4-4-4"/><path d="m8 12 4 4 6-6-4-4Z"/><path d="m16 8 3-3"/><path d="M9 21a6 6 0 0 0-6-6"/></svg><span class="t-long">Sol satellite</span></button>
-    <button class="tog" type="button" id="btnConcert" title="Concert sur l’esplanade de l’Amazone (entrée 100 F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span class="t-long">Concert</span></button>
-    <button class="tog" type="button" id="btnMode" title="Boutique de mode : essaie des tenues, porte-les dans le jeu ou achète-les pour de vrai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6a2 2 0 1 1 3 1.7c-.6.4-1 .9-1 1.6V10"/><path d="M12 10 3.6 16.2A1.6 1.6 0 0 0 4.6 19h14.8a1.6 1.6 0 0 0 1-2.8z"/></svg><span class="t-long">Boutique</span></button>
-    <button class="tog" type="button" id="btnSalon" title="Vivre à Cotonou : un logement, un métier, des sorties avec tes amis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.3A5 5 0 0 1 21 19"/></svg><span class="t-long">Vivre à Cotonou</span></button>
-    <button class="tog" type="button" id="togMeteo" aria-pressed="false" title="Changer le temps : soleil, nuages, pluie, orage (touche M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17a4.5 4.5 0 1 1 1.2-8.8A5.5 5.5 0 0 1 18.5 10 3.5 3.5 0 0 1 18 17Z"/><path d="M9 20l-1 2M13 20l-1 2M17 20l-1 2"/></svg><span class="t-long">Soleil</span></button>
-    <button class="tog" type="button" id="togTour" aria-pressed="false" title="Faire tourner la caméra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4.5h-4.5"/></svg><span class="t-long">Survol</span></button>
+    <div class="radio-menu panel" id="radioMenu" role="menu" aria-label="Radios" hidden></div>
+    <div class="plus-menu panel" id="plusMenu" role="menu" aria-label="Plus" hidden>
+      <button class="tog" type="button" id="btnPres" title="Lancer la visite de présentation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><span class="t-long">Visite en musique</span></button>
+      <button class="tog" type="button" id="btnMode" title="Boutique de mode : essaie des tenues, porte-les dans le jeu ou achète-les pour de vrai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6a2 2 0 1 1 3 1.7c-.6.4-1 .9-1 1.6V10"/><path d="M12 10 3.6 16.2A1.6 1.6 0 0 0 4.6 19h14.8a1.6 1.6 0 0 0 1-2.8z"/></svg><span class="t-long">Boutique</span></button>
+      <button class="tog" type="button" id="togMeteo" aria-pressed="false" title="Changer le temps : soleil, nuages, pluie, orage (touche M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17a4.5 4.5 0 1 1 1.2-8.8A5.5 5.5 0 0 1 18.5 10 3.5 3.5 0 0 1 18 17Z"/><path d="M9 20l-1 2M13 20l-1 2M17 20l-1 2"/></svg><span class="t-long">Soleil</span></button>
+      <button class="tog" type="button" id="togTour" aria-pressed="false" title="Faire tourner la caméra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4.5h-4.5"/></svg><span class="t-long">Survol</span></button>
+      <button class="tog" type="button" id="togLeger" aria-pressed="false" title="Mode léger : moins de détails pour que le jeu tourne mieux (recharge la page)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20c0-8 5-14 15-16-1 10-7 15-15 16Z"/><path d="M5 20 13 12"/></svg><span class="t-long">Mode léger</span></button>
+    </div>
   </div>
   <div class="jouer-flottants"><button class="jouer jouer-flottant jouer-vivre" type="button" id="btnVivre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/></svg>Vivre à Cotonou</button><button class="jouer jouer-flottant" type="button" id="btnJouer"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Jouer à Zém Run</button></div>
 
+  <aside class="lecteur panel" id="lecteur" hidden aria-label="Musique du Bénin">
+    <div class="lecteur-video"><div id="lecteurYT"></div></div>
+    <div class="lecteur-titre"><b></b><small></small></div>
+    <div class="lecteur-boutons"><button type="button" id="lecteurSuivante">Suivante</button><button type="button" id="lecteurArreter">Arrêter</button></div>
+  </aside>
   <div class="credits">
     <p class="credits-court"><span class="credit-google">© Google · </span>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · Google Open Buildings · <button type="button" class="credits-btn" aria-expanded="false" aria-controls="creditsDetail">Crédits</button><span id="satCredit" hidden></span></p>
     <div class="credits-detail" id="creditsDetail" hidden><p>Bâtiments : <a href="https://sites.research.google/open-buildings/" target="_blank" rel="noopener">Google Open Buildings</a> et OpenStreetMap · façades d'après photos : Erevan <a href="https://commons.wikimedia.org/wiki/File:Centre_commercial_Erevan_de_Cotonou_08.jpg" target="_blank" rel="noopener">Alex Ahdn</a>, Cathédrale <a href="https://commons.wikimedia.org/wiki/File:Cath%C3%A9drale_Notre-Dame-de-misericordes_%C3%A0_Cotonou.jpg" target="_blank" rel="noopener">Saliousoft</a> (CC BY-SA 4.0), Dantokpa <a href="https://commons.wikimedia.org/wiki/File:March%C3%A9_Dantokpa_(vue_arri%C3%A8re).jpg" target="_blank" rel="noopener">jbdodane</a> (CC BY 2.0), Porte du Non-Retour <a href="https://commons.wikimedia.org/wiki/File:Porte_du_non-retour_au_Benin.jpg" target="_blank" rel="noopener">Borisghost</a> (CC0), BCEAO, Palais de la Marina et Stade <a href="https://commons.wikimedia.org/wiki/User:Adoscam" target="_blank" rel="noopener">Adoscam</a>, Sofitel <a href="https://commons.wikimedia.org/wiki/File:Sofitel_Cotonou_Marina_H%C3%B4tel_%26_Spa.jpg" target="_blank" rel="noopener">Freed Armel</a> (CC BY-SA 4.0) · modèles 3D générés (Tripo) d'après des photos de Yendifa (CC BY), Saliousoft, houaito affo daniel, Zounmabejosue, Fawaz.tairou (CC BY-SA), Step may (CC0), jbdodane (CC BY 2.0), Adoscam, Freed Armel (CC BY-SA) · rues © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">contributeurs OpenStreetMap</a> · monuments reconstitués d'après photos</p></div>
@@ -98,6 +110,7 @@
 
   <section id="jeu" hidden>
     <div class="jeu-menu panel" id="jeuMenu">
+      <button type="button" class="jm-fermer" id="jmFermer" aria-label="Retour à la carte" title="Retour à la carte (Échap)">×</button>
       <div class="jm-tete">
         <span class="jm-eyebrow">Mode jeu</span>
         <h2>Zém Run</h2>
@@ -111,7 +124,7 @@
         <button type="button" class="btn-ghost" id="jmPub">Annonceurs</button>
         <button type="button" class="btn-ghost" id="jmRetour">Retour à la carte</button>
       </div>
-      <p class="jm-aide"><b>↑</b> accélérer (le zém n'avance que si tu appuies, il ralentit dès que tu relâches) · <b>↓</b> freiner (maintenu à l'arrêt : <b>marche arrière</b>) · <b>U</b> demi-tour · <b>arrête-toi au feu rouge</b>, sinon la police te met une amende · demande au client s'il a son casque · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
+      <p class="jm-aide"><b>↑</b> accélérer (le zém n'avance que si tu appuies, il ralentit dès que tu relâches) · <b>↓</b> freiner (à l'arrêt, appuie encore : <b>marche arrière</b>) · <b>U</b> demi-tour · <b>arrête-toi au feu rouge</b>, sinon la police te met une amende · demande au client s'il a son casque · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
       <label class="jm-option"><input type="checkbox" id="jmVoix"> Voix des personnages (ils parlent à voix haute)</label>
       <button type="button" class="jm-guide" id="jmGuide">Revoir la prise en main</button>
     </div>
@@ -182,7 +195,7 @@
       <p class="op-contact"></p>
     </div>
   </div>
-  <div class="pres" id="pres" hidden><div class="bande haut"></div><div class="bande bas"></div><div class="pres-titre"><h2 id="presTitre"></h2><p id="presSous"></p></div><small class="pres-sortie">Cliquer ou Échap pour quitter</small></div>
+  <div class="pres" id="pres" hidden><div class="bande haut"></div><div class="bande bas"></div><div class="pres-titre"><h2 id="presTitre"></h2><p id="presSous"></p></div><small class="pres-sortie" id="presSortie">Cliquer ou Échap pour quitter</small></div>
 
   <div class="accueil" id="accueil" hidden>
     <header class="ac-barre">
@@ -251,11 +264,14 @@
     <div class="gr-tenues sl-tenues" id="slAvatars" role="radiogroup" aria-label="Ta tenue"></div>
     <div class="ev-actions"><button type="button" class="jouer" id="slCreer">Commencer</button></div>
     <p class="sl-titre">Un ami t’a envoyé un code ?</p>
-    <div class="sl-rejoindre"><input id="slCode" maxlength="6" placeholder="Code reçu (6 caractères)" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" id="slRejoindre">Rejoindre mon ami</button></div>
+    <div class="sl-rejoindre"><input id="slCode" maxlength="6" placeholder="Code (6 lettres)" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" id="slRejoindre">Rejoindre mon ami</button></div>
     <p class="ev-etat" id="slEtat" role="status" aria-live="polite" hidden></p>
   </div>
   <div class="choix" id="choix" hidden role="dialog" aria-labelledby="chTitre">
     <div class="ch-boite panel"><h3 id="chTitre"></h3><div class="ch-liste" id="chListe"></div><button type="button" class="ch-annuler" id="chAnnuler">Annuler</button></div>
+  </div>
+  <div class="choix vie-fiche" id="vieFiche" hidden role="dialog" aria-modal="true" aria-labelledby="vfTitre">
+    <div class="ch-boite vf-boite panel"><button type="button" class="vf-fermer" id="vfFermer" aria-label="Fermer">×</button><div id="vfContenu"></div></div>
   </div>
   <div class="choix garderobe" id="garderobe" hidden role="dialog" aria-labelledby="grTitre">
     <div class="ch-boite gr-boite panel">
@@ -281,7 +297,7 @@
   </div>
   <div class="salon-hud" id="salonHud" hidden>
     <div class="vie-hud panel" id="vieHud" hidden aria-label="Ma vie">
-      <div class="vh-tete"><b id="vhArgent"></b><small id="vhDepart"></small></div>
+      <div class="vh-tete"><b id="vhArgent"></b><b class="vh-gain" id="vhGain" aria-hidden="true"></b><small id="vhDepart"></small></div>
       <div class="vh-faim"><span>Faim</span><i id="vhFaim"></i><small id="vhFaimTxt"></small></div>
       <small id="vhLogement"></small>
       <small id="vhMetier"></small>
@@ -290,7 +306,7 @@
       <div class="vh-faim" id="vhEssenceLigne" hidden><span>Essence</span><i id="vhEssence"></i><small id="vhEssenceTxt"></small></div>
       <b class="vh-vitesse" id="vhVitesse" hidden></b>
       <small class="vh-gps" id="vhGps" hidden></small>
-      <div class="vh-boutons"><button type="button" class="vh-louer" id="vhTravail">Travailler</button><button type="button" class="vh-louer vh-louer2" id="vhPause" hidden>Pause</button><button type="button" class="vh-louer vh-louer2" id="vhFinir" hidden>Finir la journée</button><button type="button" class="vh-louer vh-louer2" id="vhLouer" hidden></button></div>
+      <div class="vh-boutons"><button type="button" class="vh-louer" id="vhTravail">Travailler</button><button type="button" class="vh-louer vh-louer2" id="vhPause" hidden>Pause</button><button type="button" class="vh-louer vh-louer2" id="vhFinir" hidden>Finir la journée</button><button type="button" class="vh-louer vh-louer2" id="vhLouer" hidden></button><button type="button" class="vh-louer vh-louer2" id="vhCommerces">Commerces</button></div>
     </div>
     <div class="sl-haut panel"><div><b>Salon <span id="slCodeAff"></span></b><small id="slNb"></small></div><button type="button" class="jouer" id="slInviter">Inviter</button><button type="button" id="slVue">Vue : de haut</button><button type="button" id="slCopier">Copier le lien</button><button type="button" id="slQuitter">Quitter</button></div>
     <div class="sl-chat panel" id="slChat">
@@ -302,6 +318,12 @@
     <div class="sl-joy" id="slJoy" hidden aria-hidden="true"><i></i></div>
     <div class="sl-boutons"><button type="button" id="slChatBtn" aria-expanded="false" aria-controls="slChat">Discussion<b id="slNonLus" hidden></b></button><button type="button" id="slGestesBtn" aria-expanded="false" aria-controls="slActions">Gestes</button><button type="button" id="slVue2">Vue</button></div>
     <div class="sl-guide panel" id="slGuide" hidden role="status"></div>
+    <button type="button" class="chap-hud panel" id="chapHud" hidden aria-label="Prochaine étape : voir tous les chapitres">
+      <span class="chap-tete"><small id="chapTitre"></small><small id="chapCompte"></small></span>
+      <i class="chap-barre" id="chapBarre"></i>
+      <span class="chap-etape" id="chapEtape"></span>
+      <small class="chap-prime" id="chapPrime"></small>
+    </button>
     <div class="sl-agir"><button type="button" class="jouer" id="slEntrer" hidden></button><button type="button" class="sl-agir2" id="slAction2" hidden></button><button type="button" class="sl-agir2" id="slAction3" hidden></button></div>
     <p class="sl-aide">Flèches ou ZQSD pour marcher · Maj pour courir · E, R, F : les actions des boutons · glisser pour tourner (vers le bas : de haut) · molette pour zoomer · V : changer de vue · Entrée pour écrire</p>
   </div>

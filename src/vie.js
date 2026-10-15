@@ -10,7 +10,7 @@ import { firebase, joueur } from './firebase.js';
 // navigateur (mode test, sans serveur).
 
 export const DEPARTS = {
-  debrouillard: { nom: 'Débrouillard', argent: 2000, faim: 70, logement: 'chambre', vehicule: '', chance: .7, texte: '2 000 F en poche et une chambre à Akpakpa. À toi de te faire une place à Cotonou !' },
+  debrouillard: { nom: 'Débrouillard', argent: 2000, faim: 70, logement: 'chambre', vehicule: '', chance: .7, texte: '2 000 F en poche et une chambre à Akpakpa. À toi de te faire une place à Cotonou !' },
   fils: { nom: 'Fils à papa', argent: 150000, faim: 100, logement: 'appartement', vehicule: 'voiture', chance: .3, texte: 'Un compte bien rempli, un appartement à la Haie Vive et une voiture. Ne dépense pas tout d’un coup !' },
 };
 export const LOGEMENTS = {
@@ -48,7 +48,7 @@ export const titreDans = i => { const t = titrePoste(i); return t === 'DG' ? t :
 export const GRADES = [[0, 'Débutant'], [10, 'Habitué'], [30, 'Confirmé'], [70, 'As de la route']];
 export const gradeDe = xp => GRADES.reduce((g, [seuil], i) => (xp >= seuil ? i : g), 0);
 const JOUR = 864e5, FAIM_PAS = 90, CLE_LOCALE = 'cotonou3d.vie'; // un point de faim en moins toutes les 90 s de jeu
-export const VIE = { data: null, local: false, faimT: 0, sauveT: 0, alerte: '', travail: null, mission: '' }; // travail : véhicule du patron { type, carburant } (le temps de la partie)
+export const VIE = { data: null, local: false, faimT: 0, sauveT: 0, alerte: '', travail: null, mission: '', prochainGain: 0, tArgent: 0 }; // travail : véhicule du patron { type, carburant } (le temps de la partie)
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 
 // ---------- Stockage ----------
@@ -60,7 +60,7 @@ async function lire() {
 }
 /** Enregistre des changements ; `argent` : la base exige l'heure du serveur avec chaque gain. */
 export async function ecrire(patch) {
-  Object.assign(VIE.data, patch);
+  Object.assign(VIE.data, patch); if ('argent' in patch) VIE.tArgent = Date.now();
   if (VIE.local) { try { localStorage.setItem(CLE_LOCALE, JSON.stringify(VIE.data)); } catch { /* navigation privée */ } return true; }
   const { d } = await firebase();
   const p = { ...patch }; if ('argent' in p) p.t = d.serverTimestamp();
@@ -124,14 +124,20 @@ export async function assurerVie(local, { nom, modele }) {
 }
 
 // ---------- Argent, loyer, faim ----------
-/** Ajoute de l'argent (métiers, étape 2). La base refuse plus de 5 000 F d'un coup, ou deux gains en moins de 3 s. */
-export async function gagner(montant, raison = '') {
+/**
+ * Ajoute de l'argent (métiers, commerces). La base refuse plus de 5 000 F d'un coup, ou un gain moins de 3 s après le
+ * dernier changement d'argent (gain ou dépense) : les gains attendent leur tour. `source` : 'travail' (métiers),
+ * 'commerce' (ventes des commerces), 'prime' (chapitres)… ; `silencieux` : pas de ligne dans le fil du salon.
+ */
+export async function gagner(montant, raison = '', { source = 'travail', silencieux = false } = {}) {
   if (!VIE.data || !(montant > 0)) return false;
-  const attente = 3200 - (Date.now() - (VIE.dernierGain || 0)); // la base refuse deux gains à moins de 3 s : on patiente
-  VIE.dernierGain = Date.now() + Math.max(0, attente);
-  if (attente > 0) await new Promise(r => setTimeout(r, attente));
-  const ok = await ecrire({ argent: VIE.data.argent + Math.min(5000, montant) });
-  if (ok) annonce(`+${fmt(Math.min(5000, montant))}${raison ? ` · ${raison}` : ''}`);
+  const quand = Math.max(Date.now(), VIE.prochainGain, VIE.tArgent + 3200);
+  VIE.prochainGain = quand + 3200;
+  if (quand > Date.now()) await new Promise(r => setTimeout(r, quand - Date.now()));
+  if (Date.now() - VIE.tArgent < 3100) await new Promise(r => setTimeout(r, 3200 - (Date.now() - VIE.tArgent))); // une dépense entre-temps
+  const m = Math.min(5000, montant), ok = await ecrire({ argent: VIE.data.argent + m });
+  if (ok && !silencieux) annonce(`+${fmt(m)}${raison ? ` · ${raison}` : ''}`);
+  if (ok) signaler(source, m); // chapitres.js : 'travail', 'commerce'…
   rendreVie(); return ok;
 }
 /** Dépense de l'argent ; false s'il n'y en a pas assez. */
@@ -188,11 +194,11 @@ export function consommer(litres) {
   rendreVie();
 }
 export async function faireLePlein(litres) {
-  if (VIE.travail) { VIE.travail.carburant = Math.min(reservoir(), VIE.travail.carburant + litres); rendreVie(); return; }
-  const v = VIE.data; v.carburant = Math.min(reservoir(), (v.carburant || 0) + litres); await ecrire({ carburant: Math.round(v.carburant * 100) / 100 }); rendreVie();
+  if (VIE.travail) { VIE.travail.carburant = Math.min(reservoir(), VIE.travail.carburant + litres); signaler('plein'); rendreVie(); return; }
+  const v = VIE.data; v.carburant = Math.min(reservoir(), (v.carburant || 0) + litres); await ecrire({ carburant: Math.round(v.carburant * 100) / 100 }); signaler('plein'); rendreVie();
 }
 /** Manger : la faim remonte petit à petit (appelé pendant le repas). */
-export function manger(points) { const v = VIE.data; if (!v) return; v.faim = Math.min(100, v.faim + points); rendreVie(); }
+export function manger(points) { const v = VIE.data; if (!v) return; v.faim = Math.min(100, v.faim + points); signaler('mange'); rendreVie(); }
 /** Ralentissement quand on a trop faim. */
 export const vitesseFaim = () => (VIE.data && VIE.data.faim <= 0 ? .5 : 1);
 /** Billet d'avion (vol découverte, vol.js) : payé, puis gardé jusqu'à l'embarquement. Le premier vol est offert. */
@@ -206,6 +212,29 @@ export const premierVol = () => !(VIE.data?.vols > 0);
 /** Le billet est composté à la montée dans l'avion. */
 export function composterBillet() { if (VIE.data) ecrire({ billet: '', vols: (VIE.data.vols || 0) + 1 }); }
 export function sauverVie() { if (VIE.data) ecrire({ faim: Math.round(VIE.data.faim), carburant: Math.round((VIE.data.carburant || 0) * 100) / 100 }); }
+
+// ---------- Ce qui se passe dans la vie du joueur (chapitres.js compte les étapes) ----------
+const ecouteurs = [];
+export function surSignal(f) { ecouteurs.push(f); }
+export function signaler(evt, n = 1) { for (const f of ecouteurs) f(evt, n); }
+
+// ---------- Données en plus : chapitres, commerces ----------
+// Gardées dans ce navigateur, et dans Firebase quand les règles de la base les acceptent (champs `chapitres`,
+// `commerces` de database.rules.json) : la copie la plus récente l'emporte au chargement.
+const cleEnPlus = c => `cotonou3d.${c}${VIE.local ? '.local' : ''}`;
+const refuses = new Set();
+/** Lit un texte JSON enregistré (`c` : 'chapitres' ou 'commerces'), le plus récent des deux endroits. */
+export function lireEnPlus(c) {
+  let l = null; try { l = JSON.parse(localStorage.getItem(cleEnPlus(c)) || 'null'); } catch { /* navigation privée */ }
+  let f = null; try { f = JSON.parse(VIE.data?.[c] || 'null'); } catch { /* rien */ }
+  return !f ? l : !l ? f : (f.maj || 0) >= (l.maj || 0) ? f : l;
+}
+export function ecrireEnPlus(c, valeur) {
+  const t = JSON.stringify({ ...valeur, maj: Date.now() });
+  try { localStorage.setItem(cleEnPlus(c), t); } catch { /* navigation privée */ }
+  if (VIE.local || refuses.has(c) || !VIE.ref) return;
+  firebase().then(({ d }) => d.update(VIE.ref, { [c]: t })).catch(() => refuses.add(c)); // règles pas encore déployées : on n'insiste pas
+}
 
 // ---------- Affichage ----------
 let annonceur = null;

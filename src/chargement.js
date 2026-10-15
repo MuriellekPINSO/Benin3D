@@ -5,8 +5,12 @@ export const status = (t, p) => { loadTxt.textContent = t; if (p != null) loadBa
 export const frame = () => new Promise(r => requestAnimationFrame(() => r()));
 // Données de la ville : JSON gzippé produit par `npm run donnees`. Certains hébergeurs
 // le décompressent déjà en route ; on ne décompresse que si l'en-tête gzip est là.
+// Sur une connexion mobile faible, une requête coupée tuait tout le chargement : on réessaie deux fois.
+async function fetchTenace(url, essais = 3) {
+  for (let k = 1; ; k++) { try { return await fetch(url); } catch (e) { if (k >= essais) throw e; await new Promise(r => setTimeout(r, 1500 * k)); } }
+}
 export async function decode() {
-  const res = await fetch(import.meta.env.BASE_URL + 'donnees/cotonou.json.gz');
+  const res = await fetchTenace(import.meta.env.BASE_URL + 'donnees/cotonou.json.gz');
   if (!res.ok) throw new Error(`Données introuvables (${res.status}). Lancez « npm run donnees ».`);
   const buf = new Uint8Array(await res.arrayBuffer());
   if (buf[0] === 0x1f && buf[1] === 0x8b) {

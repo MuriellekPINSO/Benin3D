@@ -1,10 +1,28 @@
 // ---------- Audio : radio, moteur, effets ----------
 export const AUDIO = { ctx: null, buf: null, src: null, radio: false, moteur: null, gainR: null, muet: false };
 export function audioCtx() { try { if (!AUDIO.ctx) AUDIO.ctx = new (window.AudioContext || window.webkitAudioContext)(); if (AUDIO.ctx.state === 'suspended') AUDIO.ctx.resume(); } catch (e) { } return AUDIO.ctx; }
-export async function radio(on) {
+// Radios béninoises en direct (annuaire libre Radio Browser) : leur musique, sans fichier à nous dont il faudrait les
+// droits ; « Ambiance du jeu » est la musique d'origine (public/audio/radio.mp3, droits à vérifier, voir le README).
+export const STATIONS = [
+  { id: 'cotonou', nom: 'Radio Cotonou 94.3', sous: 'Musique africaine · en direct', url: 'https://stream.zeno.fm/o9bspgm4y78vv' },
+  { id: 'ortb', nom: 'ORTB Radio Bénin', sous: 'La radio nationale · en direct', url: 'https://listen.radioking.com/radio/47608/stream/84430' },
+  { id: 'parakou', nom: 'ORTB Radio Parakou', sous: 'Depuis le nord du Bénin · en direct', url: 'https://listen.radioking.com/radio/51919/stream/88927' },
+  { id: 'jeu', nom: 'Ambiance du jeu', sous: 'Sans connexion', url: null },
+];
+AUDIO.station = (() => { try { return localStorage.getItem('cotonou3d.radio') || 'cotonou'; } catch { return 'cotonou'; } })();
+/** Allume (avec la station choisie, ou la dernière) ou coupe la radio ; renvoie true si le son part. */
+export async function radio(on, station) {
+  if (station) { AUDIO.station = station; try { localStorage.setItem('cotonou3d.radio', station); } catch { /* navigation privée */ } }
   const ctx = audioCtx(); if (!ctx) return false;
   AUDIO.radio = on;
-  if (!on) { try { AUDIO.src?.stop(); } catch (e) { } AUDIO.src = null; return false; }
+  try { AUDIO.src?.stop(); } catch (e) { } AUDIO.src = null;
+  if (AUDIO.flux) { AUDIO.flux.pause(); AUDIO.flux.src = ''; AUDIO.flux = null; }
+  if (!on) return false;
+  const S = STATIONS.find(s => s.id === AUDIO.station) || STATIONS[0];
+  if (S.url) { // flux en direct
+    const el = new Audio(S.url); el.volume = .55; AUDIO.flux = el;
+    try { await el.play(); return AUDIO.flux === el; } catch (e) { console.warn('radio', S.nom, e.message); if (AUDIO.flux === el) AUDIO.flux = null; return false; }
+  }
   try {
     if (!AUDIO.buf) { const res = await fetch(import.meta.env.BASE_URL + 'audio/radio.mp3'); if (!res.ok) return false; AUDIO.buf = await ctx.decodeAudioData(await res.arrayBuffer()); }
     if (AUDIO.src || !AUDIO.radio) return true;

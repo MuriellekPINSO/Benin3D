@@ -95,6 +95,12 @@
         },
         "vols": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() <= data.val() + 1)"
+        },
+        "chapitres": {
+          ".validate": "newData.isString() && newData.val().length <= 400"
+        },
+        "commerces": {
+          ".validate": "newData.isString() && newData.val().length <= 3000"
         }
       }
     },

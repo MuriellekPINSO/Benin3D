@@ -5,7 +5,10 @@ export const $ = s => document.querySelector(s);
 export const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 export const coarse = matchMedia('(pointer: coarse)').matches;
 export const small = matchMedia('(max-width: 720px)').matches;
-export const LITE = coarse || small;
+// Version allégée (moins d'ombres, de détails, de gens) : d'office sur téléphone ; sinon au choix (menu Plus,
+// voir leger.js), gardé d'une visite à l'autre : '1' léger, '0' complet.
+const choixLeger = (() => { try { return localStorage.getItem('cotonou-leger'); } catch { return null; } })();
+export const LITE = choixLeger === '1' || (choixLeger !== '0' && (coarse || small));
 
 // Projection locale (mètres) autour de 6,37° N / 2,415° E : x vers l'est, z vers le sud
 export const LAT0 = 6.37, LON0 = 2.415, KX = 111320 * Math.cos(LAT0 * Math.PI / 180), KZ = 110574;

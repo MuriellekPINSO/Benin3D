@@ -66,14 +66,33 @@ export const personnagesPrets = () => P.pret;
 // Tenues de la boutique de mode (public/modeles/mode/, voir mode.js) : chargées à la demande, et jamais
 // tirées au hasard pour les passants (ce sont des rôles, comme le policier).
 const TENUES = {};
+let INDEX_MODE = null;
+const indexMode = () => (INDEX_MODE ??= fetch(`${import.meta.env.BASE_URL}modeles/mode/index.json`).then(r => r.json()).catch(() => ({})));
 /** Charge la tenue `id` (modèle animé) ; renvoie true si elle est prête. */
-export function chargerTenue(id, info = {}) {
+export function chargerTenue(id, info) {
   if (P.modeles[id]) return Promise.resolve(true);
-  TENUES[id] ??= new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
-    .loadAsync(`${import.meta.env.BASE_URL}modeles/mode/${id}.glb?v=${info.octets || 0}`)
-    .then(g => { P.modeles[id] = Object.assign(preparer(id, g, info), { mode: true }); return true; })
-    .catch(e => { delete TENUES[id]; console.warn('tenue', id, e.message); return false; });
+  TENUES[id] ??= (async () => {
+    info ??= (await indexMode())[id] || {};
+    const [g] = await Promise.all([new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`${import.meta.env.BASE_URL}modeles/mode/${id}.glb?v=${info.octets || 0}`), personnagesCharges()]);
+    emprunterAnimations(g, P.modeles[info.femme ? 'etudiante' : 'jeune'] || Object.values(P.modeles).find(M => !M.mode && M.femme === !!info.femme));
+    P.modeles[id] = Object.assign(preparer(id, g, info), { mode: true }); return true;
+  })().catch(e => { delete TENUES[id]; console.warn('tenue', id, e.message); return false; });
   return TENUES[id];
+}
+// Les tenues de la boutique n'ont que six animations (repos, marche, salut, deux danses, acclamer) : sans « assis », on
+// restait debout sur la selle du zém, sur les chaises, dans les gradins de l'arène. Elles ont le même squelette (41 os)
+// que les personnages : on leur prête les animations qui manquent, celles d'un personnage du même genre, la position du
+// bassin (seul os déplacé) remise à l'échelle de la tenue.
+const PRETEES = ['assis', 'telephone', 'parle', 'rire'];
+function emprunterAnimations(g, base) {
+  const hip = g.scene.getObjectByName('Hip'); if (!base?.hipRepos || !hip) return;
+  const a = base.hipRepos, b = hip.position.clone(), k = b.length() / (a.length() || 1), ont = new Set(g.animations.map(c => c.name));
+  for (const nom of PRETEES) {
+    const src = base.clips[nom]; if (!src || ont.has(nom)) continue;
+    const c = src.clone();
+    for (const t of c.tracks) if (t.name.endsWith('Hip.position')) { const v = t.values; for (let i = 0; i < v.length; i += 3) { v[i] = b.x + (v[i] - a.x) * k; v[i + 1] = b.y + (v[i + 1] - a.y) * k; v[i + 2] = b.z + (v[i + 2] - a.z) * k; } }
+    g.animations.push(c);
+  }
 }
 /** Les danses du concert (danse1, danse2, acclame), dans des fichiers à part : chargées à la première entrée au concert. */
 export function chargerDanses() {
@@ -104,7 +123,7 @@ function surPlace(clips) {
 // Mesures faites une fois par modèle : hauteur en position d'attente, sens du regard (des pieds
 // vers les orteils), hauteur du bassin assis.
 function preparer(id, g, info) {
-  const scene = g.scene, clips = Object.fromEntries(g.animations.map(c => [c.name, c]));
+  const scene = g.scene, clips = Object.fromEntries(g.animations.map(c => [c.name, c])), hipRepos = scene.getObjectByName('Hip')?.position.clone() ?? null;
   surPlace(clips);
   scene.traverse(o => { if (o.isMesh) { o.castShadow = !LITE; o.receiveShadow = false; o.frustumCulled = false; } });
   const os = nom => scene.getObjectByName(nom);
@@ -129,7 +148,7 @@ function preparer(id, g, info) {
     assis = { t: tMin, bassin: b };
   }
   mixer.stopAllAction(); mixer.uncacheRoot(scene);
-  return { id, scene, clips, hauteur, sol, rot, assis, crane, femme: !!info.femme, enfant: !!info.enfant };
+  return { id, scene, clips, hauteur, sol, rot, assis, crane, hipRepos, femme: !!info.femme, enfant: !!info.enfant };
 }
 
 function choisirId(i, femme, role, enfant = false) {

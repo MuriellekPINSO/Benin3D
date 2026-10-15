@@ -18,11 +18,22 @@ export const INTERIEURS = new Map();
  * (où construire la pièce, en mer), plafond (hauteur sous laquelle la caméra reste), entrer (texte du bouton).
  */
 export function declarerInterieur(id, def) { INTERIEURS.set(id, { id, ...def, centre: def.centre ?? [def.porte[0], LARGE], g: null, sieges: [], comptoirs: [], guichets: [], assis: [], obstacles: [] }); }
-/** L’intérieur dont on est devant la porte (moins de 5 m), sinon null. */
-export function porteProche(x, z) { for (const I of INTERIEURS.values()) if (Math.hypot(x - I.porte[0], z - I.porte[1]) < 5) return I; return null; }
+/** L’intérieur dont on est devant la porte (moins de 7 m : le zém dépose à côté de sa moto, parfois à 5,6 m), sinon null. */
+export function porteProche(x, z) { let best = null, bd = 7; for (const I of INTERIEURS.values()) { const d = Math.hypot(x - I.porte[0], z - I.porte[1]); if (d < bd) { bd = d; best = I; } } return best; }
+/** Étiquette jaune, de taille fixe à l'écran, vue à travers les murs : « Chez toi » sur la porte, douche, billetterie… */
+export function etiquette(texte) {
+  const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const c = cv.getContext('2d');
+  c.font = '800 30px system-ui, sans-serif'; const w = Math.min(300, c.measureText(texte).width + 44);
+  c.fillStyle = '#f2b705'; c.beginPath(); c.roundRect(160 - w / 2, 8, w, 54, 27); c.fill(); c.fillStyle = '#17130c'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(texte, 160, 36);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); sp.scale.set(.145, .033, 1); sp.renderOrder = 30; return sp;
+}
 /** Construit la pièce à la première visite et l'affiche. */
 export function ouvrirInterieur(I) {
-  if (!I.g) { const g = new THREE.Group(); g.name = `interieur-${I.id}`; g.position.set(I.centre[0], ALT, I.centre[1]); scene.add(g); I.g = g; K.into(g, () => I.construire(I)); }
+  if (!I.g) {
+    const g = new THREE.Group(); g.name = `interieur-${I.id}`; g.position.set(I.centre[0], ALT, I.centre[1]); scene.add(g); I.g = g; K.into(g, () => I.construire(I));
+    for (const o of g.children) if (o.userData?.jouer || o.userData?.pnj) I.obstacles.push([o.position.x, o.position.z, .22, .22]); // vendeurs, clients, voisins : on ne les traverse pas
+  }
   I.g.visible = true; return I;
 }
 export function cacherInterieurs() { for (const I of INTERIEURS.values()) if (I.g) I.g.visible = false; }
@@ -222,6 +233,8 @@ function hallAeroport(I) {
   K.boite(.9, 1.05, 5, '#f2efe8', W / 2 - 4, .52, -5.5); K.boite(1, .06, 5.1, K.mat('#3a3f44', { rugosite: .35 }), W / 2 - 4, 1.08, -5.5); bloc(I, 1, 5.1, W / 2 - 4, -5.5);
   const agentBillets = personne(720, { role: 'bureau' }); agentBillets.position.set(W / 2 - 2.8, 0, -5.5); agentBillets.rotation.y = -Math.PI / 2; K.racine.add(agentBillets);
   I.guichets.push({ id: 'billetterie', nom: 'la billetterie', agent: agentBillets, x: W / 2 - 5.2, z: -5.5 });
+  const repere = (texte, x, y, z) => { const e = etiquette(texte); e.position.set(x, y, z); K.racine.add(e); }; // vus de tout le hall, à travers les colonnes
+  repere('Billetterie', W / 2 - 4, 1.3, -5.5); // juste au-dessus du comptoir : plus haut, elle passait sous la barre du salon en entrant
   panneauTexte(['← Billetterie · vols pour Ouidah'], 4.2, .5, 9, 4.2, -5.3, 0, { fond: '#1f3d4a', encre: '#f5c21b', px: 1024, py: 122, police: '800 64px system-ui, sans-serif' }); // vu en entrant
   // Porte 2 : portique de sécurité, pupitre de l'agente, porte vitrée sur le tarmac.
   K.boite(3, 3, .12, K.mat('#5d7f8e', { transparent: .55, rugosite: .1 }), 0, 1.5, D / 2 - .3).castShadow = false;
@@ -231,6 +244,7 @@ function hallAeroport(I) {
   K.boite(1.1, 1.05, .6, '#2c3a40', 2.4, .52, D / 2 - 2.8); K.boite(1.2, .05, .7, '#e9e6de', 2.4, 1.07, D / 2 - 2.8); bloc(I, 1.2, .7, 2.4, D / 2 - 2.8);
   const agentPorte = personne(721, { role: 'bureau' }); agentPorte.position.set(2.4, 0, D / 2 - 1.9); agentPorte.rotation.y = Math.PI; K.racine.add(agentPorte);
   I.guichets.push({ id: 'porte', nom: 'la porte 2', agent: agentPorte, x: 1.6, z: D / 2 - 4 });
+  repere('Porte 2', 0, 2.9, D / 2 - 5.5);
   // Rangées de sièges face aux pistes ; chaque siège est une place où s'asseoir.
   const assise = K.mat('#2b4f7a', { rugosite: .6 }), pied = K.mat('#6d7478', { metal: .4, rugosite: .5 });
   let n = 0;
@@ -266,7 +280,7 @@ export function declarerAeroport(A) {
     K.cyl(.05, .05, 1.2, 8, '#8f979b', 3.4, .6, 1.6);
     panneauTexte(['Billetterie', 'Vols pour Ouidah'], 1.3, .8, 3.4, 1.55, 1.62, 0, { fond: '#1f5fa8', encre: '#ffffff', px: 512, py: 315, police: '800 84px system-ui, sans-serif' });
   });
-  declarerInterieur('aeroport-hall', { nom: 'le hall de l’aéroport', porte: [c[0] + lx * (prof + 1.8), c[1] + lz * (prof + 1.8)], dehors: rot, w: 46, d: 30, entree: [0, -12.5, 0], construire: hallAeroport });
+  declarerInterieur('aeroport-hall', { nom: 'le hall de l’aéroport', porte: [c[0] + lx * (prof + 1.8), c[1] + lz * (prof + 1.8)], dehors: rot, w: 46, d: 30, entree: [0, -12.5, 1.3], construire: hallAeroport }); // en entrant, la billetterie un peu à droite du centre (à gauche de la porte 2, hors de l'écran sinon ; sur téléphone, le panneau « Ma vie » couvre le haut gauche)
 }
 
 // ---------- Agences : MTN, Moov, accueil de la Cité ministérielle (métiers en entreprise, metiers-ville.js) ----------

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { dansTerrePlein } from './terre-pleins.js';
 import { LITE, hash, toXZ } from './base.js';
 import { camera, controls, scene } from './scene.js';
+import { rectSansConstruction, sansConstruction, zoneBoutique } from './zones.js';
 import { ROAD_W, roadLines } from './ville.js';
 import { texFacades } from './facades.js';
 import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
@@ -17,7 +18,7 @@ import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
 
 const CARRE = 400;
 const TROTTOIR = { 0: 4, 1: 3.5, 2: 3, 3: 2.2, 4: 1.3, 5: .9 };
-const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, zonesLibres: [], zonesJeu: [], routeJeu: null, actif: true, anneaux: [] };
+const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, zonesLibres: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [] };
 
 // ---------- Index spatiaux ----------
 const CB = 50, CR = 40;
@@ -30,6 +31,7 @@ function indexer(data) {
     let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
     for (let j = 0; j < B.n[i]; j++) { const x = (B.x[i] + B.p[off[i] + 2 * j]) / 10, z = (B.z[i] + B.p[off[i] + 2 * j + 1]) / 10; x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
     bb.set([x0, z0, x1, z1], i * 4);
+    const bx = B.x[i] / 10, bz = B.z[i] / 10; if (rectSansConstruction(bx - 3, bz - 3, bx + 3, bz + 3)) continue; // retiré de la ville (ville.js, zones.js) : pas d'obstacle non plus
     for (let cx = Math.floor(x0 / CB); cx <= Math.floor(x1 / CB); cx++) for (let cz = Math.floor(z0 / CB); cz <= Math.floor(z1 / CB); cz++) { const k = cx + ',' + cz; if (!g.has(k)) g.set(k, []); g.get(k).push(i); }
   }
   R.B = { B, off, bb }; R.grilleB = g;
@@ -110,7 +112,14 @@ function presAutreRoute(x, z, li, marge) {
   }
   return false;
 }
-const zoneLibre = (x, z) => dansTerrePlein(x, z, .6) || R.zonesLibres.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || R.zonesJeu.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r);
+// Le trajet d'une course, mètre par mètre, rangé par cases de 8 m : ni mur ni maison générés dessus (les virages
+// coupent les coins, et la rue transversale n'était pas dégagée).
+function surTrajet(x, z) {
+  const l = R.trajet?.get(Math.floor(x / 8) + ',' + Math.floor(z / 8)); if (!l) return false;
+  for (let k = 0; k < l.length; k += 3) if ((x - l[k]) ** 2 + (z - l[k + 1]) ** 2 < l[k + 2]) return true;
+  return false;
+}
+const zoneLibre = (x, z) => sansConstruction(x, z) || zoneBoutique(x, z) || dansTerrePlein(x, z, .6) || R.zonesLibres.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || R.zonesJeu.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || surTrajet(x, z);
 
 // ---------- Matières ----------
 function toile(w, h, f) { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; f(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; }
@@ -351,7 +360,9 @@ function genererCarre(cx, cz) {
     }
   });
   // ---------- Obstacles : on ne traverse ni les murs, ni les portails, ni les maisons (dansObstacleRue) ----------
-  groupe.userData.obstacles = indexerObstacles([...murs, ...portails, ...piliers, ...boutiques, ...maisons].map(([x, z, a, l, , e]) => [x, z, a, l, e]));
+  // Et ce qui se dresse sur le trottoir : lampadaires, poteaux électriques, voitures garées (on ne passe plus au travers).
+  const debout = [...lampes.map(([x, z]) => [x, z, 0, .3, .3]), ...poteaux.map(([x, z]) => [x, z, 0, .32, .32]), ...voitures.map(([x, z, a]) => [x, z, a, 4.2, 1.8])];
+  groupe.userData.obstacles = indexerObstacles([...[...murs, ...portails, ...piliers, ...boutiques, ...maisons].map(([x, z, a, l, , e]) => [x, z, a, l, e]), ...debout]);
   // ---------- Maillages instanciés ----------
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
   const inst = (liste, mat, f, ombre = true) => {
@@ -573,7 +584,7 @@ export function degagerChaussees(vegetation) {
   const zero = new THREE.Matrix4().makeScale(0, 0, 0); let n = 0;
   for (const m of vegetation) {
     const xz = m.userData.xz; if (!xz) continue; let touche = false;
-    for (let k = 0; k < m.count; k++) if (surChaussee(xz[2 * k], xz[2 * k + 1])) { m.setMatrixAt(k, zero); touche = true; n++; }
+    for (let k = 0; k < m.count; k++) if (surChaussee(xz[2 * k], xz[2 * k + 1]) || zoneBoutique(xz[2 * k], xz[2 * k + 1], 1.5)) { m.setMatrixAt(k, zero); touche = true; n++; } // ni sur la chaussée, ni sur une boutique à louer (commerces.js)
     if (touche) m.instanceMatrix.needsUpdate = true;
   }
   return n;
@@ -582,8 +593,13 @@ export function rueActive(on) { R.actif = on; for (const g of R.carres.values())
 /** Pendant une course : routes suivies par la ligne (habillage reculé à ~10 m pour laisser la place au jeu)
  *  et zones occupées par les commerces du jeu [[x, z, rayon]]. Sans argument : retour à la ville. */
 export function rueRouteJeu(C, occupees = []) {
-  vider(); R.zonesJeu = occupees;
+  vider(); R.zonesJeu = occupees; R.trajet = null;
   if (!C) { R.routeJeu = null; return; }
+  const tr = R.trajet = new Map();
+  for (let i = 0; i < C.n; i++) {
+    const r = Math.max(4, (C.hw?.[i] ?? 3.5) + 1.5), x = C.X[i], z = C.Z[i];
+    for (let a = Math.floor((x - r) / 8); a <= Math.floor((x + r) / 8); a++) for (let b = Math.floor((z - r) / 8); b <= Math.floor((z + r) / 8); b++) { const k = a + ',' + b; let l = tr.get(k); if (!l) tr.set(k, l = []); l.push(x, z, r * r); }
+  }
   const set = new Set();
   for (let i = 0; i < C.n; i += 4) {
     const x = C.X[i], z = C.Z[i], l = R.grilleR.get(cle(x, z, CR)); if (!l) continue;
@@ -607,14 +623,18 @@ function indexerObstacles(liste) {
   }
   return g;
 }
+// Obstacles posés par d'autres modules (les commerces des joueurs, commerces.js) : mêmes boîtes [x, z, angle, longueur,
+// épaisseur], rangées par clé ; on ne les traverse pas plus que les murs, à pied, en voiture ou avec la caméra.
+const EXTRA = new Map(); let extraIdx = new Map();
+export function poserObstacles(cle, liste) { if (liste?.length) EXTRA.set(cle, liste); else EXTRA.delete(cle); extraIdx = indexerObstacles([...EXTRA.values()].flat()); }
+const enfonce = (l, x, z, r, p) => { for (const o of l) { const dx = x - o.x, dz = z - o.z, u = Math.abs(dx * o.c - dz * o.s), v = Math.abs(dx * o.s + dz * o.c); if (u < o.hl + r && v < o.he + r) p = Math.max(p, Math.min(o.hl + r - u, o.he + r - v)); } return p; };
 /** De combien (x, z), avec un rayon r, entre dans un mur, un portail ou une maison générés le long des rues (0 : libre). */
 export function profondeurRue(x, z, r = .3) {
   const kx = Math.floor(x / CARRE), kz = Math.floor(z / CARRE), cle = Math.floor(x / CO) + ',' + Math.floor(z / CO); let p = 0;
   for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
-    const l = R.carres.get((kx + i) + ',' + (kz + j))?.userData.obstacles?.get(cle); if (!l) continue;
-    for (const o of l) { const dx = x - o.x, dz = z - o.z, u = Math.abs(dx * o.c - dz * o.s), v = Math.abs(dx * o.s + dz * o.c); if (u < o.hl + r && v < o.he + r) p = Math.max(p, Math.min(o.hl + r - u, o.he + r - v)); }
+    const l = R.carres.get((kx + i) + ',' + (kz + j))?.userData.obstacles?.get(cle); if (l) p = enfonce(l, x, z, r, p);
   }
-  return p;
+  const e = extraIdx.get(cle); return e ? enfonce(e, x, z, r, p) : p;
 }
 export const dansObstacleRue = (x, z, r = .3) => profondeurRue(x, z, r) > 0;
 /** Pour les tests : les obstacles (murs…) autour de (x, z). */

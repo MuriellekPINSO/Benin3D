@@ -109,20 +109,33 @@ function agent(st) {
 export function police(st, motif) {
   if (R.police) return;
   st.v = Math.min(st.v, 2);
-  const m = agent(st), montant = AMENDES[motif]; R.police = m; sifflet();
+  // Débutant (ligne express, ou aucune course encore finie) : le premier contrôle est un avertissement,
+  // les suivants coûtent moitié prix, et sans argent on repart quand même.
+  const m = agent(st), montant = st.doux ? AMENDES[motif] / 2 : AMENDES[motif]; R.police = m; sifflet();
   bulle(m, motif === 'feu' ? 'Hé, zém ! Arrête-toi là !' : 'Police ! On fait le constat.', { duree: 2.6, ton: 'fort' });
   const fin = () => { R.police = null; setTimeout(() => m.parent?.remove(m), 5000); };
   const regler = n => {
     if (payer(st, n)) { remettre(JEU.joueur, m, 'billet', { hautVers: 1.25 }); toast(`Amende payée : −${fmtF(n)}`, 1.8, 'mal'); bulle(m, motif === 'feu' ? 'C’est bon, circule. Et respecte les feux !' : 'C’est noté. Roule doucement maintenant.'); }
+    else if (st.doux) { toast('Pas assez d’argent : la police te laisse repartir', 2.2); bulle(m, 'Tu débutes, je vois. Va, mais fais attention !'); }
     else { st.service = Math.max(st.service, 6); toast('Pas assez d’argent : moto immobilisée un moment', 2.2, 'mal'); bulle(m, 'Tu restes ici un moment, alors !', { ton: 'fort' }); }
     fin();
   };
+  if (st.doux && !st.averti) {
+    st.averti = true;
+    return dialogue(motif === 'feu' ? 'La police routière' : 'La police · constat d’accident', motif === 'feu'
+      ? `« Tu as brûlé le feu rouge. Tu débutes : simple avertissement. La prochaine fois, c’est ${fmtF(montant)}. »`
+      : `« Personne n’est blessé. Tu débutes : on n’en parle plus. La prochaine fois, le constat coûte ${fmtF(montant)}. »`, [
+      ['Merci chef, je ferai attention', () => { toast('Simple avertissement', 1.6, 'bien'); fin(); }],
+    ], { defaut: 0, duree: 10, bloquant: true });
+  }
+  // « Pardon chef » : une seule fois par course.
   if (motif === 'feu') dialogue('La police routière', `« Tu as brûlé le feu rouge. L’amende : ${fmtF(montant)}. »`, [
     [`Payer ${fmtF(montant)}`, () => regler(montant)],
-    ['Pardon chef, c’est la première fois…', () => {
+    ...(st.pardon ? [] : [['Pardon chef, c’est la première fois…', () => {
+      st.pardon = true;
       if (Math.random() < .4) { bulle(m, 'Bon… avertissement pour cette fois. Fais attention !'); toast('Simple avertissement', 1.6, 'bien'); fin(); }
       else { bulle(m, 'Tout le monde dit ça. Tu paies.', { ton: 'fort' }); regler(montant); }
-    }],
+    }]]),
   ], { defaut: 0, duree: 14, bloquant: true });
   else dialogue('La police · constat d’accident', `« Il faut faire le constat. Les frais : ${fmtF(montant)}. »`, [
     [`Payer le constat · ${fmtF(montant)}`, () => regler(montant)],
