@@ -1,4 +1,4 @@
-// Vérifie un paiement FedaPay (entrée du concert, commandes de la boutique de mode) payé par MTN MoMo ou
+// Vérifie un paiement FedaPay (entrée du concert, ouverture d'un commerce, commandes de la boutique de mode) payé par MTN MoMo ou
 // Moov Money. La page envoie l'identifiant de la transaction et le montant attendu ; on la relit chez
 // FedaPay avec la clé secrète, qui ne quitte jamais le serveur (FEDAPAY_SECRET_KEY sur Vercel et dans
 // .env.local).
@@ -6,7 +6,7 @@
 // `mode` : celui de la clé publique de la page. S'il ne correspond pas à la clé secrète, on ne peut pas retrouver la
 // transaction : on le dit (« cles-incoherentes ») au lieu de laisser croire au joueur qu'il n'a rien payé.
 // Le montant attendu vient de la page, mais il ne descend jamais sous MONTANT_MIN : avec la clé live,
-// seule l'entrée du concert (100 F) se paie pour de vrai. Pour vendre les articles de la boutique, le
+// seules l'entrée du concert et l'ouverture d'un commerce (100 F chacune) se paient pour de vrai. Pour vendre les articles de la boutique, le
 // serveur devra connaître lui-même leur prix et créer la transaction.
 // La même fonction sert en local : vite.config.js la branche sur le serveur de développement.
 export const MONTANT_MIN = 100;

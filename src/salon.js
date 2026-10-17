@@ -21,7 +21,7 @@ import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from '.
 import { VIE, alerteDuJour, assurerVie, ecrire as ecrireVie, louerMoto, majVie, prechargerVie, rendreVie, sauverVie, surAnnonce, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
 import { basculerPause, finirJournee, menuTravail } from './metiers.js';
-import { actionsCommerces, corpsCommerces, entrerCommerces, initCommerces, listeCommerces, majCommerces, quitterCommerces } from './commerces.js';
+import { actionsCommerces, corpsCommerces, entrerCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces } from './commerces.js';
 import { entrerChapitres, initChapitres, majChapitres, quitterChapitres } from './chapitres.js';
 import { TENUES, choixGenre, estFemme, grilleTenues, initGarderobe, ouvrirGarderobe } from './garderobe.js';
 import { son } from './audio.js';
@@ -219,7 +219,10 @@ function telephoneEnMain() {
   (S.moi.userData.main || S.moi).add(t); S.tel = t; clearTimeout(S.telFin); S.telFin = setTimeout(() => { t.parent?.remove(t); t.geometry.dispose(); }, 6000);
 }
 /** Point d'arrivée d'un lieu de rendez-vous : [x, z, regard] (devant la porte pour un lieu où l'on entre). */
+// Ses commerces (commerces.js) s'ajoutent aux lieux : « Aller à », GPS et zém y mènent comme ailleurs.
+const tousLieux = () => [...LIEUX, ...lieuxCommerces().map(c => [c.id, c.nom, c.dit, 0, 0, 0])];
 function destination(L) {
+  if (L[0].startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === L[0]); return c && [c.x, c.z, c.cap]; }
   if (L[0] === 'station') { const st = stationLaPlusProche(S.x, S.z); return st && [st[0], st[1], 0]; }
   if (L[0] === 'maison') { const I = maisonActuelle(); if (!I) return null; const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; } // devant sa porte (maison.js)
   const p = PLACES.find(q => q.id === L[0]), I = L[6] && INTERIEURS.get(L[6]); if (!p) return null;
@@ -229,6 +232,7 @@ function destination(L) {
 /** Se rend à un lieu de rendez-vous ; `proposer` : prévient les autres, qui peuvent suivre d'un clic. En voiture
  *  ou à moto, on n'y saute pas : le GPS trace l'itinéraire par les routes. */
 function aller(id, proposer = true) {
+  if (id.startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === id); if (c) allerVers(c.x, c.z, c.cap, c.nom); return; } // chez soi, au travail : on ne l'annonce pas
   const L = LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || ((id === 'station' || id === 'maison') && {}); if (!L || !p) return;
   if (T.mode === 'conduit') { const d = destination(L); if (d) gps(d[0], d[1], id === 'station' ? (stationLaPlusProche(S.x, S.z)?.[2] || L[1]) : L[1]); return; }
   if (T.mode !== 'pied') return;
@@ -495,14 +499,14 @@ export function manetteSalon(m) {
   if (m.x) S.actions?.[1]?.f();
   if (m.b) { if (T.mode === 'conduit') son('klaxon'); else S.actions?.[2]?.f(); } // à pied : la 3e action
   if (m.y) choisir('Gestes', [...GESTES.map(([id, nom]) => ({ texte: nom, f: () => geste(id) })), { texte: 'Prendre un zém', f: helerZem }, { texte: 'Travailler', f: menuTravail }, { texte: 'Mes commerces', f: listeCommerces }, { texte: 'M’habiller', f: () => ouvrirGarderobe(S.modele) }]);
-  if (m.select) choisir(T.mode === 'conduit' ? 'GPS : où vas-tu ?' : 'Aller à…', LIEUX.map(L => ({ texte: L[1], f: () => aller(L[0]) })));
+  if (m.select) choisir(T.mode === 'conduit' ? 'GPS : où vas-tu ?' : 'Aller à…', tousLieux().map(L => ({ texte: L[1], f: () => aller(L[0]) })));
   if (m.start) choisir('Dire à tes amis', PHRASES.map(p => ({ texte: p, f: () => dire(p) })));
 }
 
 // ---------- Héler un zém : choisir où aller, négocier le prix ----------
 function helerZem() {
   if (T.mode !== 'pied' || S.lieu) { ligne(S.lieu ? 'Sors d’abord pour héler un zém.' : 'Tu es déjà en route.'); return; }
-  const proches = LIEUX.filter(L => { if (L[0] === 'station') return false; const d = destination(L); return d && Math.hypot(d[0] - S.x, d[1] - S.z) < 15000; }); // Ouidah ↔ Cotonou : 35 km, c'est l'avion
+  const proches = tousLieux().filter(L => { if (L[0] === 'station') return false; const d = destination(L); return d && Math.hypot(d[0] - S.x, d[1] - S.z) < 15000; }); // Ouidah ↔ Cotonou : 35 km, c'est l'avion
   choisir('Zém ! Où vas-tu ?', proches.map(L => ({ texte: L[1], f: () => {
     const d = destination(L); if (!d) return;
     const q = prixZem(S.x, S.z, S.cap, d[0], d[1]); if (!q) { ligne('Le zém ne connaît pas la route jusque-là.'); return; }
@@ -574,7 +578,11 @@ export function initSalon(data) {
   const ph = $('#slPhrases'); if (ph) for (const p of PHRASES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = p; b.addEventListener('click', () => dire(p)); ph.append(b); }
   const ge = $('#slGestes'); if (ge) for (const [id, nom] of GESTES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = nom; b.addEventListener('click', () => geste(id)); ge.append(b); }
   const al = $('#slAller');
-  if (al) { al.append(new Option('Aller à…', '')); for (const [id, nom] of LIEUX) al.append(new Option(nom, id)); al.addEventListener('change', () => { if (al.value) aller(al.value); al.value = ''; al.blur(); }); }
+  if (al) {
+    al.append(new Option('Aller à…', '')); for (const [id, nom] of LIEUX) al.append(new Option(nom, id)); al.addEventListener('change', () => { if (al.value) aller(al.value); al.value = ''; al.blur(); });
+    const mes = document.createElement('optgroup'); mes.label = 'Mes commerces'; // ses commerces, dès qu'on en a (commerces.js prévient à chaque changement)
+    document.addEventListener('commerces', () => { mes.replaceChildren(...lieuxCommerces().map(c => new Option(c.nom, c.id))); if (mes.children.length) al.append(mes); else mes.remove(); });
+  }
   // Clavier : capté avant les raccourcis de l'exploration (qui écoutent window), sauf quand on écrit.
   window.addEventListener('keydown', e => {
     if (!S.actif) return;

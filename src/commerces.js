@@ -3,6 +3,7 @@ import { $ } from './base.js';
 import { son } from './audio.js';
 import { creerVehicule, retirerVehicule } from './conduite.js';
 import { personne } from './discussions.js';
+import { echecCertain, paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
 import { EMPLACEMENTS, LOT } from './emplacements.js';
 import { texteToile } from './lieux.js';
 import { poserObstacles } from './rue.js';
@@ -17,6 +18,9 @@ import { VIE, depenser, ecrireEnPlus, gagner, lireEnPlus, rendreVie, signaler } 
 // salaires et le loyer (les charges) : trois jours sans payer, et l'équipe s'en va pour de bon.
 // Quand on est loin de Cotonou (ou hors du jeu), les employés vendent trois fois moins vite, douze heures au plus.
 // Les commerces sont enregistrés avec la vie (vie.js, « données en plus »).
+// Ouvrir un commerce se paie aussi pour de vrai : 100 F par Mobile Money (FedaPay, comme l'entrée du concert), vérifiés
+// par /api/fedapay. Un paiement reçu mais pas encore utilisé (page fermée, argent du jeu qui manquait) reste acquis dans ce
+// navigateur pour la prochaine ouverture ; un paiement pas encore confirmé y est gardé pour être vérifié plus tard.
 
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 const JOUR = 864e5, ABSENCE_MAX = 12 * 36e5, RALENTI = 3, VOIR = 140; // à moins de VOIR m, la boutique est construite
@@ -51,8 +55,25 @@ export const TYPES = {
     postes: [{ x: -1.8, z: 1.7, a: Math.PI, f: false }, { x: 1.6, z: .45, a: 0, f: false }], places: [{ x: 0, z: 2.3, a: Math.PI }, { x: 3.3, z: 2.4, a: Math.PI }] },
 };
 
+export const PRIX_MOMO = 100; // F, en vrai, à chaque ouverture
+const CLE_ATTENTE = 'cotonou3d-paiement-commerce', CLE_ACQUIS = 'cotonou3d-commerce-paye', CLE_UTILISES = 'cotonou3d-paiements-utilises';
+const lireLS = k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
+const ecrireLS = (k, v) => { try { if (v) localStorage.setItem(k, String(v)); else localStorage.removeItem(k); } catch { /* navigation privée */ } };
+const utilises = () => { try { return JSON.parse(lireLS(CLE_UTILISES) || '[]'); } catch { return []; } };
+const MESSAGES_MOMO = {
+  annule: ['Paiement annulé : rien n’a été prélevé.', ''],
+  canceled: ['Paiement annulé : rien n’a été prélevé.', ''],
+  reseau: ['FedaPay ne répond pas. Vérifie ta connexion, puis réessaie.', 'mal'],
+  pending: ['Paiement pas encore confirmé. Valide-le sur ton téléphone, puis touche « Vérifier mon paiement ».', ''],
+  'non-configure': ['Le paiement MoMo n’est pas encore activé sur ce site.', 'mal'],
+  declined: ['Paiement refusé par l’opérateur : rien n’a été prélevé. Tu peux réessayer.', 'mal'],
+  'cles-incoherentes': ['Le paiement est mal réglé sur ce site : ton paiement ne peut pas être vérifié pour l’instant. Ne repaie pas ; touche « Vérifier mon paiement » un peu plus tard.', 'mal'],
+  deja: ['Ce paiement a déjà servi à ouvrir un commerce : il faut en faire un nouveau.', 'mal'],
+};
+const DOUTE_MOMO = ['Ton paiement n’a pas encore pu être vérifié. Ne repaie pas : si ton compte MoMo a été débité, touche « Vérifier mon paiement » dans un moment.', 'mal'];
+
 let X = null; // le salon : { S, T, ligne, choisir, allerVers }
-const CM = { liste: [], charge: false, attente: 0, depotT: 0, enVol: false, sauveT: 0, verifT: 0, lots: new Map(), choix: '', fiche: null };
+const CM = { liste: [], charge: false, attente: 0, depotT: 0, enVol: false, sauveT: 0, verifT: 0, lots: new Map(), choix: '', fiche: null, paie: false, etatPaie: null };
 export const nbCommerces = () => CM.liste.length;
 export const commerceDe = id => CM.liste.find(c => c.e === id);
 const lot = id => EMPLACEMENTS.find(E => E.id === id);
@@ -80,7 +101,7 @@ function vendre(c, visible = true) {
   if (c.j !== jour()) { c.j = jour(); c.vj = 0; c.rj = 0; }
   c.vj++; c.rj += T.prix; CM.attente += T.prix;
   if (visible) visiteClient(c);
-  if (c.s === 0) { X.ligne(`${ton(T, true)} ${T.court} (${lot(c.e).nom}) n’a plus de ${T.stockNom} : réapprovisionne-${T.f ? 'la' : 'le'} dans « Commerces ».`); }
+  if (c.s === 0) { X.ligne(`${ton(T, true)} ${T.court} (${lot(c.e).nom}) n’a plus de ${T.stockNom} : réapprovisionne-${T.f ? 'la' : 'le'} dans « Mon bureau ».`); }
   else if (c.s === Math.ceil(T.stock * .2)) X.ligne(`${ton(T, true)} ${T.court} (${lot(c.e).nom}) n’a presque plus de ${T.stockNom} : pense à réapprovisionner.`);
 }
 /** Les salaires et le loyer de chaque jour ; sans argent, ils s'accumulent : à trois jours de dette, l'équipe part. */
@@ -90,7 +111,7 @@ function payerCharges(c, silencieux = false) {
   if (!c.d && VIE.data.argent >= m) { depenser(m, silencieux ? '' : `salaires et loyer · ${T.court} (${E.nom})`); return ''; }
   c.d += m;
   if (c.d >= 3 * m) { fermer(c); return `Trois jours sans salaires : l’équipe de ${ton(T)} ${T.court} (${E.nom}) est partie, la boutique est de nouveau à louer.`; }
-  return `${ton(T, true)} ${T.court} (${E.nom}) est ${T.f ? 'fermée' : 'fermé'} : tes employés attendent leurs salaires (${fmt(c.d)}). Paie-les dans « Commerces ».`;
+  return `${ton(T, true)} ${T.court} (${E.nom}) est ${T.f ? 'fermée' : 'fermé'} : tes employés attendent leurs salaires (${fmt(c.d)}). Paie-les dans « Mon bureau ».`;
 }
 /** Ce qui s'est passé pendant l'absence (hors du salon, page fermée) : quelques ventes et les charges des jours écoulés. */
 function rattraper(c, maintenant) {
@@ -111,7 +132,7 @@ function deposer() {
 }
 function majBouton() {
   const b = $('#vhCommerces'); if (!b) return;
-  const t = CM.liste.length ? `Mes commerces (${CM.liste.length})` : 'Commerces'; if (b.textContent !== t) b.textContent = t;
+  const t = CM.liste.length ? `Mon bureau (${CM.liste.length})` : 'Commerces'; if (b.textContent !== t) b.textContent = t;
   b.classList.toggle('alerte', CM.liste.some(c => statut(c)[1] === 'rouge'));
 }
 function flashGain(m) {
@@ -125,12 +146,36 @@ async function ouvrir(E, t) {
   if (commerceDe(E.id)) return;
   if (!(await depenser(T.install, `ouverture : ${T.nom.toLowerCase()} (${E.nom})`))) { X.ligne(`Il te faut ${fmt(T.install)} pour ouvrir ce commerce.`); return; }
   const maintenant = Date.now(), c = { e: E.id, t, s: T.stock, v: 0, r: 0, j: jour(), vj: 0, rj: 0, d: 0, c: maintenant + JOUR, m: maintenant };
-  CM.liste.push(c); sauver(); son('piece');
+  CM.liste.push(c); sauver(); son('piece'); prevenir();
   reconstruire(E);
   signaler('commerceOuvert');
   fermerFiche();
-  X.ligne(`${ton(T, true)} ${T.court} est ${T.f ? 'ouverte' : 'ouvert'} à ${E.nom} ! Tes employés servent les clients, même quand tu es ailleurs. Suis tes ventes dans « Commerces ».`);
+  X.ligne(`${ton(T, true)} ${T.court} est ${T.f ? 'ouverte' : 'ouvert'} à ${E.nom} ! Tes employés servent les clients, même quand tu es ailleurs. Suis tes ventes dans « Mon bureau ».`);
   rendreVie();
+}
+/** « Ouvrir » : 100 F par MoMo (sauf paiement déjà acquis), puis l'installation avec l'argent du jeu. */
+async function payerEtOuvrir(E, t) {
+  const T = TYPES[t]; if (CM.paie || commerceDe(E.id) || (VIE.data?.argent || 0) < T.install) return;
+  if (paiementReel()) {
+    CM.paie = true; CM.etatPaie = [lireLS(CLE_ATTENTE) || lireLS(CLE_ACQUIS) ? 'Vérification du paiement…' : 'Ouverture de FedaPay…', '']; choixCommerce(E);
+    let id = lireLS(CLE_ACQUIS), r = null;
+    if (id && (utilises().includes(id) || !(await verifierTransaction(id, PRIX_MOMO)).paye)) { id = ''; ecrireLS(CLE_ACQUIS, ''); } // on revérifie ce qui est gardé
+    if (!id) {
+      const attente = lireLS(CLE_ATTENTE);
+      CM.etatPaie = [attente ? 'Vérification du paiement…' : 'Ouverture de FedaPay…', '']; if (!$('#vieFiche').hidden) choixCommerce(E);
+      r = attente ? await verifierTransaction(attente, PRIX_MOMO) : await payerMoMo({ montant: PRIX_MOMO, description: `Ouverture d’un commerce : ${T.nom} (${E.nom})`, objet: 'commerce', infos: { commerce: t, quartier: E.id } });
+      ecrireLS(CLE_ATTENTE, !r.paye && r.id && !echecCertain(r.statut) ? r.id : ''); // en attente ou vérification impossible : on garde le numéro
+      if (r.paye && utilises().includes(String(r.id))) r = { ...r, paye: false, statut: 'deja' };
+      if (r.paye) { id = String(r.id); ecrireLS(CLE_ACQUIS, id); son('piece'); }
+    }
+    CM.paie = false;
+    if (!id) { CM.etatPaie = MESSAGES_MOMO[r?.statut] || DOUTE_MOMO; if (CM.choix === E.id && !$('#vieFiche').hidden) choixCommerce(E); return; } // jamais « rien n'a été prélevé » sans que FedaPay l'ait dit
+    await ouvrir(E, t);
+    if (commerceDe(E.id)) { ecrireLS(CLE_UTILISES, JSON.stringify([...utilises(), id].slice(-50))); ecrireLS(CLE_ACQUIS, ''); CM.etatPaie = null; }
+    else if (CM.choix === E.id) choixCommerce(E);
+    return;
+  }
+  await ouvrir(E, t);
 }
 async function reapprovisionner(c, n) {
   const T = TYPES[c.t], prix = n * T.cout; if (n <= 0) return;
@@ -145,7 +190,7 @@ async function payerDette(c) {
   if (CM.fiche === c) ficheCommerce(c);
 }
 function fermer(c) {
-  CM.liste = CM.liste.filter(x => x !== c); sauver();
+  CM.liste = CM.liste.filter(x => x !== c); sauver(); prevenir();
   const E = lot(c.e); if (E) reconstruire(E);
 }
 async function ceder(c) {
@@ -198,13 +243,13 @@ export function entrerCommerces() {
   CM.liste = (d?.l || []).filter(c => TYPES[c.t] && lot(c.e)).map(c => ({ ...c }));
   CM.charge = true; CM.attente = Math.max(0, d?.a || 0);
   const msgs = []; for (const c of [...CM.liste]) msgs.push(...rattraper(c, maintenant));
-  sauver(); rendreVie(); majBouton();
+  sauver(); rendreVie(); majBouton(); prevenir();
   return msgs;
 }
 export function quitterCommerces() {
   if (!CM.charge) return;
   for (const c of CM.liste) c.m = Date.now();
-  sauver(); CM.charge = false;
+  sauver(); CM.charge = false; prevenir();
   for (const id of [...CM.lots.keys()]) detruire(id);
   fermerFiche();
 }
@@ -221,6 +266,12 @@ export function actionsCommerces() {
   }
   return [];
 }
+/** Ses commerces comme lieux où aller (salon.js : « Aller à », GPS, zém) : devant la boutique, face à elle. */
+export function lieuxCommerces() {
+  if (!CM.charge) return [];
+  return CM.liste.map(c => { const E = lot(c.e), T = TYPES[c.t], [x, z] = versMonde(E, 0, 2.2); return { id: 'cm:' + E.id, nom: `${mon(T)} · ${E.nom}`, dit: `${mon(T)} · ${E.nom}`, x, z, cap: E.cap + Math.PI }; });
+}
+const prevenir = () => document.dispatchEvent(new CustomEvent('commerces'));
 /** De combien (x, z) entre dans un employé ou un client (les meubles sont des obstacles de rue.js). */
 export function corpsCommerces(x, z) {
   let p = 0;
@@ -399,28 +450,32 @@ export function fermerFiche() { const el = $('#vieFiche'); if (el) el.hidden = t
 const statut = c => c.d ? ['Fermé : salaires en retard', 'rouge'] : c.s <= 0 ? ['Plus de stock', 'rouge'] : c.s <= TYPES[c.t].stock * .2 ? ['Stock presque vide', 'orange'] : ['Ouvert', 'vert'];
 export function listeCommerces() {
   if (!VIE.data) return;
-  const lignes = EMPLACEMENTS.map(E => {
+  const lignes = [...EMPLACEMENTS].sort((a, b) => !!commerceDe(b.id) - !!commerceDe(a.id)).map(E => { // les siens d'abord
     const c = commerceDe(E.id), T = c && TYPES[c.t];
-    if (c) { const [st, k] = statut(c); return `<div class="vf-ligne"><span class="vf-icone" style="--c:${T.couleur}">${T.icone}</span><span><b>${esc(T.nom)} · ${esc(E.nom)}</b><small><i class="vf-pt ${k}"></i>${esc(st)} · aujourd’hui ${c.j === jour() ? c.vj : 0} client${(c.j === jour() ? c.vj : 0) > 1 ? 's' : ''}, ${fmt(c.j === jour() ? c.rj : 0)}</small></span><button type="button" class="vf-bouton" data-cm="fiche" data-v="${E.id}">Gérer</button></div>`; }
+    if (c) { const [st, k] = statut(c); return `<div class="vf-ligne"><span class="vf-icone" style="--c:${T.couleur}">${T.icone}</span><span><b>${esc(T.nom)} · ${esc(E.nom)}</b><small><i class="vf-pt ${k}"></i>${esc(st)} · aujourd’hui ${c.j === jour() ? c.vj : 0} client${(c.j === jour() ? c.vj : 0) > 1 ? 's' : ''}, ${fmt(c.j === jour() ? c.rj : 0)}</small></span><span class="vf-deux"><button type="button" class="vf-bouton" data-cm="aller" data-v="${E.id}">Y aller</button><button type="button" class="vf-bouton" data-cm="fiche" data-v="${E.id}">Gérer</button></span></div>`; }
     return `<div class="vf-ligne"><span class="vf-icone vide">🏪</span><span><b>Boutique à louer · ${esc(E.nom)}</b><small>Loyer ${fmt(E.loyer)} par jour · clients ×${String(E.affluence).replace('.', ',')}</small></span><button type="button" class="vf-bouton" data-cm="voir" data-v="${E.id}">Voir</button></div>`;
   }).join('');
-  const n = CM.liste.length;
-  montrer(`<small class="vf-sur">Ma vie · patron</small><h3 id="vfTitre">${n ? `Tes commerces (${n})` : 'Ouvrir un commerce'}</h3><p class="vf-intro">${n ? 'Tes employés vendent même quand tu es ailleurs. Rachète du stock avant qu’il soit vide, et garde de quoi payer les salaires chaque jour.' : 'Loue une boutique, choisis ce que tu y vends, et tes employés travaillent pour toi : l’argent arrive même quand tu fais autre chose.'}</p><div class="vf-liste">${lignes}</div>`);
+  const n = CM.liste.length, auj = CM.liste.filter(c => c.j === jour()), clients = auj.reduce((s, c) => s + c.vj, 0), ventes = auj.reduce((s, c) => s + c.rj, 0), charges = CM.liste.reduce((s, c) => s + chargesDe(c), 0);
+  const bilan = n ? `<div class="vf-stats"><div><small>Aujourd’hui</small><b>${fmt(ventes)}</b><span>${clients} client${clients > 1 ? 's' : ''} dans tes commerces</span></div><div><small>Charges</small><b>${fmt(charges)} / jour</b><span>salaires et loyers</span></div></div>` : '';
+  montrer(`<small class="vf-sur">Ma vie · patron</small><h3 id="vfTitre">${n ? 'Mon bureau' : 'Ouvrir un commerce'}</h3><p class="vf-intro">${n ? 'Tes employés vendent même quand tu es ailleurs. « Y aller » t’emmène devant ta boutique ; rachète du stock avant qu’il soit vide, et garde de quoi payer les salaires chaque jour.' : 'Loue une boutique, choisis ce que tu y vends, et tes employés travaillent pour toi : l’argent arrive même quand tu fais autre chose.'}</p>${bilan}<div class="vf-liste">${lignes}</div>`);
 }
 function choixCommerce(E) {
   if (commerceDe(E.id)) { ficheCommerce(commerceDe(E.id)); return; }
-  signaler('voirLot'); if (CM.choix !== E.id) CM.choixType = Object.keys(E.atout || {})[0]; CM.choix = E.id;
+  signaler('voirLot'); if (CM.choix !== E.id) { CM.choixType = Object.keys(E.atout || {})[0]; if (!CM.paie) CM.etatPaie = null; } CM.choix = E.id;
   const t = CM.choixType || 'momo', argent = VIE.data?.argent || 0;
   const cartes = Object.entries(TYPES).map(([id, T]) => `<button type="button" class="vf-carte${id === t ? ' choisie' : ''}" data-cm="type" data-v="${id}" aria-pressed="${id === t}">
     <span class="vf-carte-tete"><span class="vf-icone" style="--c:${T.couleur}">${T.icone}</span><b>${esc(T.nom)}</b></span>
     ${E.atout?.[id] ? '<em class="vf-atout">Bon emplacement</em>' : ''}
     <span class="vf-chiffres"><small>Installation</small><b>${fmt(T.install)}</b><small>Charges / jour</small><b>${fmt(T.charges + E.loyer)}</b><small>Bénéfice / heure</small><b>≈ ${fmt(parHeure(id, E))}</b></span>
     <span class="vf-etoiles"><small>Difficulté</small><i>${etoiles(T.difficulte)}</i><small>Potentiel</small><i>${etoiles(T.potentiel)}</i></span></button>`).join('');
-  const T = TYPES[t], manque = T.install - argent;
+  const T = TYPES[t], manque = T.install - argent, momo = paiementReel(), acquis = momo && !!lireLS(CLE_ACQUIS), attente = momo && !acquis && !!lireLS(CLE_ATTENTE);
+  const libelle = CM.paie ? 'Paiement en cours…' : manque > 0 ? `Il te manque ${fmt(manque)}` : !momo || acquis ? `Ouvrir · ${fmt(T.install)}` : attente ? 'Vérifier mon paiement' : `Ouvrir · ${fmt(T.install)} + ${PRIX_MOMO} F MoMo`;
   montrer(`<small class="vf-sur">Boutique à louer · ${esc(E.nom)}</small><h3 id="vfTitre">Que vas-tu ouvrir ici ?</h3><p class="vf-intro">${esc(E.texte)} Loyer ${fmt(E.loyer)} par jour, compris dans les charges.</p>
     <div class="vf-cartes">${cartes}</div>
     <div class="vf-detail"><p><b>${T.icone} ${esc(T.nom)}</b> · ${esc(T.texte)}</p><p class="vf-puces"><small>Équipe</small>${T.equipe.map(r => `<span>${esc(r)}</span>`).join('')}</p><p class="vf-note">Démarrage rapide : les meubles, l’équipe et un stock plein (${T.stock} ${unite(T, T.stock)}) sont compris. Une vente rapporte ${fmt(T.prix)}, et chaque ${unite(T, 1)} de stock coûte ${fmt(T.cout)} à racheter.</p>
-    </div><div class="vf-pied"><span>${T.icone} <b>${esc(T.nom)}</b></span><button type="button" class="jouer vf-ouvrir" data-cm="ouvrir" data-v="${t}"${manque > 0 ? ' disabled' : ''}>${manque > 0 ? `Il te manque ${fmt(manque)}` : `Ouvrir · ${fmt(T.install)}`}</button></div>`);
+    ${momo ? `<p class="vf-note vf-momo">${acquis ? 'Ton paiement MoMo est déjà reçu : il te reste l’installation, payée avec l’argent du jeu.' : `L’ouverture se paie aussi ${PRIX_MOMO} F en vrai, par Mobile Money (MTN ou Moov). L’installation, elle, se paie avec l’argent du jeu.`}</p>` : ''}
+    ${momo && paiementTest() ? '<p class="ev-test-momo">Mode test : choisis « Momo Test » et le numéro 0164000001. Aucun vrai argent n’est débité.</p>' : ''}
+    </div><div class="vf-pied">${CM.etatPaie?.[0] ? `<p class="vf-etat ${CM.etatPaie[1]}" role="status">${esc(CM.etatPaie[0])}</p>` : ''}<span>${T.icone} <b>${esc(T.nom)}</b></span><button type="button" class="jouer vf-ouvrir" data-cm="ouvrir" data-v="${t}"${manque > 0 || CM.paie ? ' disabled' : ''}>${libelle}</button></div>`);
 }
 export function ficheCommerce(c) {
   const T = TYPES[c.t], E = lot(c.e), [st, k] = statut(c), manque = T.stock - c.s, h = Math.max(0, Math.ceil((c.c - Date.now()) / 36e5)), aujourdhui = c.j === jour();
@@ -447,7 +502,7 @@ function actionFiche(a, v) {
   if (a === 'fiche') ficheCommerce(commerceDe(v));
   else if (a === 'voir') choixCommerce(E);
   else if (a === 'type') { CM.choixType = v; choixCommerce(lot(CM.choix)); }
-  else if (a === 'ouvrir') ouvrir(lot(CM.choix), v);
+  else if (a === 'ouvrir') payerEtOuvrir(lot(CM.choix), v);
   else if (a === 'stock' && CM.fiche) reapprovisionner(CM.fiche, Number(v));
   else if (a === 'dette' && CM.fiche) payerDette(CM.fiche);
   else if (a === 'ceder' && CM.fiche) { const c = CM.fiche; X.choisir(`Céder ${ton(TYPES[c.t])} ${TYPES[c.t].court} ?`, [{ texte: 'Oui, je cède la boutique', sous: 'L’équipe part et la boutique est de nouveau à louer', f: () => ceder(c) }], { annuler: 'Non, je la garde' }); }

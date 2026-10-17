@@ -810,6 +810,10 @@ button { font: inherit; color: inherit; }
 .vf-boite { --pad: 20px; position: relative; box-sizing: border-box; min-width: 0; width: min(620px, 100%); max-height: min(86vh, 860px); gap: 12px; padding: var(--pad); }
 .vf-pied { position: sticky; bottom: calc(-1 * var(--pad)); z-index: 1; margin: 0 calc(-1 * var(--pad)) calc(-1 * var(--pad)); padding: 12px var(--pad); display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--panel-solid); border-top: 1px solid var(--line); border-radius: 0 0 var(--r-lg) var(--r-lg); }
 .vf-pied > span { font-size: 14px; min-width: 0; }
+.vf-pied { flex-wrap: wrap; }
+.vf-etat { flex-basis: 100%; margin: 0; font-size: 13px; line-height: 1.4; color: var(--ink-2); }
+.vf-etat.mal { color: #c0392b; font-weight: 700; }
+.vf-momo { color: var(--ink); font-weight: 600; }
 .vf-pied .vf-ouvrir { justify-self: auto; flex: none; }
 .vf-fermer { position: absolute; top: 10px; right: 12px; width: 34px; height: 34px; border: 0; border-radius: 50%; background: var(--chip); color: var(--ink); font-size: 21px; line-height: 1; cursor: pointer; }
 .vf-sur { font: 700 11px/1.2 var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
@@ -826,6 +830,7 @@ button { font: inherit; color: inherit; }
 .vf-pt.orange { background: #e39a1c; } .vf-pt.rouge { background: #d64536; }
 .vf-bouton { border: 1px solid var(--line); background: var(--panel-solid); color: var(--ink); border-radius: 999px; padding: 8px 14px; font: 700 13px/1.2 var(--font-body); cursor: pointer; }
 .vf-bouton:hover:not(:disabled) { border-color: var(--accent); }
+.vf-deux { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .vf-bouton:disabled, .vf-boite .jouer:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
 .vf-cartes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .vf-carte { position: relative; display: grid; gap: 8px; text-align: left; padding: 10px 12px; border-radius: var(--r-md); border: 2px solid var(--line); background: var(--chip); color: var(--ink); font: inherit; cursor: pointer; }
