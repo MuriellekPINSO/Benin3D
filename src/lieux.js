@@ -7,6 +7,7 @@ import { LITE, hash, toXZ, u8c } from './base.js';
 import { scene } from './scene.js';
 import { ROAD_W, TABLIERS, roadLines } from './ville.js';
 import { GRANDES_AFFICHES, matAffiche } from './publicites.js';
+import { poserSol } from './sols.js';
 
 // ---------- Lieux détaillés ----------
 // Matières et primitives reprises du projet « 3D monde » (src/entities/Batisseur.ts),
@@ -523,6 +524,7 @@ export function palaisCongres(L) {
     // Entrée au nord, vers le boulevard : marches, chapiteau, mâts et parking.
     const zn = Math.min(...all.map(p => p[1] - c[1]));
     for (let m = 0; m < 4; m++) K.boite(30 - m * 3, .3 * (m + 1), 2.2, '#e3ddd0', 0, .15 * (m + 1), zn - 1 - m * 2.2);
+    poserSol(g, (lx, lz) => { for (let m = 0; m < 4; m++) if (Math.abs(lx) <= (30 - m * 3) / 2 && Math.abs(lz - (zn - 1 - m * 2.2)) <= 1.1) return .3 * (m + 1); return null; }, 60); // ses marches (sols.js)
     chapiteau(0, zn - 16, 9, 14, Math.PI / 2);
     for (let x = -60; x <= 60; x += 8) { K.cyl(.07, .1, 10, 8, '#f1efea', x, 5, zn - 26); }
     K.sol(150, 30, K.tex('beton', 30, 6, '#cfcdc6'), 0, zn - 44, .07);
@@ -907,6 +909,12 @@ export function dansFoule(x, z, r = .3) {
     for (let k = 0; k < l.length; k += 2) { const d = Math.hypot(x - l[k], z - l[k + 1]); if (d < .26 + r) p = Math.max(p, .26 + r - d); }
   }
   return p;
+}
+/** Combien de figurines de la foule à moins de r mètres de (x, z) (pour le brouhaha, ambiance-salon.js). */
+export function fouleProche(x, z, r = 25) {
+  let n = 0; const c = Math.ceil(r / 4);
+  for (let a = Math.floor(x / 4) - c; a <= Math.floor(x / 4) + c; a++) for (let b = Math.floor(z / 4) - c; b <= Math.floor(z / 4) + c; b++) { const l = FOULE.get(a + ',' + b); if (l) for (let k = 0; k < l.length; k += 2) if (Math.hypot(x - l[k], z - l[k + 1]) < r) n++; }
+  return n;
 }
 export function foule(arr, graine, y = 0) {
   const n = arr.length / 2; if (!n) return;

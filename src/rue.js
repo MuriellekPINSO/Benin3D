@@ -363,6 +363,7 @@ function genererCarre(cx, cz) {
   // Et ce qui se dresse sur le trottoir : lampadaires, poteaux électriques, voitures garées (on ne passe plus au travers).
   const debout = [...lampes.map(([x, z]) => [x, z, 0, .3, .3]), ...poteaux.map(([x, z]) => [x, z, 0, .32, .32]), ...voitures.map(([x, z, a]) => [x, z, a, 4.2, 1.8])];
   groupe.userData.obstacles = indexerObstacles([...[...murs, ...portails, ...piliers, ...boutiques, ...maisons].map(([x, z, a, l, , e]) => [x, z, a, l, e]), ...debout]);
+  groupe.userData.chantiers = murs.filter(m => m[7]).map(([x, z]) => [x, z]); // pour le bruit des chantiers (ambiance-salon.js)
   // ---------- Maillages instanciés ----------
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
   const inst = (liste, mat, f, ombre = true) => {
@@ -637,6 +638,12 @@ export function profondeurRue(x, z, r = .3) {
   const e = extraIdx.get(cle); return e ? enfonce(e, x, z, r, p) : p;
 }
 export const dansObstacleRue = (x, z, r = .3) => profondeurRue(x, z, r) > 0;
+/** La distance du chantier le plus proche de (x, z) (Infinity s'il n'y en a pas dans les carrés voisins). */
+export function chantierProche(x, z) {
+  const kx = Math.floor(x / CARRE), kz = Math.floor(z / CARRE); let d = Infinity;
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const [cx, cz] of R.carres.get((kx + i) + ',' + (kz + j))?.userData.chantiers || []) d = Math.min(d, Math.hypot(cx - x, cz - z));
+  return d;
+}
 /** Pour les tests : les obstacles (murs…) autour de (x, z). */
 export function obstaclesPres(x, z) { const kx = Math.floor(x / CARRE), kz = Math.floor(z / CARRE), out = new Set(); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const l of R.carres.get((kx + i) + ',' + (kz + j))?.userData.obstacles?.values() || []) for (const o of l) if (Math.hypot(o.x - x, o.z - z) < 60) out.add(o); return [...out]; }
 export const STATS_RUE = { ms: 0, n: 0 };

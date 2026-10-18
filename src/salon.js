@@ -15,16 +15,19 @@ import { JEU } from './jeu.js';
 import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personnagesPrets } from './personnages.js';
 import { stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment, obstaclesPres, profondeurRue } from './rue.js';
+import { hauteurSol } from './sols.js';
 import { T, actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, vehiculeDe } from './trajets.js';
 import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
 import { VIE, alerteDuJour, assurerVie, ecrire as ecrireVie, louerMoto, majVie, prechargerVie, rendreVie, sauverVie, surAnnonce, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
 import { basculerPause, finirJournee, menuTravail } from './metiers.js';
-import { actionsCommerces, corpsCommerces, entrerCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces } from './commerces.js';
+import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces } from './commerces.js';
+import { majAmbianceSalon } from './ambiance-salon.js';
 import { entrerChapitres, initChapitres, majChapitres, quitterChapitres } from './chapitres.js';
+import { basculerCarte, initCarteSalon, majCarteSalon, quitterCarteSalon } from './carte-salon.js';
 import { TENUES, choixGenre, estFemme, grilleTenues, initGarderobe, ouvrirGarderobe } from './garderobe.js';
-import { son } from './audio.js';
+import { audioCtx, son } from './audio.js';
 import { camera, canvas, controls, scene } from './scene.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
@@ -44,9 +47,9 @@ const PHRASES = ['Ça va ?', 'On y va !', 'On mange où ?', 'Attends-moi !', 'Tr
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
 const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0]]; // 7e : intérieur dont on arrive devant la porte
-const CLAVIER = { KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
+const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
-const S = { actif: false, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 'vendeuse', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
+const S = { orbite: 0, orbiteT: 0, actif: false, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 'vendeuse', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
 export const salonActif = () => S.actif;
 const cible = new THREE.Vector3(), voulue = new THREE.Vector3();
 const r2 = v => Math.round(v * 100) / 100;
@@ -172,7 +175,7 @@ function ligne(texte, { nom = '', lieu = null, moi = false } = {}) {
   li.append(texte);
   if (lieu && !moi) { const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = 'Y aller'; bt.addEventListener('click', () => aller(lieu, false)); li.append(' ', bt); }
   ol.append(li); while (ol.children.length > 40) ol.firstChild.remove();
-  if (nom && !moi && !$('#slChat').classList.contains('ouvert') && matchMedia('(max-width: 720px)').matches) { S.nonLus++; const n = $('#slNonLus'); n.textContent = S.nonLus; n.hidden = false; }
+  if (nom && !moi && (matchMedia('(max-width: 720px)').matches ? !$('#slChat').classList.contains('ouvert') : document.getElementById('app').classList.contains('chat-ferme'))) { S.nonLus++; const n = $('#slNonLus'); n.textContent = S.nonLus; n.hidden = false; }
   ol.scrollTop = ol.scrollHeight;
 }
 function surMessage(m) {
@@ -187,15 +190,29 @@ function dire(texte) {
   texte = nettoyer(texte, 140); if (!texte || !S.canal) return;
   S.canal.dire({ n: S.nom, txt: texte });
 }
+// Dans la rue, pas de chaise : on pose son tabouret en plastique (comme partout à Cotonou) ; il disparaît quand on se lève.
+function poserTabouret() {
+  retirerTabouret();
+  const g = new THREE.Group(), rouge = new THREE.MeshLambertMaterial({ color: '#c8352b' }), bloc = (sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), rouge); m.position.set(x, y, z); m.castShadow = true; g.add(m); };
+  bloc(.44, .05, .42, 0, .44, -.04); bloc(.44, .4, .04, 0, .66, -.25); // assise, dossier (derrière soi)
+  for (const [x, z] of [[-.19, .14], [.19, .14], [-.19, -.22], [.19, -.22]]) bloc(.035, .44, .035, x, .22, z);
+  g.position.set(S.x, S.y, S.z); g.rotation.y = S.cap; scene.add(g); S.tabouret = { g, x: S.x, z: S.z };
+}
+function retirerTabouret() { if (!S.tabouret) return; scene.remove(S.tabouret.g); S.tabouret.g.traverse(o => o.geometry?.dispose()); S.tabouret = null; }
 function geste(nom) {
-  if (nom === 'telephone') { // l'animation du téléphone est une pose assise : sur une chaise s'il y en a une, sinon debout, le téléphone à la main
+  if (nom === 'telephone') { // l'animation du téléphone est une pose assise : sur une chaise s'il y en a une, sinon sur son tabouret dehors
     const c = S.lieu && siegeProche(S.lieu, S.x, S.z);
-    if (c) { S.x = c.x; S.z = c.z; S.cap = c.cap; } else { telephoneEnMain(); bulle(S, 'Allô ? Oui, je suis à Cotonou !'); S.geste = 'idle'; S.gesteFin = 0; return; }
+    if (c) { S.x = c.x; S.z = c.z; S.cap = c.cap; }
+    else if (!S.lieu && T.mode === 'pied') poserTabouret();
+    else { telephoneEnMain(); bulle(S, 'Allô ? Oui, je suis à Cotonou !'); S.geste = 'idle'; S.gesteFin = 0; return; }
+    telephoneEnMain(); bulle(S, 'Allô ? Oui, je suis à Cotonou !');
   }
-  if (nom === 'assis') { // sur la chaise libre la plus proche (il n'y a des chaises que dans les lieux où l'on entre), ou dans les gradins de l'arène
+  if (nom === 'assis') { // sur la chaise libre la plus proche, dans les gradins de l'arène, ou sur son tabouret dans la rue
     if (!S.lieu && siegeGradins(S.x, S.z)) { assoirGradins(); return; }
-    const c = S.lieu && siegeProche(S.lieu, S.x, S.z); if (!c) { ligne(S.lieu ? 'Approche-toi d’une table pour t’asseoir.' : 'Entre dans un lieu (le food court de la Cité…) ou va dans les gradins de l’arène de Ouidah pour t’asseoir.'); return; }
-    S.x = c.x; S.z = c.z; S.cap = c.cap; asseoir(c); // si l'on porte une assiette, on la pose et on mange
+    const c = S.lieu && siegeProche(S.lieu, S.x, S.z);
+    if (c) { S.x = c.x; S.z = c.z; S.cap = c.cap; asseoir(c); } // si l'on porte une assiette, on la pose et on mange
+    else if (!S.lieu && T.mode === 'pied') poserTabouret();
+    else { ligne('Approche-toi d’une table pour t’asseoir.'); return; }
   }
   S.geste = nom; S.gesteFin = nom === 'salut' || nom === 'rire' ? performance.now() + 3200 : 0; // saluer et rire durent un moment, danser et s'asseoir jusqu'au prochain pas
   if (nom === 'danse1' && personnagesPrets()) chargerDanses();
@@ -277,6 +294,7 @@ async function entrer(code) {
   if (S.actif) return;
   const nom = nettoyer($('#slNom').value, 16); if (!nom) { statut('Écris ton nom pour que tes amis te reconnaissent.', 'mal'); $('#slNom').focus(); return; }
   S.nom = nom; try { localStorage.setItem(CLE, JSON.stringify({ nom, modele: S.modele })); } catch { /* navigation privée */ }
+  audioCtx(); // le clic « Entrer » permet le son : les bruits de la ville (ambiance-salon.js), les pièces, les klaxons
   statut('Chargement de ta vie…');
   VIE.femme = estFemme(S.modele); // les métiers au féminin ou au masculin
   S.autres.clear(); S.vus.clear();
@@ -329,7 +347,7 @@ async function porter(modele, forcer = false) {
 function quitter() {
   if (!S.actif) return;
   lieuStats('carte');
-  quitterMonde(); dehors(); sauverVie(); quitterCommerces(); quitterChapitres(); S.actif = false;
+  quitterMonde(); dehors(); sauverVie(); quitterCommerces(); quitterChapitres(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
   S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
   for (const A of S.autres.values()) retirer(A); S.autres.clear();
@@ -374,23 +392,24 @@ function majGuideSalon(dt) {
   guideSalon.maj(dt);
 }
 export function majSalon(dt) {
-  if (!S.actif) { E.joueur = null; return; }
+  if (!S.actif) { E.joueur = null; majAmbianceSalon(dt, null); return; }
   majGuideSalon(dt);
   const t = S.touches, j = S.joy;
   const pad = S.pad && performance.now() - S.padT < 250 ? S.pad : null; // manette (voir manette.js), si elle vient de parler : débranchée ou menu ouvert, on n'avance plus
   const av = THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
   const tour = THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) - (j ? j.x : 0) - (pad ? pad.lx : 0), -1, 1);
-  majVie(dt); majCommerces(dt); majChapitres(dt);
+  majVie(dt); majCommerces(dt); majChapitres(dt); majCarteSalon();
   const suivi = majTrajets(dt, av, tour); // en voiture, à moto, derrière un zém : c'est le véhicule qui bouge
   E.joueur = S.lieu ? null : suivi ?? S; // la circulation s'arrête devant lui (trafic.js) ; dedans, elle l'ignore
   if (!suivi && !majMaison(dt, av, tour)) { // chez soi, couché, sous la douche ou aux fourneaux : la maison place le personnage
     if (S.gradin && Math.abs(av) > .05) leverGradins(); // assis dans les gradins : avancer, c'est se lever
     if (S.gradin && Math.hypot(S.x - S.gradin.x, S.z - S.gradin.z) > 1.5) { S.gradin = null; if (!S.lieu) S.y = 0; } // parti autrement (« Aller à », zém…)
-    S.cap += tour * 2.4 * dt - (pad ? pad.rx * 2 * dt : 0); // stick droit : tourner
+    S.cap += tour * 2.4 * dt; // flèches, stick gauche : le personnage tourne
     const v = av * (t.has('court') || (j && Math.hypot(j.x, j.y) > .95) || (pad && (pad.court || Math.hypot(pad.lx, pad.ly) > .95)) ? 4.6 : 1.7) * (av < 0 ? .55 : 1) * vitesseFaim(); // trop faim : au ralenti
     deplacer(S.x + Math.sin(S.cap) * v * dt, S.z + Math.cos(S.cap) * v * dt);
     const marche = Math.abs(v) > .05;
     if (marche || Math.abs(tour) > .05) { S.geste = 'idle'; S.gesteFin = 0; }
+    if (S.tabouret && (S.lieu || (S.geste !== 'assis' && S.geste !== 'telephone') || Math.hypot(S.x - S.tabouret.x, S.z - S.tabouret.z) > .3)) retirerTabouret();
     else if (S.gesteFin && performance.now() > S.gesteFin) { S.geste = 'idle'; S.gesteFin = 0; }
     S.anim = marche ? 'marche' : S.geste;
     if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); }
@@ -401,7 +420,13 @@ export function majSalon(dt) {
   const P = suivi || S, dist = suivi ? Math.max(S.dist, suivi.dist) : S.dist, inc = S.lieu ? Math.min(S.tangage, S.couche ? .9 : .35) : S.tangage; // dedans, à hauteur d'yeux ; couché, on regarde le lit d'en haut
   const hc = S.couche ? .6 : 1.55; // hauteur visée : la tête, ou le lit
   cible.set(P.x, P.y + hc, P.z);
-  voulue.set(P.x - Math.sin(P.cap) * dist * Math.cos(inc), P.y + hc + dist * Math.sin(inc), P.z - Math.cos(P.cap) * dist * Math.cos(inc));
+  // Glisser sur la ville (ou le stick droit) fait tourner la caméra autour de soi ou de son véhicule, sans les faire tourner :
+  // on se regarde de face, de côté. Quand on avance, elle revient doucement derrière (pas pendant qu'on la tourne).
+  if (pad && Math.abs(pad.rx) > .05) { S.orbite -= pad.rx * 2 * dt; S.orbiteT = performance.now(); }
+  S.orbite = Math.atan2(Math.sin(S.orbite), Math.cos(S.orbite));
+  if ((Math.abs(av) > .05 || Math.abs(suivi?.v ?? T.veh?.v ?? 0) > 1 && T.mode !== 'pied') && performance.now() - S.orbiteT > 1200) S.orbite *= Math.exp(-dt * 2.2);
+  const lacet = P.cap + S.orbite;
+  voulue.set(P.x - Math.sin(lacet) * dist * Math.cos(inc), P.y + hc + dist * Math.sin(inc), P.z - Math.cos(lacet) * dist * Math.cos(inc));
   if (S.lieu) { // la caméra reste dans la pièce, sous le plafond, et ne passe pas au travers des cloisons
     const [cx, cz] = limiter(S.lieu, voulue.x, voulue.z, .35); voulue.set(cx, Math.min(voulue.y, S.y + (S.lieu.plafond ? S.lieu.plafond - .3 : 4)), cz);
     const k = murEntre(S.lieu, cible.x, cible.z, voulue.x, voulue.z); if (k < 1) voulue.set(cible.x + (voulue.x - cible.x) * k, voulue.y, cible.z + (voulue.z - cible.z) * k);
@@ -412,6 +437,7 @@ export function majSalon(dt) {
   }
   if (S.saut || suivi?.libre) { camera.position.copy(voulue); S.saut = false; } else camera.position.lerp(voulue, 1 - Math.exp(-dt * (suivi ? 5 : 7))); // en avion (temps accéléré), la caméra reste collée derrière
   controls.target.copy(cible);
+  majAmbianceSalon(dt, { x: P.x, z: P.z, dedans: !!S.lieu, public: !!S.lieu && !S.lieu.prive, clients: S.lieu ? 0 : genteCommerces(S.x, S.z) }); // les bruits de la ville (ambiance-salon.js)
   // Sa position aux autres, cinq fois par seconde (et au moins toutes les 2,5 s pour rester « présent »).
   S.envoi -= dt; S.depuis += dt;
   if (S.envoi <= 0 && S.canal) {
@@ -472,11 +498,13 @@ function gene(x, z) {
   const bord = ANNEAU.reduce((n, [u, v]) => n + (dansBatiment(x + u, z + v) ? 1 : 0), 0) * .04; // le corps frôle une façade
   return Math.max(bord, profondeurRue(x, z), obstacleArene(x, z), corps(x, z));
 }
+// Dehors, des marches et des estrades (sols.js) : on monte une marche de 0,45 m au plus ; plus haut, c'est un mur.
 function deplacer(nx, nz) {
   const ici = gene(S.x, S.z);
   for (const [x, z] of [[nx, nz], [nx, S.z], [S.x, nz]]) {
     const [cx, cz] = S.lieu ? limiter(S.lieu, x, z) : [x, z], p = gene(cx, cz);
-    if (p === 0 || p < ici - 1e-4) { S.x = cx; S.z = cz; return; }
+    if (!S.lieu && hauteurSol(cx, cz) - S.y > .45) continue;
+    if (p === 0 || p < ici - 1e-4) { S.x = cx; S.z = cz; if (!S.lieu) S.y = hauteurSol(cx, cz); return; }
   }
 }
 
@@ -544,6 +572,10 @@ export function initSalon(data) {
   guideSalon = creerGuide({ cle: 'cotonou3d.guide', el: $('#slGuide'), titre: 'Prise en main', etapes: etapesSalon() });
   initCommerces({ S, T, ligne, choisir, allerVers }); // devenir patron (commerces.js)
   initChapitres({ ligne, guide: () => !$('#slGuide').hidden }); // la prochaine étape, toujours affichée (chapitres.js)
+  initCarteSalon({ S, T, aller, lieux: () => [ // la mini-carte et la grande carte (carte-salon.js) : les lieux, sa maison, ses commerces
+    ...LIEUX.filter(L => L[0] !== 'station').map(L => { const d = destination(L); return d && { id: L[0], nom: L[1], x: d[0], z: d[1], type: L[0] === 'maison' ? 'maison' : 'lieu' }; }).filter(Boolean),
+    ...lieuxCommerces().map(c => ({ id: c.id, nom: c.nom, x: c.x, z: c.z, type: 'commerce' })),
+  ] });
   if (import.meta.env.DEV) window.__salon = { S, T, VIE, surRoute, profondeurRue, dansBatiment, profondeurInterieur, obstaclesPres, porter }; // pour les tests (console, scripts)
   S.local = new URLSearchParams(location.search).has('salon-local');
   $('#btnSalon')?.addEventListener('click', ouvrir); $('#btnVivre')?.addEventListener('click', ouvrir);
@@ -574,6 +606,11 @@ export function initSalon(data) {
     if (panneau === '#slChat' && ouvert) { S.nonLus = 0; $('#slNonLus').hidden = true; $('#slMessages').scrollTop = 1e6; }
   });
   bascule('#slChatBtn', '#slChat', ['#slGestesBtn', '#slActions']); bascule('#slGestesBtn', '#slActions', ['#slChatBtn', '#slChat']);
+  // Fermer la discussion (×) : sur ordinateur, elle laisse place à un bouton « Discussion » ; sur téléphone, elle se replie. Retenu.
+  const app = document.getElementById('app'), chatFerme = on => { app.classList.toggle('chat-ferme', on); try { localStorage.setItem('cotonou3d.chatFerme', on ? '1' : ''); } catch { /* navigation privée */ } if (!on) { S.nonLus = 0; $('#slNonLus').hidden = true; } };
+  try { if (localStorage.getItem('cotonou3d.chatFerme')) app.classList.add('chat-ferme'); } catch { /* rien */ }
+  $('#slChatFermer')?.addEventListener('click', () => { if (matchMedia('(max-width: 720px)').matches) $('#slChatBtn').click(); else chatFerme(true); });
+  $('#slChatBtn')?.addEventListener('click', () => { if (!matchMedia('(max-width: 720px)').matches) { chatFerme(false); $('#slTexte').focus(); } });
   $('#slForm')?.addEventListener('submit', e => { e.preventDefault(); dire($('#slTexte').value); $('#slTexte').value = ''; });
   const ph = $('#slPhrases'); if (ph) for (const p of PHRASES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = p; b.addEventListener('click', () => dire(p)); ph.append(b); }
   const ge = $('#slGestes'); if (ge) for (const [id, nom] of GESTES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = nom; b.addEventListener('click', () => geste(id)); ge.append(b); }
@@ -589,14 +626,15 @@ export function initSalon(data) {
     const champ = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     if (champ) { if (e.key === 'Escape') e.target.blur(); e.stopPropagation(); return; }
     if (e.key === 'Enter') { $('#slTexte').focus(); e.preventDefault(); e.stopPropagation(); return; }
-    const k = CLAVIER[e.code]; if (k === 'vue') { if (!e.repeat) changerVue(); e.preventDefault(); e.stopPropagation(); } else if (k === 'porte') { if (!e.repeat) porte(); e.preventDefault(); e.stopPropagation(); }
+    const k = CLAVIER[e.code]; if (k === 'carte') { if (!e.repeat) basculerCarte(); e.preventDefault(); e.stopPropagation(); return; }
+    if (k === 'vue') { if (!e.repeat) changerVue(); e.preventDefault(); e.stopPropagation(); } else if (k === 'porte') { if (!e.repeat) porte(); e.preventDefault(); e.stopPropagation(); }
     else if (k === 'action2' || k === 'action3') { if (!e.repeat) S.actions?.[k === 'action2' ? 1 : 2]?.f(); e.preventDefault(); e.stopPropagation(); } else if (k) { S.touches.add(k); e.preventDefault(); e.stopPropagation(); }
   }, true);
   window.addEventListener('keyup', e => { const k = CLAVIER[e.code]; if (k) S.touches.delete(k); }, true);
   window.addEventListener('blur', () => S.touches.clear());
   // Glisser sur la ville pour tourner, molette pour s'approcher ou s'éloigner.
   canvas.addEventListener('pointerdown', e => { if (S.actif) S.glisse = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
-  window.addEventListener('pointermove', e => { if (S.glisse && e.pointerId === S.glisse.id) { S.cap -= (e.clientX - S.glisse.x) * .006; S.tangage = THREE.MathUtils.clamp(S.tangage + (e.clientY - S.glisse.y) * .005, .05, 1.48); S.glisse.x = e.clientX; S.glisse.y = e.clientY; } }); // vers le bas : on prend de la hauteur
+  window.addEventListener('pointermove', e => { if (S.glisse && e.pointerId === S.glisse.id) { S.orbite -= (e.clientX - S.glisse.x) * .006; S.orbiteT = performance.now(); S.tangage = THREE.MathUtils.clamp(S.tangage + (e.clientY - S.glisse.y) * .005, .05, 1.48); S.glisse.x = e.clientX; S.glisse.y = e.clientY; } }); // vers le bas : on prend de la hauteur
   window.addEventListener('pointerup', e => { if (S.glisse?.id === e.pointerId) S.glisse = null; });
   canvas.addEventListener('wheel', e => { if (!S.actif) return; S.dist = THREE.MathUtils.clamp(S.dist * (1 + Math.sign(e.deltaY) * .12), 2.5, S.lieu ? 6 : 150); e.preventDefault(); }, { passive: false });
   // Manette tactile : un rond qu'on pousse avec le pouce.

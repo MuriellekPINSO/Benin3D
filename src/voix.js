@@ -46,6 +46,12 @@ function pourLaVoix(t) {
     .replace(/(\d)[\s  ](?=\d{3}\b)/g, '$1').replace(/(\d+)\s*F\b/g, '$1 francs')
     .replace(/ɔ/g, 'o').replace(/Ɔ/g, 'O').replace(/ɛ/g, 'è').replace(/Ɛ/g, 'È')
     .replace(/\bTchrr+\b/gi, 'Tchip').replace(/\bdeh\b/gi, 'dè').replace(/\b([Zz])ém\b/g, '$1èm').replace(/\bMoMo\b/g, 'Momo')
+    // Les sons « kp » et « gb » du fon et du goun : la voix française dirait « kapayo », « toka-pa ». Au début d'un mot, on
+    // garde la seconde consonne (kpayo → payo, Kpota → Pota, Gbégamey → Bégamey) ; au milieu, « kp » devient « cp »
+    // (tokpa → tocpa, Dantokpa, Akpakpa). Et le « -ey » final des noms de lieux se dit « è » (Godomey, Abomey).
+    .replace(/\b([Kk])p(?=[aeiouyàâéèêëîïôöùû])/g, (m, k) => (k === 'K' ? 'P' : 'p')).replace(/([a-zà-ÿ])kp/gi, '$1cp')
+    .replace(/\b([Gg])b(?=[aeiouyàâéèêëîïôöùû])/g, (m, g) => (g === 'G' ? 'B' : 'b'))
+    .replace(/\b(Godom|Abom|Bégam|Avotr)ey\b/g, '$1è')
     .replace(/\s+/g, ' ').trim();
 }
 

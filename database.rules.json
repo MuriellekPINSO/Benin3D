@@ -104,6 +104,21 @@
         }
       }
     },
+    "zem_classement": {
+      ".read": "auth != null",
+      "$ligne": {
+        ".indexOn": ["s"],
+        ".validate": "$ligne.matches(/^[a-z0-9-]{1,24}$/)",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.hasChildren(['n', 's', 't']) && (!data.exists() || newData.child('s').val() >= data.child('s').val())",
+          "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+          "s": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 200000" },
+          "t": { ".validate": "newData.val() === now" },
+          "$autre": { ".validate": false }
+        }
+      }
+    },
     "zem_presence": {
       ".read": "auth != null",
       "$uid": {

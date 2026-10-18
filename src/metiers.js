@@ -199,12 +199,16 @@ function pieds(V, cote) { S.x = V.x + Math.sin(V.cap + Math.PI / 2) * cote; S.z 
 // debout comme assis sur la moto. Le numéro est celui de Zém Run (menu du jeu).
 function enfilerGilet() {
   retirerGilet(); const p = S.moi, bas = p?.getObjectByName?.('Spine01'), haut = p?.getObjectByName?.('NeckTwist01'); if (!bas || !haut) return;
-  const g = new THREE.Group(), corps = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, 1, 18, 1, true), new THREE.MeshLambertMaterial({ color: '#f2c21b', side: THREE.DoubleSide }));
-  const dos = new THREE.Mesh(new THREE.PlaneGeometry(1, .62), new THREE.MeshBasicMaterial({ map: texteToile([numero()], 256, 160, '#f2c21b', '#1d5a2e', '900 120px system-ui, sans-serif') }));
-  dos.rotation.y = Math.PI; g.add(corps, dos); scene.add(g);
-  W.gilet = { p, g, corps, dos, bas, haut, a: new THREE.Vector3(), b: new THREE.Vector3(), q: new THREE.Quaternion(), qy: new THREE.Quaternion() };
+  // La chasuble jaune des zémidjans : plus étroite aux épaules, deux bretelles, le numéro derrière et devant.
+  const jaune = new THREE.MeshLambertMaterial({ color: '#f2c21b', side: THREE.DoubleSide }), g = new THREE.Group(), corps = new THREE.Mesh(new THREE.CylinderGeometry(.4, .5, 1, 20, 1, true), jaune);
+  for (const s of [-1, 1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(.16, .07, 1.02), jaune); b.position.set(s * .25, .5, 0); corps.add(b); } // bretelles, par-dessus les épaules
+  const ourlet = new THREE.Mesh(new THREE.CylinderGeometry(.505, .505, .07, 20, 1, true), new THREE.MeshLambertMaterial({ color: '#1d5a2e', side: THREE.DoubleSide })); ourlet.position.y = -.47; corps.add(ourlet); // bande verte du bas
+  const num = texteToile([numero()], 256, 160, '#f2c21b', '#1d5a2e', '900 120px system-ui, sans-serif');
+  const dos = new THREE.Mesh(new THREE.PlaneGeometry(1, .62), new THREE.MeshBasicMaterial({ map: num })), face = new THREE.Mesh(new THREE.PlaneGeometry(1, .62), new THREE.MeshBasicMaterial({ map: num }));
+  dos.rotation.y = Math.PI; g.add(corps, dos, face); scene.add(g);
+  W.gilet = { p, g, corps, dos, face, bas, haut, a: new THREE.Vector3(), b: new THREE.Vector3(), q: new THREE.Quaternion(), qy: new THREE.Quaternion() };
 }
-function retirerGilet() { if (W.gilet) { scene.remove(W.gilet.g); W.gilet.corps.geometry.dispose(); W.gilet.dos.material.map?.dispose(); W.gilet = null; } }
+function retirerGilet() { if (W.gilet) { scene.remove(W.gilet.g); W.gilet.g.traverse(o => o.geometry?.dispose()); W.gilet.dos.material.map?.dispose(); W.gilet = null; } }
 const HAUT = new THREE.Vector3(0, 1, 0);
 function majGilet() {
   const G = W.gilet; if (!G) return;
@@ -215,6 +219,7 @@ function majGilet() {
   G.g.position.copy(G.a).lerp(G.b, .46);
   G.q.setFromUnitVectors(HAUT, G.b.clone().sub(G.a).normalize()); G.qy.setFromAxisAngle(HAUT, S.moi.rotation.y); G.g.quaternion.copy(G.q).multiply(G.qy);
   G.corps.scale.set(w, d * 1.3, w * .7); G.dos.scale.setScalar(w * .62); G.dos.position.set(0, d * .1, -w * .35 - .012);
+  G.face.scale.setScalar(w * .42); G.face.position.set(0, -d * .05, w * .33 + .012); // devant, plus petit
 }
 
 // ---------- Zémidjan et taxi : les clients ----------
@@ -364,7 +369,27 @@ function troncon(a, b) {
   const A = W.ligne.arrets[a], B = W.ligne.arrets[b], P = W.ligne.pts, out = [[A.x, A.z]];
   if (b > a) for (let i = A.i + 1; i <= B.i; i++) out.push(P[i]); else for (let i = A.i; i > B.i; i--) out.push(P[i]);
   out.push([B.x, B.z]);
-  return W.ligne.troncons[cle] = voie(dense(out, 8));
+  return W.ligne.troncons[cle] = rangerAuxArrets(voie(dense(out, 8)));
+}
+/** Aux deux bouts d'un tronçon (les arrêts), le minibus se range contre le bord droit de l'asphalte (là où la chaussée
+ *  s'arrête, contre-allée comprise) : il s'en approche sur les 30 derniers mètres et regagne sa voie sur les 20 premiers,
+ *  au lieu de s'arrêter au milieu de la voie. */
+function rangerAuxArrets(pts) {
+  const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const L = cum[cum.length - 1], doux = u => u * u * (3 - 2 * u), rampe = (d, R) => (d < R ? doux(1 - d / R) : 0);
+  const droite = i => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [-(b[1] - a[1]) / l, (b[0] - a[0]) / l]; };
+  // Jusqu'où va l'asphalte à droite de l'arrêt (15 m au plus) ; on s’arrête à 1,3 m du bord (la demi-largeur du minibus et un peu).
+  const ecart = i => { const [x, z] = pts[i], [nx, nz] = droite(i); let d = 0; while (d < 15 && surRoute(x + nx * (d + .25), z + nz * (d + .25))) d += .25; return d >= 15 ? 0 : Math.max(0, d - 1.3); };
+  // Dans un virage (bretelle, entrée de campus), on ne se range pas : décalé vers la droite, le tracé couperait le virage.
+  const cap = (i, j) => Math.atan2(pts[j][0] - pts[i][0], pts[j][1] - pts[i][1]), virage = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) > .45;
+  const iFin = cum.findIndex(c => c > L - 30), iDeb = cum.findIndex(c => c > 20), n = pts.length - 1;
+  const fin = n > 2 && iFin > 0 && iFin < n - 1 && virage(cap(iFin - 1, iFin), cap(n - 1, n)) ? 0 : ecart(n);
+  const debut = n > 2 && iDeb > 1 && virage(cap(0, 1), cap(iDeb - 1, iDeb)) ? 0 : ecart(0);
+  return pts.map(([x, z], i) => {
+    let e = Math.max(fin * rampe(L - cum[i], 30), debut * rampe(cum[i], 20)); if (!e) return [x, z];
+    e = Math.min(e, ecart(i)); // jamais au-delà du bord de l'asphalte à cet endroit (la chaussée se resserre parfois avant l'arrêt)
+    const [nx, nz] = droite(i); return [x + nx * e, z + nz * e];
+  });
 }
 /** Un point tous les `pas` mètres au plus (le tracé d'OSM a parfois des segments de 100 m). */
 function dense(pts, pas) {

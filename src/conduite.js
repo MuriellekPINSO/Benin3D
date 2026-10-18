@@ -5,6 +5,8 @@ import { TRIPO } from './batiments-tripo.js';
 import { construireReseau, itineraireCourt } from './carrefours.js';
 import { personne } from './discussions.js';
 import { dansBatiment, dansObstacleRue } from './rue.js';
+import { hauteurSol } from './sols.js';
+import { animerMoto } from './roues.js';
 import { dansTerrePlein } from './terre-pleins.js';
 import { dansCirculation } from './trafic.js';
 import { scene } from './scene.js';
@@ -56,9 +58,10 @@ export function creerVehicule(type, { couleur } = {}) {
   else { m = new THREE.Mesh(mergeColored(type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : couleur || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: couleur, chemise: '#f2c21b' })), matVeh); m.castShadow = true; m.receiveShadow = true; }
   m.rotation.y = -Math.PI / 2 + (gabarit && MODELES[type] && DEMI_TOUR[type] ? Math.PI : 0); g.add(m); // avant +x → +z
   scene.add(g);
-  return { type, D, g, x: 0, z: 0, y: 0, cap: 0, v: 0, km: 0, selle: (gabarit && MODELES[type] && SELLES[type]) || D.selle };
+  const anim = type === 'moto' || type === 'zem' ? animerMoto(g, { parent: scene }) : null; // roues qui tournent, fumée, poussière (roues.js)
+  return { type, D, g, x: 0, z: 0, y: 0, cap: 0, v: 0, km: 0, anim, selle: (gabarit && MODELES[type] && SELLES[type]) || D.selle };
 }
-export function retirerVehicule(V) { if (V) scene.remove(V.g); } // les géométries sont partagées entre les copies : on ne les libère pas
+export function retirerVehicule(V) { if (V) { scene.remove(V.g); V.anim?.liberer(); } } // les géométries sont partagées entre les copies : on ne les libère pas
 export function placer(V, x, z, cap) { V.x = x; V.z = z; V.cap = cap; V.v = 0; V.y = hauteur(x, z, 0); V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; }
 /** Où asseoir un personnage sur le véhicule (repère du véhicule) : pilote ou passager ; null : dans la voiture, on ne le voit pas. */
 export function siege(V, passager = false) {
@@ -127,7 +130,7 @@ export function piloter(V, av, tour, dt, { panne = false } = {}) {
 }
 // Le centre sur la route, et l'avant (l'arrière en marche arrière) avec ses deux coins hors des murs et des
 // bâtiments : avant, seul le centre comptait, et tout le capot rentrait dans la clôture.
-const horsMur = (x, z) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && !dansCirculation(x, z, .05); // ni dans un zém ou un tokpa qui roule
+const horsMur = (x, z) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && !dansCirculation(x, z, .05) && hauteurSol(x, z) < .25; // ni dans un zém ou un tokpa qui roule, ni sur des marches (sols.js)
 function passe(V, x, z) {
   if (!surRoute(x, z)) return false;
   const L = (V.D.long ?? 2) / 2 * .92 * (Math.sign(V.v) || 1), W = (V.D.larg ?? .8) / 2 * .9, sx = Math.sin(V.cap), cz = Math.cos(V.cap), fx = x + sx * L, fz = z + cz * L;
@@ -139,6 +142,7 @@ function avancer(V, dt, contraint) {
   else { if (Math.abs(V.v) > 3) choc = 'choc'; V.v *= Math.abs(V.v) > .3 ? -.2 : 0; }
   V.y = hauteur(V.x, V.z, V.y);
   V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap;
+  if (V.anim) { const a = (V.v - (V.vAvant ?? V.v)) / Math.max(dt, .001); V.vAvant = V.v; V.anim.maj(V.v, dt, a > .5); }
   return choc;
 }
 /** Point du chemin à `dist` mètres plus loin que (k, t) (segment pts[k-1] → pts[k], fraction t) ; et la distance qui restait jusqu'au bout. */
@@ -182,10 +186,18 @@ export function suivreChemin(V, P, dt, vmax = V.D.vmax) {
 
 // ---------- Itinéraires et GPS ----------
 /** Chemin par les routes de (x, z), en regardant vers `cap`, jusqu'à (xb, zb) : [[x, z], …] ou null. */
+/** Le segment (a → b) est-il libre pour un véhicule de demi-largeur r : ni bâtiment, ni mur, portail ou maison de rue.js ? */
+export function segmentLibre(ax, az, bx, bz, r = .6) {
+  const l = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(l / .5));
+  for (let i = 0; i <= n; i++) { const x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n; if (dansBatiment(x, z) || dansObstacleRue(x, z, r)) return false; }
+  return true;
+}
 export function itineraire(x, z, cap, xb, zb) {
   construireReseau();
   const pts = itineraireCourt(x, z, x + Math.sin(cap) * 12, z + Math.cos(cap) * 12, [[xb, zb]], 300);
-  if (pts) { const f = pts[pts.length - 1]; if (Math.hypot(f[0] - xb, f[1] - zb) > 4) pts.push([xb, zb]); } // dernier bout : jusqu'à la porte, la cour
+  // Dernier bout, hors de la route : jusqu'à la porte, la cour, le sable de la plage, seulement s'il n'y a ni mur ni bâtiment
+  // entre les deux (sinon le véhicule s'arrête au bord de la route, et l'on finit à pied).
+  if (pts) { const f = pts[pts.length - 1]; if (Math.hypot(f[0] - xb, f[1] - zb) > 4 && segmentLibre(f[0], f[1], xb, zb)) pts.push([xb, zb]); }
   return pts && sansAllerRetour(pts);
 }
 // Pas d'aller-retour dans un chemin : le carrefour devant soi quand la route part derrière, le dernier carrefour quand la

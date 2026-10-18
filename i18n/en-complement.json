@@ -183,7 +183,8 @@
   "Femme ou homme": "Woman or man",
   "Ta tenue": "Your outfit",
   "Tes tenues": "Your outfits",
-  "Flèches ou ZQSD pour marcher · Maj pour courir · E, R, F : les actions des boutons · glisser pour tourner (vers le bas : de haut) · molette pour zoomer · V : changer de vue · Entrée pour écrire": "Arrows or WASD to walk · Shift to run · E, R, F: the button actions · drag to turn (down: from above) · scroll to zoom · V: change view · Enter to type"
+  "Flèches ou ZQSD pour marcher · Maj pour courir · E, R, F : les actions des boutons · glisser pour tourner (vers le bas : de haut) · molette pour zoomer · V : changer de vue · Entrée pour écrire": "Arrows or WASD to walk · Shift to run · E, R, F: the button actions · drag to turn (down: from above) · scroll to zoom · V: change view · Enter to type",
+  "Flèches ou ZQSD pour marcher · Maj pour courir · E, R, F : les actions des boutons · glisser pour tourner la caméra autour de toi (vers le bas : de haut) · molette pour zoomer · V : changer de vue · M : la carte · Entrée pour écrire": "Arrows or WASD to walk · Shift to run · E, R, F: the button actions · drag to turn the camera around you (down: from above) · scroll to zoom · V: change view · M: the map · Enter to type"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -625,7 +626,10 @@
   "'zém (descendu en route)'": "'zém (got off on the way)'",
   "Tu descends en route et tu paies le bout de chemin : ": "You get off on the way and pay for the distance ridden: ",
   "Passer le trajet · ": "Skip the ride · ",
-  "Quelques minutes plus tard… On arrive : ": "A few minutes later… Almost there: "
+  "Quelques minutes plus tard… On arrive : ": "A few minutes later… Almost there: ",
+  "'Le zém ne trouve pas de route jusqu’à toi : approche-toi d’une rue.'": "'The zém can’t find a road to you: move closer to a street.'",
+  "). Il t’attendra au bord de la rue, à ": "). It will wait for you at the roadside, ",
+  " m : rejoins-le.": " m away: go and meet it."
  },
  "src/conduite.js": {
   "'zém'": "'zém'",
@@ -1448,5 +1452,30 @@
  },
  "src/leger.js": {
   "'<p>Ça rame un peu ? Le <b>mode léger</b> retire des détails pour que le jeu tourne mieux. La page va se recharger.</p><div class=\"leger-btns\"><button type=\"button\" class=\"leger-oui\">Passer en mode léger</button><button type=\"button\" class=\"leger-non\">Non merci</button></div>'": "'<p>A bit slow? <b>Light mode</b> removes some detail so the game runs better. The page will reload.</p><div class=\"leger-btns\"><button type=\"button\" class=\"leger-oui\">Switch to light mode</button><button type=\"button\" class=\"leger-non\">No thanks</button></div>'"
+ },
+ "src/classement.js": {
+  "'fr-FR'": "'en-US'",
+  "'<li class=\"jc-vide\">Chargement du classement…</li>'": "'<li class=\"jc-vide\">Loading the ranking…</li>'",
+  "'<li class=\"jc-vide\">Le classement ne répond pas : vérifie ta connexion, puis rouvre-le.</li>'": "'<li class=\"jc-vide\">The ranking isn’t responding: check your connection, then open it again.</li>'",
+  "'<li class=\"jc-vide\">Personne n’a encore fini cette ligne. Va jusqu’au terminus et sois le premier !</li>'": "'<li class=\"jc-vide\">Nobody has finished this line yet. Reach the terminus and be the first!</li>'",
+  "' <em>toi</em>'": "' <em>you</em>'",
+  "Ton record sur cette ligne : ": "Your record on this line: ",
+  ". Écris ton nom ci-dessus pour entrer au classement.": ". Enter your name above to join the ranking.",
+  "'Écris ton nom ci-dessus, puis va jusqu’au terminus pour entrer au classement.'": "'Enter your name above, then reach the terminus to join the ranking.'",
+  "Tu es ": "You’re #",
+  "'1er'": "'1'",
+  "e": "",
+  " sur ": " of ",
+  "' (les 50 premiers)'": "' (top 50)'",
+  "Ton record (": "Your record (",
+  ") n’est pas encore dans les ": ") isn’t in the top ",
+  " premiers : refais la ligne pour monter.": " yet: ride the line again to climb.",
+  "'Pas encore de record sur cette ligne : va jusqu’au terminus.'": "'No record on this line yet: reach the terminus.'",
+  "'Écris ton nom dans « Classement » pour te comparer aux autres joueurs.'": "'Enter your name in “Ranking” to compare yourself with other players.'",
+  "Classement de la ligne : tu es ": "Line ranking: you’re #",
+  "'Écris un nom d’au moins une lettre.'": "'Enter a name with at least one letter.'",
+  "'Nom enregistré.'": "'Name saved.'",
+  " (essai)": " (test)",
+  "'Sènan'": "'Sènan'"
  }
 }

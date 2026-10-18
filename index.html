@@ -115,6 +115,7 @@
         <span class="jm-eyebrow">Mode jeu</span>
         <h2>Zém Run</h2>
         <p>Apprends les quartiers au guidon d'un zémidjan ou dans un tokpa-tokpa, sur les vraies rues de Cotonou et de Calavi. Arrête-toi aux arrêts, évite les nids-de-poule, ramasse les pièces.</p>
+        <button type="button" class="jouer jm-classement" id="jmClassement">Classement des joueurs</button>
       </div>
       <div class="jm-lignes" id="jmLignes"></div>
       <div class="jm-prog" id="jmProg"></div>
@@ -165,7 +166,17 @@
       <h2></h2><p class="jf-sous"></p>
       <div class="jf-stats"></div>
       <div class="jf-quiz"></div>
-      <div class="jf-actions"><button type="button" class="jouer" id="jfRejouer">Rejouer</button><button type="button" class="btn-ghost" id="jfMarche" hidden>Marché artisanal</button><button type="button" class="btn-ghost" id="jfLignes">Autre ligne</button><button type="button" class="btn-ghost" id="jfCarte">Revenir à la carte</button></div>
+      <div class="jf-actions"><button type="button" class="jouer" id="jfRejouer">Rejouer</button><button type="button" class="btn-ghost" id="jfClassement">Classement</button><button type="button" class="btn-ghost" id="jfMarche" hidden>Marché artisanal</button><button type="button" class="btn-ghost" id="jfLignes">Autre ligne</button><button type="button" class="btn-ghost" id="jfCarte">Revenir à la carte</button></div>
+    </div>
+    <div class="jeu-classement panel" id="jeuClassement" hidden role="dialog" aria-modal="true" aria-labelledby="jcTitre">
+      <button type="button" class="jm-fermer" id="jcFermer" aria-label="Fermer le classement">×</button>
+      <span class="jm-eyebrow">Zém Run</span>
+      <h2 id="jcTitre">Classement</h2>
+      <form class="jc-nom" id="jcNomForm"><label for="jcNom">Ton nom</label><input id="jcNom" maxlength="16" autocomplete="nickname" placeholder="Ton nom ou ton surnom"><button type="submit" class="jouer">Enregistrer</button><small id="jcNomEtat" role="status"></small></form>
+      <div class="jc-lignes" id="jcLignes" role="tablist" aria-label="Lignes de Zém Run"></div>
+      <ol class="jc-liste" id="jcListe"></ol>
+      <p class="jc-moi" id="jcMoi"></p>
+      <p class="jc-aide">Ce qui compte : ton meilleur total au terminus de la ligne, recette et quiz compris.</p>
     </div>
     <div class="jeu-pause panel" id="jeuPause" hidden><h2>Pause</h2><div class="jf-actions"><button type="button" class="jouer" id="jpReprendre">Reprendre</button><button type="button" class="btn-ghost" id="jpQuitter">Quitter la course</button></div></div>
   </section>
@@ -310,6 +321,7 @@
     </div>
     <div class="sl-haut panel"><div><b>Salon <span id="slCodeAff"></span></b><small id="slNb"></small></div><button type="button" class="jouer" id="slInviter">Inviter</button><button type="button" id="slVue">Vue : de haut</button><button type="button" id="slCopier">Copier le lien</button><button type="button" id="slQuitter">Quitter</button></div>
     <div class="sl-chat panel" id="slChat">
+      <button type="button" class="sl-chat-fermer" id="slChatFermer" aria-label="Fermer la discussion" title="Fermer la discussion">×</button>
       <ol id="slMessages" aria-live="polite" aria-label="Messages du salon"></ol>
       <div class="sl-phrases" id="slPhrases"></div>
       <form id="slForm"><input id="slTexte" maxlength="140" placeholder="Écris à tes amis… (Entrée)" autocomplete="off" aria-label="Message"><button type="submit">Envoyer</button></form>
@@ -318,6 +330,11 @@
     <div class="sl-joy" id="slJoy" hidden aria-hidden="true"><i></i></div>
     <div class="sl-boutons"><button type="button" id="slChatBtn" aria-expanded="false" aria-controls="slChat">Discussion<b id="slNonLus" hidden></b></button><button type="button" id="slGestesBtn" aria-expanded="false" aria-controls="slActions">Gestes</button><button type="button" id="slVue2">Vue</button></div>
     <div class="sl-guide panel" id="slGuide" hidden role="status"></div>
+    <canvas class="mini-carte" id="miniCarte" hidden role="button" tabindex="0" aria-label="Carte (touche M) : touche pour l’agrandir"></canvas>
+    <div class="carte-grande panel" id="carteGrande" hidden role="dialog" aria-modal="true" aria-labelledby="cgTitre">
+      <div class="cg-tete"><h3 id="cgTitre">Carte</h3><small>Touche un lieu pour y aller</small><button type="button" id="cgMoi">Moi</button><button type="button" id="cgMoins" aria-label="Dézoomer">−</button><button type="button" id="cgPlus" aria-label="Zoomer">+</button><button type="button" class="cg-fermer" id="cgFermer" aria-label="Fermer la carte">×</button></div>
+      <canvas id="carteGrandeCanvas"></canvas>
+    </div>
     <button type="button" class="chap-hud panel" id="chapHud" hidden aria-label="Prochaine étape : voir tous les chapitres">
       <span class="chap-tete"><small id="chapTitre"></small><small id="chapCompte"></small></span>
       <i class="chap-barre" id="chapBarre"></i>
@@ -325,7 +342,7 @@
       <small class="chap-prime" id="chapPrime"></small>
     </button>
     <div class="sl-agir"><button type="button" class="jouer" id="slEntrer" hidden></button><button type="button" class="sl-agir2" id="slAction2" hidden></button><button type="button" class="sl-agir2" id="slAction3" hidden></button></div>
-    <p class="sl-aide">Flèches ou ZQSD pour marcher · Maj pour courir · E, R, F : les actions des boutons · glisser pour tourner (vers le bas : de haut) · molette pour zoomer · V : changer de vue · Entrée pour écrire</p>
+    <p class="sl-aide">Flèches ou ZQSD pour marcher · Maj pour courir · E, R, F : les actions des boutons · glisser pour tourner la caméra autour de toi (vers le bas : de haut) · molette pour zoomer · V : changer de vue · M : la carte · Entrée pour écrire</p>
   </div>
 
   <div id="loader">

@@ -16,6 +16,7 @@ import { JEU, initJeu, majJeu } from './jeu.js';
 import { VEGETATION, animerLieux, construireLieux, portailUAC, semeOne, visibiliteLieux } from './lieux.js';
 import { U, camera, controls, renderer, scene, sky, sun } from './scene.js';
 import { buildLamps, buildZems, zemsDetailles, construireTokpas, majTokpas, updateZems } from './trafic.js';
+import { majCirculation } from './circulation.js';
 import { majMondeReel, vueReelleSeule } from './monde-reel.js';
 import { avionsVisibles } from './vol.js';
 import { changerMeteo, majMeteo } from './meteo.js';
@@ -87,6 +88,7 @@ function image(now) {
   E.circulation.length = 0; // refaite par updateZems / majTokpas, vide quand la circulation est cachée
   if (E.zems) { E.zems.visible = E.zemOn && E.riseDone && dist < 5000 && !JEU.actif && !reelle; if (E.zemsProches) E.zemsProches.visible = E.zems.visible; if (E.zems.visible) updateZems(dt); }
   if (E.tokpas) { E.tokpas.visible = E.zemOn && E.riseDone && dist < 6000 && !JEU.actif && !reelle; if (E.tokpas.visible) majTokpas(dt); }
+  majCirculation(dt, E.joueur); // dans « Vivre à Cotonou » : voitures, taxis, camions, vélos autour du joueur (circulation.js)
   majMondeReel(JEU.actif && JEU.joueur ? JEU.joueur.position : t, JEU.actif);
   majMeteo(dt);
   majFeuxVille(U.uTime.value, JEU.actif || reelle); // feux tricolores cachés en jeu (le jeu a les siens) et en Vue réelle seule

@@ -5,6 +5,7 @@ import { scene } from './scene.js';
 import { K, bake, centroide, detailsProches, grandPanneau, groupeLieu, local, mursPoly, obb, panneauTexte, solPoly, voiture } from './lieux.js';
 import { construireLieuxMarina } from './lieux-marina.js';
 import { GRANDES_AFFICHES } from './publicites.js';
+import { MUR, poserSol } from './sols.js';
 
 // Lieux relevés sur les vidéos de drone de Cotonou (octobre 2026) : Sofitel Marina,
 // tour BCEAO, Erevan et la statue de Bio Guéra, rond-point de l'aéroport, mosquée de
@@ -386,6 +387,14 @@ function placeMartyrs() {
     for (const s of [-1, 1]) for (let x = -48; x <= 48; x += 8) K.drapeauBenin(x, s * 24, 12, s > 0 ? 0 : Math.PI);
     for (const [x, z] of [[-60, -28], [60, -28], [-60, 28], [60, 28]]) K.lampadaireSimple(x, z, 1);
   });
+  // On monte les escaliers jusqu'à la plate-forme (sols.js) ; parapets, murs des escaliers et socle des statues arrêtent.
+  poserSol(g, (lx, lz) => {
+    const ax = Math.abs(lx), az = Math.abs(lz);
+    if (ax <= 3.1 && az <= 2.6) return MUR; // le socle
+    if (ax <= 12.2) return az < 7.15 ? 5.2 : az <= 7.85 ? MUR : null; // la plate-forme, ses parapets
+    if (ax <= 35.8) return az <= 6.5 ? 5.2 - Math.min(13, Math.floor((ax - 12) / 1.7)) * .37 : az <= 7.55 ? MUR : null; // les 14 marches, leurs murs
+    return null;
+  }, 45);
   bake(g);
 }
 

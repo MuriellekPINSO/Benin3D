@@ -3,6 +3,7 @@ import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $ } from './base.js';
 import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js';
 import { PRIX_LITRE, VEHICULES, creerVehicule, initStations, itineraire, longueur, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
+import { dansBatiment, dansObstacleRue } from './rue.js';
 import { arriveeDehors, comptoirProche, devantChaise, siegeProche } from './interieurs.js';
 import { payerEtRecevoir, remettre } from './remise.js';
 import { scene } from './scene.js';
@@ -145,14 +146,16 @@ export function prixZem(x, z, cap, dx, dz) {
 /** Le zém accepté arrive (il part d'une rue à 30-60 m). */
 export function appelerZem(dx, dz, nom, prix) {
   if (T.zem) retirerVehicule(T.zem.V);
-  // Sur une rue (à 30 m près) ; sinon il vient jusqu'à soi, comme il dépose sur le sable de Fidjrossè.
+  // Sur une rue (à 30 m près) ; sinon il vient jusqu'à soi, comme il dépose sur le sable de Fidjrossè, mais seulement si aucun
+  // mur ni bâtiment ne l'en sépare (itineraire) : sinon il attend au bord de la route, et l'on va jusqu'à lui.
   const ici = pointDeRoute(S.x, S.z, 0, 30) || (noeudRelie(S.x, S.z, 150) && [S.x + Math.sin(S.cap) * 2.5, S.z + Math.cos(S.cap) * 2.5]);
   const pres = ici ? noeudsPres(ici[0], ici[1], 160).filter(([k]) => relie(k)) : [], n = pres.find(([, d]) => d > 30) || pres.pop();
   if (!n) { ligne('Pas de route ici : approche-toi d’une rue pour héler un zém.'); return; }
   const [X, Z] = noeudPos(n[0]), V = creerVehicule('zem'); placer(V, X, Z, Math.atan2(ici[0] - X, ici[1] - Z));
-  const pts = itineraire(X, Z, V.cap, ici[0], ici[1]) || [[X, Z], ici];
+  const pts = itineraire(X, Z, V.cap, ici[0], ici[1]); if (!pts) { retirerVehicule(V); ligne('Le zém ne trouve pas de route jusqu’à toi : approche-toi d’une rue.'); return; }
   T.zem = { V, phase: 'vient', P: { pts, i: 0 }, dest: [dx, dz], nom, prix, attente: 0 };
-  ligne(`Un zém arrive… (${fmt(prix)} jusqu’à ${nom})`);
+  const f = pts[pts.length - 1], loin = Math.hypot(f[0] - S.x, f[1] - S.z);
+  ligne(loin > 8 ? `Un zém arrive… (${fmt(prix)} jusqu’à ${nom}). Il t’attendra au bord de la rue, à ${Math.round(loin)} m : rejoins-le.` : `Un zém arrive… (${fmt(prix)} jusqu’à ${nom})`);
 }
 const noeudPos = n => { const R = construireReseau(); return [R.X[n], R.Z[n]]; };
 function monterZem() {
@@ -160,7 +163,7 @@ function monterZem() {
   const bx = Z.V.x + Math.sin(Z.V.cap + Math.PI / 2) * .6, bz = Z.V.z + Math.cos(Z.V.cap + Math.PI / 2) * .6;
   T.trans = { t: 0, duree: .8, de: [S.x, S.z], vers: [bx, bz], fin: () => {
     T.mode = 'passager'; Z.phase = 'course';
-    const pts = itineraire(Z.V.x, Z.V.z, Z.V.cap, Z.dest[0], Z.dest[1]) || [[Z.V.x, Z.V.z], Z.dest];
+    const pts = itineraire(Z.V.x, Z.V.z, Z.V.cap, Z.dest[0], Z.dest[1]) || [[Z.V.x, Z.V.z], [Z.V.x + Math.sin(Z.V.cap) * 3, Z.V.z + Math.cos(Z.V.cap) * 3]]; // sans route connue : il ne coupe pas tout droit à travers la ville
     Z.P = { pts, i: 0 }; Z.longueur = longueur(pts); retirerRuban(T.gps?.m); T.gps = { pts, m: ruban(pts), nom: Z.nom, x: Z.dest[0], z: Z.dest[1] };
     son('klaxon'); ligne('« On y va ! Tiens-toi bien. »');
   } };
@@ -172,7 +175,11 @@ function majZem(dt) {
   else if (Z.phase === 'course') {
     const arrive = suivreChemin(Z.V, Z.P, dt, 17) || (Math.hypot(Z.dest[0] - Z.V.x, Z.dest[1] - Z.V.z) < 6 && Z.V.v < 3); // à quelques mètres et presque arrêté : on y est
     if (arrive) finCourse(Z.prix, false);
-  } else if (Z.phase === 'repart') { Z.repart += dt; if (Z.repart > 1.2) { Z.V.v = Math.min(9, Z.V.v + 3 * dt); Z.V.x += Math.sin(Z.V.cap) * Z.V.v * dt; Z.V.z += Math.cos(Z.V.cap) * Z.V.v * dt; Z.V.g.position.set(Z.V.x, Z.V.y, Z.V.z); } if (Z.repart > 8) { retirerVehicule(Z.V); T.zem = null; } }
+  } else if (Z.phase === 'repart') { // il s'en va tout droit ; devant un mur ou une maison, il a déjà tourné au coin : on ne le voit plus
+    Z.repart += dt;
+    if (Z.repart > 1.2) { Z.V.v = Math.min(9, Z.V.v + 3 * dt); const nx = Z.V.x + Math.sin(Z.V.cap) * Z.V.v * dt, nz = Z.V.z + Math.cos(Z.V.cap) * Z.V.v * dt; if (dansBatiment(nx, nz) || dansObstacleRue(nx, nz, .5)) Z.repart = 9; else { Z.V.x = nx; Z.V.z = nz; Z.V.g.position.set(Z.V.x, Z.V.y, Z.V.z); Z.V.anim?.maj(Z.V.v, dt, true); } }
+    if (Z.repart > 8) { retirerVehicule(Z.V); T.zem = null; }
+  }
 }
 
 /** Ce que vaut le bout de chemin déjà fait, si l'on descend avant l'arrivée (au moins 100 F). */
@@ -205,7 +212,8 @@ function fondu(noir) {
 function finCourse(prix, avant) {
   const Z = T.zem; if (!Z || Z.phase !== 'course') return;
   T.mode = 'pied'; Z.phase = 'paie'; Z.V.v = 0;
-  S.x = Z.V.x + Math.sin(Z.V.cap + Math.PI / 2) * 1.1; S.z = Z.V.z + Math.cos(Z.V.cap + Math.PI / 2) * 1.1; S.cap = Z.V.cap; S.y = 0; if (S.moi) S.moi.visible = true;
+  const [px, pz] = [Math.PI / 2, -Math.PI / 2, Math.PI].map(a => [Z.V.x + Math.sin(Z.V.cap + a) * 1.1, Z.V.z + Math.cos(Z.V.cap + a) * 1.1]).find(([x, z]) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .3)) || [Z.V.x, Z.V.z]; // du côté libre, jamais dans un mur
+  S.x = px; S.z = pz; S.cap = Z.V.cap; S.y = 0; if (S.moi) S.moi.visible = true;
   retirerRuban(T.gps?.m); T.gps = null;
   depenser(prix, avant ? 'zém (descendu en route)' : `zém jusqu’à ${Z.nom}`).then(ok => {
     if (S.moi) remettre(S.moi, new THREE.Vector3(Z.V.x, Z.V.y + 1.3, Z.V.z), 'billet', { hautDe: 1.25, garder: .3 });

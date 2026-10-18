@@ -272,6 +272,12 @@ export function lieuxCommerces() {
   return CM.liste.map(c => { const E = lot(c.e), T = TYPES[c.t], [x, z] = versMonde(E, 0, 2.2); return { id: 'cm:' + E.id, nom: `${mon(T)} · ${E.nom}`, dit: `${mon(T)} · ${E.nom}`, x, z, cap: E.cap + Math.PI }; });
 }
 const prevenir = () => document.dispatchEvent(new CustomEvent('commerces'));
+/** Combien d'employés et de clients des commerces à moins de r mètres (pour le brouhaha, ambiance-salon.js). */
+export function genteCommerces(x, z, r = 20) {
+  let n = 0;
+  for (const B of CM.lots.values()) if (Math.abs(B.E.x - x) < r + 10 && Math.abs(B.E.z - z) < r + 10) for (const P of [...B.employes, ...B.visites.map(v => v.p)]) if (P && Math.hypot(P.position.x - x, P.position.z - z) < r) n++;
+  return n;
+}
 /** De combien (x, z) entre dans un employé ou un client (les meubles sont des obstacles de rue.js). */
 export function corpsCommerces(x, z) {
   let p = 0;

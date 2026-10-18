@@ -31,6 +31,8 @@ import { dansBatiment, pietonOk, profilRoute, profondeurRue, rueRouteJeu } from 
 import { creerGuide } from './guide.js';
 import { compterUneFois, lieuStats } from './statistiques.js';
 import { suspendreChanson } from './lecteur.js';
+import { initClassement, ouvrirClassement, placeApresCourse } from './classement.js';
+import { animerMoto } from './roues.js';
 
 // ---------- Zém Run : le jeu ----------
 /** Véhicules qui prennent un client à la fois, avec négociation (zém et taxi). */
@@ -388,6 +390,7 @@ export function lancerLigne(L, veh) {
   }
   const faisceau = new THREE.Mesh(GJ.phares.geo, GJ.phares.mat); faisceau.renderOrder = 12; faisceau.visible = false; grp.add(faisceau); grp.userData.phares = faisceau;
   JEU.decor.add(grp); JEU.joueur = grp;
+  JEU.anim?.liberer(); JEU.anim = veh === 'zem' ? animerMoto(grp, { parent: JEU.decor }) : null; // roues qui tournent, fumée, poussière (roues.js)
   JEU.etat = { s: 4, v: 0, file: 0, lat: 0, y: 0, vy: 0, vies: 3, argent: 0, passagers: veh === 'tokpa' ? 6 : 0, prochain: 1, servis: 0, manques: 0, frolements: 0, pieces: 0, invul: 0, service: 0, secousse: 0, frein: false, spawn: 40, quartier: '', temps: 0, carte: 0, casque: 0, superSaut: false, parcouru: 0, voyageurs: 0, doux: !!L.express || !Object.keys(JEU.meilleur).length };
   // Bonus achetés au garage, série de jours, le collecteur, et le premier client.
   const P = JEU.prog, st0 = JEU.etat; essenceDepart(st0);
@@ -582,6 +585,12 @@ export function majJeu(dt) {
   const j = JEU.joueur; j.position.set(p.x, p.y + st.y, p.z); j.rotation.set(0, p.a, 0);
   j.rotateX(JEU.veh === 'zem' ? Math.max(-.32, Math.min(.32, -(latM - latMAv) / Math.max(dt, .001) * .014)) : 0);
   if (C.H) { const i = Math.max(2, Math.min(C.n - 3, Math.floor(st.s))); j.rotateZ(Math.atan((C.H[i + 2] - C.H[i - 2]) / 4)); } // penché dans la rampe du pont
+  if (JEU.anim) { // la moto vit : elle vibre sur la route, plonge au freinage, se cabre un peu en accélérant ; roues, fumée, poussière
+    const vib = Math.min(1, Math.abs(st.v) / 6), acc = (st.v - (st.vAvant ?? st.v)) / Math.max(dt, .001); st.vAvant = st.v; st.acc = (st.acc || 0) + (acc - (st.acc || 0)) * Math.min(1, dt * 6);
+    j.position.y += (Math.sin(st.temps * 31) * .006 + Math.sin(st.temps * 13.7) * .005) * vib;
+    j.rotateZ(THREE.MathUtils.clamp(st.acc * .008, -.07, .04));
+    JEU.anim.maj(st.v, dt, !!(st.gaz || st.gazM || JEU.autoGaz) && st.acc > .3);
+  }
   j.visible = true; // un accident n'est plus un clignotement : voir regles.js (constat de police ou client perdu)
   controls.target.set(p.x, 0, p.z);
   const nuit = U.uNight.value, f = j.userData.phares; if (f) { f.visible = nuit > .05; GJ.phares.mat.opacity = Math.min(1, nuit * 1.1); }
@@ -834,7 +843,8 @@ export function finJeu(arrive, quitte = false) {
   const finir = () => {
     const total = st.argent + bonus, prev = JEU.meilleur[L.id] || 0, record = arrive && total > prev; if (record) JEU.meilleur[L.id] = total; // un record se fait au terminus
     JEU.prog.cagnotte += Math.max(0, total); if (arrive && st.vies === 3) progres('lignes', 1); assurerMissions(); sauver();
-    qz.innerHTML = `<p class="jf-total">Total : <b>${fmtF(total)}</b>${bonus ? ` (dont ${fmtF(bonus)} de quiz)` : ''}<br><small>${record ? 'Nouveau record sur cette ligne !' : prev ? `Record : ${fmtF(prev)}` : 'Va jusqu’au terminus pour faire un record'} · versé dans ta cagnotte (${fmtF(JEU.prog.cagnotte)})</small></p>`;
+    qz.innerHTML = `<p class="jf-total">Total : <b>${fmtF(total)}</b>${bonus ? ` (dont ${fmtF(bonus)} de quiz)` : ''}<br><small>${record ? 'Nouveau record sur cette ligne !' : prev ? `Record : ${fmtF(prev)}` : 'Va jusqu’au terminus pour faire un record'} · versé dans ta cagnotte (${fmtF(JEU.prog.cagnotte)})</small></p>${arrive ? '<p class="jf-place" id="jfPlace"></p>' : ''}`;
+    if (arrive) placeApresCourse(L.id, JEU.meilleur[L.id] || 0).then(t => { const p = $('#jfPlace'); if (p) p.textContent = t; }); // son record au classement, et sa place
     remplirLignes();
   };
   const poser = () => {
@@ -884,7 +894,9 @@ function ligneExpress(lignes) {
   }
   return { ...M, id: 'express', nom: 'Ligne express', express: true, pts, arrets: M.arrets.slice(0, 2) };
 }
+const voirClassement = () => ouvrirClassement(JEU.lignes.map(l => ({ id: l.id, nom: l.nom })), JEU.ligne?.id, JEU.meilleur);
 export function initJeu(data) {
+  initClassement(); $('#jmClassement')?.addEventListener('click', voirClassement); $('#jfClassement')?.addEventListener('click', voirClassement);
   const ex = ligneExpress(data.L.lignes || []);
   JEU.lignes = ex ? [ex, ...data.L.lignes] : data.L.lignes || []; JEU.data = data;
   JEU.prog = Object.assign(progDefaut(), JEU.progSauve || {}); assurerMissions();
