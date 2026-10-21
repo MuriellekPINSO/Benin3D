@@ -571,7 +571,12 @@ export function majJeu(dt) {
       else if (st.tenu) st.v = Math.min(0, st.v + 5 * dt);
       else { st.recul = (st.recul || 0) + dt; if (st.recul > .45) { st.v = Math.max(-RECUL, st.v - 3 * dt); if (!st.reculVu) { st.reculVu = true; toast('Marche arrière', 1.2); } } }
     }
-    else if (st.gaz || st.gazM || JEU.autoGaz || auDoigt()) st.v = st.v > vmax ? Math.max(vmax, st.v - 8 * dt) : Math.min(vmax, st.v + V.accel * dt * (st.v < 6 ? 1.6 : 1));
+    else if (st.gaz || st.gazM || JEU.autoGaz || auDoigt()) {
+      // Au doigt, le zém roule seul : avec un client, il garde 65 km/h (au-delà de 70, le client proteste et le pourboire
+      // baisse ; sans cette limite, on ne pouvait pas rouler moins vite).
+      const vm = auDoigt() && !st.gaz && !st.gazM && DISC.client?.accord && JEU.veh === 'zem' ? Math.min(vmax, 18) : vmax;
+      st.v = st.v > vm ? Math.max(vm, st.v - 8 * dt) : Math.min(vm, st.v + V.accel * dt * (st.v < 6 ? 1.6 : 1));
+    }
     else st.v = st.v < 0 ? Math.min(0, st.v + 5 * dt) : Math.max(0, st.v - (st.v > vmax ? 8 : 2.4) * dt);
   }
   st.s += st.v * dt; if (st.s < 1) { st.s = 1; st.v = Math.max(0, st.v); }
