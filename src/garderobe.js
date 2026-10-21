@@ -29,7 +29,7 @@ export function grilleTenues(el, { femme, choisi, choisir, seulementPossedees = 
   el.replaceChildren();
   for (const t of TENUES.filter(t => t.femme === femme && (!seulementPossedees || possede(t)))) {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'gr-carte'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(t.modele === choisi));
-    const img = new Image(); img.src = vignette(t.id); img.alt = ''; img.loading = 'lazy';
+    const img = new Image(); img.src = vignette(t.id); img.alt = ''; // 5 à 8 Ko : pas de chargement différé (la carte du grand boubou restait vide)
     const nom = document.createElement('b'); nom.textContent = t.nom;
     const sous = document.createElement('small'); sous.textContent = t.modele === choisi ? 'Tu la portes' : possede(t) ? (t.prix ? 'Dans ta garde-robe' : 'Offerte') : fmt(t.prix);
     if (!possede(t)) b.classList.add('a-acheter');

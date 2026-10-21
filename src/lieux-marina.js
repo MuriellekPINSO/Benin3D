@@ -4,6 +4,7 @@ import { toXZ } from './base.js';
 import { fresque, kobra } from './fresques.js';
 import { porteFoodCourt } from './interieurs.js';
 import { K, bake, barrieres, centroide, groupeLieu, mursPoly, obb, ruban, solPoly } from './lieux.js';
+import { ajouterEmprise, ajouterZoneLibre } from './rue.js';
 
 // ---------- Boulevard de la Marina, de l'Amazone à Bio Guéra ----------
 // D'après des photos (Wikimedia Commons 2019–2026, gouv.bj, Accor) et des relevés sur
@@ -113,8 +114,13 @@ function jardin(J) {
 // ---------- Cité ministérielle : dix bâtiments R+5 et le parking-restaurant ----------
 function citeMinisterielle(Cm) {
   const c = centroide(Cm.zone), g = groupeLieu('cite-ministerielle', c[0], c[1]);
+  // Parvis du food court : de la façade nord du bâtiment-parking jusqu'aux murs de l'avenue Jean-Paul II, entre la
+  // ruelle ouest et l'allée est. Les allées de service d'OSM qui le traversent se bordaient de murs de parcelles,
+  // coupés en morceaux autour d'un terrain vide : on pave et on dégage tout le rectangle.
+  const parvis = Cm.parking && (() => { const xs = Cm.parking.map(p => p[0]), px = (Math.min(...xs) + Math.max(...xs)) / 2, pz = Math.min(...Cm.parking.map(p => p[1])); return [px - 56, pz - 63, px + 47, pz + .5]; })();
   K.into(g, () => {
     solPoly([loc(g, Cm.zone)], K.tex('paves', 1, 1), .04, 5);
+    if (parvis) { const [x0, z0, x1, z1] = parvis; solPoly([loc(g, [[x0, z0], [x1, z0], [x1, z1], [x0, z1]])], K.tex('paves', 1, 1), .04, 5); }
     const facade = K.tex('citeFacade', 1, 1);
     for (const b of Cm.bats) {
       const r = loc(g, b);
@@ -139,6 +145,10 @@ function citeMinisterielle(Cm) {
     const [f0x, f0z] = A(-445, 156), [f1x, f1z] = A(-195, 156);
     K.boite(Math.hypot(f1x - f0x, f1z - f0z), 2.4, .2, '#2f4a3a', (f0x + f1x) / 2 - g.position.x, 1.2, (f0z + f1z) / 2 - g.position.z);
   });
+  // Les dix tours et le bâtiment-parking ne sont pas dans les données OSM : sans leur emprise, on les traversait à pied.
+  for (const b of Cm.bats) ajouterEmprise(b);
+  if (Cm.parking) ajouterEmprise(Cm.parking);
+  if (parvis) ajouterZoneLibre(parvis);
   bake(g);
 }
 

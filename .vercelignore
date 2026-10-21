@@ -1,0 +1,11 @@
+# Ce qui ne sert jamais au build du site, et que le CLI tentait d'envoyer (2,1 Go) :
+# les modèles 3D d'origine, les extraits OpenStreetMap bruts, la page autonome, et le reste.
+node_modules
+dist
+dist-en
+.git
+sources
+osm
+artefact
+*.log
+.DS_Store

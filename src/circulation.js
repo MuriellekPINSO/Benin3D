@@ -76,6 +76,12 @@ function voie(R, type) { // décalage à droite de la direction de marche
   if (R.sens) return (Math.random() - .5) * Math.max(0, R.hw * 2 - 2.4);
   return type === 'velo' ? Math.max(.6, R.hw - .9) : Math.min(2, R.hw * .45);
 }
+/** Le joueur J (un point, rayon r) est-il dans l'emprise d'un véhicule posé en (x, z), orienté cap, de demi-longueur hl
+ *  et de demi-largeur hw ? Même boîte que dansCirculation (trafic.js). */
+const toucheJoueur = (J, x, z, cap, hl, hw, r = .45) => {
+  const dx = J.x - x, dz = J.z - z, s = Math.sin(cap), c = Math.cos(cap);
+  return Math.abs(dx * s + dz * c) < hl + r && Math.abs(dx * c - dz * s) < hw + r;
+};
 /** Une place sur une rue à distance [rMin, rMax] du joueur, ou null. */
 function placer(V, jx, jz, rMin, rMax) {
   for (let essai = 0; essai < 12; essai++) {
@@ -106,6 +112,7 @@ export function majCirculation(dt, J) {
   if (!C.pret) creer();
   const visible = !!J; if (visible !== C.actif) { C.actif = visible; for (const ms of C.meshes.values()) for (const m of ms) m.visible = visible; }
   if (!visible) return;
+  const Jr = Math.max(J.hl ?? .3, J.hw ?? .3); // rayon du joueur : un piéton, ou la voiture qu'il conduit
   for (const V of C.vehicules) {
     if (!V.R || Math.hypot(V.px - J.x, V.pz - J.z) > LOIN) { if (!placer(V, J.x, J.z, V.R ? 150 : 20, V.R ? 260 : 240)) { V.R = null; continue; } } // réapparaît hors de vue
     // Garder ses distances : celui de devant, sur la même rue et dans le même sens ; et le joueur devant soi.
@@ -115,7 +122,8 @@ export function majCirculation(dt, J) {
       const ecart = (W.s - V.s) * V.dir - W.hl - V.hl; if (ecart > 0 && ecart < 14) vise = Math.min(vise, ecart < 3 ? 0 : W.v * (ecart / 14));
     }
     const ax = J.x - V.px, az = J.z - V.pz, devant = ax * V.fx + az * V.fz, cote = Math.abs(ax * V.fz - az * V.fx);
-    if (devant > 0 && devant < V.hl + 12 && cote < V.hw + 1) vise = Math.min(vise, Math.max(0, (devant - V.hl - 2.5) * 1.1)); // freine à temps : arrêt à 2,5 m du joueur
+    if (devant > 0 && devant < V.hl + Jr + 12 && cote < V.hw + Jr + .7) vise = Math.min(vise, Math.max(0, (devant - V.hl - Jr - 2) * 1.1)); // freine à temps : arrêt à 2 m de son pare-chocs
+    const R0 = V.R, s0 = V.s; // pour le garde-fou plus bas
     V.v += THREE.MathUtils.clamp(vise - V.v, -9 * dt, 3 * dt);
     V.s += V.v * dt * V.dir;
     if (V.s < 0 || V.s > V.R.len) { // au bout de la rue : la suivante (au carrefour), sinon demi-tour
@@ -123,9 +131,22 @@ export function majCirculation(dt, J) {
       const suite = (C.bouts.get(C.cleBout(p[0], p[1])) || []).filter(b => b.R !== V.R && (!b.R.sens || b.fin === 0));
       if (suite.length) { const b = suite[Math.floor(Math.random() * suite.length)]; V.R = b.R; V.dir = b.fin === 0 ? 1 : -1; V.s = b.fin === 0 ? .5 : b.R.len - .5; V.lane = voie(b.R, V.type.id); }
       else if (V.R.sens) { V.R = null; continue; }
-      else { V.dir = -V.dir; V.s = THREE.MathUtils.clamp(V.s, .5, V.R.len - .5); }
+      // Au bout d'une impasse, il ne fait plus demi-tour : il réapparaît ailleurs. Avant, dans une petite rue sans
+      // issue, toute la circulation faisait la navette au même endroit, et ceux qui revenaient roulaient dans la file
+      // de ceux qui arrivaient.
+      else { V.R = null; continue; }
     }
-    const p = poser(V.R, V.s, V.dir), x = p.x - p.dz * V.lane, z = p.z + p.dx * V.lane;
+    let p = poser(V.R, V.s, V.dir), x = p.x - p.dz * V.lane, z = p.z + p.dx * V.lane;
+    // Garde-fou : le freinage est progressif (9 m/s² au plus). Il faut 9 m à une voiture lancée à 47 km/h pour
+    // s'arrêter, et le joueur qui pose le pied sur la chaussée juste devant elle se faisait traverser. Au contact,
+    // elle s'arrête net et attend qu'il s'écarte (sauf au carrefour, où elle vient de changer de rue).
+    if (V.R === R0 && toucheJoueur(J, x, z, Math.atan2(p.dx, p.dz), V.hl, V.hw, Jr + .2)) {
+      V.s = s0; V.v = 0; p = poser(V.R, V.s, V.dir); x = p.x - p.dz * V.lane; z = p.z + p.dx * V.lane;
+    }
+    // Jamais de bouchon sans fin : un véhicule que le joueur retient depuis 5 s s'en va, il réapparaît hors de vue.
+    // Sinon, collés devant et derrière lui, ils attendaient qu'il parte pendant qu'il ne pouvait plus bouger.
+    if (V.v < .3 && Math.hypot(x - J.x, z - J.z) < V.hl + Jr + 5) { V.bloque = (V.bloque || 0) + dt; if (V.bloque > 5) { V.bloque = 0; V.R = null; continue; } }
+    else V.bloque = 0;
     V.px = x; V.pz = z; V.fx = p.dx; V.fz = p.dz; V.cap = Math.atan2(p.dx, p.dz);
     if ((x - J.x) ** 2 + (z - J.z) ** 2 < 1600) E.circulation.push(V); // solide près du joueur (trafic.js, dansCirculation)
   }

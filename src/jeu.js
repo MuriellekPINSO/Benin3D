@@ -6,7 +6,7 @@ import { accident, majFeux, preparerFeux } from './regles.js';
 import { PT, majPietons, marchandeReelle, preparerPietons, regarder, viderPietons } from './pietons.js';
 import { annoncerDepart, arriveeDuo } from './multijoueur.js';
 import { arreterMusique, demarrerMusique, musiqueQuartier } from './musique.js';
-import { $, LITE, hash, toXZ } from './base.js';
+import { $, LITE, coarse, hash, toXZ } from './base.js';
 import { QUARTIERS } from './donnees-lieux.js';
 import { E } from './etat.js';
 import { startFlight } from './interface.js';
@@ -52,8 +52,10 @@ export const QUIZ = {
 export const LANE = 2.7, RECUL = 3; // marche arrière : 11 km/h au plus
 export const JEU = { actif: false, pause: false, etat: null, objets: [], decor: null, joueur: null, ligne: null, veh: 'zem', numero: '1234', lignes: [], meilleur: {} };
 JEU.prog = null; JEU.autoGaz = false; // le zém n'avance que si le joueur accélère (↑) ; relâché, il ralentit jusqu'à l'arrêt
-try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; } catch (e) { }
-export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, autoGaz: JEU.autoGaz })); } catch (e) { } };
+JEU.glisser = coarse; // au doigt, façon Subway Surfers : le zém avance seul, on glisse pour changer de file, sauter, freiner (option du menu)
+try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; if (typeof s.glisser === 'boolean') JEU.glisser = s.glisser; } catch (e) { }
+const auDoigt = () => coarse && JEU.glisser;
+export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, autoGaz: JEU.autoGaz, glisser: JEU.glisser })); } catch (e) { } };
 export const fmtF = n => `${Math.round(n).toLocaleString('fr-FR')}\u00a0F`; // espace insécable : « 2 000 » et « F » restent sur la même ligne
 
 // Lissage (Chaikin) des virages, mais seulement sur les 7 derniers mètres avant chaque coin et les 7 premiers après :
@@ -569,7 +571,7 @@ export function majJeu(dt) {
       else if (st.tenu) st.v = Math.min(0, st.v + 5 * dt);
       else { st.recul = (st.recul || 0) + dt; if (st.recul > .45) { st.v = Math.max(-RECUL, st.v - 3 * dt); if (!st.reculVu) { st.reculVu = true; toast('Marche arrière', 1.2); } } }
     }
-    else if (st.gaz || st.gazM || JEU.autoGaz) st.v = st.v > vmax ? Math.max(vmax, st.v - 8 * dt) : Math.min(vmax, st.v + V.accel * dt * (st.v < 6 ? 1.6 : 1));
+    else if (st.gaz || st.gazM || JEU.autoGaz || auDoigt()) st.v = st.v > vmax ? Math.max(vmax, st.v - 8 * dt) : Math.min(vmax, st.v + V.accel * dt * (st.v < 6 ? 1.6 : 1));
     else st.v = st.v < 0 ? Math.min(0, st.v + 5 * dt) : Math.max(0, st.v - (st.v > vmax ? 8 : 2.4) * dt);
   }
   st.s += st.v * dt; if (st.s < 1) { st.s = 1; st.v = Math.max(0, st.v); }
@@ -589,7 +591,7 @@ export function majJeu(dt) {
     const vib = Math.min(1, Math.abs(st.v) / 6), acc = (st.v - (st.vAvant ?? st.v)) / Math.max(dt, .001); st.vAvant = st.v; st.acc = (st.acc || 0) + (acc - (st.acc || 0)) * Math.min(1, dt * 6);
     j.position.y += (Math.sin(st.temps * 31) * .006 + Math.sin(st.temps * 13.7) * .005) * vib;
     j.rotateZ(THREE.MathUtils.clamp(st.acc * .008, -.07, .04));
-    JEU.anim.maj(st.v, dt, !!(st.gaz || st.gazM || JEU.autoGaz) && st.acc > .3);
+    JEU.anim.maj(st.v, dt, !!(st.gaz || st.gazM || JEU.autoGaz || auDoigt()) && st.acc > .3);
   }
   j.visible = true; // un accident n'est plus un clignotement : voir regles.js (constat de police ou client perdu)
   controls.target.set(p.x, 0, p.z);
@@ -771,14 +773,14 @@ let guideJeu = null;
 function etapesJeu() {
   const st = () => JEU.etat, clients = () => avecClients(JEU.veh), prochain = () => JEU.ligne?.arretsJ[st().prochain];
   return [
-    { id: 'client', texte: 'Ton client demande le prix : clique sur une réponse, ou appuie sur [1] [2] [3].', quand: () => clients() && !!DISC.client && !DISC.client.accord && !$('#jhDialogue').hidden, fait: () => !clients() || !!DISC.client?.accord },
-    { id: 'rouler', texte: 'Maintiens [↑] (ou « Gaz ») pour rouler. Relâche pour ralentir, [↓] pour freiner.', quand: () => true, fait: () => st().v > 8 },
-    { id: 'arret', texte: () => `Bientôt l’arrêt ${prochain()?.nom || ''} : mets-toi à droite [→], puis freine [↓] dans la zone jaune. ${clients() ? 'Ton client descend et paie.' : 'L’apprenti encaisse les passagers.'}`, quand: () => { const a = prochain(); return !!a && a.s - st().s < 260 && (!clients() || !!DISC.client); }, fait: () => st().servis >= 1 },
-    { id: 'files', texte: '[←] [→] : change de file pour éviter les zems, les trous et les chèvres. [Espace] : sauter par-dessus un trou.', quand: () => st().v > 5, fait: () => G.changements >= 1 },
-    { id: 'signe', texte: 'Pas de client à bord : quelqu’un te fait signe au bord de la route. Arrête-toi à sa hauteur, puis [E].', quand: () => clients() && !DISC.client && st().servis >= 1, fait: () => !clients() || (st().servis >= 1 && !!DISC.client) },
-    { id: 'carrefour', texte: 'Carrefour : sans rien faire, tu suis le GPS. Pour prendre une autre rue, ralentis puis [←] [→], ou touche les boutons du panneau.', quand: () => !$('#jhCarrefour').hidden, fait: () => G.carrefours >= 1 },
-    { id: 'essence', texte: 'Ton réservoir baisse : arrête-toi devant un vendeur de kpayo ou une station, puis [E] pour faire le plein.', quand: () => st().essence < 1, fait: () => G.plein },
-    { id: 'bilan', texte: 'Bien joué ! [Échap] met le jeu en pause. Quand tu quittes la course, tu vois ton bilan et ta recette va dans ta cagnotte.', quand: () => st().servis >= 2, fait: () => false, duree: 8 },
+    { id: 'client', texte: () => coarse ? 'Ton client demande le prix : touche une réponse.' : 'Ton client demande le prix : clique sur une réponse, ou appuie sur [1] [2] [3].', quand: () => clients() && !!DISC.client && !DISC.client.accord && !$('#jhDialogue').hidden, fait: () => !clients() || !!DISC.client?.accord },
+    { id: 'rouler', texte: () => auDoigt() ? 'Ton zém avance tout seul. Glisse le doigt vers le bas et garde-le posé pour freiner.' : coarse ? 'Maintiens « Gaz » pour rouler. Relâche pour ralentir, « Frein » pour freiner.' : 'Maintiens [↑] pour rouler. Relâche pour ralentir, [↓] pour freiner.', quand: () => true, fait: () => st().v > 8 },
+    { id: 'arret', texte: () => `Bientôt l’arrêt ${prochain()?.nom || ''} : ${auDoigt() ? 'glisse à droite, puis vers le bas en gardant le doigt posé' : coarse ? 'mets-toi à droite avec ▶, puis « Frein »' : 'mets-toi à droite [→], puis freine [↓]'} dans la zone jaune. ${clients() ? 'Ton client descend et paie.' : 'L’apprenti encaisse les passagers.'}`, quand: () => { const a = prochain(); return !!a && a.s - st().s < 260 && (!clients() || !!DISC.client); }, fait: () => st().servis >= 1 },
+    { id: 'files', texte: () => auDoigt() ? 'Glisse à gauche ou à droite pour changer de file et éviter les zems, les trous et les chèvres. Glisse vers le haut pour sauter par-dessus un trou.' : coarse ? '◀ ▶ : change de file pour éviter les zems, les trous et les chèvres. « Saut » : sauter par-dessus un trou.' : '[←] [→] : change de file pour éviter les zems, les trous et les chèvres. [Espace] : sauter par-dessus un trou.', quand: () => st().v > 5, fait: () => G.changements >= 1 },
+    { id: 'signe', texte: () => `Pas de client à bord : quelqu’un te fait signe au bord de la route. Arrête-toi à sa hauteur, puis ${coarse ? 'le bouton E' : '[E]'}.`, quand: () => clients() && !DISC.client && st().servis >= 1, fait: () => !clients() || (st().servis >= 1 && !!DISC.client) },
+    { id: 'carrefour', texte: () => `Carrefour : sans rien faire, tu suis le GPS. Pour prendre une autre rue, ralentis puis ${auDoigt() ? 'glisse à gauche ou à droite' : coarse ? '◀ ▶' : '[←] [→]'}, ou touche les boutons du panneau.`, quand: () => !$('#jhCarrefour').hidden, fait: () => G.carrefours >= 1 },
+    { id: 'essence', texte: () => `Ton réservoir baisse : arrête-toi devant un vendeur de kpayo ou une station, puis ${coarse ? 'le bouton E' : '[E]'} pour faire le plein.`, quand: () => st().essence < 1, fait: () => G.plein },
+    { id: 'bilan', texte: () => `Bien joué ! ${coarse ? '« Pause », en haut,' : '[Échap]'} met le jeu en pause. Quand tu quittes la course, tu vois ton bilan et ta recette va dans ta cagnotte.`, quand: () => st().servis >= 2, fait: () => false, duree: 8 },
   ];
 }
 function majGuideJeu(st, dt) {
@@ -940,19 +942,30 @@ export function initJeu(data) {
   }, true);
   window.addEventListener('keyup', e => { if (!JEU.actif || !st()) return; const k = e.key.toLowerCase(); if (k === 'arrowdown' || k === 's') st().frein = false; if (k === 'arrowup' || k === 'w' || k === 'z') st().gaz = false; }, true);
   window.addEventListener('blur', () => { if (st()) { st().gaz = false; st().frein = false; } });
-  // Écran tactile : glisser à gauche, à droite, vers le haut ; maintenir le bouton Frein.
+  // Écran tactile, façon Subway Surfers : glisser à gauche ou à droite change de file, vers le haut fait sauter, vers le bas
+  // freine tant que le doigt reste posé (à l'arrêt, au feu rouge ; posé encore une fois arrêté : marche arrière). Le geste
+  // part dès 28 px, sans attendre qu'on lève le doigt. En mode « au doigt », le zém avance seul (auDoigt).
   let t0 = null;
   const zone = $('#scene');
-  zone.addEventListener('pointerdown', e => { if (JEU.actif) t0 = [e.clientX, e.clientY]; });
-  zone.addEventListener('pointerup', e => { if (!JEU.actif || !t0) return; const dx = e.clientX - t0[0], dy = e.clientY - t0[1]; t0 = null; if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return; if (Math.abs(dx) > Math.abs(dy)) (dx < 0 ? gauche : droite)(); else if (dy < 0) sauter(); });
+  zone.addEventListener('pointerdown', e => { if (JEU.actif) t0 = { x: e.clientX, y: e.clientY, id: e.pointerId, fait: false, frein: false }; });
+  zone.addEventListener('pointermove', e => {
+    if (!JEU.actif || JEU.pause || !t0 || t0.fait || e.pointerId !== t0.id) return;
+    const dx = e.clientX - t0.x, dy = e.clientY - t0.y; if (Math.max(Math.abs(dx), Math.abs(dy)) < 28) return;
+    t0.fait = true;
+    if (Math.abs(dx) > Math.abs(dy)) (dx < 0 ? gauche : droite)(); else if (dy < 0) sauter(); else if (st()) { st().freinM = true; t0.frein = true; }
+  });
+  const lacher = () => { if (t0?.frein && st()) st().freinM = false; t0 = null; };
+  zone.addEventListener('pointerup', lacher); zone.addEventListener('pointercancel', lacher);
   const btn = (id, fn) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); fn(); });
   btn('#jhDemi', demiTour);
   $('#jhCarrefour').addEventListener('pointerdown', e => { const b = e.target.closest('button[data-dir]'); if (b && !b.disabled) { e.preventDefault(); virage(+b.dataset.dir); } });
   guideJeu = creerGuide({ cle: 'zemrun.guide', el: $('#jhGuide'), titre: 'Prise en main', etapes: etapesJeu() });
   $('#jmGuide')?.addEventListener('click', () => { guideJeu.revoir(); $('#jmGuide').textContent = 'Le guide s’affichera à la prochaine course'; });
-  btn('#jbG', gauche); btn('#jbD', droite); btn('#jbS', sauter); btn('#jbK', klaxonner); btn('#jbE', interagir); btn('#jhAction', interagir);
+  btn('#jbG', gauche); btn('#jbD', droite); btn('#jbS', sauter); btn('#jbE', interagir); btn('#jhAction', interagir);
   const maintenu = (id, cle) => { const b = $(id); b.addEventListener('pointerdown', e => { e.preventDefault(); if (st()) st()[cle] = true; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { if (st()) st()[cle] = false; }); };
   maintenu('#jbF', 'frein'); maintenu('#jbA', 'gaz');
   $('#jmVoix').checked = VOIX.on; $('#jmVoix').addEventListener('change', e => voixActives(e.target.checked)); $('#jmVoix').closest('label').hidden = !voixDispo();
+  const glisser = $('#jmGlisser'); if (glisser) { glisser.closest('label').hidden = !coarse; glisser.checked = JEU.glisser; glisser.addEventListener('change', e => { JEU.glisser = e.target.checked; sauver(); $('#jeu').classList.toggle('au-doigt', auDoigt()); }); }
+  $('#jeu').classList.toggle('au-doigt', auDoigt());
 }
 

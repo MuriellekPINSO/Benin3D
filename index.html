@@ -3,13 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Cotonou en 3D d'après OpenStreetMap : monuments, Ganvié, Dantokpa, et le jeu Zém Run.">
-<title>Cotonou 3D</title>
+<meta name="description" content="Kutɔnu Vibes : Cotonou reconstruite en 3D d'après OpenStreetMap. Deviens zémidjan, ouvre ton maquis. Gratuit, sans téléchargement.">
+<title>Kutɔnu Vibes · Cotonou en 3D</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400..700&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml">
 <meta name="theme-color" content="#1A7D52">
+<!-- Aperçu du lien (WhatsApp, Facebook, X) : adresses absolues, l'image fait 1200 × 630 -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Kutɔnu Vibes">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Kutɔnu Vibes · Cotonou en 3D">
+<meta property="og:description" content="Kutɔnu Vibes : Cotonou reconstruite en 3D d'après OpenStreetMap. Deviens zémidjan, ouvre ton maquis. Gratuit, sans téléchargement.">
+<meta property="og:url" content="https://xn--kutnuvibes-ghe.com/">
+<meta property="og:image" content="https://xn--kutnuvibes-ghe.com/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="La place de l'Étoile Rouge de Cotonou en 3D, avec le logo de Kutɔnu Vibes">
+<meta name="twitter:card" content="summary_large_image">
 </head>
 <body>
 <div id="app">
@@ -20,7 +32,7 @@
   <div class="side">
     <header class="brand panel">
       <a class="langue" id="btnLangue" href="en/" hreflang="en" title="Read in English">EN</a>
-      <h1><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#1A7D52"/><circle cx="14" cy="33" r="6.5" fill="none" stroke="#fff" stroke-width="3.6"/><circle cx="35" cy="33" r="6.5" fill="none" stroke="#fff" stroke-width="3.6"/><path d="M14 33 21 24h9l5 9m-5-9 2.5-8H37M23.5 19 21 24" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24.5" cy="13" r="4.6" fill="#F5C518"/></svg>Cotonou <span class="tag">3D</span></h1>
+      <h1><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="11" fill="#1A7D52"/><path d="M 13.781 29.9 A 11.8 11.8 0 1 0 13.781 18.1" fill="none" stroke="#242424" stroke-width="5.8" stroke-linecap="round"/><circle cx="24" cy="24" r="2.9" fill="#F5B800"/></svg>Kutɔnu <span class="tag">Vibes</span></h1>
       <p class="sub">Littoral, Bénin · 6°22′ N, 2°25′ E</p>
       <p class="stats" id="stats"></p>
     </header>
@@ -125,8 +137,10 @@
         <button type="button" class="btn-ghost" id="jmPub">Annonceurs</button>
         <button type="button" class="btn-ghost" id="jmRetour">Retour à la carte</button>
       </div>
-      <p class="jm-aide"><b>↑</b> accélérer (le zém n'avance que si tu appuies, il ralentit dès que tu relâches) · <b>↓</b> freiner (à l'arrêt, appuie encore : <b>marche arrière</b>) · <b>U</b> demi-tour · <b>arrête-toi au feu rouge</b>, sinon la police te met une amende · demande au client s'il a son casque · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
+      <p class="jm-aide jm-aide-doigt"><b>Au doigt</b> : le zém avance seul · <b>glisse à gauche ou à droite</b> : changer de file, et tourner au carrefour · <b>glisse vers le haut</b> : sauter · <b>glisse vers le bas et garde le doigt posé</b> : freiner, t’arrêter au feu rouge ou à l’arrêt · bouton <b>E</b> : interagir · <b>Pause</b> en haut à droite.</p>
+      <p class="jm-aide jm-aide-clavier"><b>↑</b> accélérer (le zém n'avance que si tu appuies, il ralentit dès que tu relâches) · <b>↓</b> freiner (à l'arrêt, appuie encore : <b>marche arrière</b>) · <b>U</b> demi-tour · <b>arrête-toi au feu rouge</b>, sinon la police te met une amende · demande au client s'il a son casque · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
       <label class="jm-option"><input type="checkbox" id="jmVoix"> Voix des personnages (ils parlent à voix haute)</label>
+      <label class="jm-option" hidden><input type="checkbox" id="jmGlisser"> Conduite au doigt : le zém avance seul, glisse pour changer de file, sauter ou freiner</label>
       <button type="button" class="jm-guide" id="jmGuide">Revoir la prise en main</button>
     </div>
     <div class="jeu-hud" id="jeuHud" hidden>
@@ -157,7 +171,6 @@
         <button type="button" id="jbA" aria-label="Accélérer">Gaz</button>
         <button type="button" id="jbE" aria-label="Interagir">E</button>
         <button type="button" id="jbS" aria-label="Sauter">Saut</button>
-        <button type="button" id="jbK" aria-label="Klaxon">Klaxon</button>
         <button type="button" id="jbD" aria-label="File de droite">▶</button>
       </div>
       <div class="jh-coin"><button type="button" id="jhSon" aria-pressed="true" title="Couper les sons">Son</button><button type="button" id="jhPause">Pause</button></div>
@@ -192,7 +205,7 @@
   <div class="offre-pub" id="offrePub" hidden role="dialog" aria-labelledby="opTitre">
     <div class="op-boite panel">
       <button type="button" class="op-x" aria-label="Fermer">×</button>
-      <small>Pour les annonceurs</small><h3 id="opTitre">Votre marque dans Cotonou 3D et Zém Run</h3>
+      <small>Pour les annonceurs</small><h3 id="opTitre">Votre marque dans Kutɔnu Vibes et Zém Run</h3>
       <p>Les joueurs traversent les vraies rues de Cotonou et de Ouidah : vos panneaux sont là où vos clients passent.</p>
       <ul class="op-offres">
         <li><b>Panneau 4 × 3 en ville</b>Sur les grands axes de la ville 3D, vu en exploration et pendant les courses.</li>
@@ -210,7 +223,7 @@
 
   <div class="accueil" id="accueil" hidden>
     <header class="ac-barre">
-      <span class="ac-marque"><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#1A7D52"/><circle cx="14" cy="33" r="6.5" fill="none" stroke="#fff" stroke-width="3.6"/><circle cx="35" cy="33" r="6.5" fill="none" stroke="#fff" stroke-width="3.6"/><path d="M14 33 21 24h9l5 9m-5-9 2.5-8H37M23.5 19 21 24" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24.5" cy="13" r="4.6" fill="#F5C518"/></svg>Cotonou 3D</span>
+      <span class="ac-marque"><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="11" fill="#1A7D52"/><path d="M 13.781 29.9 A 11.8 11.8 0 1 0 13.781 18.1" fill="none" stroke="#242424" stroke-width="5.8" stroke-linecap="round"/><circle cx="24" cy="24" r="2.9" fill="#F5B800"/></svg>Kutɔnu Vibes</span>
       <span class="ac-enligne" id="acEnLigne" hidden><i></i><b></b> en ligne</span>
       <a class="ac-langue" href="en/" hreflang="en">English</a>
     </header>
@@ -221,7 +234,7 @@
     <div class="ac-carte" role="dialog" aria-labelledby="acTitre">
       <div class="ac-tete">
         <div class="ac-avatars" aria-hidden="true"><img src="/modeles/mode/vignettes/vendeuse.webp" alt=""><img src="/modeles/mode/vignettes/etudiante.webp" alt=""><img src="/modeles/mode/vignettes/jeune.webp" alt=""><img src="/modeles/mode/vignettes/ancien.webp" alt=""></div>
-        <p id="acTitre"><b>Vis à Cotonou</b> : un logement, un métier, un zém, des amis. Gratuit.</p>
+        <p id="acTitre"><b>Vivre à Cotonou</b> : un logement, un métier, un zém, des amis. Gratuit.</p>
       </div>
       <div class="ac-actions">
         <button class="jouer ac-jouer" type="button" id="acVivre">Jouer gratuitement</button>
@@ -307,7 +320,9 @@
     </div>
   </div>
   <div class="salon-hud" id="salonHud" hidden>
+    <div class="vh-voile" id="vhVoile" hidden></div>
     <div class="vie-hud panel" id="vieHud" hidden aria-label="Ma vie">
+      <small class="vh-titre-menu">Menu · ta vie à Cotonou</small>
       <div class="vh-tete"><b id="vhArgent"></b><b class="vh-gain" id="vhGain" aria-hidden="true"></b><small id="vhDepart"></small></div>
       <div class="vh-faim"><span>Faim</span><i id="vhFaim"></i><small id="vhFaimTxt"></small></div>
       <small id="vhLogement"></small>
@@ -317,9 +332,10 @@
       <div class="vh-faim" id="vhEssenceLigne" hidden><span>Essence</span><i id="vhEssence"></i><small id="vhEssenceTxt"></small></div>
       <b class="vh-vitesse" id="vhVitesse" hidden></b>
       <small class="vh-gps" id="vhGps" hidden></small>
-      <div class="vh-boutons"><button type="button" class="vh-louer" id="vhTravail">Travailler</button><button type="button" class="vh-louer vh-louer2" id="vhPause" hidden>Pause</button><button type="button" class="vh-louer vh-louer2" id="vhFinir" hidden>Finir la journée</button><button type="button" class="vh-louer vh-louer2" id="vhLouer" hidden></button><button type="button" class="vh-louer vh-louer2" id="vhCommerces">Commerces</button></div>
+      <div class="vh-boutons"><button type="button" class="vh-louer" id="vhTravail">Travailler</button><button type="button" class="vh-louer vh-louer2" id="vhPause" hidden>Pause</button><button type="button" class="vh-louer vh-louer2" id="vhFinir" hidden>Finir la journée</button><button type="button" class="vh-louer vh-louer2" id="vhLouer" hidden></button><button type="button" class="vh-louer vh-louer2" id="vhCommerces">Commerces</button><button type="button" class="vh-louer vh-louer2 vh-menu" id="vhMenu" aria-expanded="false" title="Menu (Échap)">Menu</button></div>
+      <div class="vh-menu-plus"><button type="button" class="jouer" id="vhReprendre">Reprendre</button><button type="button" class="vh-louer vh-louer2" id="vhInviter">Inviter un ami</button><button type="button" class="vh-louer vh-louer2" id="vhQuitter">Quitter la partie</button></div>
     </div>
-    <div class="sl-haut panel"><div><b>Salon <span id="slCodeAff"></span></b><small id="slNb"></small></div><button type="button" class="jouer" id="slInviter">Inviter</button><button type="button" id="slVue">Vue : de haut</button><button type="button" id="slCopier">Copier le lien</button><button type="button" id="slQuitter">Quitter</button></div>
+    <div class="sl-haut panel"><div><b>Salon <span id="slCodeAff"></span></b><small id="slNb"></small></div><button type="button" class="jouer" id="slInviter">Inviter</button><button type="button" id="slVue" title="Changer de vue (V)">Voir de haut</button><button type="button" id="slCopier">Copier le lien</button><button type="button" id="slQuitter">Quitter</button></div>
     <div class="sl-chat panel" id="slChat">
       <button type="button" class="sl-chat-fermer" id="slChatFermer" aria-label="Fermer la discussion" title="Fermer la discussion">×</button>
       <ol id="slMessages" aria-live="polite" aria-label="Messages du salon"></ol>
@@ -328,7 +344,7 @@
     </div>
     <div class="sl-actions panel" id="slActions"><button type="button" class="sl-gestes-tog" id="slGestesTog" aria-expanded="false" aria-controls="slGestes">Gestes</button><div class="sl-gestes" id="slGestes" aria-label="Gestes"></div><button type="button" class="sl-zem" id="slZem">Prendre un zém</button><button type="button" class="sl-zem sl-habiller" id="slHabiller">M’habiller</button><select id="slAller" aria-label="Aller à un lieu avec tes amis"></select></div>
     <div class="sl-joy" id="slJoy" hidden aria-hidden="true"><i></i></div>
-    <div class="sl-boutons"><button type="button" id="slChatBtn" aria-expanded="false" aria-controls="slChat">Discussion<b id="slNonLus" hidden></b></button><button type="button" id="slGestesBtn" aria-expanded="false" aria-controls="slActions">Gestes</button><button type="button" id="slVue2">Vue</button></div>
+    <div class="sl-boutons"><button type="button" id="slChatBtn" aria-expanded="false" aria-controls="slChat">Discussion<b id="slNonLus" hidden></b></button><button type="button" id="slGestesBtn" aria-expanded="false" aria-controls="slActions">Aller · gestes</button><button type="button" id="slVue2">Vue</button></div>
     <div class="sl-guide panel" id="slGuide" hidden role="status"></div>
     <canvas class="mini-carte" id="miniCarte" hidden role="button" tabindex="0" aria-label="Carte (touche M) : touche pour l’agrandir"></canvas>
     <div class="carte-grande panel" id="carteGrande" hidden role="dialog" aria-modal="true" aria-labelledby="cgTitre">
@@ -342,12 +358,13 @@
       <small class="chap-prime" id="chapPrime"></small>
     </button>
     <div class="sl-agir"><button type="button" class="jouer" id="slEntrer" hidden></button><button type="button" class="sl-agir2" id="slAction2" hidden></button><button type="button" class="sl-agir2" id="slAction3" hidden></button></div>
-    <p class="sl-aide">Flèches ou ZQSD pour marcher · Maj pour courir · E, R, F : les actions des boutons · glisser pour tourner la caméra autour de toi (vers le bas : de haut) · molette pour zoomer · V : changer de vue · M : la carte · Entrée pour écrire</p>
+    <p class="sl-aide">Flèches ou ZQSD : marcher · Maj : courir · E, R, F : actions · 1 à 5 : gestes · glisser : tourner la caméra · molette : zoom · V : vue · M : carte · Entrée : écrire</p>
   </div>
 
   <div id="loader">
     <div class="box">
-      <h2>Cotonou</h2>
+      <svg class="logo-charge" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="11" fill="#1A7D52"/><path d="M 13.781 29.9 A 11.8 11.8 0 1 0 13.781 18.1" fill="none" stroke="#FAFAF7" stroke-width="5" stroke-linecap="round"/><path d="M 13.781 29.9 A 11.8 11.8 0 1 0 13.781 18.1" fill="none" stroke="#242824" stroke-width="3.9" stroke-linecap="round"/><path d="M 13.781 29.9 A 11.8 11.8 0 1 0 13.781 18.1" fill="none" stroke="#F5B700" stroke-width=".5" stroke-dasharray="1.6 1.4"/><circle cx="24" cy="24" r="1.45" fill="#F5B700"/></svg>
+      <h2>Kutɔnu Vibes</h2>
       <p id="loadTxt">Préparation…</p>
       <div class="bar"><i id="loadBar"></i></div>
     </div>

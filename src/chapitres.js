@@ -20,13 +20,13 @@ export const CHAPITRES = [
     { texte: 'Gagne 10 000 F en travaillant.', prime: 1000, compte: 'travail', but: 10000, F: true },
   ] },
   { titre: 'Avoir sa moto', etapes: [
-    { texte: 'Aie ton propre véhicule : « Louer une moto », en haut à gauche.', prime: 500, fait: () => !!VIE.data?.vehicule },
+    { texte: 'Aie ton propre véhicule : « Menu », en haut à gauche, puis « Louer une moto ».', prime: 500, fait: () => !!VIE.data?.vehicule },
     { texte: 'Fais le plein dans une station-service (« Aller à » : la station la plus proche).', prime: 300, compte: 'plein', but: 1 },
     { texte: 'Fais 5 courses de zém ou de taxi.', prime: 1500, compte: 'course', but: 5 },
     { texte: 'Mets 10 000 F de côté pour ouvrir ton commerce.', prime: 0, fait: () => (VIE.data?.argent || 0) >= 10000 },
   ] },
   { titre: 'Ouvrir son commerce', etapes: [
-    { texte: 'Va voir une boutique à louer : touche « Commerces », en haut à gauche.', prime: 200, compte: 'voirLot', but: 1 },
+    { texte: 'Va voir une boutique à louer : « Menu », en haut à gauche, puis « Commerces ».', prime: 200, compte: 'voirLot', but: 1 },
     { texte: 'Ouvre ton premier commerce : choisis ce que tu vends, ton équipe s’installe.', prime: 1000, fait: () => nbCommerces() >= 1 },
     { texte: 'Ton commerce travaille pour toi : encaisse 5 000 F de ventes.', prime: 1000, compte: 'commerce', but: 5000, F: true },
     { texte: 'Réapprovisionne ton commerce avant que son stock soit vide.', prime: 500, compte: 'reappro', but: 1 },

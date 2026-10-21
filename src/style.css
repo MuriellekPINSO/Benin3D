@@ -142,8 +142,9 @@ button { font: inherit; color: inherit; }
 /* Chargement */
 #loader { position: absolute; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 5; transition: opacity .9s ease; padding: 0 var(--gutter); }
 #loader.done { opacity: 0; pointer-events: none; }
-#loader .box { width: min(420px, 100%); }
-#loader h2 { margin: 0; font: 800 clamp(44px, 9vw, 72px)/0.9 var(--font-display); letter-spacing: -0.03em; }
+#loader .box { width: min(520px, 100%); }
+#loader .logo-charge { display: block; width: clamp(64px, 18vw, 92px); height: auto; margin: 0 0 18px; border-radius: 22%; box-shadow: 0 10px 28px rgba(26, 125, 82, .28); } /* le logo détaillé (logovibes.png) */
+#loader h2 { margin: 0; font: 800 clamp(36px, 7.6vw, 66px)/1 var(--font-display); letter-spacing: -0.03em; white-space: nowrap; } /* « Kutɔnu Vibes » tient sur une ligne, de 320 px de large à un grand écran */
 #loader p { margin: 14px 0 12px; color: var(--ink-2); min-height: 1.4em; }
 #loader .bar { height: 6px; border-radius: 99px; background: var(--chip); overflow: hidden; }
 #loader .bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .3s ease; }
@@ -231,6 +232,7 @@ button { font: inherit; color: inherit; }
 .jm-pied input { width: 80px; font: 700 15px/1 var(--font-mono); padding: 7px 9px; border-radius: 10px; border: 1px solid var(--line); background: #f2c21b; color: #1d5a2e; text-align: center; }
 .jm-aide { margin: 0; font-size: 12px; color: var(--ink-2); }
 .jm-aide b { color: var(--ink); }
+.jm-aide-doigt, .au-doigt .jm-aide-clavier { display: none; } .au-doigt .jm-aide-doigt { display: block; } /* au doigt, les touches du clavier ne servent à rien */
 .jh-haut { position: absolute; top: var(--gutter); left: var(--gutter); right: var(--gutter); display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; pointer-events: none; }
 .jh-ligne { padding: 10px 14px; min-width: 0; width: min(460px, 60%); display: flex; flex-direction: column; gap: 4px; }
 .jh-ligne b { font: 800 16px/1.1 var(--font-display); }
@@ -544,6 +546,9 @@ button { font: inherit; color: inherit; }
 .jm-fermer { position: sticky; top: 0; align-self: flex-end; margin: -8px -8px -36px 0; width: 40px; height: 40px; flex: none; border-radius: 50%; border: 0; background: var(--chip); color: var(--ink); font-size: 24px; line-height: 1; cursor: pointer; z-index: 2; }
 .jm-debut { align-self: flex-start; font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 3px 8px; }
 .jh-boutons #jbA { background: #2f8a4a; } .jh-boutons #jbE { background: var(--accent); color: var(--accent-ink); }
+/* Conduite au doigt (façon Subway Surfers) : les gestes remplacent ◀ ▶, Gaz et Saut ; restent Frein (à tenir) et E. */
+.au-doigt .jh-boutons #jbG, .au-doigt .jh-boutons #jbD, .au-doigt .jh-boutons #jbA, .au-doigt .jh-boutons #jbS { display: none; }
+@media (max-width: 720px) { .au-doigt .jh-boutons { left: auto; right: 12px; justify-content: flex-end; gap: 8px; } .au-doigt .jh-boutons button { flex: 0 0 auto; padding: 14px 18px; min-width: 72px; } }
 .jm-option { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
 @media (max-width: 720px) { .jh-action { bottom: 300px; } }
 
@@ -598,7 +603,8 @@ button { font: inherit; color: inherit; }
   .jh-guide { top: auto; bottom: 150px; left: 12px; right: 12px; width: auto; }
   .jh-dialogue:not([hidden]) ~ .jh-guide { display: none; } /* le dialogue dit déjà quoi faire ; empilés, ils cachaient la route */
   .jh-carrefour { left: 8px; transform: none; max-width: calc(100% - 140px); } /* à gauche de la mini-carte */
-  .sl-guide { bottom: 182px; left: 12px; right: 12px; width: auto; transform: none; } /* au-dessus du joystick et des boutons */
+  .sl-guide { bottom: 182px; left: 12px; right: 12px; width: auto; transform: none; padding: 10px 12px; gap: 4px; } /* au-dessus du joystick et des boutons */
+  .sl-guide p { font-size: 14px; line-height: 1.35; }
   .jh-carbu small { display: none; } .jh-essence { width: 64px; } /* la jauge ne doit pas écraser le panneau de la ligne */
 }
 .jm-guide { justify-self: start; border: 0; padding: 0; background: none; color: var(--ink-2); font: 600 13px/1.2 var(--font-body); text-decoration: underline; cursor: pointer; }
@@ -708,6 +714,7 @@ button { font: inherit; color: inherit; }
 .salon .sl-champ { display: grid; gap: 4px; font-weight: 700; font-size: 13px; margin: 4px 0 10px; }
 .salon input { font: inherit; color: inherit; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; }
 .salon .sl-titre { font-weight: 700; font-size: 13px; color: var(--ink); margin: 0 0 6px; }
+.salon .ev-actions + .sl-titre { margin-top: 22px; } /* « Commencer » était collé à « Un ami t'a envoyé un code ? » */
 .gr-genre { display: flex; gap: 6px; margin-bottom: 10px; }
 .gr-genre button { flex: 1; border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 999px; padding: 8px 12px; font-weight: 700; font-size: 14px; cursor: pointer; }
 .gr-genre button[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
@@ -762,7 +769,7 @@ button { font: inherit; color: inherit; }
 #slCopier { display: none; }
 .mode-salon.dedans #slZem, .mode-salon.dedans #vhLouer { display: none !important; }
 .sl-actions select { font: inherit; font-weight: 700; color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 999px; padding: 8px 12px; cursor: pointer; }
-.sl-aide { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); margin: 0; font-size: 12px; color: var(--ink-2); background: var(--panel); padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.sl-aide { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); margin: 0; font-size: 12px; color: var(--ink-2); background: var(--panel); padding: 3px 10px; border-radius: 999px; white-space: nowrap; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
 .sl-joy { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); width: 110px; height: 110px; border-radius: 50%; background: var(--panel); border: 2px solid var(--line); touch-action: none; }
 .sl-joy i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: var(--accent); transform: translate(var(--jx, 0px), var(--jy, 0px)); }
 .sl-boutons { display: none; }
@@ -811,9 +818,22 @@ button { font: inherit; color: inherit; }
 .vh-boutons { display: flex; flex-wrap: wrap; gap: 6px; }
 .vh-louer { justify-self: start; border: 0; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 12px; padding: 5px 10px; cursor: pointer; }
 .vh-louer.vh-louer2 { background: var(--chip); color: var(--ink); }
+/* Menu (demande du 21/10 : moins de choses à l'écran). Replié, le panneau garde l'argent, la faim, l'essence et la vitesse
+   en conduisant, la mission, « Travailler » et « Menu » ; le reste s'affiche quand on ouvre le menu (bouton ou Échap). */
+.vie-hud:not(.ouvert) :is(#vhLogement, #vhMetier, #vhDette, #vhPause, #vhFinir, #vhLouer, #vhCommerces, .vh-menu-plus, .vh-titre-menu) { display: none !important; }
+.vh-menu-plus, .vh-titre-menu { display: none; }
+.vie-hud.ouvert { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(380px, calc(100vw - 32px)); max-width: none; padding: 18px 20px; gap: 8px; font-size: 14px; z-index: 40; box-shadow: 0 24px 60px rgba(0, 0, 0, .35); }
+.vie-hud.ouvert .vh-titre-menu { display: block; font: 700 11px/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase; }
+.vie-hud.ouvert .vh-menu-plus { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.vie-hud.ouvert .vh-menu-plus .jouer { flex: 1 1 100%; }
+.vie-hud.ouvert .vh-menu { display: none; }
+.vie-hud.ouvert .vh-louer { font-size: 13px; padding: 8px 14px; }
+.vh-voile { position: fixed; inset: 0; background: rgba(10, 14, 12, .45); z-index: 39; }
+@media (pointer: coarse) { .vh-boutons .vh-louer { min-height: 36px; padding: 8px 14px; font-size: 13px; } } /* au doigt : 25 px de haut, c'était trop petit */
 @media (max-width: 720px) {
   .vie-hud { top: 56px; left: 8px; width: auto; max-width: 62%; padding: 6px 10px; gap: 2px; }
-  .vie-hud #vhLogement, .vie-hud #vhMetier { display: none; }
+  .vie-hud:not(.ouvert) #vhLogement, .vie-hud:not(.ouvert) #vhMetier { display: none; }
+  .vie-hud.ouvert { top: 50%; left: 50%; }
   .vh-tete b { font-size: 16px; }
   .vt-cartes { gap: 8px; }
   .vt-carte { padding: 14px 8px; }
@@ -834,6 +854,17 @@ button { font: inherit; color: inherit; }
 /* ---------- Ma vie : la prochaine étape (chapitres.js) ---------- */
 .chap-hud { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); z-index: 5; width: min(440px, calc(100% - 2 * var(--gutter))); display: grid; gap: 6px; padding: 10px 14px 11px; border-radius: 16px; text-align: left; color: var(--ink); font: inherit; cursor: pointer; transition: background .25s, color .25s; }
 .chap-hud[hidden] { display: none; }
+/* Ordinateur : le guide, l'étape du chapitre et les boutons d'action restent entre la discussion (à gauche) et le panneau
+   de droite ; sur un écran de portable, ils passaient sous la discussion et recouvraient « Envoyer ». */
+@media (min-width: 721px) {
+  .sl-agir { left: calc(2 * var(--gutter) + 340px); right: calc(2 * var(--gutter) + 260px); width: fit-content; max-width: none; transform: none; margin-inline: auto; flex-wrap: wrap; justify-content: center; }
+  .sl-guide, .chap-hud { left: calc(2 * var(--gutter) + 340px); right: calc(2 * var(--gutter) + 260px); width: auto; max-width: 460px; transform: none; margin-inline: auto; }
+}
+@media (min-width: 721px) and (max-width: 1180px) { /* trop serré entre les deux : en haut, sous la barre du salon */
+  .sl-guide, .chap-hud { top: 84px; bottom: auto; left: 310px; right: 210px; }
+}
+/* « Ton départ » s'affichait par-dessus le formulaire « Vivre à Cotonou », encore visible dessous : une fenêtre à la fois. */
+#app:has(#vieTirage:not([hidden])) #salon { visibility: hidden; }
 #app:has(.sl-actions.ouvert) .chap-hud, #app:has(#vieFiche:not([hidden])) .chap-hud { display: none; }
 .chap-hud:hover { border-color: var(--accent); }
 .chap-tete { display: flex; justify-content: space-between; gap: 10px; }

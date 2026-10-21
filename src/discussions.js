@@ -46,7 +46,7 @@ function tete(a, out) {
   a.getWorldPosition(out); out.y += a.userData?.haut ?? 2.1; return out;
 }
 function majBulles(dt) {
-  const r = $('#scene').getBoundingClientRect();
+  const r = $('#scene').getBoundingClientRect(), places = [];
   for (let i = BULLES.length - 1; i >= 0; i--) {
     const b = BULLES[i]; b.t -= dt;
     if (b.t <= 0) { b.el.remove(); BULLES.splice(i, 1); continue; }
@@ -57,8 +57,17 @@ function majBulles(dt) {
     const ech = THREE.MathUtils.clamp(26 / Math.max(dist, 1), .72, 1.05);
     if (!b.w) { b.w = b.el.offsetWidth; b.h = b.el.offsetHeight; }
     const dx = b.w * ech / 2 + 8, x = THREE.MathUtils.clamp((v.x * .5 + .5) * r.width, dx, Math.max(dx, r.width - dx)), y = THREE.MathUtils.clamp((-v.y * .5 + .5) * r.height, b.h * ech + 8, r.height - 8);
-    b.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%) scale(${ech.toFixed(3)})`;
+    places.push({ b, x, y, w: b.w * ech, h: b.h * ech, ech, vu });
   }
+  // Deux personnes proches à l'écran : leurs bulles s'empilaient et devenaient illisibles. La plus basse reste à sa place,
+  // les autres montent au-dessus d'elle (y : bas de la bulle).
+  places.sort((a, c) => c.y - a.y);
+  for (let i = 0; i < places.length; i++) {
+    const p = places[i]; if (!p.vu) continue;
+    for (let j = 0; j < i; j++) { const q = places[j]; if (q.vu && Math.abs(p.x - q.x) < (p.w + q.w) / 2 + 4 && p.y > q.y - q.h - 4) p.y = q.y - q.h - 4; }
+    p.y = Math.max(p.y, p.h + 8);
+  }
+  for (const { b, x, y, ech } of places) b.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%) scale(${ech.toFixed(3)})`;
 }
 function viderBulles() { for (const b of BULLES) b.el.remove(); BULLES.length = 0; }
 
@@ -280,8 +289,7 @@ function mettreCasque(p) {
 function demanderCasque(st, c) {
   const aLeSien = Math.random() < .45;
   if (aLeSien) {
-    dit('Oui, j’ai mon casque !');
-    dialogue(`${c.nom} · le casque`, '« Tu as ton casque ? » — « Oui, j’ai le mien ! »', [['Bien, mets-le, on y va', () => { mettreCasque(c.siege); humeur(.05); dit('Voilà, c’est attaché.'); }]], { defaut: 0, duree: 6 });
+    dit('Oui, j’ai mon casque ! Voilà, c’est attaché.'); mettreCasque(c.siege); humeur(.05); // une seule réponse possible : pas de carte qui arrête le départ
     return;
   }
   dit('Ah non… je n’ai pas de casque.');
@@ -412,6 +420,7 @@ function suivant() {
   if (!d) { el.hidden = true; return; }
   d.t = d.duree;
   el.querySelector('.qui').textContent = d.qui; el.querySelector('.dit').textContent = d.texte;
+  const cl = DISC.client; if (cl && d.qui.startsWith(cl.nom)) for (const b of BULLES) if (b.ancre === cl.siege) b.t = Math.min(b.t, .12); // la carte dit déjà sa question : pas deux fois
   const box = el.querySelector('.choix'); box.innerHTML = '';
   d.choix.forEach(([t], k) => { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<kbd>${k + 1}</kbd>${t}`; b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); repondre(k); }); box.append(b); });
   el.hidden = false; son('arret');
@@ -523,6 +532,15 @@ export function majDiscussions(st, C, dt) {
   // Le client : causerie de temps en temps, et passager animé.
   const c = DISC.client;
   if (c) { c.siege?.userData.anim(t, false); if (c.accord && st.s > c.causerie && JEU.ligne.arretsJ[c.vers] && JEU.ligne.arretsJ[c.vers].s - st.s > 150) { c.causerie = st.s + 500 + Math.random() * 500; causerie(st); } }
+  // Trop vite avec un client à bord (plus de 70 km/h pendant 3 s) : il proteste, son humeur baisse et le pourboire avec
+  // (deposerClient : sous 0,3, il retient 50 F). Avant, on roulait à 90 km/h avec une cliente sans aucune conséquence.
+  if (c?.accord && JEU.veh === 'zem') {
+    c.vite = st.v > 19.5 ? (c.vite || 0) + dt : 0;
+    if (c.vite > 3 && t > (c.plainteT || 0)) {
+      c.plainteT = t + 9; humeur(-.12); dit(choisir(['Doucement zém ! Je veux arriver en vie !', 'Eh ! Ralentis, on n’est pas pressés à ce point !', 'Zém, tu veux me tuer ou quoi ?']), { ton: 'fort' });
+      if (!st.aideVite) { st.aideVite = true; toast(`Trop vite : ${c.femme ? 'ta cliente a peur' : 'ton client a peur'}, le pourboire baisse`, 2.4, 'mal'); }
+    }
+  }
   if (DISC.collecteur) DISC.collecteur.m.userData.anim(t, DISC.courant?.qui?.startsWith('Le collecteur'));
   // Appel de l'apprenti avant chaque arrêt.
   const a = JEU.ligne.arretsJ[st.prochain];

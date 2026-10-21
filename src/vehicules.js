@@ -177,10 +177,16 @@ export async function chargerTokpa(version = 0) {
   } catch (e) { console.warn('modèle tokpa indisponible', e.message); }
   return TOKPA_3D;
 }
-export async function chargerZems() {
+// Lancé dès que les données de la ville sont arrivées (main.js) : le téléchargement (1,5 Mo) se fait pendant
+// que le téléphone construit la ville, au lieu d'attendre l'étape « Zémidjans ».
+let zemsEnRoute = null;
+export function prechargerZems() {
   const url = f => import.meta.env.BASE_URL + 'modeles/' + f;
   const charge = f => chargeur.loadAsync(url(f)).then(g => g.scene).catch(e => { console.warn(`modèle ${f} indisponible`, e); return null; });
-  const [moto, zem, motoLod] = await Promise.all([charge('moto-taxi.glb'), charge('zem-lod.glb'), charge('moto-taxi-lod.glb')]);
+  return zemsEnRoute ??= Promise.all([charge('moto-taxi.glb'), charge('zem-lod.glb'), charge('moto-taxi-lod.glb')]);
+}
+export async function chargerZems() {
+  const [moto, zem, motoLod] = await prechargerZems();
   if (moto) ZEMS_3D.moto = gabaritDe(moto, { largeur: 1.95 });
   if (zem) ZEMS_3D.zem = gabaritDe(zem, { hauteur: 2.05, passagere: true });
   if (motoLod) ZEMS_3D.motoLod = geometrieDe(gabaritDe(motoLod, { largeur: 1.95 }));

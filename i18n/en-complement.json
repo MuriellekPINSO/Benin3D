@@ -61,7 +61,15 @@
   "'fâché'": "'angry'",
   " ! ": "! ",
   " · ": " · ",
-  "'Achète-en un au vendeur, là · 2\\u202f000\\u00a0F'": "'Buy one from the seller over there · 2\\u202f000\\u00a0F'"
+  "'Achète-en un au vendeur, là · 2\\u202f000\\u00a0F'": "'Buy one from the seller over there · 2\\u202f000\\u00a0F'",
+  "'Oui, j’ai mon casque ! Voilà, c’est attaché.'": "'Yes, I have my helmet! There, it’s on.'",
+  "'Doucement zém ! Je veux arriver en vie !'": "'Easy, zém! I want to arrive alive!'",
+  "'Eh ! Ralentis, on n’est pas pressés à ce point !'": "'Hey! Slow down, we’re not in that much of a hurry!'",
+  "'Zém, tu veux me tuer ou quoi ?'": "'Zém, are you trying to kill me or what?'",
+  "Trop vite : ": "Too fast: ",
+  "'ta cliente a peur'": "'your passenger is scared'",
+  "'ton client a peur'": "'your passenger is scared'",
+  ", le pourboire baisse": ", the tip goes down"
  },
  "src/jeu.js": {
   "'Course à deux'": "'Two-player race'",
@@ -121,7 +129,28 @@
   "'Marche arrière'": "'Reverse'",
   "' · il fallait serrer à droite'": "' · you had to keep right'",
   "' · trop vite'": "' · too fast'",
-  "'Ligne express'": "'Express line'"
+  "'Ligne express'": "'Express line'",
+  "'Ton client demande le prix : touche une réponse.'": "'Your customer asks the price: tap an answer.'",
+  "'Maintiens « Gaz » pour rouler. Relâche pour ralentir, « Frein » pour freiner.'": "'Hold “Gas” to ride. Let go to slow down, “Brake” to brake.'",
+  "'Maintiens [↑] pour rouler. Relâche pour ralentir, [↓] pour freiner.'": "'Hold [↑] to ride. Let go to slow down, [↓] to brake.'",
+  "'mets-toi à droite avec ▶, puis « Frein »'": "'move right with ▶, then “Brake”'",
+  "'mets-toi à droite [→], puis freine [↓]'": "'move right [→], then brake [↓]'",
+  " dans la zone jaune. ": " in the yellow zone. ",
+  "'◀ ▶ : change de file pour éviter les zems, les trous et les chèvres. « Saut » : sauter par-dessus un trou.'": "'◀ ▶: change lanes to dodge zems, potholes and goats. “Jump”: jump over a pothole.'",
+  "Pas de client à bord : quelqu’un te fait signe au bord de la route. Arrête-toi à sa hauteur, puis ": "No customer on board: someone is waving at the roadside. Stop next to them, then ",
+  "'le bouton E'": "'the E button'",
+  "Carrefour : sans rien faire, tu suis le GPS. Pour prendre une autre rue, ralentis puis ": "Junction: do nothing and you follow the GPS. To take another street, slow down then ",
+  ", ou touche les boutons du panneau.": ", or tap the buttons on the sign.",
+  "Ton réservoir baisse : arrête-toi devant un vendeur de kpayo ou une station, puis ": "Your tank is getting low: stop at a kpayo seller or a station, then ",
+  " pour faire le plein.": " to fill up.",
+  "Bien joué ! ": "Well done! ",
+  "'« Pause », en haut,'": "'“Pause”, at the top,'",
+  "'[Échap]'": "'[Esc]'",
+  " met le jeu en pause. Quand tu quittes la course, tu vois ton bilan et ta recette va dans ta cagnotte.": " pauses the game. When you leave the ride, you see your results and your takings go into your kitty.",
+  "'Ton zém avance tout seul. Glisse le doigt vers le bas et garde-le posé pour freiner.'": "'Your zém rides on its own. Swipe down and keep your finger on the screen to brake.'",
+  "'glisse à droite, puis vers le bas en gardant le doigt posé'": "'swipe right, then swipe down and keep your finger down'",
+  "'Glisse à gauche ou à droite pour changer de file et éviter les zems, les trous et les chèvres. Glisse vers le haut pour sauter par-dessus un trou.'": "'Swipe left or right to change lanes and dodge zems, potholes and goats. Swipe up to jump over a pothole.'",
+  "'glisse à gauche ou à droite'": "'swipe left or right'"
  },
  "index.html": {
   "Crédits": "Credits",
@@ -184,7 +213,29 @@
   "Ta tenue": "Your outfit",
   "Tes tenues": "Your outfits",
   "Flèches ou ZQSD pour marcher · Maj pour courir · E, R, F : les actions des boutons · glisser pour tourner (vers le bas : de haut) · molette pour zoomer · V : changer de vue · Entrée pour écrire": "Arrows or WASD to walk · Shift to run · E, R, F: the button actions · drag to turn (down: from above) · scroll to zoom · V: change view · Enter to type",
-  "Flèches ou ZQSD pour marcher · Maj pour courir · E, R, F : les actions des boutons · glisser pour tourner la caméra autour de toi (vers le bas : de haut) · molette pour zoomer · V : changer de vue · M : la carte · Entrée pour écrire": "Arrows or WASD to walk · Shift to run · E, R, F: the button actions · drag to turn the camera around you (down: from above) · scroll to zoom · V: change view · M: the map · Enter to type"
+  "Flèches ou ZQSD pour marcher · Maj pour courir · E, R, F : les actions des boutons · 1 à 5 : les gestes · glisser pour tourner la caméra autour de toi (vers le bas : de haut) · molette pour zoomer · V : changer de vue · M : la carte · Entrée pour écrire": "Arrows or WASD to walk · Shift to run · E, R, F: the button actions · 1 to 5: the gestures · drag to turn the camera around you (down: from above) · scroll to zoom · V: change view · M: the map · Enter to type",
+  "fr_FR": "en_US",
+  "https://xn--kutnuvibes-ghe.com/": "https://xn--kutnuvibes-ghe.com/en/",
+  "https://xn--kutnuvibes-ghe.com/og.jpg": "https://xn--kutnuvibes-ghe.com/og-en.jpg",
+  "La place de l'Étoile Rouge de Cotonou en 3D, avec le logo de Kutɔnu Vibes": "Cotonou's Red Star square in 3D, with the Kutɔnu Vibes logo",
+  "Changer de vue (V)": "Change view (V)",
+  "Voir de haut": "View from above",
+  "Flèches ou ZQSD : marcher · Maj : courir · E, R, F : actions · 1 à 5 : gestes · glisser : tourner la caméra · molette : zoom · V : vue · M : carte · Entrée : écrire": "Arrows or WASD: walk · Shift: run · E, R, F: actions · 1 to 5: gestures · drag: turn the camera · wheel: zoom · V: view · M: map · Enter: type",
+  "Conduite au doigt : le zém avance seul, glisse pour changer de file, sauter ou freiner": "Finger driving: the zém rides on its own, swipe to change lanes, jump or brake",
+  "Au doigt": "Finger driving",
+  ": le zém avance seul ·": ": the zém rides on its own ·",
+  "glisse à gauche ou à droite": "swipe left or right",
+  ": changer de file, et tourner au carrefour ·": ": change lanes, and turn at junctions ·",
+  "glisse vers le haut": "swipe up",
+  "glisse vers le bas et garde le doigt posé": "swipe down and keep your finger down",
+  ": freiner, t’arrêter au feu rouge ou à l’arrêt · bouton": ": brake, stop at red lights or at a stop · button",
+  "en haut à droite.": "top right.",
+  "Menu": "Menu",
+  "Menu (Échap)": "Menu (Esc)",
+  "Menu · ta vie à Cotonou": "Menu · your life in Cotonou",
+  "Reprendre": "Resume",
+  "Quitter la partie": "Leave the game",
+  "Aller · gestes": "Go · gestures"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -336,6 +387,7 @@
   "'Pas de connexion internet : réessaie dans un instant.'": "'No internet connection: try again in a moment.'",
   "'Le salon en ligne n’est pas encore prêt (base Firebase).'": "'Online rooms are not ready yet (Firebase database).'",
   " a quitté le salon.": " left the room.",
+  "Touche ": "Key ",
   " est arrivé dans le salon.": " joined the room.",
   "'Tu es seul pour l’instant'": "'You’re alone for now'",
   "Je vais ": "I’m going ",
@@ -423,7 +475,29 @@
   "'Te voilà dans la rue. Le bouton « Gestes » ouvre « Aller à » (pour aller vers un lieu) et « Prendre un zém ». En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.'": "'You are in the street. The “Gestures” button opens “Go to” (to head to a place) and “Take a zém”. Top left, “Work” finds you a job to earn money.'",
   "'À l’intérieur, la caméra reste près de toi : la vue de haut revient dehors.'": "'Indoors, the camera stays close to you: the high view comes back outside.'",
   "'Termine d’abord ton trajet.'": "'Finish your trip first.'",
-  "'Mes commerces'": "'My businesses'"
+  "'Mes commerces'": "'My businesses'",
+  "'En haut à gauche : ton argent, ta faim, ton logement et ton travail. Mange quand la faim baisse : au maquis, au food court de la Cité ou chez toi.'": "'Top left: your money, your hunger, your home and your job. Eat when hunger drops: at a maquis, at the Cité food court or at home.'",
+  "'Quitter la partie ?'": "'Leave the game?'",
+  "'Ton argent, ton logement et ta journée de travail sont gardés.'": "'Your money, your home and your workday are kept.'",
+  "'Quitter'": "'Leave'",
+  "'Rester'": "'Stay'",
+  "Voir ": "View ",
+  "Monter derrière ": "Ride behind ",
+  "Monter dans la voiture de ": "Get in the car of ",
+  " monte avec toi : roule, tu l’emmènes.": " is riding with you: drive, you’re taking them along.",
+  " descend.": " gets off.",
+  "Tu montes ": "You get ",
+  "'dans la voiture de'": "'into the car of'",
+  "'derrière'": "'on behind'",
+  ". « Aller à » lui demande de t’emmener ; « Descendre » quand il s’arrête.": ". “Go to” asks them to take you there; “Get off” when they stop.",
+  "Fin du trajet avec ": "End of the ride with ",
+  " : tu descends.": ": you get off.",
+  "'Ton ami a quitté le salon : tu descends.'": "'Your friend left the room: you get off.'",
+  "'Descendre'": "'Get off'",
+  "'E'": "'T'",
+  "'Emmène-moi'": "'Take me'",
+  ", emmène-moi": ", take me",
+  "'Te voilà dans la rue. Le bouton « Aller · gestes », en bas à droite, ouvre « Aller à » (pour aller vers un lieu) et « Prendre un zém ». En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.'": "'You are in the street. The “Go · gestures” button, bottom right, opens “Go to” (to head to a place) and “Take a zém”. Top left, “Work” finds you a job to earn money.'"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -629,7 +703,8 @@
   "Quelques minutes plus tard… On arrive : ": "A few minutes later… Almost there: ",
   "'Le zém ne trouve pas de route jusqu’à toi : approche-toi d’une rue.'": "'The zém can’t find a road to you: move closer to a street.'",
   "). Il t’attendra au bord de la rue, à ": "). It will wait for you at the roadside, ",
-  " m : rejoins-le.": " m away: go and meet it."
+  " m : rejoins-le.": " m away: go and meet it.",
+  "'Ton zém'": "'Your zém'"
  },
  "src/conduite.js": {
   "'zém'": "'zém'",
@@ -870,7 +945,9 @@
   "'Au travail !'": "'Back to work!'",
   "'en pause'": "'on a break'",
   "'en service'": "'on duty'",
-  " · en pause": " · on a break"
+  " · en pause": " · on a break",
+  " du patron est là : étiquette jaune !": " from your boss is here: yellow label!",
+  " du patron": " from your boss"
  },
  "src/metiers-ville.js": {
   "'fr-FR'": "'en-US'",
@@ -1213,7 +1290,10 @@
  "src/main.js": {
   "'Zémidjans et tokpa-tokpa…'": "'Zémidjans and tokpa-tokpas…'",
   "'La connexion a coupé pendant le chargement.'": "'The connection dropped while loading.'",
-  " <button type=\"button\" class=\"btn-ghost\" onclick=\"location.reload()\">Réessayer</button>": " <button type=\"button\" class=\"btn-ghost\" onclick=\"location.reload()\">Try again</button>"
+  " <button type=\"button\" class=\"btn-ghost\" onclick=\"location.reload()\">Réessayer</button>": " <button type=\"button\" class=\"btn-ghost\" onclick=\"location.reload()\">Try again</button>",
+  "'Téléchargement de la ville…'": "'Downloading the city…'",
+  "Téléchargement de la ville… ": "Downloading the city… ",
+  " Mo": " MB"
  },
  "src/chapitres.js": {
   "'fr-FR'": "'en-US'",
@@ -1256,7 +1336,9 @@
   "<small class=\"vf-sur\">Ma vie</small><h3 id=\"vfTitre\">Tes chapitres</h3><p class=\"vf-intro\">Chaque étape réussie rapporte une prime. ": "<small class=\"vf-sur\">My life</small><h3 id=\"vfTitre\">Your chapters</h3><p class=\"vf-intro\">Every step you complete earns a bonus. ",
   "'Tu as tout terminé : bravo !'": "'You’ve done it all: well done!'",
   "Tu en es à l’étape ": "You’re on step ",
-  "'<button type=\"button\" class=\"jouer vf-ouvrir\" data-chap=\"commerces\">Voir les boutiques à louer</button>'": "'<button type=\"button\" class=\"jouer vf-ouvrir\" data-chap=\"commerces\">See shops for rent</button>'"
+  "'<button type=\"button\" class=\"jouer vf-ouvrir\" data-chap=\"commerces\">Voir les boutiques à louer</button>'": "'<button type=\"button\" class=\"jouer vf-ouvrir\" data-chap=\"commerces\">See shops for rent</button>'",
+  "'Aie ton propre véhicule : « Menu », en haut à gauche, puis « Louer une moto ».'": "'Get your own vehicle: “Menu”, top left, then “Rent a motorbike”.'",
+  "'Va voir une boutique à louer : « Menu », en haut à gauche, puis « Commerces ».'": "'Go and see a shop to rent: “Menu”, top left, then “Businesses”.'"
  },
  "src/commerces.js": {
   "'fr-FR'": "'en-US'",
@@ -1477,5 +1559,13 @@
   "'Nom enregistré.'": "'Name saved.'",
   " (essai)": " (test)",
   "'Sènan'": "'Sènan'"
+ },
+ "src/voix.js": {
+  "'Tu l’as déjà acheté chez nous ! Regarde les autres.'": "'You already bought that one from us! Have a look at the others.'",
+  "'Bonne arrivée ! Viens voir, ma sœur, mon frère. Tout est fait à la main.'": "'Welcome! Come and see, my sister, my brother. Everything is handmade.'",
+  "'Bonne arrivée ! Viens voir, mon client. Tout est fait à la main.'": "'Welcome! Come and see, my good customer. Everything is handmade.'",
+  "'Kpayo ! 500 F le litre, c’est moins cher qu’à la station !'": "'Kpayo! 500 F a litre, cheaper than at the station!'",
+  "'Pure water, akassa, beignets ! Tu prends quoi ?'": "'Pure water, akassa, fritters! What will you take?'",
+  "'Bon, pour toi j’enlève un peu. Tu prends quoi ?'": "'Okay, for you I’ll knock a bit off. What will you take?'"
  }
 }

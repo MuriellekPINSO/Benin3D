@@ -18,7 +18,7 @@ import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
 
 const CARRE = 400;
 const TROTTOIR = { 0: 4, 1: 3.5, 2: 3, 3: 2.2, 4: 1.3, 5: .9 };
-const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, zonesLibres: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [] };
+const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, zonesLibres: [], rectsLibres: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [] };
 
 // ---------- Index spatiaux ----------
 const CB = 50, CR = 40;
@@ -65,7 +65,8 @@ function indexer(data) {
   if (L.ouidah) { zone(L.ouidah.porte[0], L.ouidah.porte[1], 160); zone(L.ouidah.arene[0], L.ouidah.arene[1], 160); }
   for (const [la, lo, r] of [[6.35015, 2.38752, 60], [6.35231, 2.38605, 45],
     // Boulevard de la Marina (lieux-marina.js) : parking du Super U, jardin, Cité, ambassades, hôtels, MTN, Dôme, Sofitel.
-    [6.3496, 2.3871, 78], [6.3507, 2.4069, 120], [6.3511, 2.4046, 175], [6.3508, 2.4030, 75], [6.3490, 2.4033, 70], [6.3488, 2.4012, 150],
+    [6.3496, 2.3871, 78], [6.3507, 2.4069, 120], [6.3511, 2.4046, 175], // parvis du food court de la Cité : ajouterZoneLibre (lieux-marina.js)
+     [6.3508, 2.4030, 75], [6.3490, 2.4033, 70], [6.3488, 2.4012, 150],
     [6.34943, 2.39872, 45], [6.35058, 2.39921, 38], [6.34980, 2.39668, 50], [6.35037, 2.39581, 36], [6.3497, 2.3942, 150],
     [6.3532, 2.4268, 75], [6.35085, 2.41977, 40], [6.35453, 2.43723, 85], [6.35385, 2.40458, 70],
     // Siège de Moov Africa : parvis sur l'avenue Jean-Paul II et parking à l'ouest.
@@ -119,7 +120,7 @@ function surTrajet(x, z) {
   for (let k = 0; k < l.length; k += 3) if ((x - l[k]) ** 2 + (z - l[k + 1]) ** 2 < l[k + 2]) return true;
   return false;
 }
-const zoneLibre = (x, z) => sansConstruction(x, z) || zoneBoutique(x, z) || dansTerrePlein(x, z, .6) || R.zonesLibres.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || R.zonesJeu.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || surTrajet(x, z);
+const zoneLibre = (x, z) => sansConstruction(x, z) || zoneBoutique(x, z) || dansTerrePlein(x, z, .6) || R.zonesLibres.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || R.rectsLibres.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1) || R.zonesJeu.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || surTrajet(x, z);
 
 // ---------- Matières ----------
 function toile(w, h, f) { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; f(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; }
@@ -213,7 +214,7 @@ function fusion(list) {
 }
 
 // ---------- Génération d'un carré ----------
-function decalee(pts, d) { // polyligne décalée de d mètres (côté +normale), raccords en onglet
+export function decalee(pts, d) { // polyligne décalée de d mètres (côté +normale, à droite du sens de parcours), raccords en onglet
   const out = [];
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i], a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
@@ -524,6 +525,24 @@ function metrique(mat, ex, ey) {
 
 // ---------- Pilotage ----------
 export function initRue(data) { indexer(data); }
+/** Range une emprise (anneau absolu, en mètres) dans la grille des bâtiments : on ne la traverse plus. */
+function rangerEmprise(r, bb) {
+  const e = { r, bb };
+  for (let gx = Math.floor(bb[0] / CB); gx <= Math.floor(bb[2] / CB); gx++) for (let gz = Math.floor(bb[1] / CB); gz <= Math.floor(bb[3] / CB); gz++) { const k = gx + ',' + gz; if (!R.grilleB.has(k)) R.grilleB.set(k, []); R.grilleB.get(k).push(e); }
+}
+/**
+ * Emprise d'un bâtiment dessiné à la main (lieux-marina.js…) : anneau [[x, z], …] en mètres. Sans elle, on le
+ * traverserait, car il n'est pas dans les données OSM — c'était le cas des tours de la Cité ministérielle.
+ */
+/** Rectangle [x0, z0, x1, z1] sans murs de parcelles, boutiques ni poteaux (une place reconstruite par lieux-*.js).
+ *  Un rectangle plutôt qu'un disque : un mur coupé en biais par le bord d'un cercle laissait des bouts de mur isolés. */
+export function ajouterZoneLibre(rect) { R.rectsLibres.push(rect); }
+export function ajouterEmprise(anneau) {
+  if (!R.grilleB || !anneau || anneau.length < 3) return;
+  const r = new Float32Array(anneau.length * 2), bb = [1e9, 1e9, -1e9, -1e9];
+  anneau.forEach(([x, z], j) => { r[2 * j] = x; r[2 * j + 1] = z; bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], z); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], z); });
+  rangerEmprise(r, bb);
+}
 /** Ajoute les emprises d'une tuile Google Open Buildings ; l'habillage de la zone est refait. */
 export function ajouterEmprises(T, zone) {
   if (!R.grilleB) return;
@@ -532,8 +551,7 @@ export function ajouterEmprises(T, zone) {
     const n = T.n[i], cx = T.x[i] / 10, cz = T.z[i] / 10, r = new Float32Array(n * 2), bb = [1e9, 1e9, -1e9, -1e9];
     for (let j = 0; j < n; j++) { const x = cx + T.p[o + 2 * j] / 10, z = cz + T.p[o + 2 * j + 1] / 10; r[2 * j] = x; r[2 * j + 1] = z; bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], z); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], z); }
     o += n * 2;
-    const e = { r, bb };
-    for (let gx = Math.floor(bb[0] / CB); gx <= Math.floor(bb[2] / CB); gx++) for (let gz = Math.floor(bb[1] / CB); gz <= Math.floor(bb[3] / CB); gz++) { const k = gx + ',' + gz; if (!R.grilleB.has(k)) R.grilleB.set(k, []); R.grilleB.get(k).push(e); }
+    rangerEmprise(r, bb);
   }
   for (const [k, g] of R.carres) {
     const [a, b] = k.split(',').map(Number);

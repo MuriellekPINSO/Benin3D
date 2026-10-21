@@ -35,7 +35,7 @@ export async function payerMoMo({ montant, description, objet, infos = {}, clien
     transaction: { amount: montant, description, custom_metadata: { objet, ...infos } },
     currency: { iso: 'XOF' },
     // Nom transmis d'avance : FedaPay ne demande plus que l'opérateur et le numéro (l'e-mail du reçu est facultatif).
-    customer: client || { firstname: 'Joueur', lastname: 'Cotonou 3D' },
+    customer: client || { firstname: 'Joueur', lastname: 'Kutonu Vibes' },
     onComplete: ({ reason, transaction }) => fini(reason === FedaPay.CHECKOUT_COMPLETED ? transaction : null),
   }).open());
   if (!transaction?.id) return { paye: false, statut: 'annule' };

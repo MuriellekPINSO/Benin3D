@@ -8,6 +8,7 @@ import { scene } from './scene.js';
 import { ROAD_W, TABLIERS, roadLines } from './ville.js';
 import { GRANDES_AFFICHES, matAffiche } from './publicites.js';
 import { poserSol } from './sols.js';
+import { photoPlusTard } from './telechargements.js';
 
 // ---------- Lieux détaillés ----------
 // Matières et primitives reprises du projet « 3D monde » (src/entities/Batisseur.ts),
@@ -92,10 +93,10 @@ export const K = (() => {
     photo(fichier, o = {}) {
       const cle = `p${fichier}|${o.rx}|${o.ry}|${o.alpha}`;
       if (!mats.has(cle)) {
-        const ch = f => { const t = new THREE.TextureLoader().load(import.meta.env.BASE_URL + f); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(o.rx ?? 1, o.ry ?? 1); t.anisotropy = 8; return t; };
+        const ch = (f, teinte) => { const t = photoPlusTard(f, teinte); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(o.rx ?? 1, o.ry ?? 1); t.anisotropy = 8; return t; };
         const map = ch(fichier); map.colorSpace = THREE.SRGBColorSpace;
         const m = new THREE.MeshStandardMaterial({ map, roughness: o.rugosite ?? .85, metalness: o.metal ?? 0, side: o.face2 ? THREE.DoubleSide : THREE.FrontSide });
-        if (o.alpha) { m.alphaMap = ch(o.alpha); m.alphaTest = .5; }
+        if (o.alpha) { m.alphaMap = ch(o.alpha, '#ffffff'); m.alphaTest = .5; }
         mats.set(cle, m);
       }
       return mats.get(cle);
@@ -453,7 +454,7 @@ export async function amazone(L) {
   bake(g);
   // Statue : modèle amazone.glb du projet « 3D monde », patine bronze sombre des photos de terrain.
   try {
-    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(import.meta.env.BASE_URL + 'modeles/amazone.glb');
+    const gltf = await prechargerAmazone();
     const obj = gltf.scene;
     const box = new THREE.Box3().setFromObject(obj), size = box.getSize(new THREE.Vector3());
     const k = 27 / size.y; obj.scale.setScalar(k);
@@ -642,7 +643,7 @@ export function nefEglise(x0, x1, z0, z1, hMur, hToit, facade = false, axeZ = fa
     const sh = new THREE.Shape(); sh.moveTo(-W / 2, 0); sh.lineTo(W / 2, 0); sh.lineTo(W / 2, hMur); sh.lineTo(0, hMur + hToit); sh.lineTo(-W / 2, hMur); sh.closePath();
     const geo = new THREE.ShapeGeometry(sh), uv = geo.attributes.uv, p = geo.attributes.position;
     for (let i = 0; i < uv.count; i++) uv.setXY(i, (p.getX(i) + W / 2) / W, p.getY(i) / (hMur + hToit));
-    const tex = new THREE.TextureLoader().load(import.meta.env.BASE_URL + photo); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    const tex = photoPlusTard(photo); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
     const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: .9 })); m.position.set(-L / 2 - .25, 0, 0); m.rotation.y = -Math.PI / 2; m.userData.garder = true; m.receiveShadow = true; m.castShadow = false; g.add(m);
     K.boite(.3, 2.6, .3, '#efe9de', -L / 2, hMur + hToit + 1.3, 0, g); K.boite(.3, .3, 1.4, '#efe9de', -L / 2, hMur + hToit + 1.8, 0, g);
   } else if (facade) {
@@ -845,7 +846,7 @@ export function dantokpa(B, M) {
       K.boite(.4, .3, 36, '#555', 0, h + 1.9, 0).rotation.y = Math.PI / 2;
       // La vraie façade (photo jbdodane, CC BY 2.0, vue depuis la lagune) sur les deux longs côtés ; le motif se répète si le bâtiment est plus long que la photo.
       const Lb = Math.max(ob.L, ob.W), Wb = Math.min(ob.L, ob.W);
-      const tex = new THREE.TextureLoader().load(import.meta.env.BASE_URL + 'textures/dantokpa-facade.jpg'); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.wrapS = THREE.RepeatWrapping; tex.repeat.x = Math.max(1, (Lb / h) / 3.6);
+      const tex = photoPlusTard('textures/dantokpa-facade.jpg'); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.wrapS = THREE.RepeatWrapping; tex.repeat.x = Math.max(1, (Lb / h) / 3.6);
       for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(Lb - .3, h), new THREE.MeshStandardMaterial({ map: tex, roughness: .9 })); p.position.set(0, h / 2, s * (Wb / 2 + .08)); if (s < 0) p.rotation.y = Math.PI; p.userData.garder = true; p.receiveShadow = true; K.racine.add(p); }
     });
     bake(g);
@@ -1228,6 +1229,10 @@ export function terrasses(centre) {
   const gens = []; for (let i = 0; i < n * 3; i++) gens.push(Math.round((pos[2 * (i % n)] + (hash(i, 43) - .5) * 4) * 10), Math.round((pos[2 * (i % n) + 1] + (hash(i, 44) - .5) * 4) * 10));
   foule(gens, 7);
 }
+
+// Téléchargée dès que les données de la ville sont arrivées (main.js), pendant la construction des bâtiments.
+let amazoneEnRoute = null;
+export const prechargerAmazone = () => amazoneEnRoute ??= new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(import.meta.env.BASE_URL + 'modeles/amazone.glb');
 
 // ---------- Assemblage ----------
 export async function construireLieux(data) {

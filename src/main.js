@@ -13,7 +13,7 @@ import { TRIPO, chargerIndexTripo } from './batiments-tripo.js';
 import { chargerPersonnages, majPersonnages } from './personnages.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
 import { JEU, initJeu, majJeu } from './jeu.js';
-import { VEGETATION, animerLieux, construireLieux, portailUAC, semeOne, visibiliteLieux } from './lieux.js';
+import { VEGETATION, animerLieux, construireLieux, portailUAC, prechargerAmazone, semeOne, visibiliteLieux } from './lieux.js';
 import { U, camera, controls, renderer, scene, sky, sun } from './scene.js';
 import { buildLamps, buildZems, zemsDetailles, construireTokpas, majTokpas, updateZems } from './trafic.js';
 import { majCirculation } from './circulation.js';
@@ -31,7 +31,7 @@ import { animerEtals, construireEtals, initBoutique } from './artisans.js';
 import { initOffre } from './publicites.js';
 import { initMode } from './mode.js';
 import { initSalon, majSalon } from './salon.js';
-import { chargerTokpa, chargerZems } from './vehicules.js';
+import { chargerTokpa, chargerZems, prechargerZems } from './vehicules.js';
 import { demarrerTelechargements, plusTard } from './telechargements.js';
 import { demarrerStats } from './statistiques.js';
 import { initZones } from './zones.js';
@@ -110,8 +110,15 @@ function finishRise() {
 
 // ---------- Démarrage ----------
 async function main() {
-  status('Décompression des données OpenStreetMap…', 4); await frame();
-  const data = await decode();
+  status('Téléchargement de la ville…', 2); await frame();
+  const mo = n => (n / 1048576).toFixed(1).replace('.', ',');
+  // Zémidjans et statue : téléchargés pendant la construction de la ville (le réseau est libre, le processeur occupé).
+  const prechargerModeles = () => { prechargerZems(); prechargerAmazone().catch(() => { }); };
+  const data = await decode((lu, total) => {
+    if (total && lu >= total) { status('Décompression des données OpenStreetMap…', 7); prechargerModeles(); } // fini : on passe à la suite
+    else status(total ? `Téléchargement de la ville… ${mo(lu)} / ${mo(total)} Mo` : `Téléchargement de la ville… ${mo(lu)} Mo`, total ? 2 + 5 * lu / total : null);
+  });
+  prechargerModeles(); // taille inconnue (serveur qui décompresse en route) : pas de signal de fin plus tôt
   $('#stats').innerHTML = `<span>${data.B.n.length.toLocaleString('fr-FR')} bâtiments</span><span>${data.R.c.length.toLocaleString('fr-FR')} voies</span><span>${(data.palms.length / 2).toLocaleString('fr-FR')} palmiers</span>`;
   status('Mise en eau du lac Nokoué et de la lagune…', 8); await frame();
   buildSurfaces(data.S); buildFoam();
@@ -154,8 +161,11 @@ async function main() {
   accueil(); // d'abord la visite en musique, ou la ville tout de suite
   // Le temps qu'il faisait la dernière fois.
   try { const m = localStorage.getItem('cotonou3d.meteo'); if (m && m !== 'soleil') changerMeteo(m); } catch { }
-  // La vue réelle Google est la vue par défaut (sauf si on l'a coupée la dernière fois).
-  let vueReelle = '1'; try { vueReelle = localStorage.getItem('cotonou3d.vueReelle') ?? '1'; } catch { }
+  // La Vue réelle (les tuiles 3D de Google) ne s'allume plus toute seule, nulle part : ce qu'on montre d'abord,
+  // c'est la ville telle qu'on l'a reconstruite. Sur téléphone elle faisait en plus exploser la mémoire, l'onglet
+  // était tué par le navigateur et la page se rechargeait en boucle. Et chaque visiteur coûtait des tuiles Google.
+  // Elle reste à un clic du bouton, et le choix est gardé d'une visite à l'autre.
+  let vueReelle = '0'; try { vueReelle = localStorage.getItem('cotonou3d.vueReelle') ?? '0'; } catch { }
   if (googleDispo && vueReelle !== '0') setTimeout(() => { if ($('#togGoogle').getAttribute('aria-pressed') !== 'true' && !JEU.actif && !document.getElementById('app').classList.contains('mode-salon') && $('#salon')?.hidden !== false) $('#togGoogle').click(); }, reduceMotion ? 300 : 2500); // pas si l'on est déjà entré dans le salon : à pied, il faut la maquette
 }
 // En développement, l'état est accessible depuis la console : __cotonou.E, __cotonou.camera…

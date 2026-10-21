@@ -101,6 +101,9 @@ async function commencer(id) {
       if (T.mode === 'conduit') descendreDe(T.veh);
       vehiculeDuPatron(M.veh);
       X.ligne(`${M.veh === 'moto' ? 'La moto' : 'Le taxi'} du patron t’attend sur la route, à côté de toi (étiquette jaune). ${reprise ? 'Ta journée continue.' : `Ce soir, tu lui dois ${fmt(M.versement)}.`}`);
+      // La consigne n'était que dans la discussion, souvent cachée : une bulle au-dessus de soi, et le GPS si le véhicule est loin.
+      const Vp = T.veh; X.bulle?.(S, `${M.veh === 'moto' ? 'La moto' : 'Le taxi'} du patron est là : étiquette jaune !`);
+      if (Vp && Math.hypot(Vp.x - S.x, Vp.z - S.z) > 12) X.gps?.(Vp.x, Vp.z, `${M.veh === 'moto' ? 'la moto' : 'le taxi'} du patron`);
     } else if (!T.veh) X.garerSonVehicule();
     if (id === 'zem') enfilerGilet();
     X.ligne(id === 'zem' ? `Tu es zémidjan, gilet n° ${numero()} sur le dos. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux pour discuter le prix.` : 'Tu fais le taxi. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux.');

@@ -7,7 +7,10 @@ import { roadLines } from './ville.js';
 // carrefours dans Zém Run, puis à recalculer l'itinéraire jusqu'aux arrêts suivants.
 
 const R = { pret: false, X: null, Z: null, adj: null, grille: null, n: 0 };
-const FUSION = 1.6, CASE = 25, FACTEUR = [1, 1, 1.05, 1.2, 1.6];
+// Les voies de service et les pistes (classe 5) sont dans le réseau pour que le zém vienne jusqu'aux endroits
+// qui n'ont pas de vraie rue (le food court de la Cité ministérielle), mais très pénalisées : on ne les prend
+// qu'au bout du trajet, faute de mieux. Zem Run les ignore (carrefoursDe).
+const FUSION = 1.6, CASE = 25, FACTEUR = [1, 1, 1.05, 1.2, 1.6, 4];
 const cle = (x, z, c) => Math.floor(x / c) + ',' + Math.floor(z / c);
 
 export function construireReseau() {
@@ -16,7 +19,7 @@ export function construireReseau() {
   // 1. Segments, rangés dans une grille de 40 m.
   const segs = [], g = new Map(), C = 40;
   roadLines.forEach((L, li) => {
-    if (L.cls > 4) return;
+    if (L.cls > 5) return;
     for (let k = 1; k < L.pts.length; k++) {
       const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k], i = segs.length; segs.push([li, k, ax, az, bx, bz, []]);
       for (let cx = Math.floor((Math.min(ax, bx) - 2) / C); cx <= Math.floor((Math.max(ax, bx) + 2) / C); cx++)
@@ -111,11 +114,12 @@ export function carrefoursDe(C) {
   const out = [], vus = new Set(), dir = (i, j) => { const dx = C.X[j] - C.X[i], dz = C.Z[j] - C.Z[i], l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
   for (let i = 30; i < C.n - 15; i += 3) { // pas le carrefour où l'on vient de tourner
     for (const [n] of noeudsPres(C.X[i], C.Z[i], 4)) {
-      if (vus.has(n) || R.adj[n].length < 3) continue; vus.add(n);
+      if (vus.has(n) || R.adj[n].filter(e => e[2] <= 4).length < 3) continue; vus.add(n); // les voies de service ne font pas un carrefour
       const dIn = dir(i - 12, i), dOut = dir(i, i + 12), cotes = {};
       // L'itinéraire tourne-t-il ici ? (plus de 35° entre l'arrivée et la sortie)
       const tourne = dIn[0] * dOut[0] + dIn[1] * dOut[1] < .82, sens = dIn[0] * dOut[1] - dIn[1] * dOut[0] > 0 ? 1 : -1;
       for (const [m, , cls] of R.adj[n]) {
+        if (cls > 4) continue; // on ne propose pas de tourner dans une allée de parking
         const ch = suivre(n, m, 16), f = ch[ch.length - 1], ex = R.X[f] - R.X[n], ez = R.Z[f] - R.Z[n], el = Math.hypot(ex, ez); if (el < 6) continue;
         const ux = ex / el, uz = ez / el, dot = ux * dIn[0] + uz * dIn[1], croix = dIn[0] * uz - dIn[1] * ux;
         if (ux * dOut[0] + uz * dOut[1] > .82 || -dot > .82) continue; // la route suivie, ou celle d'où l'on vient

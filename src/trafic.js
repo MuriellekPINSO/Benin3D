@@ -18,7 +18,7 @@ export function buildZems() {
     const len = cum[cum.length - 1]; if (len < 30) continue;
     total += len * W[L.cls]; paths.push({ xz, cum, len, w: L.w ?? ROAD_W[L.cls], sens: L.sens && L.cls <= 3, acc: total });
   }
-  const n = LITE ? 1400 : 3000;
+  const n = LITE ? 800 : 3000; // téléphone : 1 400 zéms à 1 176 triangles faisaient 1,6 M de triangles à chaque image
   const g = mergeColored(partsZem({ passager: '#2f6fb0' }));
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .6, emissive: '#ffcf6a', emissiveIntensity: 0 });
   E.zems = new THREE.InstancedMesh(g, mat, n);
@@ -80,9 +80,12 @@ export function updateZems(dt) {
 // roulent près de lui (retenir → E.circulation) bloquent sa marche et sa conduite (dansCirculation).
 function cede(z) {
   const J = E.joueur; if (!J || z.px === undefined) return false;
-  const ax = J.x - z.px, az = J.z - z.pz; if (ax * ax + az * az > 64) return false;
+  const Jr = Math.max(J.hl ?? .3, J.hw ?? .3); // un piéton, ou la voiture qu'il conduit
+  const ax = J.x - z.px, az = J.z - z.pz; if (ax * ax + az * az > (8 + Jr) ** 2) return false;
   const devant = ax * z.fx + az * z.fz, cote = Math.abs(ax * z.fz - az * z.fx);
-  return devant > 0 && devant < z.hl + 3 && cote < z.hw + .9;
+  // Devant lui, mais aussi à hauteur de sa caisse : sans ça, un joueur à côté de l'arrière du véhicule
+  // le voyait repartir, et la moitié arrière lui passait au travers.
+  return devant > -z.hl - Jr && devant < z.hl + Jr + 3 && cote < z.hw + Jr + .6;
 }
 function retenir(z, x, zz, dx, dz) {
   z.px = x; z.pz = zz; z.fx = dx; z.fz = dz; z.cap = Math.atan2(dx, dz);
@@ -134,7 +137,10 @@ export function construireTokpas() {
     const len = cum[cum.length - 1]; if (len < 60) continue; total += len; paths.push({ xz, cum, len, w: L.w ?? ROAD_W[L.cls], acc: total });
   }
   if (!paths.length) return;
-  const n = LITE ? 70 : 160;
+  // Le tokpa-tokpa fait 30 000 triangles à lui seul, et l'instance n'est jamais écartée du champ (frustumCulled
+  // false, les instances bougent) : 70 d'entre eux étaient dessinés en entier à chaque image, 2,1 M de triangles.
+  // C'était le plus gros objet de la scène et la première cause des plantages de l'onglet sur téléphone.
+  const n = LITE ? 24 : 160;
   E.tokpas = new THREE.InstancedMesh(mergeColored(partsTokpa()), matVeh, n);
   E.tokpas.instanceMatrix.setUsage(THREE.DynamicDrawUsage); E.tokpas.frustumCulled = false; E.tokpas.visible = false; E.tokpas.castShadow = !LITE;
   for (let i = 0; i < n; i++) {

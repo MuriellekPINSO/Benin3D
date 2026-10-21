@@ -3,7 +3,9 @@ import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $ } from './base.js';
 import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js';
 import { PRIX_LITRE, VEHICULES, creerVehicule, initStations, itineraire, longueur, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
-import { dansBatiment, dansObstacleRue } from './rue.js';
+import { dansBatiment, dansObstacleRue, decalee } from './rue.js';
+import { E } from './etat.js';
+import { dansCirculation } from './trafic.js';
 import { arriveeDehors, comptoirProche, devantChaise, siegeProche } from './interieurs.js';
 import { payerEtRecevoir, remettre } from './remise.js';
 import { scene } from './scene.js';
@@ -153,27 +155,58 @@ export function appelerZem(dx, dz, nom, prix) {
   if (!n) { ligne('Pas de route ici : approche-toi d’une rue pour héler un zém.'); return; }
   const [X, Z] = noeudPos(n[0]), V = creerVehicule('zem'); placer(V, X, Z, Math.atan2(ici[0] - X, ici[1] - Z));
   const pts = itineraire(X, Z, V.cap, ici[0], ici[1]); if (!pts) { retirerVehicule(V); ligne('Le zém ne trouve pas de route jusqu’à toi : approche-toi d’une rue.'); return; }
-  T.zem = { V, phase: 'vient', P: { pts, i: 0 }, dest: [dx, dz], nom, prix, attente: 0 };
+  // Une étiquette jaune au-dessus de lui, visible à travers les murs : il attend souvent au bord de la rue, hors de vue.
+  const et = etiquette('Ton zém'); et.position.y = 1.7; V.g.add(et); V.etiquette = et;
+  T.zem = { V, phase: 'vient', P: { pts: surSaFile(pts), i: 0 }, dest: [dx, dz], nom, prix, attente: 0 };
   const f = pts[pts.length - 1], loin = Math.hypot(f[0] - S.x, f[1] - S.z);
-  ligne(loin > 8 ? `Un zém arrive… (${fmt(prix)} jusqu’à ${nom}). Il t’attendra au bord de la rue, à ${Math.round(loin)} m : rejoins-le.` : `Un zém arrive… (${fmt(prix)} jusqu’à ${nom})`);
+  ligne(loin > 8 ? `Un zém arrive… (${fmt(prix)} jusqu’à ${nom}). Il t’attendra au bord de la rue, à ${Math.round(loin)} m : suis l’étiquette jaune.` : `Un zém arrive… (${fmt(prix)} jusqu’à ${nom})`);
 }
 const noeudPos = n => { const R = construireReseau(); return [R.X[n], R.Z[n]]; };
 function monterZem() {
   const Z = T.zem; if (!Z) return;
   const bx = Z.V.x + Math.sin(Z.V.cap + Math.PI / 2) * .6, bz = Z.V.z + Math.cos(Z.V.cap + Math.PI / 2) * .6;
   T.trans = { t: 0, duree: .8, de: [S.x, S.z], vers: [bx, bz], fin: () => {
-    T.mode = 'passager'; Z.phase = 'course';
+    T.mode = 'passager'; Z.phase = 'course'; if (Z.V.etiquette) Z.V.etiquette.visible = false; // on est dessus : plus besoin de l'étiquette
     const pts = itineraire(Z.V.x, Z.V.z, Z.V.cap, Z.dest[0], Z.dest[1]) || [[Z.V.x, Z.V.z], [Z.V.x + Math.sin(Z.V.cap) * 3, Z.V.z + Math.cos(Z.V.cap) * 3]]; // sans route connue : il ne coupe pas tout droit à travers la ville
-    Z.P = { pts, i: 0 }; Z.longueur = longueur(pts); retirerRuban(T.gps?.m); T.gps = { pts, m: ruban(pts), nom: Z.nom, x: Z.dest[0], z: Z.dest[1] };
+    Z.P = { pts: surSaFile(pts), i: 0 }; Z.longueur = longueur(pts); retirerRuban(T.gps?.m); T.gps = { pts, m: ruban(pts), nom: Z.nom, x: Z.dest[0], z: Z.dest[1] };
     son('klaxon'); ligne('« On y va ! Tiens-toi bien. »');
   } };
 }
+// Le zém hélé suit son itinéraire sans voir la circulation : au départ, il traversait le camion arrêté à côté de lui.
+// Il freine maintenant derrière ce qui roule devant lui (voitures, camions, zéms, tokpas proches : E.circulation)
+// et, si le freinage n'a pas suffi, il s'arrête net au contact au lieu d'entrer dans la carrosserie.
+// Pas ceux d'en face (ils sont sur l'autre file), ni les zéms et tokpas qui coupent sa route : eux s'arrêtent
+// aussi pour le joueur, et les deux s'attendraient sans fin. Les voitures, elles, s'en vont au bout de 5 s (circulation.js).
+function vitesseLibre(V, vmax) {
+  const s = Math.sin(V.cap), c = Math.cos(V.cap), hl = (V.D?.long ?? 2) / 2, hw = (V.D?.larg ?? .8) / 2; let v = vmax;
+  for (const W of E.circulation) {
+    const meme = Math.cos(W.cap - V.cap); if (meme < -.5 || (meme < .3 && !W.type)) continue;
+    const ax = W.px - V.x, az = W.pz - V.z, devant = ax * s + az * c, cote = Math.abs(ax * c - az * s);
+    const tr = Math.abs(Math.sin(W.cap - V.cap)), lng = W.hl * (1 - tr) + W.hw * tr, lrg = W.hw * (1 - tr) + W.hl * tr; // W vu de face ou de travers
+    if (devant > 0 && devant < hl + lng + 12 && cote < hw + lrg + .4) v = Math.min(v, Math.max(0, (devant - hl - lng - 1.5) * 1.1));
+  }
+  return v;
+}
+// Sur sa file, à droite (comme les zéms de la circulation) : au milieu de la chaussée, il frôlait les voitures d'en face.
+const FILE_ZEM = 1.1;
+const surSaFile = pts => pts.length > 1 ? decalee(pts, FILE_ZEM) : pts;
+function suivreSansTraverser(V, P, dt, vmax) {
+  if (V.passe > 0) { V.passe -= dt; return suivreChemin(V, P, dt, vmax); } // retenu plus de 4 s (un zém arrêté en travers) : il se faufile
+  const L = (V.D?.long ?? 2) * .45, corps = () => { const s = Math.sin(V.cap), c = Math.cos(V.cap); let p = 0; for (const k of [-L, 0, L]) p = Math.max(p, dansCirculation(V.x + s * k, V.z + c * k, .35)); return p; };
+  const x = V.x, z = V.z, cap = V.cap, avant = corps();
+  const libre = vitesseLibre(V, vmax), fini = suivreChemin(V, P, dt, libre);
+  let retenu = libre < .5;
+  if (corps() > avant + .01) { V.x = x; V.z = z; V.cap = cap; V.v = 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; retenu = true; } // ni en avançant, ni en tournant
+  V.retenu = retenu ? (V.retenu || 0) + dt : 0;
+  if (V.retenu > 4) { V.retenu = 0; V.passe = 1.5; }
+  return fini;
+}
 function majZem(dt) {
   const Z = T.zem; if (!Z) return;
-  if (Z.phase === 'vient') { if (suivreChemin(Z.V, Z.P, dt, 12)) { Z.phase = 'attend'; son('klaxon'); ligne('Ton zém est là : monte derrière lui !'); } }
+  if (Z.phase === 'vient') { if (suivreSansTraverser(Z.V, Z.P, dt, 12)) { Z.phase = 'attend'; son('klaxon'); ligne('Ton zém est là : monte derrière lui !'); } }
   else if (Z.phase === 'attend') { Z.attente += dt; if (Z.attente > 90) { ligne('Le zém est reparti : tu l’as fait trop attendre.'); Z.phase = 'repart'; Z.repart = 0; } }
   else if (Z.phase === 'course') {
-    const arrive = suivreChemin(Z.V, Z.P, dt, 17) || (Math.hypot(Z.dest[0] - Z.V.x, Z.dest[1] - Z.V.z) < 6 && Z.V.v < 3); // à quelques mètres et presque arrêté : on y est
+    const arrive = suivreSansTraverser(Z.V, Z.P, dt, 17) || (Math.hypot(Z.dest[0] - Z.V.x, Z.dest[1] - Z.V.z) < 6 && Z.V.v < 3); // à quelques mètres et presque arrêté : on y est
     if (arrive) finCourse(Z.prix, false);
   } else if (Z.phase === 'repart') { // il s'en va tout droit ; devant un mur ou une maison, il a déjà tourné au coin : on ne le voit plus
     Z.repart += dt;
@@ -304,7 +337,7 @@ export function majTrajets(dt, av, tour) {
     majGps(dt, V.x, V.z, V.cap);
     return { x: V.x, y: V.y, z: V.z, cap: V.cap, dist: V.type === 'tokpa' ? 11 : V.D.cache ? 8 : 6, haut: V.type === 'tokpa' ? 4 : V.D.cache ? 3.2 : 2.6 };
   }
-  $('#vhVitesse').hidden = true; if (T.veh?.etiquette) T.veh.etiquette.visible = !S.lieu; // dedans, l'étiquette se verrait à travers les murs
+  $('#vhVitesse').hidden = true; for (const E of [T.veh, T.mode === 'passager' ? null : T.zem?.V]) if (E?.etiquette) E.etiquette.visible = !S.lieu && Math.hypot(E.x - S.x, E.z - S.z) > 4.5; // dedans, elle se verrait à travers les murs ; tout près, elle couvrait le nom du joueur et « Chez toi »
   if (T.mode === 'passager' && T.zem) {
     const V = T.zem.V; S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; S.anim = 'assis';
     asseoirSur(S.moi, V, true); majGps(dt, V.x, V.z, V.cap);

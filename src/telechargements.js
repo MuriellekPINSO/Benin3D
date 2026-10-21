@@ -4,6 +4,8 @@
 // ensemble pendant le chargement (une trentaine de mégaoctets), ils se partageaient la connexion avec ce que
 // l'écran de chargement attend vraiment (données de la ville, zémidjans) et retardaient l'entrée de 20 à 30 s,
 // davantage sur un téléphone en 4G.
+import * as THREE from 'three';
+
 const F = { demarre: false, attente: [], enCours: 0, max: 3 };
 
 /** Lance `fn` (qui renvoie une promesse) quand la ville est affichée ; `prioritaire` : avant ceux qui attendent. */
@@ -18,3 +20,14 @@ function suivant() {
 }
 /** Appelé quand l'écran de chargement disparaît (main.js). */
 export function demarrerTelechargements() { F.demarre = true; suivant(); }
+/** Texture d'une photo (public/…) téléchargée une fois la ville affichée ; un aplat `teinte` en attendant.
+ *  L'image n'a pas la taille de l'aplat : dispose() avant le nouvel envoi, sinon three garde le stockage 1 × 1 déjà alloué. */
+export function photoPlusTard(fichier, teinte = '#cbbfa8') {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 1;
+  const g = cv.getContext('2d'); g.fillStyle = teinte; g.fillRect(0, 0, 1, 1);
+  const t = new THREE.Texture(cv); t.needsUpdate = true;
+  plusTard(() => new THREE.ImageLoader().loadAsync(import.meta.env.BASE_URL + fichier))
+    .then(img => { t.image = img; t.dispose(); t.needsUpdate = true; })
+    .catch(e => console.warn(`photo ${fichier}`, e.message));
+  return t;
+}

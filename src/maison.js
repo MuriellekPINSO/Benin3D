@@ -150,7 +150,7 @@ function lit(I, { x, z, a, larg, long, natte = false, vue, leve }) {
     K.boite(larg + .01, .012, long - .5, pagne, 0, y + .006, .25, g); // drap de pagne
   }
   K.boite(Math.min(larg - .2, .6), .12, .32, '#ffffff', 0, y + .06, -long / 2 + .25, g); // oreiller
-  const deplie = K.boite(larg - .04, .26, long * .6, pagne, 0, y + .13, long / 2 - long * .3 - .02, g); deplie.visible = false;
+  const deplie = K.boite(larg - .04, .34, long * .6, pagne, 0, y + .17, long / 2 - long * .3 - .02, g); deplie.visible = false; // assez épaisse pour couvrir le corps couché
   const plie = K.boite(larg - .12, .1, .38, pagne, 0, y + .05, long / 2 - .24, g);
   const droit = Math.abs(Math.sin(a)) < .5; meuble(I, droit ? larg + .1 : long + .1, droit ? long + .1 : larg + .1, x, z, natte ? .05 : .6);
   I.lit = { x, z, a, y, vue, leve, deplie, plie };
@@ -274,7 +274,7 @@ function appartement(I) {
 export function coucher(I) {
   const S = H.S, L = I.lit, p = dansLaPiece(I, L.x, L.z);
   finActivite();
-  S.couche = { x: p.x + Math.sin(L.a) * .85, y: p.y + L.y + .1, z: p.z + Math.cos(L.a) * .85, a: L.a }; // le dos s'enfonce un peu dans le matelas
+  S.couche = { x: p.x + Math.sin(L.a) * .85, y: p.y + L.y + .17, z: p.z + Math.cos(L.a) * .85, a: L.a }; // le dos posé sur le matelas (à +0,1, épaules et bras passaient au travers)
   S.x = p.x; S.z = p.z; S.cap = L.vue; S.tangage = .7; S.saut = true; S.geste = 'idle';
   L.deplie.visible = true; L.plie.visible = false;
 }
@@ -369,7 +369,7 @@ export function actionsMaison() {
 /** Renvoie true quand la maison place elle-même le personnage (couché, douche, cuisine) ; false : on marche. */
 export function majMaison(dt, av, tour) {
   const S = H.S; if (!S) return false;
-  for (const I of INTERIEURS.values()) if (I.prive) I.etiquette.visible = S.actif && !S.lieu; // « Chez toi », vu de la rue
+  for (const I of INTERIEURS.values()) if (I.prive) I.etiquette.visible = S.actif && !S.lieu && Math.hypot(I.porte[0] - S.x, I.porte[1] - S.z) > 6; // « Chez toi », vu de la rue (devant la porte, le bouton « Rentrer » suffit)
   const bouge = Math.abs(av) > .3 || Math.abs(tour) > .3;
   if (S.couche) {
     if (bouge) { lever(); return false; }

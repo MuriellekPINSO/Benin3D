@@ -13,7 +13,7 @@ export function creerRendu() {
   }
 }
 export const renderer = creerRendu();
-renderer.setPixelRatio(Math.min(devicePixelRatio, LITE ? 1.5 : 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, LITE ? 1.25 : 2)); // téléphone : moins de mémoire d'image, l'écran est petit
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.shadowMap.enabled = !LITE;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;

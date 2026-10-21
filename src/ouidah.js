@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { LITE } from './base.js';
 import { groupeLieu } from './lieux.js';
+import { photoPlusTard } from './telechargements.js';
 import { chargerMasques, creerEgungun, creerZangbeto, masque } from './egungun.js';
 
 // Ouidah : la Porte du Non-Retour, au bout de la Route des Esclaves, et l'Arène de
@@ -300,8 +301,8 @@ function porte() {
     const sp = new THREE.Shape(); sp.moveTo(-4.75, 6.1); sp.lineTo(-4.75, yB); sp.lineTo(4.75, yB); sp.lineTo(4.75, 6.1); sp.absellipse(0, 6.1, 4.75, 2.8, 0, Math.PI, false); sp.closePath();
     add(new THREE.Mesh(new THREE.ExtrudeGeometry(sp, { depth: D, bevelEnabled: false, curveSegments: 24 }).translate(0, 0, -D / 2), blanc));
     // Les deux grandes faces : la photo, avec les vides (baies, arche) découpés par un masque d'alpha.
-    const charge = f => { const t = new THREE.TextureLoader().load(import.meta.env.BASE_URL + f); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
-    const alpha = charge('textures/porte-alpha.jpg'); alpha.colorSpace = THREE.NoColorSpace;
+    const charge = (f, teinte) => { const t = photoPlusTard(f, teinte); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+    const alpha = charge('textures/porte-alpha.jpg', '#ffffff'); alpha.colorSpace = THREE.NoColorSpace;
     const mPhoto = new THREE.MeshStandardMaterial({ map: charge('textures/porte-facade.jpg'), alphaMap: alpha, alphaTest: .5, roughness: .8 });
     for (const s of [-1, 1]) { const p = add(new THREE.Mesh(new THREE.PlaneGeometry(W, 16.2), mPhoto), false); p.position.set(0, 7.6, s * (D / 2 + .05)); if (s < 0) p.rotation.y = Math.PI; p.userData.garder = true; }
   }

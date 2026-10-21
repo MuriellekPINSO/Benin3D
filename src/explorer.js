@@ -5,7 +5,7 @@ import { $, coarse } from './base.js';
 import { PLACES } from './donnees-lieux.js';
 import { E } from './etat.js';
 import { startFlight } from './interface.js';
-import { monumentsEnVisite } from './monde-reel.js';
+import { basculerMondeReel, monumentsEnVisite } from './monde-reel.js';
 import { camera, controls } from './scene.js';
 import { nombreEnLigne } from './statistiques.js';
 
@@ -22,12 +22,17 @@ export function initCategories() {
   el.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => { filtre = b.dataset.c; el.querySelectorAll('.chip').forEach(x => x.setAttribute('aria-pressed', String(x === b))); appliquerFiltre(); }));
 }
 export function appliquerFiltre() { for (const p of PLACES) { const ok = filtre === 'Tout' || catDe(p) === filtre; p.btn.parentElement.hidden = !ok; if (p.label) p.label.style.display = ok ? '' : 'none'; } }
-export const PRES = { actif: false };
+export const PRES = { actif: false, reelle: false };
 export const attendre = ms => new Promise(r => setTimeout(r, ms));
 export const finVol = () => new Promise(r => { const chk = () => (!E.flight || !PRES.actif) ? r() : requestAnimationFrame(chk); chk(); });
 export async function presentation() {
   if (PRES.actif) return; PRES.actif = true;
   const app = document.getElementById('app'); app.classList.add('mode-pres'); $('#pres').hidden = false; monumentsEnVisite(true);
+  // La visite montre la ville telle qu'on l'a reconstruite : on coupe la Vue réelle (les photos de Google) le temps
+  // du survol, et on la remet à la fin. Sans ça, la maquette survolait des images satellite.
+  const btnG = $('#togGoogle');
+  PRES.reelle = btnG?.getAttribute('aria-pressed') === 'true';
+  if (PRES.reelle) { btnG.setAttribute('aria-pressed', 'false'); await basculerMondeReel(false); }
   $('#presSortie').textContent = coarse ? 'Touche l’écran pour quitter' : 'Cliquer ou Échap pour quitter';
   const titre = (h, p) => { const t = $('#presTitre'), s = $('#presSous'); t.textContent = h; s.textContent = p; const box = $('#pres .pres-titre'); box.classList.remove('on'); void box.offsetWidth; box.classList.add('on'); };
   // La radio s'efface : la visite se fait sur « Agolo » d'Angélique Kidjo.
@@ -55,6 +60,7 @@ export async function presentation() {
 export function finPresentation(remettreRadio) {
   if (!PRES.actif) return; PRES.actif = false; controls.autoRotate = $('#togTour').getAttribute('aria-pressed') === 'true'; controls.autoRotateSpeed = -.35;
   document.getElementById('app').classList.remove('mode-pres'); $('#pres').hidden = true; monumentsEnVisite(false);
+  if (PRES.reelle) { PRES.reelle = false; const b = $('#togGoogle'); b?.setAttribute('aria-pressed', 'true'); basculerMondeReel(true); }
   musiqueVisite(false);
   if (remettreRadio) { if (chansonActive() >= 0) suspendreChanson(false); else radio(true); }
 }

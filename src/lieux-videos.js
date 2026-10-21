@@ -6,6 +6,7 @@ import { K, bake, centroide, detailsProches, grandPanneau, groupeLieu, local, mu
 import { construireLieuxMarina } from './lieux-marina.js';
 import { GRANDES_AFFICHES } from './publicites.js';
 import { MUR, poserSol } from './sols.js';
+import { photoPlusTard } from './telechargements.js';
 
 // Lieux relevés sur les vidéos de drone de Cotonou (octobre 2026) : Sofitel Marina,
 // tour BCEAO, Erevan et la statue de Bio Guéra, rond-point de l'aéroport, mosquée de
@@ -229,7 +230,7 @@ function erevan(ring, versRondPoint) {
       const pose = (p, d) => { p.position.x += ex * d; p.position.z += ez * d; p.rotation.y = -a + sens; p.material.side = THREE.FrontSide; return p; };
       const g2 = sens ? -1 : 1; // à gauche ou à droite selon le sens de la façade
       // La vraie façade : bandeau haut tiré d'une photo (Alex Ahdn, CC BY-SA 4.0, Wikimedia Commons), redressée et recadrée (scripts/photos-facades.mjs).
-      const photo = new THREE.TextureLoader().load(import.meta.env.BASE_URL + 'textures/erevan-facade.jpg'); photo.colorSpace = THREE.SRGBColorSpace; photo.anisotropy = 8;
+      const photo = photoPlusTard('textures/erevan-facade.jpg', '#d98a4e'); photo.colorSpace = THREE.SRGBColorSpace; photo.anisotropy = 8;
       // La photo couvre ~38 m de façade (bande de 4,3 m de haut) : on la pose à sa vraie taille, au milieu, le reste de la façade reste en enduit orange.
       const bande = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(Lf - .4, 4.3 * 3640 / 410), 4.3), new THREE.MeshStandardMaterial({ map: photo, roughness: .85 }));
       bande.position.set(mx + nx * .3, 6.75, mz + nz * .3); bande.rotation.y = Math.atan2(ux, uz); // face au rond-point

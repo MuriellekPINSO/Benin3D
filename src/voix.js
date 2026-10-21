@@ -6,6 +6,9 @@ import { AUDIO } from './audio.js';
 // Chaque personne garde sa voix (femme ou homme, hauteur et débit tirés de sa graine).
 // On n'entend que ceux qui sont près du zém, une phrase à la fois ; ce à quoi l'on
 // répond (dialogue) passe devant les bavardages du bord de la route.
+// Les phrases des vendeuses (pure water, kpayo, MoMo, l'artisane…) sont enregistrées : public/audio/voix/, la voix de
+// Murielle clonée sur son Mac à partir d'un enregistrement (Chatterbox, en local). Une femme qui dit l'une d'elles la dit
+// avec ce fichier, un peu plus aiguë ou plus grave selon sa graine ; tout le reste passe par la synthèse du navigateur.
 
 const synth = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
 export const VOIX = { on: true, femmes: [], hommes: [], toutes: [], courant: null, file: [], dernier: { cle: '', t: 0 }, garde: 0 };
@@ -29,6 +32,35 @@ if (synth) { chargerVoix(); synth.addEventListener?.('voiceschanged', chargerVoi
 const debloquer = () => { if (!synth) return; const u = new SpeechSynthesisUtterance(' '); u.volume = 0; synth.speak(u); };
 addEventListener('pointerdown', debloquer, { once: true, capture: true });
 addEventListener('keydown', debloquer, { once: true, capture: true });
+
+// ---------- Les phrases enregistrées ----------
+// Dans l'ordre des fichiers : la première est 01.m4a. Elles sont comparées sans accents, ponctuation ni guillemets.
+const ENREGISTREES = [
+  'Pure water ! Pure water !', 'Akassa chaud !', 'Venez acheter, c’est pas cher !', 'Arachides grillées !', 'Ananas sucré !',
+  'Kpayo ! Essence, essence !', 'Un litre, deux litres ?', 'Kpayo ! Un litre, deux litres ?', 'Merci ! Roule bien, mon frère !',
+  'Une autre fois !', 'Il faut payer d’abord hein !', 'Dépôt, retrait MoMo !', 'Crédit, crédit !', 'Regarde bien, prends ton temps !',
+  'Tu l’as déjà acheté chez nous ! Regarde les autres.', 'Bonne arrivée ! Viens voir, ma sœur, mon frère. Tout est fait à la main.',
+  'Bonne arrivée ! Viens voir, mon client. Tout est fait à la main.', 'Kpayo ! 500 F le litre, c’est moins cher qu’à la station !',
+  'Pure water, akassa, beignets ! Tu prends quoi ?', 'Bon, pour toi j’enlève un peu. Tu prends quoi ?', 'Une autre fois alors ! Bonne route !',
+];
+const cleDe = t => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const CLIPS = new Map(ENREGISTREES.map((t, i) => [cleDe(t), { n: String(i + 1).padStart(2, '0'), octets: null, decode: null, tampon: undefined }]));
+/** Les fichiers sont petits (une vingtaine de Ko chacun) : on les télécharge au premier geste et on les décode tous à la première phrase dite. */
+function telechargerClips() {
+  if (!VOIX.on) return;
+  for (const c of CLIPS.values()) c.octets ??= fetch(`${import.meta.env.BASE_URL}audio/voix/${c.n}.m4a`).then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+}
+/** L'enregistrement de cette phrase, s'il y en a un et que le son du jeu tourne. Le premier appel décode tous les fichiers
+ * (quelques dizaines de millisecondes) : lancer() attend le sien plutôt que de passer à la synthèse. */
+function clipDe(texte) {
+  const c = CLIPS.get(cleDe(texte)), ctx = AUDIO.ctx;
+  if (!c || !ctx || ctx.state !== 'running') return null;
+  telechargerClips();
+  for (const x of CLIPS.values()) x.decode ??= x.octets?.then(o => o && ctx.decodeAudioData(o)).then(b => { x.tampon = b || null; }).catch(() => { x.tampon = null; });
+  return c.decode && c.tampon !== null ? c : null;
+}
+addEventListener('pointerdown', telechargerClips, { once: true, capture: true });
+addEventListener('keydown', telechargerClips, { once: true, capture: true });
 
 const graineDe = g => typeof g === 'number' ? Math.abs(Math.round(g)) : [...String(g ?? '')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7) >>> 0;
 /** La voix d'une personne : { femme, graine, age: '' | 'jeune' | 'vieux' | 'revenant' }. */
@@ -59,27 +91,51 @@ function lancer(e, delai = 0) {
   VOIX.courant = e;
   const fini = () => {
     if (VOIX.courant !== e) return; VOIX.courant = null; clearTimeout(VOIX.garde);
-    let n; while ((n = VOIX.file.shift()) && performance.now() - n.t > 6000); // trop tard : on ne dit plus
+    let n; while ((n = VOIX.file.shift()) && performance.now() - n.t0 > 6000); // trop tard : on ne dit plus
     if (n) lancer(n, 80);
   };
+  clearTimeout(VOIX.garde);
+  if (e.c && !e.c.tampon) { // le fichier se décode encore : on l'attend, la synthèse si le décodage échoue
+    VOIX.garde = setTimeout(fini, 2500);
+    e.c.decode.then(() => { if (VOIX.courant !== e) return; if (!e.c.tampon) { e.c = null; e.u = enonce(e); } if (e.c || e.u) lancer(e, delai); else fini(); });
+    return;
+  }
+  if (e.c) { // l'enregistrement, joué par le Web Audio du jeu (débloqué au premier geste, iPhone compris)
+    const ctx = AUDIO.ctx, src = ctx.createBufferSource(), g = ctx.createGain(), b = e.c.tampon;
+    src.buffer = b; src.playbackRate.value = e.vitesse; g.gain.value = e.qui.fort ? 1 : .9; src.connect(g).connect(ctx.destination);
+    src.onended = fini; e.src = src; src.start(ctx.currentTime + delai / 1000);
+    VOIX.garde = setTimeout(fini, delai + b.duration / e.vitesse * 1000 + 1500);
+    return;
+  }
   e.u.onend = e.u.onerror = fini;
   setTimeout(() => { if (VOIX.courant === e) synth.speak(e.u); }, delai);
-  clearTimeout(VOIX.garde); VOIX.garde = setTimeout(fini, delai + 2500 + e.u.text.length * 110); // filet si « end » n'arrive jamais
+  VOIX.garde = setTimeout(fini, delai + 2500 + e.u.text.length * 110); // filet si « end » n'arrive jamais
+}
+/** La phrase pour la synthèse du navigateur, avec la voix de la personne (null sans voix française). */
+function enonce({ t, qui }) {
+  const P = synth && profil(qui); if (!P) return null;
+  const u = new SpeechSynthesisUtterance(t); u.voice = P.voix; u.lang = P.voix.lang; u.pitch = P.pitch; u.rate = P.rate; u.volume = qui.fort ? 1 : .92;
+  return u;
+}
+/** Coupe ce qui se dit (enregistrement ou synthèse). */
+function couper(e) {
+  if (e?.src) { e.src.onended = null; try { e.src.stop(); } catch { } }
+  synth?.cancel();
 }
 /** Dit `texte` avec la voix de `qui`. Priorité : 0 bavardage (dit seulement si personne ne parle), 1 ce qui s'adresse au zém, 2 dialogue. */
 export function parler(texte, qui = {}, priorite = 0) {
-  if (!synth || !VOIX.on || AUDIO.muet) return;
+  if (!VOIX.on || AUDIO.muet) return;
   const t = pourLaVoix(texte); if (!t) return;
   const cle = t.toLowerCase().replace(/[^a-zà-ÿ0-9]/g, ''), now = performance.now();
   if (cle === VOIX.dernier.cle && now - VOIX.dernier.t < 4000) return; // la bulle et le dialogue disent souvent la même chose
   if (VOIX.courant && priorite === 0) return;
-  const P = profil(qui); if (!P) return;
+  const c = qui.femme && qui.age !== 'revenant' ? clipDe(texte) : null, e = { c, qui, t, priorite, t0: now };
+  if (c) { const g = graineDe(qui.graine); e.vitesse = (.95 + hash(g, 84) * .12) * (qui.age === 'vieux' ? .93 : qui.age === 'jeune' ? 1.04 : 1); }
+  else if (!(e.u = enonce(e))) return;
   VOIX.dernier = { cle, t: now };
-  const u = new SpeechSynthesisUtterance(t); u.voice = P.voix; u.lang = P.voix.lang; u.pitch = P.pitch; u.rate = P.rate; u.volume = qui.fort ? 1 : .92;
-  const e = { u, priorite, t: now };
   if (!VOIX.courant) return lancer(e);
   if (priorite > VOIX.courant.priorite) { // on coupe le bavardage pour ce qui compte
-    VOIX.file = VOIX.file.filter(x => x.priorite >= priorite); VOIX.courant = null; synth.cancel(); lancer(e, 80); return;
+    VOIX.file = VOIX.file.filter(x => x.priorite >= priorite); couper(VOIX.courant); VOIX.courant = null; lancer(e, 80); return;
   }
   VOIX.file.push(e); if (VOIX.file.length > 3) VOIX.file.shift();
 }
@@ -91,6 +147,6 @@ export function voixDe(o) {
   return { femme: hash(o?.id ?? 0, 3) < .5, graine: o?.id ?? 0 };
 }
 /** Silence (pause, fin de partie, son coupé). */
-export function taire() { VOIX.file = []; VOIX.courant = null; clearTimeout(VOIX.garde); synth?.cancel(); }
+export function taire() { VOIX.file = []; couper(VOIX.courant); VOIX.courant = null; clearTimeout(VOIX.garde); }
 export function voixActives(on) { VOIX.on = on; if (!on) taire(); try { localStorage.setItem('cotonou3d.voix', on ? '1' : '0'); } catch { } }
 export const voixDispo = () => !!synth;
