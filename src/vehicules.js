@@ -170,9 +170,9 @@ function geometrieDe(gabarit) {
 }
 // tokpa.glb (Tripo, d'après une description) : le minibus Toyota des lignes de tokpa-tokpa.
 export const TOKPA_3D = { geo: null, mat: null };
-export async function chargerTokpa(version = 0) {
+export async function chargerTokpa(url) {
   try {
-    const g = (await chargeur.loadAsync(import.meta.env.BASE_URL + `modeles/batiments/tokpa.glb?v=${version}`)).scene;
+    const g = (await chargeur.loadAsync(url)).scene;
     const r = geometrieDe(gabaritDe(g, { largeur: 5 })); if (r) { TOKPA_3D.geo = r.geo; TOKPA_3D.mat = r.mat; }
   } catch (e) { console.warn('modèle tokpa indisponible', e.message); }
   return TOKPA_3D;

@@ -8,10 +8,11 @@
    "salut",
    "danse1",
    "danse2",
-   "acclame"
+   "acclame",
+   "course"
   ],
   "triangles": 13300,
-  "octets": 832576,
+  "octets": 850988,
   "danses": 0
  },
  "chemise-wax": {
@@ -23,10 +24,11 @@
    "salut",
    "danse1",
    "danse2",
-   "acclame"
+   "acclame",
+   "course"
   ],
   "triangles": 13550,
-  "octets": 948924,
+  "octets": 967424,
   "danses": 0
  },
  "kaba": {
@@ -38,10 +40,11 @@
    "salut",
    "danse1",
    "danse2",
-   "acclame"
+   "acclame",
+   "course"
   ],
   "triangles": 13572,
-  "octets": 1086616,
+  "octets": 1105276,
   "danses": 0
  },
  "sport-h": {
@@ -53,10 +56,11 @@
    "salut",
    "danse1",
    "danse2",
-   "acclame"
+   "acclame",
+   "course"
   ],
   "triangles": 13334,
-  "octets": 844980,
+  "octets": 863640,
   "danses": 0
  },
  "urbaine-f": {
@@ -68,10 +72,11 @@
    "salut",
    "danse1",
    "danse2",
-   "acclame"
+   "acclame",
+   "course"
   ],
   "triangles": 13346,
-  "octets": 973968,
+  "octets": 992356,
   "danses": 0
  },
  "robe-wax": {
@@ -83,10 +88,11 @@
    "salut",
    "danse1",
    "danse2",
-   "acclame"
+   "acclame",
+   "course"
   ],
   "triangles": 13898,
-  "octets": 1062952,
+  "octets": 1081656,
   "danses": 0
  },
  "tshirt-h": {
@@ -98,10 +104,11 @@
    "salut",
    "danse1",
    "danse2",
-   "acclame"
+   "acclame",
+   "course"
   ],
   "triangles": 13328,
-  "octets": 839232,
+  "octets": 857624,
   "danses": 0
  },
  "top-f": {
@@ -113,10 +120,11 @@
    "salut",
    "danse1",
    "danse2",
-   "acclame"
+   "acclame",
+   "course"
   ],
   "triangles": 13774,
-  "octets": 886188,
+  "octets": 904772,
   "danses": 0
  },
  "maillot-h": {
@@ -128,10 +136,11 @@
    "salut",
    "danse1",
    "danse2",
-   "acclame"
+   "acclame",
+   "course"
   ],
   "triangles": 13152,
-  "octets": 833728,
+  "octets": 851920,
   "danses": 0
  },
  "pagne-f": {
@@ -143,10 +152,11 @@
    "salut",
    "danse1",
    "danse2",
-   "acclame"
+   "acclame",
+   "course"
   ],
   "triangles": 13768,
-  "octets": 1050960,
+  "octets": 1069672,
   "danses": 0
  }
 }

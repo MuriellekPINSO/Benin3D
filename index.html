@@ -94,7 +94,7 @@
       <button class="tog" type="button" id="togLeger" aria-pressed="false" title="Mode léger : moins de détails pour que le jeu tourne mieux (recharge la page)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20c0-8 5-14 15-16-1 10-7 15-15 16Z"/><path d="M5 20 13 12"/></svg><span class="t-long">Mode léger</span></button>
     </div>
   </div>
-  <div class="jouer-flottants"><button class="jouer jouer-flottant jouer-vivre" type="button" id="btnVivre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/></svg>Vivre à Cotonou</button><button class="jouer jouer-flottant" type="button" id="btnJouer"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Jouer à Zém Run</button></div>
+  <div class="jouer-flottants"><button class="jouer jouer-flottant jouer-vivre" type="button" id="btnVivre" title="Ta vie en ville : un logement, un métier, ton maquis, tes amis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/></svg>Vivre à Cotonou</button><button class="jouer jouer-flottant" type="button" id="btnJouer" title="La course de zémidjan dans les vraies rues de Cotonou"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Jouer à Zém Run</button></div>
 
   <aside class="lecteur panel" id="lecteur" hidden aria-label="Musique du Bénin">
     <div class="lecteur-video"><div id="lecteurYT"></div></div>
@@ -228,18 +228,21 @@
       <a class="ac-langue" href="en/" hreflang="en">English</a>
     </header>
     <nav class="ac-puces" aria-label="Autres façons de jouer">
-      <button class="ac-puce" type="button" id="acZemRun"><i class="zem"></i>Zém Run</button>
       <button class="ac-puce" type="button" id="acVisite"><i class="visite"></i>Visite en musique</button>
     </nav>
     <div class="ac-carte" role="dialog" aria-labelledby="acTitre">
-      <div class="ac-tete">
-        <div class="ac-avatars" aria-hidden="true"><img src="/modeles/mode/vignettes/top-f.webp" alt=""><img src="/modeles/mode/vignettes/pagne-f.webp" alt=""><img src="/modeles/mode/vignettes/tshirt-h.webp" alt=""><img src="/modeles/mode/vignettes/maillot-h.webp" alt=""></div>
-        <p id="acTitre"><b>Vivre à Cotonou</b> : un logement, un métier, un zém, des amis. Gratuit.</p>
+      <p class="ac-titre" id="acTitre">Cotonou en 3D, gratuit. Tu joues à quoi ?</p>
+      <div class="ac-modes">
+        <button class="ac-mode ac-mode-vivre" type="button" id="acVivre">
+          <span class="ac-avatars" aria-hidden="true"><img src="/modeles/mode/vignettes/top-f.webp" alt=""><img src="/modeles/mode/vignettes/tshirt-h.webp" alt=""></span>
+          <span class="ac-mode-txt"><b>Vivre à Cotonou</b><small>Ta vie en ville : un logement, un métier, ton maquis, tes amis.</small></span>
+        </button>
+        <button class="ac-mode" type="button" id="acZemRun">
+          <span class="ac-avatars" aria-hidden="true"><img src="/modeles/mode/vignettes/zem.webp" alt=""></span>
+          <span class="ac-mode-txt"><b>Zém Run</b><small>La course de zémidjan dans les vraies rues : négocie, dépose tes clients, évite les trous.</small></span>
+        </button>
       </div>
-      <div class="ac-actions">
-        <button class="jouer ac-jouer" type="button" id="acVivre">Jouer gratuitement</button>
-        <button class="ac-passer" type="button" id="acPasser">Explorer la carte</button>
-      </div>
+      <button class="ac-passer" type="button" id="acPasser">Juste explorer la carte</button>
       <p class="ac-son">Sans téléchargement · sur téléphone et ordinateur · avec le son, c’est mieux</p>
     </div>
   </div>
@@ -344,6 +347,7 @@
     </div>
     <div class="sl-actions panel" id="slActions"><button type="button" class="sl-gestes-tog" id="slGestesTog" aria-expanded="false" aria-controls="slGestes">Gestes</button><div class="sl-gestes" id="slGestes" aria-label="Gestes"></div><button type="button" class="sl-zem" id="slZem">Prendre un zém</button><button type="button" class="sl-zem sl-habiller" id="slHabiller">M’habiller</button><select id="slAller" aria-label="Aller à un lieu avec tes amis"></select></div>
     <div class="sl-joy" id="slJoy" hidden aria-hidden="true"><i></i></div>
+    <button type="button" class="sl-courir" id="slCourir" hidden aria-pressed="false">Courir</button>
     <div class="sl-boutons"><button type="button" id="slChatBtn" aria-expanded="false" aria-controls="slChat">Discussion<b id="slNonLus" hidden></b></button><button type="button" id="slGestesBtn" aria-expanded="false" aria-controls="slActions">Aller · gestes</button><button type="button" id="slVue2">Vue</button></div>
     <div class="sl-guide panel" id="slGuide" hidden role="status"></div>
     <canvas class="mini-carte" id="miniCarte" hidden role="button" tabindex="0" aria-label="Carte (touche M) : touche pour l’agrandir"></canvas>

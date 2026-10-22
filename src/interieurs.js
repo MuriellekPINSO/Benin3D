@@ -37,6 +37,18 @@ export function ouvrirInterieur(I) {
   I.g.visible = true; return I;
 }
 export function cacherInterieurs() { for (const I of INTERIEURS.values()) if (I.g) I.g.visible = false; }
+// Dans une pièce, on ne dessine que ce qui l'entoure : la ville est à des kilomètres, derrière les murs, et coûtait
+// pourtant 3,4 millions de triangles par image (assez pour faire fermer la page sur téléphone). Liste faite à l'entrée.
+const HORS = { I: null, liste: [] };
+/** Ce qu'il ne faut pas dessiner quand on est dans la pièce I, vue de p : tout ce qui est à plus de 150 m, sauf les lumières. */
+export function horsDeLaPiece(I, p) {
+  if (!I) { HORS.I = null; HORS.liste.length = 0; return HORS.liste; }
+  if (HORS.I !== I) {
+    HORS.I = I; HORS.liste.length = 0; const b = new THREE.Box3();
+    for (const o of scene.children) if (!o.isLight && o !== I.g && !b.setFromObject(o).isEmpty() && b.distanceToPoint(p) > 150) HORS.liste.push(o);
+  }
+  return HORS.liste;
+}
 export const arriveeDedans = I => ({ x: I.centre[0] + I.entree[0], y: ALT, z: I.centre[1] + I.entree[1], cap: I.entree[2] });
 export const arriveeDehors = I => ({ x: I.porte[0] + Math.sin(I.dehors) * 2.5, z: I.porte[1] + Math.cos(I.dehors) * 2.5, cap: I.dehors });
 /** Garde un point entre les murs de la pièce. */

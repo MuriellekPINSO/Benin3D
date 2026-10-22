@@ -199,7 +199,7 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
   mixer.update(assise ? 0 : E.ph); suivre(E);
   if (!manuel) P.actifs.add(E); // manuel : animé par son propriétaire (userData.maj), ex. la cabine d'essayage
   g.userData = {
-    tete: E.tete, main: E.main, femme: M.femme, graine: i, modele: id, haut: 1.15, jouer,
+    tete: E.tete, main: E.main, femme: M.femme, graine: i, modele: id, haut: 1.15, jouer, peut: nom => !!(actions[nom] || M.clips[nom]), // peut('course') : seuls les modèles des joueurs savent courir
     maj: dt => { mixer.update(dt); suivre(E); },
     anim: (t, parle, signe) => {
       if (assise) return;

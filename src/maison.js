@@ -31,7 +31,7 @@ const RECETTES = {
   appart: [['Omelette et pain', 400, 20], ['Spaghetti sauce tomate', 600, 32], ['Igname pilée, sauce arachide', 1200, 45], ['Poulet braisé et aloko', 2500, 55]],
 };
 const DUREE_DOUCHE = 8, DUREE_CUISSON = 12;
-const H = { S: null, ligne: () => { }, geste: () => { }, eau: null, vapeur: null, arreterBruit: null, gobelet: null };
+const H = { S: null, ligne: () => { }, geste: () => { }, eau: null, vapeur: null, brume: null, arreterBruit: null, gobelet: null };
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 
 export function initMaison(ctx) { H.S = ctx.S; H.ligne = ctx.ligne; H.geste = ctx.geste; H.guide = ctx.guide; }
@@ -309,7 +309,7 @@ function retirerParticules(p) { if (!p) return; scene.remove(p); p.geometry.disp
 function finActivite() {
   const S = H.S, A = S?.activite; if (!A) return;
   S.activite = null; H.arreterBruit?.(); H.arreterBruit = null;
-  retirerParticules(H.eau); retirerParticules(H.vapeur); H.eau = H.vapeur = null;
+  retirerParticules(H.eau); retirerParticules(H.vapeur); retirerParticules(H.brume); H.eau = H.vapeur = H.brume = null;
   if (H.gobelet) { H.gobelet.parent?.remove(H.gobelet); H.gobelet = null; }
   if (A.I.fourneau?.feu) A.I.fourneau.feu.visible = false;
 }
@@ -322,6 +322,7 @@ function doucher() {
   const S = H.S, I = S.lieu; if (!I?.douche || S.activite) return;
   demarrer('douche', I.douche, DUREE_DOUCHE, () => { son('piece'); H.ligne(`Ah, ça fait du bien ! Tu es ${VIE.femme ? 'toute fraîche' : 'tout frais'}.`); });
   H.eau = particules(90, '#bfe3ff', .06, .9); H.arreterBruit = bruit('eau', DUREE_DOUCHE);
+  H.brume = particules(72, '#eef4f8', 1.25, 0); // la buée, qui cache le corps jusqu'aux épaules
   if (I.douche.seau && S.moi) { const g = K.cyl(.05, .04, .1, 10, K.mat('#e9c046'), 0, .05, .05, S.moi.userData.main || S.moi); H.gobelet = g; } // on se verse l'eau au gobelet
   H.ligne(I.douche.seau ? 'Un seau d’eau, un gobelet : à la douche !' : 'Sous la douche…');
 }
@@ -384,6 +385,12 @@ export function majMaison(dt, av, tour) {
   if (H.eau) { // l'eau tombe d'au-dessus de la tête jusqu'au sol
     const a = H.eau.geometry.attributes.position, haut = S.y + A.spot.jet;
     H.eau.userData.graines.forEach(([u, ox, oz], i) => { const f = (u + A.t * 1.6) % 1; a.setXYZ(i, S.x + ox * .28, haut - f * A.spot.jet, S.z + oz * .28); });
+    a.needsUpdate = true;
+  }
+  if (H.brume) { // la buée s'épaissit en 1,5 s, tourne doucement autour de soi et s'efface à la fin
+    const a = H.brume.geometry.attributes.position, t = A.t;
+    H.brume.material.opacity = .85 * Math.max(0, Math.min(1, t / 1.5, (A.duree - t) / 1.2));
+    H.brume.userData.graines.forEach(([u, ox, oz], i) => { const ang = ox * Math.PI + t * (.25 + .15 * oz), r = .12 + .3 * Math.abs(oz); a.setXYZ(i, S.x + Math.cos(ang) * r, S.y + .15 + u * 1.3 + Math.sin(t * .8 + i) * .06, S.z + Math.sin(ang) * r); });
     a.needsUpdate = true;
   }
   if (H.vapeur) { // la vapeur monte de la marmite

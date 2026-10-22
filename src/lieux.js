@@ -887,6 +887,21 @@ export function dantokpa(B, M) {
 
 // ---------- Foule : silhouettes en pagne et tissus wax ----------
 export const detailsProches = [];
+/**
+ * Ajoute à la scène des détails instanciés semés sur des kilomètres (pilotis des villages lacustres, tombes, herbiers),
+ * découpés en carrés de `cote` m. D'un seul tenant, leur sphère faisait 25 km de rayon : toujours « proche », toujours
+ * dans le champ, 600 000 triangles à chaque image depuis n'importe quelle rue. Chaque carré est écarté à part.
+ */
+export function semer(m, cote = 600) {
+  const cases = new Map(), M = new THREE.Matrix4(), C = new THREE.Color();
+  for (let i = 0; i < m.count; i++) { m.getMatrixAt(i, M); const k = `${Math.floor(M.elements[12] / cote)},${Math.floor(M.elements[14] / cote)}`; if (!cases.has(k)) cases.set(k, []); cases.get(k).push(i); }
+  for (const ids of cases.values()) {
+    const c = new THREE.InstancedMesh(m.geometry, m.material, ids.length);
+    ids.forEach((i, j) => { m.getMatrixAt(i, M); c.setMatrixAt(j, M); if (m.instanceColor) { m.getColorAt(i, C); c.setColorAt(j, C); } });
+    c.castShadow = m.castShadow; c.receiveShadow = m.receiveShadow; c.renderOrder = m.renderOrder; c.userData = { ...m.userData };
+    c.computeBoundingSphere(); detailsProches.push(c); scene.add(c);
+  }
+}
 // Arbres et palmiers instanciés, avec leurs positions : le jeu écarte ceux qui gênent la caméra.
 export const VEGETATION = [];
 export const fouleCorps = new THREE.CylinderGeometry(.2, .27, 1.2, 6).translate(0, .62, 0);
@@ -987,11 +1002,11 @@ export function ganvie(G) {
     const ilots = new THREE.InstancedMesh(forme, new THREE.MeshLambertMaterial({ color: '#ffffff' }), herb.length);
     const m5 = new THREE.Matrix4(), q5 = new THREE.Quaternion(), s5 = new THREE.Vector3(), p5 = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
     herb.forEach(([x, z, r, h], k) => { m5.compose(p5.set(x, .06, z), q5.setFromAxisAngle(Y, h * 6.28), s5.set(r * (.8 + h * .6), 1, r * (1.3 - h * .5))); ilots.setMatrixAt(k, m5); ilots.setColorAt(k, verts[Math.floor(h * verts.length)]); });
-    ilots.receiveShadow = true; ilots.renderOrder = 6; ilots.userData.proche = 4000; detailsProches.push(ilots); scene.add(ilots);
+    ilots.receiveShadow = true; ilots.renderOrder = 6; ilots.userData.proche = 4000; semer(ilots);
   }
   const pilotis = new THREE.InstancedMesh(new THREE.CylinderGeometry(.09, .11, 2.2, 5).translate(0, .6, 0), new THREE.MeshLambertMaterial({ color: '#5b4a3a' }), pil.length);
   const m4 = new THREE.Matrix4(); pil.forEach((p, i) => { m4.makeTranslation(p[0], 0, p[2]); pilotis.setMatrixAt(i, m4); });
-  pilotis.userData.proche = 2500; detailsProches.push(pilotis); scene.add(pilotis);
+  pilotis.userData.proche = 2500; semer(pilotis);
 }
 // Façade rouge à pignons pointus, étoile et cercles blancs, galerie blanche (vue dans tes vidéos de Ganvié).
 export function facadeRouge(x, z) {

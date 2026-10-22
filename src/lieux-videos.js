@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { LITE, hash, toXZ } from './base.js';
 import { scene } from './scene.js';
-import { K, bake, centroide, detailsProches, grandPanneau, groupeLieu, local, mursPoly, obb, panneauTexte, solPoly, voiture } from './lieux.js';
+import { K, bake, centroide, detailsProches, grandPanneau, groupeLieu, local, mursPoly, obb, panneauTexte, semer, solPoly, voiture } from './lieux.js';
 import { construireLieuxMarina } from './lieux-marina.js';
 import { GRANDES_AFFICHES } from './publicites.js';
 import { MUR, poserSol } from './sols.js';
@@ -435,7 +435,7 @@ function tombes(arr) {
     m4.compose(p.set(arr[3 * i] / 10, 0, arr[3 * i + 1] / 10), q, s.set(1, .7 + hash(i, 121) * .9, 1));
     m.setMatrixAt(i, m4); m.setColorAt(i, blancs[Math.floor(hash(i, 122) * blancs.length)]);
   }
-  m.castShadow = !LITE; m.receiveShadow = true; m.userData.proche = 3500; detailsProches.push(m); scene.add(m);
+  m.castShadow = !LITE; m.receiveShadow = true; m.userData.proche = 3500; semer(m);
 }
 // ---------- Siège de Moov Africa Bénin : avenue Jean-Paul II, Zone résidentielle ----------
 // Modèle Tripo d'après une photo de la façade : tour de verre bleu en arc à l'angle nord-ouest

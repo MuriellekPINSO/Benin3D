@@ -3,7 +3,7 @@
 // affichée ni envoyée au site). À lancer depuis la racine :
 //   npm run tripo -- solde                       crédits disponibles
 //   npm run tripo -- <id> <photo> [triangles]    génère sources/tripo/<id>.glb puis public/modeles/batiments/<id>.glb
-//   npm run tripo -- alleger <id> [triangles]    refait seulement la version légère
+//   npm run tripo -- alleger <id> [triangles]    refait seulement la version légère (puis « npm run leger -- <id> » pour celle des téléphones)
 //   npm run tripo -- reprendre <id> <task_id> [triangles]   récupère une tâche déjà lancée (coupure réseau…)
 //   npm run tripo -- texte <id> "<description>" [triangles]  modèle à partir d'un texte (sans photo)
 // Docs : https://developers.tripo3d.ai/fr/docs/quick-start

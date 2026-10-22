@@ -1,0 +1,62 @@
+{
+ "congres": {
+  "triangles": 30000,
+  "octets": 534596
+ },
+ "etoile": {
+  "triangles": 30000,
+  "octets": 550792
+ },
+ "porte": {
+  "triangles": 30000,
+  "octets": 536732
+ },
+ "cathedrale": {
+  "triangles": 29994,
+  "octets": 689620
+ },
+ "dome": {
+  "triangles": 30000,
+  "octets": 526644
+ },
+ "bioguera": {
+  "triangles": 30000,
+  "octets": 514308
+ },
+ "dantokpa": {
+  "triangles": 29999,
+  "octets": 593760
+ },
+ "sofitel": {
+  "triangles": 30000,
+  "octets": 589164
+ },
+ "bceao": {
+  "triangles": 30000,
+  "octets": 679148
+ },
+ "voiture": {
+  "triangles": 59996,
+  "octets": 831464
+ },
+ "tokpa": {
+  "triangles": 30000,
+  "octets": 607956
+ },
+ "moov": {
+  "triangles": 29997,
+  "octets": 562840
+ },
+ "voiture-perso": {
+  "triangles": 40000,
+  "octets": 600816
+ },
+ "moto-perso": {
+  "triangles": 29996,
+  "octets": 582412
+ },
+ "avion-tourisme": {
+  "triangles": 29996,
+  "octets": 504548
+ }
+}

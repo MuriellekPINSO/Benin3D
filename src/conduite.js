@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { TRIPO } from './batiments-tripo.js';
+import { TRIPO, urlTripo } from './batiments-tripo.js';
 import { construireReseau, itineraireCourt } from './carrefours.js';
 import { personne } from './discussions.js';
 import { dansBatiment, dansObstacleRue } from './rue.js';
@@ -44,8 +44,8 @@ const SELLES = { moto: [.86, -.27] }; // selle du modèle Tripo, mesurée : dess
 export function chargerVehicules() {
   const ch = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   for (const [type, id] of [['voiture', 'voiture-perso'], ['moto', 'moto-perso'], ['taxi', 'voiture']]) { // taxi : celui de Zém Run
-    const info = TRIPO.info[id]; if (!info) continue;
-    plusTard(() => ch.loadAsync(`${import.meta.env.BASE_URL}modeles/batiments/${id}.glb?v=${info.octets}`)).then(g => { MODELES[type] = gabaritDe(g.scene, { largeur: LONGUEURS[type] }); }).catch(e => console.warn(`modèle ${id}`, e.message));
+    if (!TRIPO.info[id]) continue;
+    plusTard(() => ch.loadAsync(urlTripo(id))).then(g => { MODELES[type] = gabaritDe(g.scene, { largeur: LONGUEURS[type] }); }).catch(e => console.warn(`modèle ${id}`, e.message));
   }
 }
 /** Un véhicule : modèle (avant vers +z du groupe) et état de conduite. */

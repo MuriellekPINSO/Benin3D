@@ -23,12 +23,12 @@ const FEMME = 'A stylish young Beninese woman from Cotonou in her mid-twenties, 
 const HOMME = 'A stylish young Beninese man from Cotonou in his late twenties, dark skin, short black hair with a neat fade, trimmed beard, athletic build';
 const SANS_LOGO = 'plain fabric with no logo, no brand, no text';
 // Animations prêtes de Tripo (squelette biped v1.0) gardées pour le jeu, et leur nom dans le site.
-const ANIMS = { idle: 'preset:biped:idle', marche: 'preset:biped:walk', salut: 'preset:biped:greet_01', parle: 'preset:biped:agree', telephone: 'preset:biped:make_a_call_01', assis: 'preset:biped:sit', rire: 'preset:biped:laugh_01' , danse1: 'preset:biped:dance_01', danse2: 'preset:biped:dance_02', acclame: 'preset:biped:cheer' };
+const ANIMS = { idle: 'preset:biped:idle', marche: 'preset:biped:walk', salut: 'preset:biped:greet_01', parle: 'preset:biped:agree', telephone: 'preset:biped:make_a_call_01', assis: 'preset:biped:sit', rire: 'preset:biped:laugh_01' , danse1: 'preset:biped:dance_01', danse2: 'preset:biped:dance_02', acclame: 'preset:biped:cheer', course: 'preset:biped:run' }; // course : le joueur qui court dans Vivre à Cotonou (22/10)
 
 // Animations du concert, rangées à part (voir alleger).
 const DANSES = ['danse1', 'danse2', 'acclame'];
 // Les tenues de la boutique n'ont besoin que de quelques animations (cabine, défilé, concert).
-const ANIMS_MODE = ['idle', 'marche', 'salut', 'danse1', 'danse2', 'acclame'];
+const ANIMS_MODE = ['idle', 'marche', 'salut', 'danse1', 'danse2', 'acclame', 'course'];
 const animsDe = id => PERSONNAGES[id]?.mode ? ANIMS_MODE : Object.keys(ANIMS);
 const sortieDe = id => PERSONNAGES[id]?.mode ? 'public/modeles/mode' : SORTIE;
 export const PERSONNAGES = {

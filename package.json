@@ -14,6 +14,7 @@
     "photos": "node scripts/photos.mjs",
     "verifier": "eslint src",
     "tripo": "node scripts/tripo.mjs",
+    "leger": "node scripts/leger.mjs",
     "personnages": "node scripts/personnages.mjs",
     "pubs": "node scripts/pubs.mjs"
   },

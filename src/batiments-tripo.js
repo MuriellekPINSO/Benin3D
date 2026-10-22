@@ -10,14 +10,21 @@ import { plusTard } from './telechargements.js';
 // dans index.json. Quand un modèle existe, le lieu dessiné à la main garde ses abords
 // (place, parking, rond-point) et le modèle prend la place du bâtiment.
 
-export const TRIPO = { dispo: new Set(), info: {} };
+export const TRIPO = { dispo: new Set(), info: {}, leger: {} };
 /** À attendre avant de construire les lieux : quels modèles existent. */
 export async function chargerIndexTripo() {
   try {
-    const r = await fetch(import.meta.env.BASE_URL + 'modeles/batiments/index.json');
-    if (r.ok && /json/.test(r.headers.get('content-type') || '')) { TRIPO.info = await r.json(); for (const id of Object.keys(TRIPO.info)) TRIPO.dispo.add(id); }
+    const lire = async f => { const r = await fetch(import.meta.env.BASE_URL + `modeles/batiments/${f}`); return r.ok && /json/.test(r.headers.get('content-type') || '') ? r.json() : null; };
+    const [info, leger] = await Promise.all([lire('index.json'), LITE ? lire('leger/index.json').catch(() => null) : null]);
+    if (info) { TRIPO.info = info; for (const id of Object.keys(info)) TRIPO.dispo.add(id); }
+    if (leger) TRIPO.leger = leger;
   } catch { }
   return TRIPO.dispo.size;
+}
+/** Adresse du modèle `id` : sur téléphone, sa version allégée (scripts/leger.mjs) quand elle existe. La taille sert de version. */
+export function urlTripo(id) {
+  const L = TRIPO.leger[id], i = L || TRIPO.info[id];
+  return import.meta.env.BASE_URL + `modeles/batiments/${L ? 'leger/' : ''}${id}.glb?v=${i?.octets || 0}`;
 }
 export const tripoDispo = id => TRIPO.dispo.has(id);
 
@@ -33,7 +40,7 @@ export function poserTripo(id, parent, opts = {}) {
   const pivot = new THREE.Group(); pivot.name = `tripo-${id}`; pivot.position.set(x, y, z); pivot.rotation.y = rot; parent.add(pivot);
   // La taille du fichier sert de version : un modèle refait n'est pas repris du cache du navigateur. Téléchargé une fois
   // la ville affichée (telechargements.js) : en attendant, le monument dessiné en code reste en place.
-  plusTard(() => chargeur.loadAsync(import.meta.env.BASE_URL + `modeles/batiments/${id}.glb?v=${TRIPO.info[id]?.octets || 0}`)).then(gltf => {
+  plusTard(() => chargeur.loadAsync(urlTripo(id))).then(gltf => {
     const obj = gltf.scene, boite = new THREE.Box3().setFromObject(obj), t = boite.getSize(new THREE.Vector3());
     const k = hauteur ? hauteur / t.y : largeur / Math.max(t.x, t.z);
     obj.scale.setScalar(k);

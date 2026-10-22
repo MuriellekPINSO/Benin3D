@@ -9,7 +9,7 @@ import { $, LITE, reduceMotion } from './base.js';
 import { decode, frame, loadTxt, status } from './chargement.js';
 import { E } from './etat.js';
 import { accueil, initExplorer } from './explorer.js';
-import { TRIPO, chargerIndexTripo } from './batiments-tripo.js';
+import { TRIPO, chargerIndexTripo, urlTripo } from './batiments-tripo.js';
 import { chargerPersonnages, majPersonnages } from './personnages.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
 import { JEU, initJeu, majJeu } from './jeu.js';
@@ -30,7 +30,8 @@ import { animerOuidah, construireOuidah } from './ouidah.js';
 import { animerEtals, construireEtals, initBoutique } from './artisans.js';
 import { initOffre } from './publicites.js';
 import { initMode } from './mode.js';
-import { initSalon, majSalon } from './salon.js';
+import { horsDeLaPiece } from './interieurs.js';
+import { initSalon, majSalon, pieceDuSalon, salonActif } from './salon.js';
 import { chargerTokpa, chargerZems, prechargerZems } from './vehicules.js';
 import { demarrerTelechargements, plusTard } from './telechargements.js';
 import { demarrerStats } from './statistiques.js';
@@ -80,6 +81,10 @@ function image(now) {
     shadowSize = want; const c = sun.shadow.camera; c.left = c.bottom = -want; c.right = c.top = want; c.updateProjectionMatrix();
   }
   scene.fog.near = Math.min(dist * 1.3 + 1800, 26000); scene.fog.far = Math.min(dist * 4.2 + 9000, 62000);
+  // À pied, rien n'est dessiné au-delà du brouillard, où tout a déjà la couleur de l'horizon : depuis les rues de Cotonou,
+  // les 30 000 pilotis de Ganvié et Ouidah passaient sinon par la carte graphique. Le ciel est ramené en deçà.
+  const loin = salonActif() && !JEU.actif ? Math.ceil(scene.fog.far / 500) * 500 : 130000;
+  if (camera.far !== loin) { camera.far = loin; camera.updateProjectionMatrix(); sky.scale.setScalar(Math.min(1, loin * .9 / 100000)); }
   sky.position.copy(camera.position);
   if (E.foamMat) E.foamMat.uniforms.uTime.value = U.uTime.value;
   if (E.frameN % 12 === 0) visibiliteLieux(camera.position);
@@ -94,7 +99,10 @@ function image(now) {
   majFeuxVille(U.uTime.value, JEU.actif || reelle); // feux tricolores cachés en jeu (le jeu a les siens) et en Vue réelle seule
   majMultijoueur(dt);
   majPersonnages(dt);
+  const hors = horsDeLaPiece(pieceDuSalon(), camera.position), avant = hors.map(o => o.visible); // dans une pièce : la ville n'est pas dessinée
+  for (const o of hors) o.visible = false;
   renderer.render(scene, camera);
+  hors.forEach((o, i) => { o.visible = avant[i]; });
   updateLabels(dist, W, H, JEU.actif && JEU.joueur ? JEU.joueur.position : null); // en jeu : les lieux proches du zém, pour se repérer
   if (E.frameN % 6 === 0) updateHud(dist, H);
 }
@@ -144,7 +152,7 @@ async function main() {
   status('Zémidjans et tokpa-tokpa…', 94); await frame();
   await chargerZems();
   // Le vrai minibus des tokpa-tokpa (Tripo) remplace celui dessiné en code dans la circulation de la ville.
-  if (TRIPO.info.tokpa) plusTard(() => chargerTokpa(TRIPO.info.tokpa.octets)).then(t => { if (t.geo && E.tokpas) { E.tokpas.geometry = t.geo; E.tokpas.material = t.mat; E.tokpas.castShadow = !LITE; } });
+  if (TRIPO.info.tokpa) plusTard(() => chargerTokpa(urlTripo('tokpa'))).then(t => { if (t.geo && E.tokpas) { E.tokpas.geometry = t.geo; E.tokpas.material = t.mat; E.tokpas.castShadow = !LITE; } });
   buildZems(); zemsDetailles(); buildLamps(); buildLabels();
   initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initBoutique(); initOffre(); initMode(); initSalon(data); initLeger();
   if (reduceMotion) finishRise();

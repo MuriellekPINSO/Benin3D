@@ -43,10 +43,18 @@ export function zemsDetailles() {
   E.zemsProches.castShadow = !LITE; E.zemsProches.receiveShadow = true; E.zemsProches.visible = false;
   scene.add(E.zemsProches);
 }
+// Seuls les véhicules dans le champ et à portée de vue passent par la carte graphique (rangés en tête, `count` réduit) :
+// dans la rue, les 800 zéms de toute la ville étaient dessinés à chaque image (940 000 triangles sur téléphone).
+const CHAMP = new THREE.Frustum(), _pv = new THREE.Matrix4(), _sph = new THREE.Sphere();
+function majChamp() {
+  camera.updateMatrixWorld(); CHAMP.setFromProjectionMatrix(_pv.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+  const p = 700 + camera.position.y * 3; return p * p; // à pied, 700 m ; vu d'avion, toute la ville
+}
+const dansLeChamp = (x, z, r) => { _sph.center.set(x, 1, z); _sph.radius = r; return CHAMP.intersectsSphere(_sph); };
 export function updateZems(dt) {
   const A = E.zems.instanceMatrix.array;
-  const PR = E.zemsProches, B = PR ? PR.instanceMatrix.array : null, cam = camera.position, R2 = 300 * 300;
-  let np = 0;
+  const PR = E.zemsProches, B = PR ? PR.instanceMatrix.array : null, cam = camera.position, R2 = 300 * 300, V2 = majChamp();
+  let np = 0, nv = 0;
   for (let i = 0; i < E.zemState.length; i++) {
     const z = E.zemState[i], P = z.P;
     if (!cede(z)) z.s += z.v * dt * z.dir;
@@ -60,18 +68,20 @@ export function updateZems(dt) {
     const sl = cum[k + 1] - cum[k] || 1, t = (z.s - cum[k]) / sl;
     let dx = (x1 - x0) / sl * z.dir, dz = (z1 - z0) / sl * z.dir;
     const x = x0 + (x1 - x0) * t + (-dz) * z.lane, zz = z0 + (z1 - z0) * t + dx * z.lane;
-    const th = Math.atan2(-dz, dx), c = Math.cos(th), s = Math.sin(th), o = i * 16;
     retenir(z, x, zz, dx, dz);
-    if (B && np < PR.userData.max && (x - cam.x) ** 2 + (zz - cam.z) ** 2 < R2) {
+    const d2 = (x - cam.x) ** 2 + (zz - cam.z) ** 2; if (d2 > V2 || !dansLeChamp(x, zz, 2)) continue;
+    const th = Math.atan2(-dz, dx), c = Math.cos(th), s = Math.sin(th);
+    if (B && np < PR.userData.max && d2 < R2) {
       const q = np++ * 16;
       B[q] = c; B[q + 1] = 0; B[q + 2] = -s; B[q + 3] = 0; B[q + 4] = 0; B[q + 5] = 1; B[q + 6] = 0; B[q + 7] = 0;
       B[q + 8] = s; B[q + 9] = 0; B[q + 10] = c; B[q + 11] = 0; B[q + 12] = x; B[q + 13] = 0.04; B[q + 14] = zz; B[q + 15] = 1;
-      A.fill(0, o, o + 16); continue;
+      continue;
     }
+    const o = nv++ * 16;
     A[o] = c; A[o + 1] = 0; A[o + 2] = -s; A[o + 3] = 0; A[o + 4] = 0; A[o + 5] = 1; A[o + 6] = 0; A[o + 7] = 0;
     A[o + 8] = s; A[o + 9] = 0; A[o + 10] = c; A[o + 11] = 0; A[o + 12] = x; A[o + 13] = 0.15; A[o + 14] = zz; A[o + 15] = 1;
   }
-  E.zems.instanceMatrix.needsUpdate = true;
+  E.zems.count = nv; E.zems.instanceMatrix.needsUpdate = true;
   if (PR) { PR.count = np; PR.instanceMatrix.needsUpdate = true; }
 }
 
@@ -151,17 +161,18 @@ export function construireTokpas() {
 }
 export function majTokpas(dt) {
   if (!E.tokpas) return;
-  const A = E.tokpas.instanceMatrix.array;
+  const A = E.tokpas.instanceMatrix.array, cam = camera.position, V2 = majChamp(); let nv = 0;
   for (let i = 0; i < E.tokpaState.length; i++) {
     const z = E.tokpaState[i], P = z.P; if (!cede(z)) z.s += z.v * dt * z.dir;
     if (z.s >= P.len) { z.s = P.len - .01; z.dir = -1; } else if (z.s <= 0) { z.s = .01; z.dir = 1; }
     const cum = P.cum; let k = z.seg; while (k < cum.length - 2 && z.s > cum[k + 1]) k++; while (k > 0 && z.s < cum[k]) k--; z.seg = k;
     const x0 = P.xz[2 * k], z0 = P.xz[2 * k + 1], x1 = P.xz[2 * k + 2], z1 = P.xz[2 * k + 3], sl = cum[k + 1] - cum[k] || 1, t = (z.s - cum[k]) / sl;
     const dx = (x1 - x0) / sl * z.dir, dz = (z1 - z0) / sl * z.dir, x = x0 + (x1 - x0) * t - dz * z.lane, zz = z0 + (z1 - z0) * t + dx * z.lane;
-    const th = Math.atan2(-dz, dx), c = Math.cos(th), s = Math.sin(th), o = i * 16;
     retenir(z, x, zz, dx, dz);
+    if ((x - cam.x) ** 2 + (zz - cam.z) ** 2 > V2 || !dansLeChamp(x, zz, 4)) continue;
+    const th = Math.atan2(-dz, dx), c = Math.cos(th), s = Math.sin(th), o = nv++ * 16;
     A[o] = c; A[o + 1] = 0; A[o + 2] = -s; A[o + 3] = 0; A[o + 4] = 0; A[o + 5] = 1; A[o + 6] = 0; A[o + 7] = 0; A[o + 8] = s; A[o + 9] = 0; A[o + 10] = c; A[o + 11] = 0; A[o + 12] = x; A[o + 13] = 0.05; A[o + 14] = zz; A[o + 15] = 1;
   }
-  E.tokpas.instanceMatrix.needsUpdate = true;
+  E.tokpas.count = nv; E.tokpas.instanceMatrix.needsUpdate = true;
 }
 

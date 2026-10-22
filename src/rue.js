@@ -40,9 +40,9 @@ function indexer(data) {
     if (L.cls > 6 && L.cls !== 9) return;
     const hw = (L.w ?? ROAD_W[L.cls] ?? 4) / 2;
     for (let i = 1; i < L.pts.length; i++) {
-      const a = L.pts[i - 1], b = L.pts[i];
+      const a = L.pts[i - 1], b = L.pts[i], s = [li, a[0], a[1], b[0], b[1], hw]; // le même tronçon dans chaque case (une copie par case : 30 Mo)
       for (let cx = Math.floor((Math.min(a[0], b[0]) - hw) / CR); cx <= Math.floor((Math.max(a[0], b[0]) + hw) / CR); cx++)
-        for (let cz = Math.floor((Math.min(a[1], b[1]) - hw) / CR); cz <= Math.floor((Math.max(a[1], b[1]) + hw) / CR); cz++) { const k = cx + ',' + cz; if (!gr.has(k)) gr.set(k, []); gr.get(k).push([li, a[0], a[1], b[0], b[1], hw]); }
+        for (let cz = Math.floor((Math.min(a[1], b[1]) - hw) / CR); cz <= Math.floor((Math.max(a[1], b[1]) + hw) / CR); cz++) { const k = cx + ',' + cz; if (!gr.has(k)) gr.set(k, []); gr.get(k).push(s); }
     }
   });
   R.grilleR = gr;

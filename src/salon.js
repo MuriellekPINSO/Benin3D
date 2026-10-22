@@ -51,6 +51,7 @@ const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', Ke
 
 const S = { orbite: 0, orbiteT: 0, actif: false, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 't:top-f', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
 export const salonActif = () => S.actif;
+export const pieceDuSalon = () => S.actif ? S.lieu : null; // la pièce où l'on est (main.js n'y dessine que ses abords)
 const cible = new THREE.Vector3(), voulue = new THREE.Vector3();
 const r2 = v => Math.round(v * 100) / 100;
 const nettoyer = (t, n) => String(t ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
@@ -277,7 +278,7 @@ function allerVers(x, z, cap, nom) {
 // ---------- Intérieurs : entrer dans un bâtiment, en sortir ----------
 function dedans(I) {
   ouvrirInterieur(I); const a = arriveeDedans(I);
-  S.lieu = I; S.y = a.y; S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; S.geste = 'idle'; S.dist = Math.min(S.dist, I.prive ? 3.2 : 4.5);
+  S.lieu = I; S.y = a.y; S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; S.geste = 'idle'; S.dist = Math.min(S.dist, I.prive ? 3.6 : 4.5);
   document.getElementById('app').classList.add('dedans');
   if (!I.prive) S.canal?.dire({ n: S.nom, txt: `Je suis dans ${I.nom}, venez !`, lieu: LIEUX.find(l => l[6] === I.id)?.[0] }); // chez soi : on ne l'annonce pas
 }
@@ -318,7 +319,7 @@ async function entrerSalon(code) {
   if (e) { console.warn('salon', e); statut(erreur(e), 'mal'); return; }
   S.canal = c;
   S.code = code; S.actif = true; statut(''); compterUneFois('salon'); lieuStats('salon');
-  $('#salon').hidden = true; $('#salonHud').hidden = false; $('#slCodeAff').textContent = code; $('#slJoy').hidden = !coarse;
+  $('#salon').hidden = true; $('#salonHud').hidden = false; $('#slCodeAff').textContent = code; $('#slJoy').hidden = !coarse; $('#slCourir').hidden = !coarse;
   document.getElementById('app').classList.add('mode-salon');
   // À pied, il faut la ville en 3D autour de soi : la « Vue réelle » (images Google à plat) attendra la sortie.
   S.vueReelle = $('#togGoogle')?.getAttribute('aria-pressed') === 'true'; if (S.vueReelle) $('#togGoogle').click();
@@ -365,7 +366,7 @@ function quitter() {
   for (const A of S.autres.values()) vehiculeDe(A, null);
   $('#salonHud').hidden = true; $('#slMessages').replaceChildren(); S.touches.clear(); S.joy = null;
   document.getElementById('app').classList.remove('mode-salon');
-  controls.enabled = true; controls.minDistance = S.minDist; camera.near = 2; if (camera.view?.enabled) camera.clearViewOffset(); camera.updateProjectionMatrix();
+  controls.enabled = true; controls.minDistance = S.minDist; camera.near = 2; camera.fov = 45; if (camera.view?.enabled) camera.clearViewOffset(); camera.updateProjectionMatrix();
   if (S.vueReelle && $('#togGoogle')?.getAttribute('aria-pressed') !== 'true') $('#togGoogle').click();
   startFlight(new THREE.Vector3(S.x, 0, S.z), 160, 1.05, S.cap + Math.PI, 1.6);
 }
@@ -387,7 +388,7 @@ const GS = { vuCouche: false, marche: 0, px: null, pz: 0, activite: false, dehor
 let guideSalon = null;
 const etapesSalon = () => [
   { id: 'lever', texte: () => coarse ? 'Tu te réveilles chez toi. Touche le bouton vert « Se lever », en bas.' : 'Tu te réveilles chez toi. Appuie sur [E] (ou le bouton vert en bas) pour te lever.', quand: () => !!S.couche, fait: () => GS.vuCouche && !S.couche },
-  { id: 'marcher', texte: () => coarse ? 'Marche avec le joystick. Les boutons verts en bas changent selon ce qui est près de toi.' : 'Marche avec les flèches ou [Z] [Q] [S] [D]. Clique dans la ville : la souris dirige la caméra ([Échap] la libère). Les boutons verts en bas changent selon ce qui est près de toi.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
+  { id: 'marcher', texte: () => coarse ? 'Marche avec le joystick, et touche « Courir » pour courir. Les boutons verts en bas changent selon ce qui est près de toi.' : 'Marche avec les flèches ou [Z] [Q] [S] [D]. Clique dans la ville : la souris dirige la caméra ([Échap] la libère). Les boutons verts en bas changent selon ce qui est près de toi.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
   { id: 'maison', texte: 'Chez toi, approche-toi de la douche ou du fourneau et appuie sur le bouton pour te laver ou cuisiner, puis mange à table. Le bouton « Sortir » t’emmène dans la rue.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.activite || GS.dehorsT > 0 },
   { id: 'rue', texte: () => coarse ? 'Te voilà dans la rue. Le bouton « Aller · gestes », en bas à droite, ouvre « Aller à » (pour aller vers un lieu) et « Prendre un zém ». En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.' : 'Te voilà dans la rue. En bas à droite, « Aller à » t’emmène vers un lieu et « Prendre un zém » appelle un zém. En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.', quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier, duree: 15 },
   { id: 'vie', texte: 'En haut à gauche : ton argent, ta faim, ton logement et ton travail. Mange quand la faim baisse : au maquis, au food court de la Cité ou chez toi.', quand: () => GS.dehorsT > 16, fait: () => false, duree: 10 },
@@ -431,13 +432,15 @@ export function majSalon(dt) {
       const pas = ecart * Math.min(1, dt * 9);
       S.cap += pas; S.orbite -= pas;
     }
-    const v = pousse * (t.has('court') || (j && Math.hypot(j.x, j.y) > .95) || (pad && (pad.court || Math.hypot(pad.lx, pad.ly) > .95)) ? 4.6 : 1.7) * vitesseFaim(); // trop faim : au ralenti
+    // Courir : Maj au clavier, le bouton « Courir » ou le joystick poussé jusqu'au bord sur téléphone, la manette à fond.
+    const court = t.has('court') || S.court || (j && Math.hypot(j.x, j.y) > .95) || (pad && (pad.court || Math.hypot(pad.lx, pad.ly) > .95));
+    const v = pousse * (court ? 5.2 : 1.7) * vitesseFaim(); // trop faim : au ralenti
     deplacer(S.x + Math.sin(S.cap) * v * dt, S.z + Math.cos(S.cap) * v * dt);
     const marche = Math.abs(v) > .05;
     if (marche || Math.abs(tour) > .05) { S.geste = 'idle'; S.gesteFin = 0; }
     if (S.tabouret && (S.lieu || (S.geste !== 'assis' && S.geste !== 'telephone') || Math.hypot(S.x - S.tabouret.x, S.z - S.tabouret.z) > .3)) retirerTabouret();
     else if (S.gesteFin && performance.now() > S.gesteFin) { S.geste = 'idle'; S.gesteFin = 0; }
-    S.anim = marche ? 'marche' : S.geste;
+    S.anim = marche ? (court && S.moi?.userData.peut?.('course') ? 'course' : 'marche') : S.geste;
     if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); }
   }
   // Caméra derrière soi (ou derrière le véhicule), à la distance et l'inclinaison choisies : glisser vers le haut ou
@@ -468,11 +471,17 @@ export function majSalon(dt) {
   }
   if (S.saut || suivi?.libre) { camera.position.copy(voulue); S.saut = false; } else camera.position.lerp(voulue, 1 - Math.exp(-dt * (suivi ? 5 : 7))); // en avion (temps accéléré), la caméra reste collée derrière
   controls.target.copy(cible);
+  for (const b of [$('#slVue'), $('#slVue2')]) if (b && b.disabled !== !!S.lieu) { b.disabled = !!S.lieu; b.title = S.lieu ? 'La vue change une fois dehors' : 'Changer de vue (V)'; } // dedans, la caméra reste près de soi : le premier clic ne faisait rien
   const near = S.lieu ? .3 : .6; if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); } // dehors : deux fois plus de précision de profondeur au loin
+  // Dans une pièce, téléphone en hauteur : à 45°, l'image ne fait que 21° de large et le personnage la remplit ; les murs
+  // empêchent de reculer, alors on ouvre l'angle (jusqu'à 70°, ~60° de large visés). Ordinateur, paysage : 45°, inchangé.
+  const fov = S.lieu ? THREE.MathUtils.clamp(2 * Math.atan(Math.tan(Math.PI / 6) / camera.aspect) * 180 / Math.PI, 45, 70) : 45;
+  if (Math.abs(camera.fov - fov) > .1) { camera.fov = fov; camera.updateProjectionMatrix(); }
   // Téléphone en hauteur : le bas de l'écran est pris par le joystick, les boutons et le guide. On remonte l'image de 12 %
   // (le personnage passe au tiers supérieur) au lieu de le laisser au milieu, derrière la carte du guide.
   const haut = coarse && innerHeight > innerWidth * 1.2;
-  if (haut !== !!camera.view?.enabled) { if (haut) camera.setViewOffset(1, 1, 0, .12, 1, 1); else camera.clearViewOffset(); }
+  // setViewOffset fixe aussi camera.aspect (largeur / hauteur données) : avec (1, 1…), l'image devenait carrée, étirée deux fois en hauteur.
+  if (haut !== !!camera.view?.enabled) { if (haut) camera.setViewOffset(camera.aspect, 1, 0, .12, camera.aspect, 1); else camera.clearViewOffset(); }
   majAmbianceSalon(dt, { x: P.x, z: P.z, dedans: !!S.lieu, public: !!S.lieu && !S.lieu.prive, clients: S.lieu ? 0 : genteCommerces(S.x, S.z) }); // les bruits de la ville (ambiance-salon.js)
   // Sa position aux autres, cinq fois par seconde (et au moins toutes les 2,5 s pour rester « présent »).
   S.envoi -= dt; S.depuis += dt;
@@ -501,7 +510,7 @@ export function majSalon(dt) {
       const Vd = e.sur === S.R?.id ? (T.mode === 'conduit' ? T.veh : null) : S.autres.get(e.sur)?.veh;
       if (Vd) asseoirSur(A.g, Vd, true); else { A.g.position.set(A.x, ey, A.z); A.g.rotation.y = A.cap; }
     }
-    else if (A.g) { A.g.position.set(A.x, typeof e.y === 'number' ? e.y : 0, A.z); A.g.rotation.y = A.cap; A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? 'marche' : ANIMS.has(e.a) ? e.a : 'idle'); }
+    else if (A.g) { A.g.position.set(A.x, typeof e.y === 'number' ? e.y : 0, A.z); A.g.rotation.y = A.cap; A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? (e.a === 'course' && A.g.userData.peut?.('course') ? 'course' : 'marche') : ANIMS.has(e.a) ? e.a : 'idle'); } // l'ami qui court, court aussi chez soi
     if (A.bulle && now > A.bulleFin) retirerBulle(A);
   }
   if (S.bulle && now > S.bulleFin) retirerBulle(S);
@@ -774,6 +783,7 @@ export function initSalon(data) {
   const veille = new MutationObserver(() => { if (['#choix', '#garderobe', '#vieFiche', '#carteGrande', '#vieTirage'].some(s => $(s) && !$(s).hidden) || S.menu) rendreSouris(); });
   for (const s of ['#choix', '#garderobe', '#vieFiche', '#carteGrande', '#vieTirage', '#vieHud']) if ($(s)) veille.observe($(s), { attributes: true, attributeFilter: ['hidden', 'class'] });
   canvas.addEventListener('wheel', e => { if (!S.actif) return; S.dist = THREE.MathUtils.clamp(S.dist * (1 + Math.sign(e.deltaY) * .12), 2.5, S.lieu ? 6 : 150); e.preventDefault(); }, { passive: false });
+  $('#slCourir')?.addEventListener('click', e => { S.court = !S.court; e.currentTarget.setAttribute('aria-pressed', String(S.court)); }); // téléphone : courir sans pousser le joystick jusqu'au bord
   // Manette tactile : un rond qu'on pousse avec le pouce.
   const joy = $('#slJoy');
   if (joy) {
