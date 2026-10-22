@@ -19,6 +19,7 @@
     "pubs": "node scripts/pubs.mjs"
   },
   "dependencies": {
+    "@vercel/functions": "^3.10.3",
     "firebase": "^12.19.0",
     "peerjs": "^1.5.5",
     "three": "0.180.0"
