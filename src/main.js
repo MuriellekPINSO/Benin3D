@@ -14,7 +14,7 @@ import { chargerPersonnages, majPersonnages } from './personnages.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
 import { JEU, initJeu, majJeu } from './jeu.js';
 import { VEGETATION, animerLieux, construireLieux, portailUAC, prechargerAmazone, semeOne, visibiliteLieux } from './lieux.js';
-import { U, camera, controls, renderer, scene, sky, sun } from './scene.js';
+import { COUCHES_SOL, U, camera, controls, renderer, scene, sky, sun } from './scene.js';
 import { buildLamps, buildZems, zemsDetailles, construireTokpas, majTokpas, updateZems } from './trafic.js';
 import { majCirculation } from './circulation.js';
 import { majMondeReel, vueReelleSeule } from './monde-reel.js';
@@ -148,6 +148,10 @@ async function main() {
   buildZems(); zemsDetailles(); buildLamps(); buildLabels();
   initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initBoutique(); initOffre(); initMode(); initSalon(data); initLeger();
   if (reduceMotion) finishRise();
+  // Les routes, marquages, terre-pleins et surfaces sont posés à quelques centimètres du sol sans écrire leur profondeur.
+  // Sur un téléphone, au loin, le test de profondeur hésitait entre eux et le sol d'une image à l'autre : ils clignotaient.
+  // Un décalage de profondeur (polygonOffset), plus fort pour les couches du dessus, les fait toujours passer devant.
+  for (const m of COUCHES_SOL.slice(1)) for (const mat of [].concat(m.material)) Object.assign(mat, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -Math.round((m.renderOrder || 6) * 2) });
   status('Lever de la ville…', 100); await frame();
   // Vue d'ensemble depuis le large, au sud-est
   const target = new THREE.Vector3(600, 0, -900);

@@ -88,5 +88,65 @@
   "triangles": 13898,
   "octets": 1062952,
   "danses": 0
+ },
+ "tshirt-h": {
+  "femme": false,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "danse1",
+   "danse2",
+   "acclame"
+  ],
+  "triangles": 13328,
+  "octets": 839232,
+  "danses": 0
+ },
+ "top-f": {
+  "femme": true,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "danse1",
+   "danse2",
+   "acclame"
+  ],
+  "triangles": 13774,
+  "octets": 886188,
+  "danses": 0
+ },
+ "maillot-h": {
+  "femme": false,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "danse1",
+   "danse2",
+   "acclame"
+  ],
+  "triangles": 13152,
+  "octets": 833728,
+  "danses": 0
+ },
+ "pagne-f": {
+  "femme": true,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "danse1",
+   "danse2",
+   "acclame"
+  ],
+  "triangles": 13768,
+  "octets": 1050960,
+  "danses": 0
  }
 }

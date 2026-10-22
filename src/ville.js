@@ -149,15 +149,17 @@ export function ribbon(pts, w, pos, idx, col, rgb, y = 0) {
     if (i > 0) { const o = base + (i - 1) * 2; idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2); }
   }
 }
-// Marquages des grands axes (lignes de rive, axe, files), comme sur le boulevard de la Marina.
+// Marquages des grands axes (lignes de rive, axe, files), comme sur le boulevard de la Marina ; files = 1 : rue de
+// quartier goudronnée, seulement l'axe en tirets (les deux sens se voient, demande des testeurs du 22/10).
 function texMarquage(files) {
   const cv = document.createElement('canvas'); cv.width = 128; cv.height = 256; const c = cv.getContext('2d');
   c.fillStyle = '#56585c'; c.fillRect(0, 0, 128, 256);
   for (let i = 0; i < 900; i++) { c.fillStyle = Math.random() < .5 ? '#5f6165' : '#4e5054'; c.fillRect(Math.random() * 128, Math.random() * 256, 2, 2); }
   c.fillStyle = '#ecebe4';
-  for (const u of [.045, .955]) c.fillRect(u * 128 - 1.5, 0, 3, 256);
+  if (files >= 2) for (const u of [.045, .955]) c.fillRect(u * 128 - 1.5, 0, 3, 256);
   if (files === 4) { c.fillRect(.485 * 128 - 1.5, 0, 3, 256); c.fillRect(.515 * 128 - 1.5, 0, 3, 256); for (const u of [.275, .725]) c.fillRect(u * 128 - 1.5, 0, 3, 64); }
-  else c.fillRect(64 - 1.5, 0, 3, 96);
+  else if (files === 2) c.fillRect(64 - 1.5, 0, 3, 96);
+  else c.fillRect(64 - 2, 0, 4, 80);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
 }
 // Chaussée à sens unique de `n` voies (moitié d'un boulevard) : lignes de rive continues, voies séparées
@@ -197,11 +199,13 @@ export function buildRoads(R) {
   const order = roadLines.map((_, i) => i).sort((a, b) => ROAD_ORDER[roadLines[a].cls] - ROAD_ORDER[roadLines[b].cls]);
   const pos = [], idx = [], col = [];
   const bpos = [], bidx = [], bcol = [];
-  const marq4 = { pos: [], uv: [], idx: [], files: 4 }, marq2 = { pos: [], uv: [], idx: [], files: 2 }, marqSens = {};
+  const marq4 = { pos: [], uv: [], idx: [], files: 4 }, marq2 = { pos: [], uv: [], idx: [], files: 2 }, marqAxe = { pos: [], uv: [], idx: [], files: 1 }, marqSens = {};
   for (const i of order) {
     const L = roadLines[i], w = L.w, rgb = u8c(roadColor(L.cls, L.surf));
     if (!L.bridge && L.sens && L.cls <= 3 && L.surf === 0) { const n = Math.max(2, Math.min(4, L.voies || 2)), M = marqSens[n] ??= { pos: [], uv: [], idx: [], sens: n }; rubanUV(L.pts, w, M.pos, M.uv, M.idx); continue; }
     if (!L.bridge && L.cls <= 2 && L.surf === 0) { const M = L.cls <= 1 ? marq4 : marq2; rubanUV(L.pts, w, M.pos, M.uv, M.idx); continue; }
+    // Secondaires goudronnées : rives et axe ; rues de quartier goudronnées : l'axe seul. Avant, une bande grise unie : on ne voyait pas les deux sens.
+    if (!L.bridge && (L.cls === 3 || L.cls === 4) && L.surf === 0) { const M = L.cls === 3 ? marq2 : marqAxe; rubanUV(L.pts, w, M.pos, M.uv, M.idx); continue; }
     if (!L.bridge) { ribbon(L.pts, w, pos, idx, col, rgb); continue; }
     // pont : tablier surélevé avec rampes
     const dense = [];
@@ -235,14 +239,14 @@ export function buildRoads(R) {
     m.renderOrder = order; m.receiveShadow = true; m.castShadow = depthWrite && !LITE; scene.add(m); return m;
   };
   const routes = mk(pos, idx, col, 7, false); grainSol(routes.material); routes.userData.route = true; COUCHES_SOL.push(routes);
-  for (const M of [marq2, marq4, ...Object.values(marqSens)]) {
+  for (const M of [marqAxe, marq2, marq4, ...Object.values(marqSens)]) {
     if (!M.pos.length) continue;
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(M.pos, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(M.pos.length).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(M.uv, 2)); g.setIndex(M.idx);
     const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: M.sens ? texMarquageSens(M.sens) : texMarquage(M.files), depthWrite: false }));
-    m.renderOrder = M.files === 4 ? 7.6 : 7.5; m.receiveShadow = true; m.userData.route = true; scene.add(m); COUCHES_SOL.push(m);
+    m.renderOrder = M.files === 4 ? 7.6 : M.files === 1 ? 7.4 : 7.5; m.receiveShadow = true; m.userData.route = true; scene.add(m); COUCHES_SOL.push(m);
   }
   if (bpos.length) mk(bpos, bidx, bcol, 8, true);
 }

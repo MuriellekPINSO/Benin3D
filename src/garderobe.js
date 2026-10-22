@@ -4,22 +4,24 @@ import { ARTICLES } from './mode.js';
 import { VIE, depenser, ecrire } from './vie.js';
 
 // ---------- Ton personnage : une femme ou un homme, et ses tenues ----------
-// Chaque tenue est un personnage complet (Tripo) : on choisit d'abord femme ou homme, puis la tenue. Trois
-// tenues de chaque sont offertes ; les trois autres viennent de la boutique de mode et s'achètent avec
-// l'argent de « Ma vie » (gagné en travaillant). Ce qu'on a acheté reste dans la garde-robe.
+// Depuis le 22/10, comme dans GTA : le joueur incarne une jeune femme ou un jeune homme, toujours les mêmes, et ne change
+// que d'habits. Ce sont les personnes de la boutique de mode (une même description Tripo par genre, scripts/personnages.mjs) :
+// deux tenues offertes chacun, les autres s'achètent avec l'argent de « Ma vie ». Les passants, clients et vendeuses
+// n'utilisent jamais ces modèles (personnages.js, choisirId) : on ne croise pas son sosie en ville.
 
-const BASE = [
-  ['vendeuse', 'Pagne et foulard', true], ['etudiante', 'Haut en wax et jean', true], ['maman', 'Grand boubou', true],
-  ['jeune', 'Maillot vert et jean', false], ['bureau', 'Chemise de bureau', false], ['ancien', 'Boubou brodé et chéchia', false],
-];
+const BASE = [['top-f', 'Haut et jean', true], ['pagne-f', 'Pagne du quotidien', true], ['tshirt-h', 'T-shirt et jean', false], ['maillot-h', 'Maillot et short', false]];
+// Les personnages choisis avant le 22/10 : on garde le genre, avec la première tenue offerte.
+const ANCIENS = { vendeuse: true, etudiante: true, maman: true, jeune: false, bureau: false, ancien: false };
 export const TENUES = [
-  ...BASE.map(([id, nom, femme]) => ({ id, modele: id, nom, femme, prix: 0 })),
+  ...BASE.map(([id, nom, femme]) => ({ id, modele: `t:${id}`, nom, femme, prix: 0 })),
   ...Object.entries(ARTICLES).filter(([, A]) => A.type === 'tenue').map(([id, A]) => ({ id, modele: `t:${id}`, nom: A.nom, femme: !!A.femme, prix: (A.prixJeu || 800) * 10 })),
 ];
 const vignette = id => `${import.meta.env.BASE_URL}modeles/mode/vignettes/${id}.webp`;
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 export const tenueDe = modele => TENUES.find(t => t.modele === modele);
-export const estFemme = modele => tenueDe(modele)?.femme ?? true;
+export const estFemme = modele => tenueDe(modele)?.femme ?? ANCIENS[modele] ?? true;
+/** Le personnage enregistré, mis à jour : un ancien personnage devient la tenue offerte de son genre ; null si inconnu. */
+export const modeleActuel = m => tenueDe(m) ? m : m in ANCIENS ? TENUES.find(t => t.femme === ANCIENS[m] && !t.prix).modele : null;
 /** Tenues achetées : celles de « Ma vie » et celles de la boutique de Zém Run. */
 function achetees() { return new Set([...(VIE.data?.garderobe || '').split(',').filter(Boolean), ...(JEU.prog?.garderobe || [])]); }
 export const possede = t => !t.prix || achetees().has(t.id);

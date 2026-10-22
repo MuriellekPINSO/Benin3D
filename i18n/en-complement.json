@@ -235,7 +235,8 @@
   "Menu · ta vie à Cotonou": "Menu · your life in Cotonou",
   "Reprendre": "Resume",
   "Quitter la partie": "Leave the game",
-  "Aller · gestes": "Go · gestures"
+  "Aller · gestes": "Go · gestures",
+  "Clic dans la ville : la souris dirige la caméra · Échap : libérer la souris · Flèches ou ZQSD : marcher · Maj : courir · E, R, F : actions · V : vue · M : carte · Entrée : écrire": "Click in the city: the mouse steers the camera · Esc: free the mouse · Arrows or WASD: walk · Shift: run · E, R, F: actions · V: view · M: map · Enter: type"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -497,7 +498,9 @@
   "'E'": "'T'",
   "'Emmène-moi'": "'Take me'",
   ", emmène-moi": ", take me",
-  "'Te voilà dans la rue. Le bouton « Aller · gestes », en bas à droite, ouvre « Aller à » (pour aller vers un lieu) et « Prendre un zém ». En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.'": "'You are in the street. The “Go · gestures” button, bottom right, opens “Go to” (to head to a place) and “Take a zém”. Top left, “Work” finds you a job to earn money.'"
+  "'Te voilà dans la rue. Le bouton « Aller · gestes », en bas à droite, ouvre « Aller à » (pour aller vers un lieu) et « Prendre un zém ». En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.'": "'You are in the street. The “Go · gestures” button, bottom right, opens “Go to” (to head to a place) and “Take a zém”. Top left, “Work” finds you a job to earn money.'",
+  "'Du bas'": "'From below'",
+  "'Marche avec les flèches ou [Z] [Q] [S] [D]. Clique dans la ville : la souris dirige la caméra ([Échap] la libère). Les boutons verts en bas changent selon ce qui est près de toi.'": "'Walk with the arrows or [W] [A] [S] [D]. Click in the city: the mouse steers the camera ([Esc] frees it). The green buttons at the bottom change depending on what is near you.'"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -1180,7 +1183,11 @@
   " pour « ": " for “",
   " » : travaille un peu !": "”: do some work!",
   "tenue « ": "outfit “",
-  "Tu as ": "You have "
+  "Tu as ": "You have ",
+  "'Haut et jean'": "'Top and jeans'",
+  "'Pagne du quotidien'": "'Everyday wrapper outfit'",
+  "'T-shirt et jean'": "'T-shirt and jeans'",
+  "'Maillot et short'": "'Jersey and shorts'"
  },
  "src/maison.js": {
   "'ta chambre'": "'your room'",

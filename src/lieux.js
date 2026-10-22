@@ -219,7 +219,11 @@ export function bake(group) {
 }
 
 // Polygone plat texturé au sol (UV planaires, une tuile tous les `tuile` mètres).
+const MATS_SOL = new Map(); // matériau → sa copie décalée en profondeur (voir solPoly)
 export function solPoly(rings, mat, y = 0.05, tuile = 4, parent) {
+  // Posé quelques centimètres au-dessus du sol : décalé en profondeur pour ne pas clignoter avec lui sur un téléphone.
+  if (!MATS_SOL.has(mat)) MATS_SOL.set(mat, Object.assign(mat.clone(), { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -10, onBeforeCompile: mat.onBeforeCompile, customProgramCacheKey: mat.customProgramCacheKey })); // clone() ne garde pas les retouches de shader
+  mat = MATS_SOL.get(mat);
   const v2 = rings.map(r => r.map(([x, z]) => new THREE.Vector2(x, z)));
   let faces = []; try { faces = THREE.ShapeUtils.triangulateShape(v2[0], v2.slice(1)); } catch (e) { }
   const all = v2.flat(), pos = [], uv = [], idx = [];

@@ -986,3 +986,39 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
   .dock::after { content: '›'; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font: 700 20px/1 var(--font-body); pointer-events: none; transition: opacity .2s; }
   .dock.dock-fin::after { opacity: 0; }
 }
+
+/* ---------- Téléphone en paysage (22/10) ----------
+   Les règles « téléphone » ci-dessus ne valent que sous 720 px de large : un téléphone tourné dépasse cette largeur et
+   recevait la mise en page d'ordinateur (discussion, gestes, guide et joystick empilés sur 390 px de haut). Ici : en haut la
+   barre du salon, l'argent et la mini-carte ; en bas le joystick à gauche, les boutons à droite, les actions entre les deux ;
+   la discussion et les gestes à la demande ; le guide et l'étape du chapitre en haut, sur le ciel. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 540px) {
+  .sl-haut { top: 6px; padding: 3px 3px 3px 10px; gap: 4px; flex-wrap: nowrap; }
+  .sl-haut b { font-size: 13px; }
+  .sl-haut small, #slCopier, #slVue { display: none; }
+  .sl-haut button { padding: 6px 10px !important; font-size: 12px; }
+  .vie-hud { top: 6px; left: 8px; width: auto; max-width: 30%; padding: 5px 9px; gap: 2px; font-size: 11px; }
+  .vie-hud:not(.ouvert) #vhLogement, .vie-hud:not(.ouvert) #vhMetier { display: none; }
+  .vh-tete b { font-size: 15px; }
+  .vie-hud .vh-boutons .vh-louer { min-height: 30px; padding: 5px 10px; font-size: 12px; }
+  .vie-hud.ouvert { max-width: none; max-height: calc(100vh - 24px); overflow-y: auto; }
+  .mini-carte { top: 6px; right: 8px; width: 92px; height: 92px; }
+  .sl-chat, .sl-actions { display: none; }
+  .sl-chat.ouvert { display: grid; left: 8px; right: auto; top: 54px; bottom: 8px; width: min(340px, 44vw); max-height: none; }
+  .sl-chat.ouvert ol { max-height: none; min-height: 0; }
+  .sl-actions.ouvert { display: grid; right: 150px; bottom: 8px; width: min(250px, 34vw); max-height: calc(100vh - 64px); overflow-y: auto; }
+  .sl-boutons { display: flex; flex-direction: column; gap: 6px; position: absolute; right: 10px; bottom: 10px; }
+  .sl-boutons button { position: relative; border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 13px; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); }
+  .sl-boutons button[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
+  .sl-boutons b { position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: #d64536; color: #fff; font-size: 11px; line-height: 18px; text-align: center; padding: 0 4px; }
+  .sl-joy { left: 16px; bottom: 12px; transform: none; width: 96px; height: 96px; }
+  .sl-agir { left: 130px; right: 150px; bottom: 10px; width: fit-content; max-width: none; transform: none; margin-inline: auto; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  .sl-agir .jouer, .sl-agir2 { font-size: 13px; padding: 9px 13px; white-space: normal; line-height: 1.2; }
+  .sl-guide, .chap-hud { top: 50px; bottom: auto; left: 50%; right: auto; transform: translateX(-50%); width: min(420px, calc(100vw - 300px)); max-width: none; margin: 0; padding: 7px 11px; gap: 3px; }
+  .sl-guide p { font-size: 13px; line-height: 1.3; }
+  .sl-aide, .sl-gestes-tog { display: none; }
+  .sl-actions.ouvert .sl-gestes, .sl-chat.ouvert .sl-phrases { display: flex; }
+  /* fenêtres plus hautes que l'écran (création du personnage, « Ton départ ») : elles défilent au lieu de sortir par le haut */
+  .evenement { top: 8px; bottom: 8px; transform: translateX(-50%); max-height: calc(100vh - 16px); overflow-y: auto; padding: 14px 18px 12px; }
+  .vt-boite { max-height: calc(100vh - 24px); overflow-y: auto; padding: 14px; }
+}

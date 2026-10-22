@@ -48,6 +48,11 @@ export const PERSONNAGES = {
   'chemise-wax': { femme: false, mode: true, prompt: `${HOMME}, wearing a fitted short-sleeved shirt in a green, orange and white African wax print, beige chino trousers, brown leather loafers, a wristwatch, ${SANS_LOGO}, ${POSE}` },
   bomba: { femme: false, mode: true, prompt: `${HOMME}, wearing a knee-length West African embroidered tunic (bomba) with matching straight trousers in shiny ivory white bazin fabric, gold embroidery around the neck and down the chest, a matching ivory kufi cap, brown leather slippers, ${SANS_LOGO}, ${POSE}` },
   'sport-h': { femme: false, mode: true, prompt: `${HOMME}, wearing a sporty outfit: a fitted black track jacket with yellow and green stripes on the sleeves, black jogging pants, white and black running sneakers, ${SANS_LOGO}, ${POSE}` },
+  // Tenues offertes au départ (22/10) : le joueur incarne ce jeune homme ou cette jeune femme, et change seulement d'habits.
+  'tshirt-h': { femme: false, mode: true, prompt: `${HOMME}, wearing a plain white crew-neck t-shirt, slim dark blue jeans and white sneakers, ${SANS_LOGO}, ${POSE}` },
+  'maillot-h': { femme: false, mode: true, prompt: `${HOMME}, wearing a plain football jersey in green with yellow and red trim on the collar and sleeves, black sports shorts, white socks and black sneakers, ${SANS_LOGO}, ${POSE}` },
+  'top-f': { femme: true, mode: true, prompt: `${FEMME}, natural black hair in a short rounded afro, wearing a plain mustard yellow fitted short-sleeved top, light blue high-waisted jeans and white sneakers, ${SANS_LOGO}, ${POSE}` },
+  'pagne-f': { femme: true, mode: true, prompt: `${FEMME}, natural black hair in a short rounded afro, wearing an everyday Cotonou outfit: a simple short-sleeved blouse and a long wrapper skirt in a matching turquoise and orange African wax print, flat leather sandals, ${SANS_LOGO}, ${POSE}` },
   zem: { femme: false, prompt: `A Beninese zemidjan motorcycle taxi driver from Cotonou, dark skin, wearing a bright yellow short-sleeved work shirt with a black registration number printed on the back and chest, dark trousers, plastic sandals, ${POSE}` },
 };
 

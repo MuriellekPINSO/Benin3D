@@ -26,7 +26,7 @@ import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, init
 import { majAmbianceSalon } from './ambiance-salon.js';
 import { entrerChapitres, initChapitres, majChapitres, quitterChapitres } from './chapitres.js';
 import { basculerCarte, initCarteSalon, majCarteSalon, quitterCarteSalon } from './carte-salon.js';
-import { TENUES, choixGenre, estFemme, grilleTenues, initGarderobe, ouvrirGarderobe } from './garderobe.js';
+import { TENUES, choixGenre, estFemme, grilleTenues, initGarderobe, modeleActuel, ouvrirGarderobe } from './garderobe.js';
 import { audioCtx, son } from './audio.js';
 import { camera, canvas, controls, scene } from './scene.js';
 
@@ -49,7 +49,7 @@ const PHRASES = ['Ça va ?', 'On y va !', 'On mange où ?', 'Attends-moi !', 'Tr
 const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0]]; // 7e : intérieur dont on arrive devant la porte
 const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
-const S = { orbite: 0, orbiteT: 0, actif: false, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 'vendeuse', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
+const S = { orbite: 0, orbiteT: 0, actif: false, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 't:top-f', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
 export const salonActif = () => S.actif;
 const cible = new THREE.Vector3(), voulue = new THREE.Vector3();
 const r2 = v => Math.round(v * 100) / 100;
@@ -357,7 +357,7 @@ async function porter(modele, forcer = false) {
 function quitter() {
   if (!S.actif) return;
   lieuStats('carte');
-  menu(false); quitterMonde(); S.ami = null; dehors(); sauverVie(); quitterCommerces(); quitterChapitres(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
+  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; dehors(); sauverVie(); quitterCommerces(); quitterChapitres(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
   S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
   for (const A of S.autres.values()) retirer(A); S.autres.clear();
@@ -387,7 +387,7 @@ const GS = { vuCouche: false, marche: 0, px: null, pz: 0, activite: false, dehor
 let guideSalon = null;
 const etapesSalon = () => [
   { id: 'lever', texte: () => coarse ? 'Tu te réveilles chez toi. Touche le bouton vert « Se lever », en bas.' : 'Tu te réveilles chez toi. Appuie sur [E] (ou le bouton vert en bas) pour te lever.', quand: () => !!S.couche, fait: () => GS.vuCouche && !S.couche },
-  { id: 'marcher', texte: () => coarse ? 'Marche avec le joystick. Les boutons verts en bas changent selon ce qui est près de toi.' : 'Marche avec les flèches ou [Z] [Q] [S] [D]. Les boutons verts en bas changent selon ce qui est près de toi.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
+  { id: 'marcher', texte: () => coarse ? 'Marche avec le joystick. Les boutons verts en bas changent selon ce qui est près de toi.' : 'Marche avec les flèches ou [Z] [Q] [S] [D]. Clique dans la ville : la souris dirige la caméra ([Échap] la libère). Les boutons verts en bas changent selon ce qui est près de toi.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
   { id: 'maison', texte: 'Chez toi, approche-toi de la douche ou du fourneau et appuie sur le bouton pour te laver ou cuisiner, puis mange à table. Le bouton « Sortir » t’emmène dans la rue.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.activite || GS.dehorsT > 0 },
   { id: 'rue', texte: () => coarse ? 'Te voilà dans la rue. Le bouton « Aller · gestes », en bas à droite, ouvre « Aller à » (pour aller vers un lieu) et « Prendre un zém ». En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.' : 'Te voilà dans la rue. En bas à droite, « Aller à » t’emmène vers un lieu et « Prendre un zém » appelle un zém. En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.', quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier, duree: 15 },
   { id: 'vie', texte: 'En haut à gauche : ton argent, ta faim, ton logement et ton travail. Mange quand la faim baisse : au maquis, au food court de la Cité ou chez toi.', quand: () => GS.dehorsT > 16, fait: () => false, duree: 10 },
@@ -442,7 +442,7 @@ export function majSalon(dt) {
   }
   // Caméra derrière soi (ou derrière le véhicule), à la distance et l'inclinaison choisies : glisser vers le haut ou
   // le bas, molette, touche V, stick droit de la manette. De très haut, on voit le quartier comme sur une carte.
-  if (pad) S.tangage = THREE.MathUtils.clamp(S.tangage + pad.ry * 1.2 * dt, .05, 1.48);
+  if (pad) S.tangage = THREE.MathUtils.clamp(S.tangage + pad.ry * 1.2 * dt, -.15, 1.48);
   const P = suivi || S, dist = suivi ? Math.max(S.dist, suivi.dist) : S.dist, inc = S.lieu ? Math.min(S.tangage, S.couche ? .9 : .35) : S.tangage; // dedans, à hauteur d'yeux ; couché, on regarde le lit d'en haut
   const hc = S.couche ? .6 : 1.55; // hauteur visée : la tête, ou le lit
   // Couché, on vise la tête sur l'oreiller (1,45 m des pieds) et non le milieu du lit : sur un téléphone en hauteur, elle sortait du cadre.
@@ -468,6 +468,7 @@ export function majSalon(dt) {
   }
   if (S.saut || suivi?.libre) { camera.position.copy(voulue); S.saut = false; } else camera.position.lerp(voulue, 1 - Math.exp(-dt * (suivi ? 5 : 7))); // en avion (temps accéléré), la caméra reste collée derrière
   controls.target.copy(cible);
+  const near = S.lieu ? .3 : .6; if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); } // dehors : deux fois plus de précision de profondeur au loin
   // Téléphone en hauteur : le bas de l'écran est pris par le joystick, les boutons et le guide. On remonte l'image de 12 %
   // (le personnage passe au tiers supérieur) au lieu de le laisser au milieu, derrière la carte du guide.
   const haut = coarse && innerHeight > innerWidth * 1.2;
@@ -622,7 +623,7 @@ function deplacer(nx, nz) {
 }
 
 // ---------- Vues : derrière soi, de haut, très haut (touche V, bouton « Vue », LB de la manette) ----------
-const VUES = [['Derrière toi', 7, .4], ['De haut', 45, 1], ['Très haut', 140, 1.38]];
+const VUES = [['Derrière toi', 7, .4], ['De haut', 45, 1], ['Très haut', 140, 1.38], ['Du bas', 4.5, -.15]]; // du bas : en contre-plongée, la caméra à 50 cm du sol (demande des testeurs)
 function changerVue() {
   if (S.lieu) { ligne('À l’intérieur, la caméra reste près de toi : la vue de haut revient dehors.'); return; }
   S.vue = (S.vue + 1) % VUES.length; const [, d, t] = VUES[S.vue];
@@ -668,7 +669,7 @@ function ouvrir() {
   let p = {}; try { p = JSON.parse(localStorage.getItem(CLE) || '{}'); } catch { /* rien */ }
   if (p.nom && !$('#slNom').value) $('#slNom').value = p.nom;
   // Ton personnage : une femme ou un homme, puis une tenue (les offertes, et celles déjà achetées à la boutique).
-  S.modele = TENUES.some(t => t.modele === p.modele) ? p.modele : JEU.prog?.tenue ? `t:${JEU.prog.tenue}` : S.modele;
+  S.modele = modeleActuel(p.modele) ?? (JEU.prog?.tenue ? `t:${JEU.prog.tenue}` : S.modele); // un ancien personnage passe à la tenue offerte de son genre
   let femme = estFemme(S.modele);
   const rendre = () => {
     choixGenre($('#slGenre'), femme, f => { femme = f; if (estFemme(S.modele) !== f) S.modele = TENUES.find(t => t.femme === f && !t.prix).modele; rendre(); });
@@ -742,11 +743,12 @@ export function initSalon(data) {
     if (!S.actif) return;
     const champ = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     if (champ) { if (e.key === 'Escape') e.target.blur(); e.stopPropagation(); return; }
+    if (e.key === 'Escape' && (document.pointerLockElement || performance.now() - (S.verrouT || 0) < 300)) { document.exitPointerLock?.(); e.preventDefault(); e.stopPropagation(); return; } // Échap libère d'abord la souris
     if (e.key === 'Escape') { // le menu ; si une autre fenêtre est ouverte, c'est elle qu'Échap ferme
       if (S.menu) menu(false); else if (['#choix', '#carteGrande', '#vieFiche', '#boutique'].some(s => $(s) && !$(s).hidden)) return; else menu(true);
       e.preventDefault(); e.stopPropagation(); return;
     }
-    if (e.key === 'Enter') { $('#slTexte').focus(); e.preventDefault(); e.stopPropagation(); return; }
+    if (e.key === 'Enter') { if (document.pointerLockElement) document.exitPointerLock(); $('#slTexte').focus(); e.preventDefault(); e.stopPropagation(); return; }
     const g = /^(Digit|Numpad)([1-5])$/.exec(e.code); // 1 à 5 : les gestes, comme les boutons (touches physiques : pareil en AZERTY)
     if (g) { if (!e.repeat) geste(GESTES[+g[2] - 1][0]); e.preventDefault(); e.stopPropagation(); return; }
     const k = CLAVIER[e.code]; if (k === 'carte') { if (!e.repeat) basculerCarte(); e.preventDefault(); e.stopPropagation(); return; }
@@ -757,8 +759,20 @@ export function initSalon(data) {
   window.addEventListener('blur', () => S.touches.clear());
   // Glisser sur la ville pour tourner, molette pour s'approcher ou s'éloigner.
   canvas.addEventListener('pointerdown', e => { if (S.actif) S.glisse = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
-  window.addEventListener('pointermove', e => { if (S.glisse && e.pointerId === S.glisse.id) { S.orbite -= (e.clientX - S.glisse.x) * .006; S.orbiteT = performance.now(); S.tangage = THREE.MathUtils.clamp(S.tangage + (e.clientY - S.glisse.y) * .005, .05, 1.48); S.glisse.x = e.clientX; S.glisse.y = e.clientY; } }); // vers le bas : on prend de la hauteur
+  window.addEventListener('pointermove', e => { if (S.glisse && e.pointerId === S.glisse.id) { S.orbite -= (e.clientX - S.glisse.x) * .006; S.orbiteT = performance.now(); S.tangage = THREE.MathUtils.clamp(S.tangage + (e.clientY - S.glisse.y) * .005, -.15, 1.48); S.glisse.x = e.clientX; S.glisse.y = e.clientY; } }); // vers le bas : on prend de la hauteur
   window.addEventListener('pointerup', e => { if (S.glisse?.id === e.pointerId) S.glisse = null; });
+  // Ordinateur : un clic dans la ville et la souris dirige la caméra, sans tenir de bouton (verrouillage du pointeur,
+  // comme dans les jeux) ; Échap la libère. Avant, il fallait cliquer et garder le bouton enfoncé pour tourner.
+  canvas.addEventListener('click', e => { if (S.actif && !coarse && e.pointerType !== 'touch' && !document.pointerLockElement && !S.menu) canvas.requestPointerLock?.()?.catch?.(() => { }); });
+  document.addEventListener('mousemove', e => {
+    if (!S.actif || document.pointerLockElement !== canvas) return;
+    S.orbite -= e.movementX * .0032; S.tangage = THREE.MathUtils.clamp(S.tangage + e.movementY * .0028, -.15, 1.48); S.orbiteT = performance.now();
+  });
+  document.addEventListener('pointerlockchange', () => { S.verrouT = performance.now(); });
+  // Une fenêtre qui s'ouvre (choix, menu, garde-robe, carte, fiche) rend la souris : il faut pouvoir cliquer dedans.
+  const rendreSouris = () => { if (document.pointerLockElement === canvas) document.exitPointerLock(); };
+  const veille = new MutationObserver(() => { if (['#choix', '#garderobe', '#vieFiche', '#carteGrande', '#vieTirage'].some(s => $(s) && !$(s).hidden) || S.menu) rendreSouris(); });
+  for (const s of ['#choix', '#garderobe', '#vieFiche', '#carteGrande', '#vieTirage', '#vieHud']) if ($(s)) veille.observe($(s), { attributes: true, attributeFilter: ['hidden', 'class'] });
   canvas.addEventListener('wheel', e => { if (!S.actif) return; S.dist = THREE.MathUtils.clamp(S.dist * (1 + Math.sign(e.deltaY) * .12), 2.5, S.lieu ? 6 : 150); e.preventDefault(); }, { passive: false });
   // Manette tactile : un rond qu'on pousse avec le pouce.
   const joy = $('#slJoy');
