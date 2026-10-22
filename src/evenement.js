@@ -170,8 +170,8 @@ async function payerEnMoMo() {
   if (btn.disabled) return;
   const dispo = autres.map(b => b.disabled);
   btn.disabled = true; autres.forEach(b => { b.disabled = true; }); btn.classList.add('charge');
-  etatMomo(EV.enAttente ? 'Vérification du paiement…' : 'Ouverture de FedaPay…');
-  const r = EV.enAttente ? await verifierTransaction(EV.enAttente, PRIX_ENTREE) : await payerMoMo({ montant: PRIX_ENTREE, description: 'Entrée au concert de l’Esplanade', objet: 'concert' });
+  etatMomo(EV.enAttente ? 'Vérification du paiement…' : 'Paiement Mobile Money…');
+  const r = EV.enAttente ? await verifierTransaction(EV.enAttente, PRIX_ENTREE, { objet: 'concert' }) : await payerMoMo({ montant: PRIX_ENTREE, description: 'Entrée au concert de l’Esplanade', objet: 'concert' });
   btn.disabled = false; autres.forEach((b, i) => { b.disabled = dispo[i]; }); btn.classList.remove('charge');
   EV.enAttente = !r.paye && r.id && !echecCertain(r.statut) ? r.id : null; // en attente ou vérification impossible : on garde le numéro
   memoriserAttente(EV.enAttente);

@@ -4,7 +4,7 @@ import { son } from './audio.js';
 import { BORD } from './bordure.js';
 import { bulle, dialogue, DISC } from './discussions.js';
 import { JEU, fmtF, toast } from './jeu.js';
-import { progres } from './missions.js';
+import { ameliore, progres } from './missions.js';
 
 // ---------- L'essence ----------
 // Le réservoir baisse en roulant (1 litre pour 3 km, à l'échelle du jeu). On fait le plein
@@ -13,6 +13,7 @@ import { progres } from './missions.js';
 // le moteur tousse). À sec, c'est la panne : on avance au pas jusqu'au prochain vendeur.
 
 export const RESERVOIR = 3, PRIX = { station: 680, kpayo: 500 };
+const reservoir = () => ameliore('reservoir') ? 4.5 : RESERVOIR; // le grand réservoir du garage
 const vivantDe = it => BORD.vivants.find(v => v.s === it.s && v.type === it.type);
 
 /** Réglages de départ d'une course. */
@@ -27,13 +28,13 @@ function payer(st, cout) { // la recette du jour d'abord, puis la cagnotte
 }
 export function servir(st, it) {
   const kpayo = it.type === 'kpayo', prix = PRIX[kpayo ? 'kpayo' : 'station'], v = vivantDe(it);
-  const manque = Math.max(0, RESERVOIR - st.essence), plein = Math.round(manque * 10) / 10, cout = Math.ceil(plein * prix / 25) * 25;
+  const manque = Math.max(0, reservoir() - st.essence), plein = Math.round(manque * 10) / 10, cout = Math.ceil(plein * prix / 25) * 25;
   const qui = kpayo ? 'La vendeuse de kpayo' : `Le pompiste${it.nom ? ' · ' + it.nom : ''}`;
   const texte = kpayo ? `« Kpayo ! ${fmtF(prix)} le litre, c’est moins cher qu’à la station ! »` : `« Bonjour zém ! Je te sers combien ? Le litre est à ${fmtF(prix)}. »`;
   if (v) bulle(v.g, kpayo ? 'Kpayo ! Un litre, deux litres ?' : 'Bonjour zém ! On te sert ?', { duree: 2.6 });
   const verser = (l, c) => {
     if (!payer(st, c)) { toast('Pas assez d’argent pour ça', 1.4, 'mal'); if (v) bulle(v.g, 'Il faut payer d’abord hein !'); return; }
-    st.essence = Math.min(RESERVOIR, st.essence + l); st.panne = false; st.service = Math.max(st.service, 2.6);
+    st.essence = Math.min(reservoir(), st.essence + l); st.panne = false; st.service = Math.max(st.service, 2.6);
     if (v && JEU.joueur) payerEtRecevoir(JEU.joueur, v.g, 'essence', JEU.joueur, { hautVers: .95, garder: 1.4, verser: true }); // on voit l'essence passer dans le réservoir
     son('piece'); toast(`+${l.toLocaleString('fr-FR')} L d’essence · −${fmtF(c)}`, 1.6, 'bien'); progres('essence', 1);
     if (kpayo && Math.random() < .18) { // essence de contrebande coupée
@@ -66,6 +67,6 @@ export function majEssence(st, dt) {
     if (ds > 40 && ds < 80 && !it.propose && !(st.temps < (st.proposeT ?? -99) + 25)) { it.propose = true; st.proposeT = st.temps; toast(`${it.type === 'station' ? `Station${it.nom ? ' ' + it.nom : ''}` : 'Kpayo'} à ${it.side > 0 ? 'droite' : 'gauche'} : arrête-toi devant, puis E pour le plein`, 2.6); break; }
   }
   // Jauge du HUD.
-  const el = $('#jhEssence'); if (el) { el.firstElementChild.style.width = `${Math.max(0, st.essence / RESERVOIR * 100).toFixed(0)}%`; el.classList.toggle('bas', st.essence < .45); }
+  const el = $('#jhEssence'); if (el) { el.firstElementChild.style.width = `${Math.max(0, st.essence / reservoir() * 100).toFixed(0)}%`; el.classList.toggle('bas', st.essence < .45); }
   const li = $('#jhLitres'); if (li) li.textContent = `${Math.max(0, st.essence).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`;
 }

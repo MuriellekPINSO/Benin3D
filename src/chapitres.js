@@ -78,13 +78,27 @@ function reussir() {
   CH.fete = 3.2;
   if (finChapitre) CH.ligne(CH.i < ETAPES.length ? `Chapitre ${e.c + 1} terminé : « ${CHAPITRES[e.c].titre} ». Place au chapitre ${e.c + 2} : « ${CHAPITRES[e.c + 1].titre} ».` : 'Tu as fini tous les chapitres : bravo, tu es quelqu’un à Cotonou !');
 }
+// Après les quatre chapitres : des paliers de fortune, chacun avec son titre (un but de long terme, au lieu de « continue »).
+const PALIERS = [[50000, 'Petit patron', 'Petite patronne'], [150000, 'Commerçant reconnu', 'Commerçante reconnue'], [400000, 'Magnat de Dantokpa', 'Magnate de Dantokpa'], [1000000, 'Roi de Cotonou', 'Reine de Cotonou']];
+let palierVu = null; // le palier déjà montré : seul un nouveau palier pendant la partie est annoncé
+function afficherPaliers() {
+  const argent = VIE.data?.argent || 0, titre = i => PALIERS[i][VIE.femme ? 2 : 1];
+  const atteint = PALIERS.reduce((r, [seuil], i) => (argent >= seuil ? i : r), -1), suivant = PALIERS[atteint + 1];
+  if (palierVu !== null && atteint > palierVu) { CH.ligne(`Nouveau titre : ${titre(atteint)} ! Ta fortune dépasse ${fmt(PALIERS[atteint][0])}.`); son('piece'); }
+  palierVu = atteint;
+  $('#chapTitre').textContent = atteint >= 0 ? titre(atteint) : 'Tous les chapitres terminés'; $('#chapCompte').textContent = '';
+  const bas = atteint >= 0 ? PALIERS[atteint][0] : 0;
+  $('#chapBarre').style.setProperty('--p', `${suivant ? Math.round(Math.min(1, (argent - bas) / (suivant[0] - bas)) * 100) : 100}%`);
+  $('#chapEtape').textContent = suivant ? `Prochain titre : « ${titre(atteint + 1)} » à ${fmt(suivant[0])} (tu as ${fmt(argent)}). Tes commerces travaillent pour toi : ${nbCommerces()} ouvert${nbCommerces() > 1 ? 's' : ''}.` : `Tu es au sommet de Cotonou avec ${fmt(argent)}.`;
+  $('#chapPrime').textContent = '';
+}
 function masquerSiGuide() { const el = $('#chapHud'); if (el && CH.guide() && !el.hidden) el.hidden = true; }
 function afficher() {
   const el = $('#chapHud'); if (!el) return;
   el.classList.remove('reussi');
   if (!CH.charge || CH.guide()) { el.hidden = true; return; }
   const e = etape(); el.hidden = false;
-  if (!e) { $('#chapTitre').textContent = 'Tous les chapitres terminés'; $('#chapCompte').textContent = ''; $('#chapBarre').style.setProperty('--p', '100%'); $('#chapEtape').textContent = `Patron de ${nbCommerces()} commerce${nbCommerces() > 1 ? 's' : ''} : continue à faire grandir tes affaires.`; $('#chapPrime').textContent = ''; return; }
+  if (!e) return afficherPaliers();
   const C = CHAPITRES[e.c];
   $('#chapTitre').textContent = `Chapitre ${e.c + 1} · ${C.titre}`;
   $('#chapCompte').textContent = `${e.k}/${C.etapes.length}`;

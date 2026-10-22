@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { LITE, hash, toXZ, u8c } from './base.js';
 import { scene } from './scene.js';
+import { parCarres } from './carres.js';
 import { ROAD_W, TABLIERS, roadLines } from './ville.js';
 import { GRANDES_AFFICHES, matAffiche } from './publicites.js';
 import { poserSol } from './sols.js';
@@ -892,16 +893,7 @@ export const detailsProches = [];
  * découpés en carrés de `cote` m. D'un seul tenant, leur sphère faisait 25 km de rayon : toujours « proche », toujours
  * dans le champ, 600 000 triangles à chaque image depuis n'importe quelle rue. Chaque carré est écarté à part.
  */
-export function semer(m, cote = 600) {
-  const cases = new Map(), M = new THREE.Matrix4(), C = new THREE.Color();
-  for (let i = 0; i < m.count; i++) { m.getMatrixAt(i, M); const k = `${Math.floor(M.elements[12] / cote)},${Math.floor(M.elements[14] / cote)}`; if (!cases.has(k)) cases.set(k, []); cases.get(k).push(i); }
-  for (const ids of cases.values()) {
-    const c = new THREE.InstancedMesh(m.geometry, m.material, ids.length);
-    ids.forEach((i, j) => { m.getMatrixAt(i, M); c.setMatrixAt(j, M); if (m.instanceColor) { m.getColorAt(i, C); c.setColorAt(j, C); } });
-    c.castShadow = m.castShadow; c.receiveShadow = m.receiveShadow; c.renderOrder = m.renderOrder; c.userData = { ...m.userData };
-    c.computeBoundingSphere(); detailsProches.push(c); scene.add(c);
-  }
-}
+export function semer(m, cote = 600) { for (const c of parCarres(m, cote)) { detailsProches.push(c); scene.add(c); } }
 // Arbres et palmiers instanciés, avec leurs positions : le jeu écarte ceux qui gênent la caméra.
 export const VEGETATION = [];
 export const fouleCorps = new THREE.CylinderGeometry(.2, .27, 1.2, 6).translate(0, .62, 0);

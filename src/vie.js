@@ -47,7 +47,10 @@ export const titreDans = i => { const t = titrePoste(i); return t === 'DG' ? t :
 // L'expérience (une course, un arrêt servi) fait monter en grade : 10 % de recette en plus par grade.
 export const GRADES = [[0, 'Débutant'], [10, 'Habitué'], [30, 'Confirmé'], [70, 'As de la route']];
 export const gradeDe = xp => GRADES.reduce((g, [seuil], i) => (xp >= seuil ? i : g), 0);
-const JOUR = 864e5, FAIM_PAS = 90, CLE_LOCALE = 'cotonou3d.vie'; // un point de faim en moins toutes les 90 s de jeu
+const JOUR = 864e5, CLE_LOCALE = 'cotonou3d.vie';
+// La faim : un point en moins toutes les 60 s de jeu, puis toutes les 40 s sous 40 (à 90 s, elle ne bougeait presque pas
+// en une partie et ne créait aucune envie d'aller manger) : de 100 à 0 en moins d'une heure et demie.
+const FAIM_PAS = () => (VIE.data?.faim ?? 100) > 40 ? 60 : 40;
 export const VIE = { data: null, local: false, faimT: 0, sauveT: 0, alerte: '', travail: null, mission: '', prochainGain: 0, tArgent: 0 }; // travail : véhicule du patron { type, carburant } (le temps de la partie)
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 
@@ -171,8 +174,9 @@ async function versementEchu() {
 export function majVie(dt) {
   const v = VIE.data; if (!v) return;
   VIE.faimT += dt;
-  if (VIE.faimT >= FAIM_PAS) {
-    VIE.faimT -= FAIM_PAS; v.faim = Math.max(0, v.faim - 1); rendreVie();
+  if (VIE.faimT >= FAIM_PAS()) {
+    VIE.faimT -= FAIM_PAS(); v.faim = Math.max(0, v.faim - 1); rendreVie();
+    if (Math.round(v.faim) === 40) annonce('Ton ventre gronde : pense à manger bientôt (maquis, food court de la Cité, chez toi).');
     if (Math.round(v.faim) === 20) annonce('Tu as faim : va manger un morceau (food court de la Cité, maquis…).');
     if (v.faim <= 0) annonce('Tu as trop faim : tu marches au ralenti tant que tu n’as pas mangé.');
   }
@@ -240,6 +244,28 @@ export function ecrireEnPlus(c, valeur) {
 let annonceur = null;
 export function surAnnonce(f) { annonceur = f; }
 function annonce(t) { if (annonceur) annonceur(t); }
+// « Bonjour de Cotonou » : la première entrée de la journée dans le salon. Une phrase du quartier, la série de jours (comme
+// la série de Zém Run et le « day streak » de Danfo Run) et un petit cadeau qui grandit avec elle (100 F par jour, 7 jours
+// au plus). Gardé sur l'appareil.
+const PHRASES_DU_JOUR = [
+  'Dantokpa est plein dès le matin : les commerçantes t’attendent.',
+  'Le soleil tape fort sur la Marina : un jus de bissap au maquis ?',
+  'On dit que le food court de la Cité a un nouveau plat du jour.',
+  'La plage de Fidjrossè sera belle ce soir : passe avec tes amis.',
+  'Les zéms de l’Étoile Rouge cherchent du monde pour la journée.',
+  'Ton voisin a préparé de l’amiwo : passe le saluer.',
+  'Il paraît que l’avion pour Ouidah a encore des places.',
+];
+export async function bonjourDuJour() {
+  const auj = new Date(Date.now() + 36e5).toISOString().slice(0, 10), hier = new Date(Date.now() + 36e5 - JOUR).toISOString().slice(0, 10);
+  let s = {}; try { s = JSON.parse(localStorage.getItem('kutonu.salon.serie') || '{}'); } catch { /* navigation privée */ }
+  if (s.jour === auj) return null;
+  const n = s.jour === hier ? (s.n || 0) + 1 : 1, cadeau = 100 * Math.min(7, n);
+  try { localStorage.setItem('kutonu.salon.serie', JSON.stringify({ jour: auj, n })); } catch { /* navigation privée */ }
+  await gagner(cadeau, 'cadeau du jour', { source: 'prime', silencieux: true });
+  const phrase = PHRASES_DU_JOUR[Math.floor(Date.now() / JOUR) % PHRASES_DU_JOUR.length];
+  return `Bonjour de Cotonou ! ${phrase} ${n > 1 ? `${n} jours de suite : cadeau du jour` : 'Cadeau du jour'}, +${fmt(cadeau)}.${n < 7 ? ' Reviens demain, il sera plus gros.' : ''}`;
+}
 export function alerteDuJour() { const a = VIE.alerte; VIE.alerte = ''; return a; }
 export function rendreVie() {
   const el = $('#vieHud'), v = VIE.data; if (!el) return;

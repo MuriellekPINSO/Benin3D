@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { poserTripo, tripoDispo } from './batiments-tripo.js';
-import { AUDIO, audioCtx, moteur, moteurMaj, moteurStop, radio, son } from './audio.js';
+import { AUDIO, STATIONS, audioCtx, moteur, moteurMaj, moteurStop, radio, son } from './audio.js';
 import { VOIX, taire, voixActives, voixDispo } from './voix.js';
 import { accident, majFeux, preparerFeux } from './regles.js';
 import { PT, majPietons, marchandeReelle, preparerPietons, regarder, viderPietons } from './pietons.js';
@@ -19,7 +19,8 @@ import { satelliteVisible } from './satellite.js';
 import { photoJeu } from './google.js';
 import { BORD, majBordure, majMiniCarte, nettoyerBordure, preparerBordure } from './bordure.js';
 import { bulle, clientRate, collecte, departApprenti, deposerClient, dialogue, DISC, etiquetteClient, evenement, klaxonner, majDiscussions, nettoyerDiscussions, nouveauClient, nouveauSigne, placerCollecteur, preparerDiscussions, repondre } from './discussions.js';
-import { assurerMissions, progDefaut, progres, rendreProgression, serieDuJour } from './missions.js';
+import { ameliore, assurerMissions, progDefaut, progres, rendreProgression, serieDuJour, tamponner } from './missions.js';
+import { preparerTicket } from './ticket.js';
 import { etalPres, ouvrirBoutique } from './artisans.js';
 import { essenceDepart, facteurEssence, majEssence } from './essence.js';
 import { interagir, majInteractions } from './interactions.js';
@@ -31,14 +32,14 @@ import { dansBatiment, pietonOk, profilRoute, profondeurRue, rueRouteJeu } from 
 import { creerGuide } from './guide.js';
 import { compterUneFois, lieuStats } from './statistiques.js';
 import { suspendreChanson } from './lecteur.js';
-import { initClassement, ouvrirClassement, placeApresCourse } from './classement.js';
+import { envoyerScore, initClassement, ouvrirClassement, placeApresCourse } from './classement.js';
 import { animerMoto } from './roues.js';
 
 // ---------- Zém Run : le jeu ----------
 /** Véhicules qui prennent un client à la fois, avec négociation (zém et taxi). */
 export const avecClients = v => v === 'zem' || v === 'voiture';
 export const VEH = {
-  zem: { nom: 'Zémidjan', vmax: 25, accel: 4.4, larg: .75, long: 2.1, places: 1, tarif: [200, 450], cam: [5.4, 2.5] },
+  zem: { nom: 'Zémidjan', vmax: 25, accel: 4.4, larg: .75, long: 2.1, places: 1, tarif: [200, 450], cam: [6.4, 3] },
   tokpa: { nom: 'Tokpa-tokpa', vmax: 21, accel: 3.2, larg: 1.9, long: 5, places: 14, tarif: [150, 300], cam: [12.5, 5.2] },
   voiture: { nom: 'Taxi', vmax: 27, accel: 4.6, larg: 1.8, long: 4.3, places: 1, tarif: [300, 600], cam: [9.5, 3.8] }, // à débloquer au garage (priorité 3)
 };
@@ -52,10 +53,11 @@ export const QUIZ = {
 export const LANE = 2.7, RECUL = 3; // marche arrière : 11 km/h au plus
 export const JEU = { actif: false, pause: false, etat: null, objets: [], decor: null, joueur: null, ligne: null, veh: 'zem', numero: '1234', lignes: [], meilleur: {} };
 JEU.prog = null; JEU.autoGaz = false; // le zém n'avance que si le joueur accélère (↑) ; relâché, il ralentit jusqu'à l'arrêt
+JEU.gaucher = false; // téléphone : boutons Frein, Gaz et E à gauche (option du menu, comme la « left-handed layout » de Danfo Run)
 JEU.glisser = coarse; // au doigt, façon Subway Surfers : le zém avance seul, on glisse pour changer de file, sauter, freiner (option du menu)
-try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; if (typeof s.glisser === 'boolean') JEU.glisser = s.glisser; } catch (e) { }
+try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; if (typeof s.glisser === 'boolean') JEU.glisser = s.glisser; JEU.gaucher = !!s.gaucher; } catch (e) { }
 const auDoigt = () => coarse && JEU.glisser;
-export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, autoGaz: JEU.autoGaz, glisser: JEU.glisser })); } catch (e) { } };
+export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, autoGaz: JEU.autoGaz, glisser: JEU.glisser, gaucher: JEU.gaucher })); } catch (e) { } };
 export const fmtF = n => `${Math.round(n).toLocaleString('fr-FR')}\u00a0F`; // espace insécable : « 2 000 » et « F » restent sur la même ligne
 
 // Lissage (Chaikin) des virages, mais seulement sur les 7 derniers mètres avant chaque coin et les 7 premiers après :
@@ -251,7 +253,8 @@ export function creerObjet(type, s, file) {
   const T = TYPES[type]; let mesh;
   if (type === 'zem') {
     const m3d = hash(JEU.objets.length + s, 1) < .5 ? ZEMS_3D.moto : ZEMS_3D.zem || ZEMS_3D.moto;
-    mesh = m3d ? m3d.clone() : new THREE.Mesh(hash(JEU.objets.length + s, 1) < .5 ? GJ.zem : GJ.zemB, matVeh);
+    // Téléphone : le zémidjan allégé (11 000 triangles) au lieu du conducteur scanné (59 000), trois ou quatre à l'écran.
+    mesh = LITE && ZEMS_3D.motoLod ? new THREE.Mesh(ZEMS_3D.motoLod.geo, ZEMS_3D.motoLod.mat) : m3d ? m3d.clone() : new THREE.Mesh(hash(JEU.objets.length + s, 1) < .5 ? GJ.zem : GJ.zemB, matVeh);
   }
   else if (type === 'tokpa') { mesh = TOKPA_3D.geo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(GJ.tokpa, matVeh); mesh.castShadow = !LITE; }
   else if (type === 'voiture') mesh = new THREE.Mesh(GJ.voit[Math.floor(hash(s, 2) * 5)], matVeh);
@@ -393,11 +396,13 @@ export function lancerLigne(L, veh) {
   const faisceau = new THREE.Mesh(GJ.phares.geo, GJ.phares.mat); faisceau.renderOrder = 12; faisceau.visible = false; grp.add(faisceau); grp.userData.phares = faisceau;
   JEU.decor.add(grp); JEU.joueur = grp;
   JEU.anim?.liberer(); JEU.anim = veh === 'zem' ? animerMoto(grp, { parent: JEU.decor }) : null; // roues qui tournent, fumée, poussière (roues.js)
-  JEU.etat = { s: 4, v: 0, file: 0, lat: 0, y: 0, vy: 0, vies: 3, argent: 0, passagers: veh === 'tokpa' ? 6 : 0, prochain: 1, servis: 0, manques: 0, frolements: 0, pieces: 0, invul: 0, service: 0, secousse: 0, frein: false, spawn: 40, quartier: '', temps: 0, carte: 0, casque: 0, superSaut: false, parcouru: 0, voyageurs: 0, doux: !!L.express || !Object.keys(JEU.meilleur).length };
+  JEU.etat = { s: 4, v: 0, file: 0, lat: 0, y: 0, vy: 0, accidents: 0, argent: 0, passagers: veh === 'tokpa' ? 6 : 0, prochain: 1, servis: 0, manques: 0, frolements: 0, pieces: 0, invul: 0, service: 0, secousse: 0, frein: false, spawn: 40, quartier: '', temps: 0, carte: 0, casque: 0, superSaut: false, parcouru: 0, voyageurs: 0, doux: !!L.express || !Object.keys(JEU.meilleur).length };
   // Bonus achetés au garage, série de jours, le collecteur, et le premier client.
   const P = JEU.prog, st0 = JEU.etat; essenceDepart(st0);
   if (P.bonus.casque > 0) { P.bonus.casque--; st0.casque = 1; }
   if (P.bonus.saut > 0) { P.bonus.saut--; st0.superSaut = true; }
+  majSerie(st0);
+  if (ameliore('pneus') && avecClients(veh)) st0.pneus = Infinity; // pneus renforcés du garage : pour toute la course
   sauver(); serieDuJour(); placerCollecteur(L, C);
   if (avecClients(veh)) setTimeout(() => { if (JEU.etat === st0 && JEU.actif) nouveauClient(st0, 1); }, 1400); else setTimeout(departApprenti, 900);
   JEU.actif = true; JEU.pause = false; E.flight = null; controls.enabled = false; controls.autoRotate = false;
@@ -411,6 +416,8 @@ export function lancerLigne(L, veh) {
   if (METEO.pluie > .3) setTimeout(() => toast('Il pleut : la route glisse, freine plus tôt', 2.4, 'mal'), 3200);
   Object.assign(G, { file: 0, changements: 0, cf: null, carrefours: 0, essence: st0.essence, plein: false });
   if (guideJeu?.actif()) toast(L.arretsJ[0].nom, 2);
+  // Au téléphone, une consigne courte (les touches du clavier n'y servent à rien, et le long texte couvrait l'écran).
+  else if (coarse) toast(auDoigt() ? `${L.arretsJ[0].nom} · glisse pour changer de file, vers le haut pour sauter` : `${L.arretsJ[0].nom} · Gaz et Frein en bas, E pour agir`, 2.2);
   else toast(`${L.arretsJ[0].nom} · ↑ accélérer (relâche pour ralentir), ↓ freiner (à l’arrêt, appuie encore : marche arrière), U demi-tour, E interagir · arrête-toi au feu rouge`, 3.4);
 }
 // Tout ce qui dépend du trajet : arrêts, bord de route, gens, habillage des rues, végétation, carrefours.
@@ -524,6 +531,27 @@ export function toast(txt, d = 1.6, cls = '', mineur = false) {
   toastsVus.set(txt, t); const el = $('#jhToast'); el.textContent = txt; el.className = 'jh-toast on ' + cls; toastT = d;
 }
 /** Petit gain affiché à côté de la recette (frôlements, pièces) au lieu d'un grand message au milieu de l'écran. */
+// Série de clients, comme le « Fast ×1.5 » de Danfo Run : deux clients déposés d'affilée sans accident, arrêt manqué ni
+// feu rouge passent la recette à ×1,5, quatre à ×2. Les frôlements s'enchaînent aussi : moins de 5 s après le précédent,
+// chacun rapporte 10 F de plus (65 F au plus).
+export const multiplicateur = st => (st?.serie || 0) >= 4 ? 2 : (st?.serie || 0) >= 2 ? 1.5 : 1;
+const fois = m => `×${String(m).replace('.', ',')}`;
+function majSerie(st) { const el = $('#jhSerie'); if (!el) return; const m = multiplicateur(st); el.hidden = m <= 1; el.textContent = fois(m); }
+export function casserSerie(st, pourquoi) {
+  if (!st) return; st.froleSuite = 0;
+  if (!(st.serie > 0)) return;
+  const avant = multiplicateur(st); st.serie = 0; majSerie(st);
+  if (avant > 1) setTimeout(() => toast(`Série perdue : ${pourquoi}`, 1.8, 'mal'), 1700);
+}
+// Un accident ne termine plus la course (plus de vies, demandé le 22/10 : Zém Run se joue au score, jusqu'au terminus).
+// Il coûte : 150 F (50 F pour un débutant) pris sur la recette, la moto pile, la série de clients est perdue, et le
+// client peut descendre (regles.js accident).
+const PRIX_ACCIDENT = 150;
+function accidentCourse(st, quoi) {
+  st.accidents++; const cout = Math.min(st.argent, st.doux ? 50 : PRIX_ACCIDENT); st.argent -= cout;
+  toast(`Accident ! Attention ${quoi}${cout ? ` · −${cout} F` : ''}`, 1.8, 'mal'); casserSerie(st, 'accident');
+  accident(st);
+}
 function gainPetit(txt) { const el = $('#jhPop'); if (!el) return; el.textContent = txt; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); }
 export function carteQuartier(a) {
   const c = $('#jhCarte'); c.querySelector('h3').textContent = a.nom; c.querySelector('p').textContent = a.fait; c.hidden = false; JEU.etat.carte = 5.5;
@@ -531,6 +559,7 @@ export function carteQuartier(a) {
 }
 
 export const tmpP2 = { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 };
+const tmpCam = { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 };
 export function sauter() { const s = JEU.etat; if (s && s.y === 0 && s.service <= 0) { s.vy = s.superSaut ? 10.5 : 7.8; son('saut'); evenement('saut'); } }
 /** Le zém se range à l'abscisse `s`, du côté `side`, puis exécute `action`. */
 export function arretAuto(s, side, action) { const st = JEU.etat; if (st) st.auto = { s, side, action }; }
@@ -563,7 +592,7 @@ export function majJeu(dt) {
   else {
     // Conduite : ↑ accélère, ↓ freine ; sans rien, la moto ralentit en roue libre jusqu'à l'arrêt.
     // Sur le bas-côté (files ±2), on roule au pas, le long des kiosques et des vendeurs.
-    const vmax = Math.min(V.vmax * (1 + Math.min(.15, st.s / C.L * .2)) * facteurEssence(st) * (Math.abs(st.file) === 2 ? .3 : 1), limiteVirage(C, st.s));
+    const vmax = Math.min((V.vmax + (JEU.veh === 'zem' && ameliore('moteur') ? 2 : 0)) * (1 + Math.min(.15, st.s / C.L * .2)) * facteurEssence(st) * (Math.abs(st.file) === 2 ? .3 : 1), limiteVirage(C, st.s));
     // Marche arrière, au pas : un nouvel appui sur le frein une fois arrêté. Le frein qui vient d'arrêter la moto
     // la tient arrêtée (au feu rouge, à l'arrêt), sans repartir en arrière.
     if (st.frein || st.freinM) {
@@ -583,14 +612,19 @@ export function majJeu(dt) {
   st.parcouru += Math.abs(st.v) * dt; // st.s repart de 0 à chaque itinéraire recalculé (virage, demi-tour)
   majFeux(st);
   majEssence(st, dt);
-  st.lat += (st.file * LANE - st.lat) * Math.min(1, dt * 9);
+  // Changement de file en 0,2 s, avec une courbe douce (Danfo Run : 0,18 s) ; avant, un lissage qui traînait 0,33 s.
+  const cibleLat = st.file * LANE;
+  if (cibleLat !== st.latCible) st.changeT = st.temps;
+  if (cibleLat !== st.latCible || st.lat !== st.latPose) { st.latCible = cibleLat; st.latDe = st.lat; st.latT = 0; } // nouvelle file, ou écarté par un choc
+  st.latT = Math.min(.2, (st.latT ?? .2) + dt); { const u = st.latT / .2; st.lat = st.latDe + (cibleLat - st.latDe) * u * u * (3 - 2 * u); } st.latPose = st.lat;
   if (st.y > 0 || st.vy > 0) { st.vy -= 24 * dt; st.y = Math.max(0, st.y + st.vy * dt); if (st.y === 0) st.vy = 0; }
   if (st.invul > 0) st.invul -= dt;
   if (st.secousse > 0) st.secousse -= dt;
   const kj = kFiles(C, st.s), latM = latJeu(C, st.s, st.lat, V.larg / 2 + .25), p = pose(C, st.s, latM); // files resserrées dans la vraie largeur de la rue, jamais dans un mur
   const latMAv = st.latM ?? latM; st.latM = latM;
   const j = JEU.joueur; j.position.set(p.x, p.y + st.y, p.z); j.rotation.set(0, p.a, 0);
-  j.rotateX(JEU.veh === 'zem' ? Math.max(-.32, Math.min(.32, -(latM - latMAv) / Math.max(dt, .001) * .014)) : 0);
+  const roulis = JEU.veh === 'zem' ? Math.max(-.32, Math.min(.32, -(latM - latMAv) / Math.max(dt, .001) * .014)) : 0; // la moto penche dans le changement de file
+  st.roulis = (st.roulis || 0) + (roulis - (st.roulis || 0)) * Math.min(1, dt * 12); j.rotateX(st.roulis);
   if (C.H) { const i = Math.max(2, Math.min(C.n - 3, Math.floor(st.s))); j.rotateZ(Math.atan((C.H[i + 2] - C.H[i - 2]) / 4)); } // penché dans la rampe du pont
   if (JEU.anim) { // la moto vit : elle vibre sur la route, plonge au freinage, se cabre un peu en accélérant ; roues, fumée, poussière
     const vib = Math.min(1, Math.abs(st.v) / 6), acc = (st.v - (st.vAvant ?? st.v)) / Math.max(dt, .001); st.vAvant = st.v; st.acc = (st.acc || 0) + (acc - (st.acc || 0)) * Math.min(1, dt * 6);
@@ -671,16 +705,15 @@ export function majJeu(dt) {
           o.touche = true;
           if (st.casque > 0) { st.casque--; st.v *= .4; st.invul = 1.8; st.secousse = .4; son('choc'); toast('Le casque neuf a encaissé le choc !', 1.6, 'bien'); evenement('choc'); }
           else {
-            st.vies--; st.v *= .2; st.invul = 1.8; st.secousse = .5; son('choc'); evenement('choc'); vibrer('choc');
+            st.v *= .2; st.invul = 1.8; st.secousse = .5; son('choc'); evenement('choc'); vibrer('choc');
             const noms = { zem: 'à l’autre zém', tokpa: 'au tokpa-tokpa', voiture: 'à la voiture', chevre: 'à la chèvre', marchande: 'à la marchande', travaux: 'aux travaux', egungun: ': on ne touche pas un Egungun' };
-            toast(st.vies > 0 ? `Accident ! Attention ${noms[o.type]}` : 'Accident…', 1.6, 'mal');
-            if (st.vies <= 0) { majHud(st, C, V); return finJeu(false); }
-            accident(st);
+            accidentCourse(st, noms[o.type]);
           }
         } else if (!o.contact && st.v > .5) { o.contact = true; son('bosse'); } // simple contact au pas
       }
     }
-    if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(ecart) < (o.T.larg + V.larg) / 2 + 1.1) { o.frole = true; st.frolements++; st.argent += 15; gainPetit('Ça passe ! +15 F'); evenement('frole'); progres('frolements', st.frolements); }
+    if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(ecart) < (o.T.larg + V.larg) / 2 + (st.temps - (st.changeT ?? -9) < 1.1 ? 1.9 : 1.1)) { // juste après un changement de file, on compte plus large (Danfo Run) o.frole = true; st.frolements++; st.froleSuite = st.temps - (st.froleT ?? -99) < 5 ? (st.froleSuite || 0) + 1 : 1; st.froleT = st.temps;
+      const g = Math.min(65, 15 + 10 * (st.froleSuite - 1)); st.argent += g; gainPetit(st.froleSuite > 1 ? `Ça passe ! ${fois(st.froleSuite)} +${g} F` : `Ça passe ! +${g} F`); vibrer('piece'); evenement('frole'); progres('frolements', st.frolements); }
     restants.push(o);
   }
   JEU.objets = restants;
@@ -696,8 +729,10 @@ export function majJeu(dt) {
       let gain;
       if (avecClients(JEU.veh)) { gain = deposerClient(); st.voyageurs++; }
       else { const n = 2 + Math.floor(Math.random() * 5); st.voyageurs += n; gain = n * (V.tarif[0] + Math.round(Math.random() * (V.tarif[1] - V.tarif[0]) / 25) * 25); st.passagers = Math.min(V.places, st.passagers + Math.floor(Math.random() * 4)); setTimeout(departApprenti, 1300); }
-      st.argent += gain; st.servis++;
-      st.service = 1.4; son('arret'); vibrer('arret'); toast(gain ? `${a.nom} : +${gain} F` : a.nom, 1.8, 'bien'); carteQuartier(a); st.prochain++;
+      const m = multiplicateur(st); if (gain && m > 1) gain = Math.round(gain * m / 25) * 25;
+      st.argent += gain; st.servis++; st.serie = (st.serie || 0) + 1; majSerie(st);
+      if (multiplicateur(st) > m) setTimeout(() => gainPetit(`Série de clients ! Recette ${fois(multiplicateur(st))}`), 1900);
+      st.service = 1.4; son('arret'); vibrer('arret'); toast(gain ? `${a.nom} : +${gain} F${m > 1 ? ` (${fois(m)})` : ''}` : a.nom, 1.8, 'bien'); carteQuartier(a); if (gain) tamponner(st.quartier); st.prochain++;
       if (st.prochain >= L.arretsJ.length) { majHud(st, C, V); return setTimeout(() => finJeu(true), 1500); }
       if (avecClients(JEU.veh)) { if (JEU.veh === 'zem') collecte(st); afficherPaiement(); nouveauSigne(st.s + 140 + Math.random() * 120); }
       // Arrêt près d'un marché artisanal : la vendeuse appelle.
@@ -711,7 +746,7 @@ export function majJeu(dt) {
       }
     } else if (st.s > a.s + 6) {
       if (avecClients(JEU.veh)) { clientRate(a); st.passagers = 0; }
-      st.manques++; st.argent = Math.max(0, st.argent - 100); toast(`Arrêt manqué : ${a.nom} −100 F${st.raisonArret === 'file' ? ' · il fallait serrer à droite' : st.raisonArret === 'vite' ? ' · trop vite' : ''}`, 2.4, 'mal'); st.prochain++;
+      st.manques++; st.argent = Math.max(0, st.argent - 100); casserSerie(st, 'arrêt manqué'); toast(`Arrêt manqué : ${a.nom} −100 F${st.raisonArret === 'file' ? ' · il fallait serrer à droite' : st.raisonArret === 'vite' ? ' · trop vite' : ''}`, 2.4, 'mal'); st.prochain++;
       if (st.prochain >= L.arretsJ.length) { majHud(st, C, V); return finJeu(true); }
     } else indiceArret(st, a);
   }
@@ -746,8 +781,9 @@ export function majJeu(dt) {
   const vise = rep && rep.d < 260 && rep.s > st.s - 15 && virageCam < .35 ? Math.max(0, 1 - Math.abs(st.s - rep.s) / 140) * THREE.MathUtils.clamp(st.v / 6, 0, 1) : 0; // à l'arrêt, on garde le zém dans l'image
   JEU.vise = (JEU.vise || 0) + (vise - (JEU.vise || 0)) * Math.min(1, dt * (vise < (JEU.vise || 0) ? 5 : 2.5));
   const pax = JEU.veh === 'zem' && st.passagers ? 1 : 0; // client assis derrière : la caméra se lève pour voir la route
-  const [d0, h0] = V.cam, d = d0 + JEU.vise * 3 + pax * 1.1, h = h0 + JEU.vise * 2.6 + pax * .9, k = 1 - Math.exp(-dt * 5);
-  const sh = st.secousse > 0 ? (Math.random() - .5) * .5 : 0;
+  const [d0, h0] = V.cam, d = d0 + JEU.vise * 3 + pax * 1.1, h = h0 + JEU.vise * 2.6 + pax * .9, k = 1 - Math.exp(-dt * 6);
+  // Secousse qui retombe avec le choc (st.secousse décroît) au lieu d'un tirage de même force jusqu'au bout.
+  const sh = st.secousse > 0 ? Math.min(.5, st.secousse) * 1.4 : 0;
   // Elle suit le cap du véhicule avec un temps de retard et tourne autour de lui, toujours à `d` mètres : placée d'un
   // coup dans l'axe de la route, elle passait au travers du zém dans un virage serré ou un demi-tour, et le perdait.
   const cap = Math.atan2(p.dx, p.dz); if (JEU.capCam == null) JEU.capCam = cap;
@@ -756,14 +792,16 @@ export function majJeu(dt) {
   // Pas de caméra dans un mur : si une façade, un mur ou une maison se trouve entre le zém et elle, elle s'approche et se lève.
   let kc = 1; for (let i = 2; i <= 10; i++) { const f = i / 10, x = p.x - hx * d * f, z = p.z - hz * d * f; if (dansBatiment(x, z) || profondeurRue(x, z, .3) > 0) { kc = Math.max(.35, (i - 1) / 10); break; } }
   JEU.kCam = (JEU.kCam ?? 1) + (kc - (JEU.kCam ?? 1)) * Math.min(1, dt * (kc < (JEU.kCam ?? 1) ? 12 : 2));
-  const cx = p.x - hx * d * JEU.kCam, cz = p.z - hz * d * JEU.kCam;
+  // La caméra ne suit que 75 % du changement de file (Danfo Run : 72 %) : la moto se déplace dans l'image, la route reste.
+  const pc = latM ? pose(C, st.s, latM * .75, tmpCam) : p;
+  const cx = pc.x - hx * d * JEU.kCam, cz = pc.z - hz * d * JEU.kCam;
   camera.position.x += (cx - camera.position.x) * k; camera.position.z += (cz - camera.position.z) * k; camera.position.y += (h + (1 - JEU.kCam) * 2.5 + p.y + st.y * .5 - camera.position.y) * k;
-  camera.position.y += sh;
+  if (sh) { camera.position.y += (Math.random() - .5) * sh; camera.position.x += (Math.random() - .5) * sh * .5; camera.position.z += (Math.random() - .5) * sh * .5; }
   let rx = p.x + hx * 11, rz = p.z + hz * 11, ry = 1.5 + p.y;
   if (rep && JEU.vise > .01) { const w = JEU.vise * .22; rx += (rep.x - rx) * w; rz += (rep.z - rz) * w; ry += JEU.vise * 2.5; }
   JEU.regard.x = rx; JEU.regard.z = rz; JEU.regard.y += (ry - JEU.regard.y) * k; // le cap est déjà lissé : un second retard faisait regarder à côté pendant un demi-tour
   camera.lookAt(JEU.regard);
-  camera.fov = 56 + st.v * .7; camera.updateProjectionMatrix();
+  camera.fov += (Math.min(70, 56 + st.v * .6) - camera.fov) * Math.min(1, dt * 3); camera.updateProjectionMatrix(); // l'angle s'ouvre avec la vitesse, sans à-coup
   // Quartier traversé.
   if (Math.floor(st.temps * 4) !== Math.floor((st.temps - dt) * 4)) {
     let best = null, bd = 650; for (const [n, la, lo] of QUARTIERS_J) { const dd = Math.hypot(p.x - la, p.z - lo); if (dd < bd) { bd = dd; best = n; } }
@@ -799,7 +837,6 @@ export function majHud(st, C, V) {
   $('#jhArgent').textContent = fmtF(st.argent);
   $('#jhVitesse').textContent = `${Math.round(Math.abs(st.v) * 3.6)} km/h${st.v < -.2 ? ' · marche arrière' : ''}`;
   $('#jhDemi').hidden = !(Math.abs(st.v) < 2.5 && st.service <= 0 && !st.auto && st.prochain < JEU.ligne.arretsJ.length);
-  $('#jhVies').innerHTML = [0, 1, 2].map(i => `<i class="${i < st.vies ? '' : 'perdu'}"></i>`).join('');
   $('#jhProg').style.width = `${Math.min(100, st.s / C.L * 100).toFixed(1)}%`;
   const a = JEU.ligne.arretsJ[st.prochain];
   // Trop vite pour s'arrêter dans la zone jaune (freinage à 7 m/s²) : on prévient.
@@ -825,31 +862,37 @@ function corpsDuBord(st, C, V, dt) {
     if (hw + r - Math.abs(v) < (hl + r - Math.abs(u)) * .6) { st.file = THREE.MathUtils.clamp(st.file - Math.sign(v), -2, 2); st.lat -= Math.sign(v) * (hw + r - Math.abs(v) + .05) / Math.max(kFiles(C, st.s), .3); } // de côté : on s'écarte
     else if (u > 0) { st.s = Math.max(1, st.s - (hl + r - u) - .02); st.v = Math.min(st.v, 0); } // devant : on s'arrête
     if (v0 > 4.2 && st.invul <= 0) {
-      st.vies--; st.v = 0; st.invul = 1.8; st.secousse = .5; son('choc'); vibrer('choc'); evenement('choc');
-      toast(st.vies > 0 ? `Accident ! Attention ${nom}` : 'Accident…', 1.6, 'mal');
-      if (st.vies <= 0) { majHud(st, C, V); finJeu(false); return true; }
-      accident(st);
+      st.v = 0; st.invul = 1.8; st.secousse = .5; son('choc'); vibrer('choc'); evenement('choc');
+      accidentCourse(st, nom);
     } else if (v0 > .5 && !st.bute) { st.bute = .6; son('bosse'); }
     break;
   }
   if (st.bute > 0) st.bute = Math.max(0, st.bute - dt); // à 0 pile : sinon un reste négatif bloquait le son des bosses suivantes
   return false;
 }
-/** Bilan de la course : au terminus (`arrive`), après trois accidents, ou quand on la quitte (`quitte`, menu Pause). */
+/** Bilan de la course : au terminus (`arrive`), ou quand on la quitte (`quitte`, menu Pause). */
 export function finJeu(arrive, quitte = false) {
   const st = JEU.etat; if (!st || JEU.fini) return; JEU.fini = true; JEU.pause = true; moteurMaj(0, false); taire(); arreterMusique();
   const L = JEU.ligne, el = $('#jeuFin'), prochain = L.arretsJ[st.prochain];
-  el.querySelector('h2').textContent = arrive ? 'Terminus !' : quitte ? 'Course arrêtée' : 'Fin de la course';
-  el.querySelector('.jf-sous').textContent = arrive ? `${L.nom} : ${L.arretsJ[0].nom} → ${L.arretsJ[L.arretsJ.length - 1].nom}` : quitte ? `${L.nom}${prochain ? ` · arrêtée avant ${prochain.nom}` : ''}. Ta recette va dans ta cagnotte.` : 'Trois accidents : ta journée s’arrête là. Repars quand tu veux.';
+  el.querySelector('h2').textContent = arrive ? 'Terminus !' : 'Course arrêtée';
+  el.querySelector('.jf-sous').textContent = arrive ? `${L.nom} : ${L.arretsJ[0].nom} → ${L.arretsJ[L.arretsJ.length - 1].nom}` : `${L.nom}${prochain ? ` · arrêtée avant ${prochain.nom}` : ''}. Ta recette va dans ta cagnotte.`;
   const duree = Math.round(st.temps), km = st.parcouru / 1000;
   const stats = [['Recette', fmtF(st.argent)], [JEU.veh === 'tokpa' ? 'Passagers payants' : 'Clients transportés', st.voyageurs], ['Arrêts desservis', `${st.servis}/${L.arretsJ.length - 1}`],
     ['Distance parcourue', `${km.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`], ['Durée', `${Math.floor(duree / 60)} min ${String(duree % 60).padStart(2, '0')} s`], ['Frôlements', st.frolements]];
   const duo = arriveeDuo(arrive); if (duo) stats.push(['Course à deux', duo]); // qui est arrivé le premier au terminus
   el.querySelector('.jf-stats').innerHTML = stats.map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('');
   const qz = el.querySelector('.jf-quiz'), Q = QUIZ[L.id] || []; let i = 0, bonus = 0;
+  $('#jfPartager').hidden = true; // il apparaît avec le total, après le quiz
   const finir = () => {
     const total = st.argent + bonus, prev = JEU.meilleur[L.id] || 0, record = arrive && total > prev; if (record) JEU.meilleur[L.id] = total; // un record se fait au terminus
-    JEU.prog.cagnotte += Math.max(0, total); if (arrive && st.vies === 3) progres('lignes', 1); assurerMissions(); sauver();
+    JEU.prog.cagnotte += Math.max(0, total); if (arrive && !st.accidents) progres('lignes', 1); assurerMissions();
+    JEU.prog.courses = (JEU.prog.courses || 0) + 1; JEU.prog.km = (JEU.prog.km || 0) + km; sauver(); // le numéro du billet, les km de toute une vie de zém
+    const G = totauxGlobaux(); for (const k of Object.keys(G)) if (G[k] > 0) envoyerScore(k, G[k]);
+    const T = preparerTicket({ billet: JEU.prog.courses, numero: JEU.numero, trajet: `${L.nom} · ${L.arretsJ[0].nom} → ${(arrive ? L.arretsJ[L.arretsJ.length - 1] : L.arretsJ[Math.max(0, st.prochain - 1)]).nom}`, arrive, total, record,
+      clients: st.voyageurs, km: km.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }), frolements: st.frolements, duree: `${Math.floor(duree / 60)} min ${String(duree % 60).padStart(2, '0')}` });
+    const bp = $('#jfPartager'); bp.hidden = false; bp.disabled = false;
+    bp.onclick = async () => { bp.disabled = true; const r = await T.partager(); bp.disabled = false; if (r === 'partage' || r === 'whatsapp') { son('piece'); bp.querySelector('span').textContent = 'Partagé !'; } };
+    bp.querySelector('span').textContent = 'Partager mon billet';
     qz.innerHTML = `<p class="jf-total">Total : <b>${fmtF(total)}</b>${bonus ? ` (dont ${fmtF(bonus)} de quiz)` : ''}<br><small>${record ? 'Nouveau record sur cette ligne !' : prev ? `Record : ${fmtF(prev)}` : 'Va jusqu’au terminus pour faire un record'} · versé dans ta cagnotte (${fmtF(JEU.prog.cagnotte)})</small></p>${arrive ? '<p class="jf-place" id="jfPlace"></p>' : ''}`;
     if (arrive) placeApresCourse(L.id, JEU.meilleur[L.id] || 0).then(t => { const p = $('#jfPlace'); if (p) p.textContent = t; }); // son record au classement, et sa place
     remplirLignes();
@@ -901,9 +944,11 @@ function ligneExpress(lignes) {
   }
   return { ...M, id: 'express', nom: 'Ligne express', express: true, pts, arrets: M.arrets.slice(0, 2) };
 }
-const voirClassement = () => ouvrirClassement(JEU.lignes.map(l => ({ id: l.id, nom: l.nom })), JEU.ligne?.id, JEU.meilleur);
+// Les trois classements de toutes les lignes (classement.js GLOBAUX) : meilleure course, kilomètres roulés, quartiers tamponnés.
+const totauxGlobaux = () => ({ score: Math.max(0, ...Object.values(JEU.meilleur)), km: Math.round((JEU.prog?.km || 0) * 10), quartiers: Object.keys(JEU.prog?.tampons || {}).length });
+const voirClassement = (ligne = 'score') => ouvrirClassement(JEU.lignes.map(l => ({ id: l.id, nom: l.nom })), ligne, { ...JEU.meilleur, ...totauxGlobaux() });
 export function initJeu(data) {
-  initClassement(); $('#jmClassement')?.addEventListener('click', voirClassement); $('#jfClassement')?.addEventListener('click', voirClassement);
+  initClassement(); $('#jmClassement')?.addEventListener('click', () => voirClassement()); $('#jfClassement')?.addEventListener('click', () => voirClassement());
   const ex = ligneExpress(data.L.lignes || []);
   JEU.lignes = ex ? [ex, ...data.L.lignes] : data.L.lignes || []; JEU.data = data;
   JEU.prog = Object.assign(progDefaut(), JEU.progSauve || {}); assurerMissions();
@@ -920,6 +965,18 @@ export function initJeu(data) {
   $('#jpReprendre').addEventListener('click', () => { JEU.pause = false; $('#jeuPause').hidden = true; });
   $('#jpQuitter').addEventListener('click', () => { $('#jeuPause').hidden = true; if (JEU.etat && !JEU.fini) finJeu(false, true); else quitterJeu(); }); // d'abord le bilan (et la recette versée dans la cagnotte)
   $('#jhPause').addEventListener('click', () => { if (JEU.fini) return; JEU.pause = true; moteurMaj(0, false); taire(); $('#jeuPause').hidden = false; });
+  // Radio en course (touche R ou bouton) : musique du quartier, puis les radios béninoises en direct, puis de nouveau la musique.
+  const POSTES = ['quartier', ...STATIONS.filter(s => s.url).map(s => s.id)];
+  const majRadio = () => { const b = $('#jhRadio'); if (b) b.setAttribute('aria-pressed', String(!!AUDIO.radio)); };
+  const changerRadio = async () => {
+    if (AUDIO.muet) return toast('Le son est coupé : touche « Son » pour le remettre', 1.8);
+    const suivant = POSTES[(AUDIO.radio ? POSTES.indexOf(AUDIO.station) + 1 : 1) % POSTES.length];
+    if (suivant === 'quartier') { radio(false); toast('Musique du quartier', 1.6); majRadio(); return; }
+    const S = STATIONS.find(s => s.id === suivant); toast(`${S.nom} · ${S.sous}`, 2.2); majRadio();
+    const ok = await radio(true, suivant); majRadio();
+    if (!ok && AUDIO.station === suivant && JEU.actif) toast(`${S.nom} ne répond pas : essaie la suivante`, 2, 'mal');
+  };
+  $('#jhRadio')?.addEventListener('click', changerRadio);
   $('#jhSon').addEventListener('click', e => { AUDIO.muet = !AUDIO.muet; e.currentTarget.setAttribute('aria-pressed', String(!AUDIO.muet)); if (AUDIO.muet) { moteurMaj(0, false); radio(false); taire(); } });
   const st = () => JEU.etat;
   // Pas de file dans un mur : on le sent (bosse, secousse) et la moto reste où elle est.
@@ -935,6 +992,7 @@ export function initJeu(data) {
     if (k === 'arrowleft' || k === 'a' || k === 'q') gauche();
     else if (k === 'arrowright' || k === 'd') droite();
     else if (k === 't') virage(0); // tout droit au carrefour où l'itinéraire tourne
+    else if (k === 'r') changerRadio();
     else if (k === 'u') demiTour();
     else if (k === 'arrowup' || k === 'w' || k === 'z') st().gaz = true;
     else if (k === ' ') sauter();
@@ -952,12 +1010,17 @@ export function initJeu(data) {
   // part dès 28 px, sans attendre qu'on lève le doigt. En mode « au doigt », le zém avance seul (auDoigt).
   let t0 = null;
   const zone = $('#scene');
-  zone.addEventListener('pointerdown', e => { if (JEU.actif) t0 = { x: e.clientX, y: e.clientY, id: e.pointerId, fait: false, frein: false }; });
+  // Glisser sans lever le doigt, file après file (Danfo Run) : chaque fois que le doigt a parcouru un pas (de 40 à 64 px
+  // selon l'écran, un peu plus pour la file suivante), on change de file et le point de départ suit le doigt.
+  zone.addEventListener('pointerdown', e => { if (JEU.actif) t0 = { x: e.clientX, y: e.clientY, id: e.pointerId, n: 0, dernier: 0, saut: false, frein: false }; });
   zone.addEventListener('pointermove', e => {
-    if (!JEU.actif || JEU.pause || !t0 || t0.fait || e.pointerId !== t0.id) return;
-    const dx = e.clientX - t0.x, dy = e.clientY - t0.y; if (Math.max(Math.abs(dx), Math.abs(dy)) < 28) return;
-    t0.fait = true;
-    if (Math.abs(dx) > Math.abs(dy)) (dx < 0 ? gauche : droite)(); else if (dy < 0) sauter(); else if (st()) { st().freinM = true; t0.frein = true; }
+    if (!JEU.actif || JEU.pause || !t0 || e.pointerId !== t0.id) return;
+    const dx = e.clientX - t0.x, dy = e.clientY - t0.y, pas = Math.max(40, Math.min(64, innerWidth * .12)), maintenant = performance.now();
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (Math.abs(dx) < pas * (t0.n ? 1.2 : 1) || maintenant - t0.dernier < 150) return;
+      (dx < 0 ? gauche : droite)(); t0.n++; t0.dernier = maintenant; t0.x = e.clientX; t0.y = e.clientY;
+    } else if (dy < -40 && !t0.saut) { t0.saut = true; sauter(); t0.y = e.clientY; }
+    else if (dy > pas && !t0.frein && st()) { st().freinM = true; t0.frein = true; }
   });
   const lacher = () => { if (t0?.frein && st()) st().freinM = false; t0 = null; };
   zone.addEventListener('pointerup', lacher); zone.addEventListener('pointercancel', lacher);
@@ -972,5 +1035,7 @@ export function initJeu(data) {
   $('#jmVoix').checked = VOIX.on; $('#jmVoix').addEventListener('change', e => voixActives(e.target.checked)); $('#jmVoix').closest('label').hidden = !voixDispo();
   const glisser = $('#jmGlisser'); if (glisser) { glisser.closest('label').hidden = !coarse; glisser.checked = JEU.glisser; glisser.addEventListener('change', e => { JEU.glisser = e.target.checked; sauver(); $('#jeu').classList.toggle('au-doigt', auDoigt()); }); }
   $('#jeu').classList.toggle('au-doigt', auDoigt());
+  const gaucher = $('#jmGaucher'); if (gaucher) { gaucher.closest('label').hidden = !coarse; gaucher.checked = JEU.gaucher; gaucher.addEventListener('change', e => { JEU.gaucher = e.target.checked; sauver(); $('#jeu').classList.toggle('gaucher', JEU.gaucher); }); }
+  $('#jeu').classList.toggle('gaucher', JEU.gaucher);
 }
 

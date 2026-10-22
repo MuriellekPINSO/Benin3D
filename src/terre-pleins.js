@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { parCarres } from './carres.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { LITE, hash } from './base.js';
 import { COUCHES_SOL, grainSol, scene } from './scene.js';
@@ -99,7 +100,9 @@ export function construireTerrePleins() {
     if (!liste.length) return null;
     const m = new THREE.InstancedMesh(geo, mat, liste.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), v = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
     liste.forEach((e, k) => { poser(e, v, q, s, Y, m, k); m4.compose(v, q, s); m.setMatrixAt(k, m4); });
-    m.castShadow = !LITE; m.receiveShadow = true; scene.add(m); TP.decor.push(m); return m;
+    m.castShadow = !LITE; m.receiveShadow = true;
+    for (const c of parCarres(m)) { scene.add(c); TP.decor.push(c); } // par carrés : écartés à part du champ de la caméra
+    return m;
   };
   const vertsHaie = ['#3f6a33', '#46733a', '#3a612f'].map(h => new THREE.Color(h));
   inst(new THREE.BoxGeometry(1, 1, 1).translate(0, .5, 0), new THREE.MeshLambertMaterial(), haies, ([x, z, a, w, r], v, q, s, Y, m, k) => {

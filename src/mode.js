@@ -44,6 +44,13 @@ const MD = {
   index: null, objets: null, rendu: null, scene: null, cam: null, vue: null, inst: null, raf: 0, dernier: 0, rotY: 0, glisse: null, jeton: 0,
 };
 const prog = () => { const p = JEU.prog; p.garderobe ||= []; p.commandes ||= []; return p; };
+// Un paiement de commande pas encore confirmé : gardé sur l'appareil avec la commande telle qu'elle a été payée (article,
+// taille, quartier, total), pour la vérifier même après un rechargement ; la commande ne se modifie plus d'ici là.
+const CLE_ATTENTE = 'kutonu.boutique.attente';
+const lireAttente = () => { try { return JSON.parse(localStorage.getItem(CLE_ATTENTE) || 'null'); } catch { return null; } };
+const garderAttente = a => { MD.attente = a; try { if (a) localStorage.setItem(CLE_ATTENTE, JSON.stringify(a)); else localStorage.removeItem(CLE_ATTENTE); } catch { /* navigation privée */ } };
+/** Remet la commande en attente à l'écran (article, taille, quartier, nom, repère). */
+function reprendreAttente() { const a = MD.attente; if (!a) return; Object.assign(MD, { choisi: a.article, taille: a.taille, quartier: a.quartier, nom: a.nom, repere: a.repere }); }
 const fmtR = n => `${Math.round(n).toLocaleString('fr-FR')} F CFA`; // prix réels
 
 // ---------- Les listes de modèles (écrites par les scripts) ----------
@@ -173,7 +180,8 @@ function rendreListe() {
 function message(txt, cls = '') { MD.msg = [txt, cls]; const el = $('#modeMsg'); if (el) { el.textContent = txt; el.className = 'ev-etat ' + cls; el.hidden = !txt; } }
 function choisir(id) {
   if (MD.choisi === id && MD.etape === 'fiche') return;
-  MD.choisi = id; MD.etape = 'fiche'; MD.taille = null; MD.attente = null; MD.msg = ['', ''];
+  if (MD.attente && id !== MD.attente.article) { MD.etape = 'commande'; reprendreAttente(); MD.msg = ['Un paiement attend encore d’être vérifié pour cette commande : touche « Vérifier mon paiement » avant d’en passer une autre.', 'mal']; rendreListe(); rendreFiche(); return; }
+  MD.choisi = id; MD.etape = 'fiche'; MD.taille = null; MD.msg = ['', ''];
   rendreListe(); rendreFiche(); exposer(id);
 }
 // Les ateliers sont encore des démos : avec la clé live, on n'encaisse rien pour eux (« bientôt »).
@@ -226,14 +234,15 @@ function rendreCommande() {
       <button type="button" class="btn-ghost" id="mdRetour">Retour</button>
     </div>
     <p class="md-note">Le numéro MoMo qui paie sert aussi au livreur pour t’appeler.</p>
-    ${paiementReel() && paiementTest() ? '<p class="ev-test-momo">Mode test : choisis « Momo Test » et le numéro 0164000001. Aucun vrai argent n’est débité.</p>' : ''}
+    ${paiementReel() && paiementTest() ? '<p class="ev-test-momo">Mode test : choisis MTN et le numéro 0164000001. Aucun vrai argent n’est débité.</p>' : ''}
     <p class="ev-etat" id="modeMsg" role="status" aria-live="polite" hidden></p>`;
   message(...MD.msg);
+  if (MD.attente) el.querySelectorAll('[data-t], #mdQuartier, #mdNom, #mdRepere').forEach(x => { x.disabled = true; }); // commande figée tant que le paiement n'est pas vérifié
   el.querySelectorAll('[data-t]').forEach(b => b.addEventListener('click', () => { MD.taille = b.dataset.t; MD.msg = ['', '']; rendreCommande(); }));
   $('#mdQuartier').addEventListener('change', e => { MD.quartier = e.target.value; MD.msg = ['', '']; rendreCommande(); });
   $('#mdRepere').addEventListener('input', e => { MD.repere = e.target.value; });
   $('#mdNom').addEventListener('input', e => { MD.nom = e.target.value; });
-  $('#mdRetour').addEventListener('click', () => { MD.etape = 'fiche'; MD.attente = null; MD.msg = ['', '']; rendreFiche(); });
+  $('#mdRetour').addEventListener('click', () => { MD.etape = 'fiche'; MD.msg = ['', '']; rendreFiche(); }); // l'attente reste gardée
   $('#mdPayer').addEventListener('click', payerCommande);
 }
 const ETATS = {
@@ -245,20 +254,21 @@ const ETATS = {
   canceled: ['Paiement annulé : rien n’a été prélevé.', ''],
 };
 async function payerCommande() {
+  reprendreAttente();
   const id = MD.choisi, A = ARTICLES[id], tailles = taillesDe(A), btn = $('#mdPayer');
   if (tailles && !MD.taille) return message(`Choisis d’abord ta ${A.type === 'chaussure' ? 'pointure' : 'taille'}.`, 'mal');
   if (MD.nom.trim().length < 2) { $('#mdNom').focus(); return message('Indique ton nom pour le livreur.', 'mal'); }
   if (!MD.quartier) { $('#mdQuartier').focus(); return message('Choisis le quartier où te livrer.', 'mal'); }
   if (!paiementReel()) return message('Version de test : le paiement MoMo n’est pas encore activé, aucune commande n’a été envoyée.', 'mal');
   if (!venteOuverte()) return message('Achat réel : bientôt disponible. Aucune commande n’a été envoyée.', 'mal');
-  const total = A.prix + fraisDe(MD.quartier);
+  const total = MD.attente?.total ?? A.prix + fraisDe(MD.quartier); // un paiement en attente se vérifie au montant payé
   btn.disabled = true; btn.classList.add('charge'); $('#mdRetour').disabled = true;
-  message(MD.attente ? 'Vérification du paiement…' : 'Ouverture de FedaPay…');
+  message(MD.attente ? 'Vérification du paiement…' : 'Paiement Mobile Money…');
   const infos = { article: id, taille: MD.taille || '', nom: MD.nom.trim(), quartier: MD.quartier, repere: MD.repere.slice(0, 80), atelier: A.atelier };
   const [prenom, ...reste] = MD.nom.trim().split(/\s+/), client = { firstname: prenom, lastname: reste.join(' ') || prenom };
-  const r = MD.attente ? await verifierTransaction(MD.attente, total)
+  const r = MD.attente ? await verifierTransaction(MD.attente.id, total, { objet: 'boutique' })
     : await payerMoMo({ montant: total, description: `${A.nom}${MD.taille ? ` · ${MD.taille}` : ''} · livraison ${MD.quartier}`, objet: 'boutique', infos, client });
-  MD.attente = !r.paye && r.id && !echecCertain(r.statut) ? r.id : null; // en attente ou vérification impossible : on garde le numéro
+  garderAttente(!r.paye && r.id && !echecCertain(r.statut) ? { id: String(r.id), article: id, taille: MD.taille, quartier: MD.quartier, nom: MD.nom, repere: MD.repere, total } : null); // en attente ou vérification impossible : on garde la commande payée
   if (r.paye) {
     const p = prog();
     p.commandes.push({ id, taille: MD.taille, quartier: MD.quartier, total, date: new Date().toISOString().slice(0, 10), transaction: r.id });
@@ -276,6 +286,7 @@ export async function ouvrirMode() {
   const el = $('#mode'); el.hidden = false; el.focus();
   initCabine(); await index();
   const p = prog();
+  if (!MD.attente) { MD.attente = lireAttente(); if (MD.attente && ARTICLES[MD.attente.article]) { reprendreAttente(); MD.etape = 'commande'; MD.onglet = ARTICLES[MD.choisi].type; } else MD.attente = null; }
   if (!MD.choisi) { MD.choisi = p.tenue || 'robe-wax'; MD.onglet = ARTICLES[MD.choisi].type; }
   rendreListe(); rendreFiche(); cadrer(ARTICLES[MD.choisi].type); exposer(MD.choisi);
   if (!MD.raf) { MD.dernier = 0; MD.raf = requestAnimationFrame(tourner); }

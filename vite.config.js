@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+import { pathToFileURL } from 'url';
 import { defineConfig, loadEnv } from 'vite';
 import { langue } from './scripts/i18n/vite-langue.mjs';
 
@@ -9,7 +12,10 @@ const apiLocale = () => {
     // une modification de .env.local, loadEnv donne la priorité à ce que process.env contient déjà, et le serveur
     // vérifiait des paiements réels avec l'ancienne clé de test (« introuvable » : le joueur croyait n'avoir rien payé).
     const cle = loadEnv('development', process.cwd(), 'FEDAPAY_').FEDAPAY_SECRET_KEY;
-    server.middlewares.use('/api/fedapay', async (req, res) => (await import('./api/fedapay.js')).default(req, res, cle));
+    // Le fichier est relu dès qu'il change : sans ça, `npm run preview` gardait la version chargée au démarrage (le 22/10,
+    // la copie de test parlait encore à l'ancien /api/fedapay et refusait chaque paiement).
+    const api = pathToFileURL(path.resolve('api/fedapay.js')).href; // adresse absolue : Vite ne réécrit pas cet import
+    server.middlewares.use('/api/fedapay', async (req, res) => (await import(/* @vite-ignore */ `${api}?v=${fs.statSync('api/fedapay.js').mtimeMs}`)).default(req, res, cle));
   };
   return { name: 'api-locale', configureServer: brancher, configurePreviewServer: brancher };
 };

@@ -36,12 +36,12 @@
   "octets": 679148
  },
  "voiture": {
-  "triangles": 59996,
-  "octets": 831464
+  "triangles": 12000,
+  "octets": 360180
  },
  "tokpa": {
-  "triangles": 30000,
-  "octets": 607956
+  "triangles": 10000,
+  "octets": 397840
  },
  "moov": {
   "triangles": 29997,

@@ -18,10 +18,13 @@ import { VIE, depenser, ecrireEnPlus, gagner, lireEnPlus, rendreVie, signaler } 
 // salaires et le loyer (les charges) : trois jours sans payer, et l'équipe s'en va pour de bon.
 // Quand on est loin de Cotonou (ou hors du jeu), les employés vendent trois fois moins vite, douze heures au plus.
 // Les commerces sont enregistrés avec la vie (vie.js, « données en plus »).
-// Ouvrir un commerce se paie aussi pour de vrai : 100 F par Mobile Money (FedaPay, comme l'entrée du concert), vérifiés
-// par /api/fedapay. Un paiement reçu mais pas encore utilisé (page fermée, argent du jeu qui manquait) reste acquis dans ce
-// navigateur pour la prochaine ouverture ; un paiement pas encore confirmé y est gardé pour être vérifié plus tard.
+// Ouvrir un commerce pouvait se payer aussi pour de vrai : 100 F par Mobile Money (FedaPay, comme l'entrée du concert),
+// vérifiés par /api/fedapay. Coupé le 22/10 (OUVERTURE_MOMO) : en plein chapitre 3, c'était un mur pour qui n'a pas de
+// MoMo. Le code reste prêt : un paiement reçu mais pas encore utilisé reste acquis dans ce navigateur pour la prochaine
+// ouverture ; un paiement pas encore confirmé y est gardé pour être vérifié plus tard.
 
+const OUVERTURE_MOMO = false; // true : l'ouverture se paie aussi 100 F en vrai
+const momoOuverture = () => OUVERTURE_MOMO && paiementReel();
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 const JOUR = 864e5, ABSENCE_MAX = 12 * 36e5, RALENTI = 3, VOIR = 140; // à moins de VOIR m, la boutique est construite
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -156,14 +159,14 @@ async function ouvrir(E, t) {
 /** « Ouvrir » : 100 F par MoMo (sauf paiement déjà acquis), puis l'installation avec l'argent du jeu. */
 async function payerEtOuvrir(E, t) {
   const T = TYPES[t]; if (CM.paie || commerceDe(E.id) || (VIE.data?.argent || 0) < T.install) return;
-  if (paiementReel()) {
-    CM.paie = true; CM.etatPaie = [lireLS(CLE_ATTENTE) || lireLS(CLE_ACQUIS) ? 'Vérification du paiement…' : 'Ouverture de FedaPay…', '']; choixCommerce(E);
+  if (momoOuverture()) {
+    CM.paie = true; CM.etatPaie = [lireLS(CLE_ATTENTE) || lireLS(CLE_ACQUIS) ? 'Vérification du paiement…' : 'Paiement Mobile Money…', '']; choixCommerce(E);
     let id = lireLS(CLE_ACQUIS), r = null;
-    if (id && (utilises().includes(id) || !(await verifierTransaction(id, PRIX_MOMO)).paye)) { id = ''; ecrireLS(CLE_ACQUIS, ''); } // on revérifie ce qui est gardé
+    if (id && (utilises().includes(id) || !(await verifierTransaction(id, PRIX_MOMO, { objet: 'commerce' })).paye)) { id = ''; ecrireLS(CLE_ACQUIS, ''); } // on revérifie ce qui est gardé
     if (!id) {
       const attente = lireLS(CLE_ATTENTE);
-      CM.etatPaie = [attente ? 'Vérification du paiement…' : 'Ouverture de FedaPay…', '']; if (!$('#vieFiche').hidden) choixCommerce(E);
-      r = attente ? await verifierTransaction(attente, PRIX_MOMO) : await payerMoMo({ montant: PRIX_MOMO, description: `Ouverture d’un commerce : ${T.nom} (${E.nom})`, objet: 'commerce', infos: { commerce: t, quartier: E.id } });
+      CM.etatPaie = [attente ? 'Vérification du paiement…' : 'Paiement Mobile Money…', '']; if (!$('#vieFiche').hidden) choixCommerce(E);
+      r = attente ? await verifierTransaction(attente, PRIX_MOMO, { objet: 'commerce' }) : await payerMoMo({ montant: PRIX_MOMO, description: `Ouverture d’un commerce : ${T.nom} (${E.nom})`, objet: 'commerce', infos: { commerce: t, quartier: E.id } });
       ecrireLS(CLE_ATTENTE, !r.paye && r.id && !echecCertain(r.statut) ? r.id : ''); // en attente ou vérification impossible : on garde le numéro
       if (r.paye && utilises().includes(String(r.id))) r = { ...r, paye: false, statut: 'deja' };
       if (r.paye) { id = String(r.id); ecrireLS(CLE_ACQUIS, id); son('piece'); }
@@ -474,13 +477,13 @@ function choixCommerce(E) {
     ${E.atout?.[id] ? '<em class="vf-atout">Bon emplacement</em>' : ''}
     <span class="vf-chiffres"><small>Installation</small><b>${fmt(T.install)}</b><small>Charges / jour</small><b>${fmt(T.charges + E.loyer)}</b><small>Bénéfice / heure</small><b>≈ ${fmt(parHeure(id, E))}</b></span>
     <span class="vf-etoiles"><small>Difficulté</small><i>${etoiles(T.difficulte)}</i><small>Potentiel</small><i>${etoiles(T.potentiel)}</i></span></button>`).join('');
-  const T = TYPES[t], manque = T.install - argent, momo = paiementReel(), acquis = momo && !!lireLS(CLE_ACQUIS), attente = momo && !acquis && !!lireLS(CLE_ATTENTE);
+  const T = TYPES[t], manque = T.install - argent, momo = momoOuverture(), acquis = momo && !!lireLS(CLE_ACQUIS), attente = momo && !acquis && !!lireLS(CLE_ATTENTE);
   const libelle = CM.paie ? 'Paiement en cours…' : manque > 0 ? `Il te manque ${fmt(manque)}` : !momo || acquis ? `Ouvrir · ${fmt(T.install)}` : attente ? 'Vérifier mon paiement' : `Ouvrir · ${fmt(T.install)} + ${PRIX_MOMO} F MoMo`;
   montrer(`<small class="vf-sur">Boutique à louer · ${esc(E.nom)}</small><h3 id="vfTitre">Que vas-tu ouvrir ici ?</h3><p class="vf-intro">${esc(E.texte)} Loyer ${fmt(E.loyer)} par jour, compris dans les charges.</p>
     <div class="vf-cartes">${cartes}</div>
     <div class="vf-detail"><p><b>${T.icone} ${esc(T.nom)}</b> · ${esc(T.texte)}</p><p class="vf-puces"><small>Équipe</small>${T.equipe.map(r => `<span>${esc(r)}</span>`).join('')}</p><p class="vf-note">Démarrage rapide : les meubles, l’équipe et un stock plein (${T.stock} ${unite(T, T.stock)}) sont compris. Une vente rapporte ${fmt(T.prix)}, et chaque ${unite(T, 1)} de stock coûte ${fmt(T.cout)} à racheter.</p>
     ${momo ? `<p class="vf-note vf-momo">${acquis ? 'Ton paiement MoMo est déjà reçu : il te reste l’installation, payée avec l’argent du jeu.' : `L’ouverture se paie aussi ${PRIX_MOMO} F en vrai, par Mobile Money (MTN ou Moov). L’installation, elle, se paie avec l’argent du jeu.`}</p>` : ''}
-    ${momo && paiementTest() ? '<p class="ev-test-momo">Mode test : choisis « Momo Test » et le numéro 0164000001. Aucun vrai argent n’est débité.</p>' : ''}
+    ${momo && paiementTest() ? '<p class="ev-test-momo">Mode test : choisis MTN et le numéro 0164000001. Aucun vrai argent n’est débité.</p>' : ''}
     </div><div class="vf-pied">${CM.etatPaie?.[0] ? `<p class="vf-etat ${CM.etatPaie[1]}" role="status">${esc(CM.etatPaie[0])}</p>` : ''}<span>${T.icone} <b>${esc(T.nom)}</b></span><button type="button" class="jouer vf-ouvrir" data-cm="ouvrir" data-v="${t}"${manque > 0 || CM.paie ? ' disabled' : ''}>${libelle}</button></div>`);
 }
 export function ficheCommerce(c) {

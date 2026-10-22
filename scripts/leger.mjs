@@ -12,7 +12,9 @@ import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer
 import sharp from 'sharp';
 
 const SOURCE = 'public/modeles/batiments', SORTIE = `${SOURCE}/leger`;
-const DE_PRES = new Set(['voiture', 'voiture-perso', 'moto-perso', 'tokpa']); // conduits ou croisés à quelques mètres
+// Triangles visés sur téléphone : monuments vus de loin ; voiture et tokpa de la circulation (trois à l'écran en course,
+// 59 000 triangles chacun avant) ; la moto et la voiture du joueur, vues de près, gardent les leurs.
+const CIBLES = { voiture: 12000, tokpa: 10000 }, DE_PRES = new Set(['voiture-perso', 'moto-perso']);
 const CIBLE = 30000;
 
 await MeshoptDecoder.ready; await MeshoptEncoder.ready; await MeshoptSimplifier.ready;
@@ -27,7 +29,7 @@ for (const id of ids) {
   const doc = await io.read(`${SOURCE}/${id}.glb`), avant = tri(doc);
   await doc.transform(
     dequantize(), dedup(), weld(),
-    ...(DE_PRES.has(id) || avant <= CIBLE ? [] : [simplify({ simplifier: MeshoptSimplifier, ratio: CIBLE / avant, error: 0.01 })]),
+    ...(DE_PRES.has(id) || avant <= (CIBLES[id] || CIBLE) ? [] : [simplify({ simplifier: MeshoptSimplifier, ratio: (CIBLES[id] || CIBLE) / avant, error: 0.01 })]),
     prune(),
     textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [1024, 1024], slots: /baseColor/ }),
     textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [256, 256], slots: /normal|metallicRoughness|occlusion/ }),

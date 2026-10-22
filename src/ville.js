@@ -4,6 +4,7 @@ import { LITE, hash, pal, toXZ, u8c } from './base.js';
 import { frame, status } from './chargement.js';
 import { E } from './etat.js';
 import { VEGETATION } from './lieux.js';
+import { parCarres } from './carres.js';
 import { texFacades } from './facades.js';
 import { COUCHES_SOL, U, flatMat, grainSol, scene } from './scene.js';
 import { rectSansConstruction } from './zones.js';
@@ -510,9 +511,12 @@ export function buildPalms(arr) {
     m.compose(p.set(arr[2 * i] / 10, 0, arr[2 * i + 1] / 10), q.setFromEuler(e), s.set(sc, sc, sc));
     mesh.setMatrixAt(i, m);
   }
-  mesh.castShadow = !LITE; mesh.renderOrder = 11; mesh.visible = false;
-  mesh.userData.xz = Float32Array.from(arr, v => v / 10); VEGETATION.push(mesh);
-  scene.add(mesh); return mesh;
+  mesh.castShadow = !LITE; mesh.renderOrder = 11;
+  mesh.userData.xz = Float32Array.from(arr, v => v / 10);
+  // Par carrés de 600 m (carres.js) : d'un seul tenant, les 6 557 palmiers étaient dessinés à chaque image, même loin derrière.
+  const grp = new THREE.Group(); grp.name = 'palmiers'; grp.visible = false;
+  for (const c of parCarres(mesh)) { VEGETATION.push(c); grp.add(c); }
+  scene.add(grp); return grp;
 }
 export function buildContainers(arr) {
   const n = arr.length / 5;

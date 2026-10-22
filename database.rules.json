@@ -107,7 +107,7 @@
     "zem_classement": {
       ".read": "auth != null",
       "$ligne": {
-        ".indexOn": ["s"],
+        ".indexOn": ["s", "t"],
         ".validate": "$ligne.matches(/^[a-z0-9-]{1,24}$/)",
         "$uid": {
           ".write": "auth != null && auth.uid === $uid",

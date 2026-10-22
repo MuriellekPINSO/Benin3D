@@ -130,6 +130,10 @@ function preparer(id, g, info) {
   const mixer = new THREE.AnimationMixer(scene), poser = (clip, t) => { mixer.stopAllAction(); const a = mixer.clipAction(clip); a.play(); a.time = t; mixer.update(0); scene.updateMatrixWorld(true); };
   // Debout : hauteur (sommet de la tête) et sol.
   if (clips.idle) poser(clips.idle, 0);
+  // Écartés du dessin hors de l'écran, comme le reste : sans ça (frustumCulled false), chaque passant, marchande ou client
+  // de la ville était dessiné même dans le dos de la caméra, 13 800 triangles chacun (566 000 en course sur téléphone).
+  // La sphère, prise debout, est élargie de 80 % pour couvrir les gestes et la marche.
+  scene.traverse(o => { if (o.isSkinnedMesh) { o.computeBoundingSphere(); o.boundingSphere.radius *= 1.8; o.frustumCulled = true; } });
   const boite = new THREE.Box3();
   scene.traverse(o => { if (o.isSkinnedMesh) { o.computeBoundingBox(); boite.union(o.boundingBox.clone().applyMatrix4(o.matrixWorld)); } });
   const hauteur = boite.max.y - boite.min.y, sol = boite.min.y;

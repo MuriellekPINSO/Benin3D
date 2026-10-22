@@ -51,9 +51,8 @@ function actionsObjet(st, o) {
     ], { defaut: -1, duree: 10 });
   } };
   if (t === 'vulca') return { label: 'Le vulcanisateur', go: () => {
-    dialogue('Le vulcanisateur', st.vies < 3 ? '« Eh, ta moto a pris des coups ! Je la répare ? »' : '« Gonflage, réparation, je fais tout ! »', [
-      ...(st.vies < 3 ? [['Réparer la moto · 500 F (+1 vie)', () => { if (!payer(st, 500)) return; payerEtRecevoir(JEU.joueur, o.g, 'outil', JEU.joueur, { hautVers: .6, garder: 1.6 }); st.service = Math.max(st.service, 2.4); st.vies++; toast('Moto réparée : +1 vie', 1.6, 'bien'); bulle(o.g, 'C’est bon, elle est comme neuve !'); }]] : []),
-      ['Gonfler les pneus · 100 F', () => { if (!payer(st, 100)) return; payerEtRecevoir(JEU.joueur, o.g, 'outil', JEU.joueur, { hautVers: .45, garder: 1.4 }); st.service = Math.max(st.service, 2); st.pneus = 120; toast('Pneus gonflés : les nids-de-poule font moins mal', 1.8, 'bien'); }],
+    dialogue('Le vulcanisateur', st.accidents ? '« Eh, ta moto a pris des coups ! Je te gonfle les pneus ? »' : '« Gonflage, réparation, je fais tout ! »', [
+      ['Gonfler les pneus · 100 F', () => { if (!payer(st, 100)) return; payerEtRecevoir(JEU.joueur, o.g, 'outil', JEU.joueur, { hautVers: .45, garder: 1.4 }); st.service = Math.max(st.service, 2); st.pneus = Math.max(st.pneus || 0, 120); toast('Pneus gonflés : les nids-de-poule font moins mal', 1.8, 'bien'); }],
       ['Rien, merci', () => bulle(o.g, 'Bonne route !')],
     ], { defaut: -1, duree: 10 });
   } };

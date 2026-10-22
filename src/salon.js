@@ -19,7 +19,7 @@ import { hauteurSol } from './sols.js';
 import { T, actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, vehiculeDe } from './trajets.js';
 import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
-import { VIE, alerteDuJour, assurerVie, ecrire as ecrireVie, louerMoto, majVie, prechargerVie, rendreVie, sauverVie, surAnnonce, vitesseFaim } from './vie.js';
+import { alerteDuJour, assurerVie, bonjourDuJour, ecrire as ecrireVie, louerMoto, majVie, prechargerVie, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
 import { basculerPause, finirJournee, menuTravail } from './metiers.js';
 import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces } from './commerces.js';
@@ -27,7 +27,8 @@ import { majAmbianceSalon } from './ambiance-salon.js';
 import { entrerChapitres, initChapitres, majChapitres, quitterChapitres } from './chapitres.js';
 import { basculerCarte, initCarteSalon, majCarteSalon, quitterCarteSalon } from './carte-salon.js';
 import { TENUES, choixGenre, estFemme, grilleTenues, initGarderobe, modeleActuel, ouvrirGarderobe } from './garderobe.js';
-import { audioCtx, son } from './audio.js';
+import { AUDIO, audioCtx, moteurMaj, son } from './audio.js';
+import { taire } from './voix.js';
 import { camera, canvas, controls, scene } from './scene.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
@@ -303,7 +304,9 @@ async function entrer(code) {
   try { await entrerSalon(code); } finally { entreeEnCours = false; }
 }
 async function entrerSalon(code) {
-  const nom = nettoyer($('#slNom').value, 16); if (!nom) { const ch = $('#slNom'); statut('Écris ton nom pour que tes amis te reconnaissent.', 'mal'); ch.setCustomValidity('Écris ton nom pour que tes amis te reconnaissent.'); ch.reportValidity(); ch.focus(); return; } // la bulle s'affiche contre le champ (le statut est tout en bas)
+  // Sans nom, on en propose un (il se change dans la fenêtre du salon) : refuser « Commencer » faisait partir des joueurs.
+  if (!nettoyer($('#slNom').value, 16)) $('#slNom').value = nomAuHasard(estFemme(S.modele));
+  const nom = nettoyer($('#slNom').value, 16);
   S.nom = nom; try { localStorage.setItem(CLE, JSON.stringify({ nom, modele: S.modele })); } catch { /* navigation privée */ }
   audioCtx(); // le clic « Entrer » permet le son : les bruits de la ville (ambiance-salon.js), les pièces, les klaxons
   statut('Chargement de ta vie…');
@@ -330,6 +333,7 @@ async function entrerSalon(code) {
   majListe(); rendreVie();
   ligne(`Bienvenue dans le salon ${code}${S.local ? ' (mode test : seuls les onglets de ce navigateur se voient)' : ''} ! Invite tes amis avec « Inviter ».`);
   const alerte = alerteDuJour(); if (alerte) ligne(alerte);
+  bonjourDuJour().then(b => { if (b && S.actif) { ligne(b); son('piece'); } }).catch(() => { });
   for (const m of entrerCommerces()) ligne(m); // ce que les commerces ont vendu pendant l'absence (commerces.js)
   entrerChapitres(); // la prochaine étape (chapitres.js)
   if (personnagesPrets()) chargerDanses();
@@ -383,6 +387,9 @@ async function copier() {
 }
 
 // ---------- À chaque image (avant controls.update, qui fait regarder la caméra vers la cible) ----------
+const PRENOMS = { f: ['Akpénè', 'Fifamè', 'Sèna', 'Afi', 'Houéfa', 'Rosine', 'Nadège', 'Chancelle', 'Bénédicte', 'Gisèle'], h: ['Codjo', 'Kossi', 'Sèdjro', 'Rodrigue', 'Fiacre', 'Gildas', 'Romaric', 'Prince', 'Arnaud', 'Euloge'] };
+const nomAuHasard = femme => { const l = PRENOMS[femme ? 'f' : 'h']; return l[Math.floor(Math.random() * l.length)]; };
+
 // ---------- Prise en main du salon (la première fois) : se lever, marcher, la maison, la rue, « Ma vie » ----------
 const GS = { vuCouche: false, marche: 0, px: null, pz: 0, activite: false, dehorsT: 0 };
 let guideSalon = null;
@@ -390,8 +397,8 @@ const etapesSalon = () => [
   { id: 'lever', texte: () => coarse ? 'Tu te réveilles chez toi. Touche le bouton vert « Se lever », en bas.' : 'Tu te réveilles chez toi. Appuie sur [E] (ou le bouton vert en bas) pour te lever.', quand: () => !!S.couche, fait: () => GS.vuCouche && !S.couche },
   { id: 'marcher', texte: () => coarse ? 'Marche avec le joystick, et touche « Courir » pour courir. Les boutons verts en bas changent selon ce qui est près de toi.' : 'Marche avec les flèches ou [Z] [Q] [S] [D]. Clique dans la ville : la souris dirige la caméra ([Échap] la libère). Les boutons verts en bas changent selon ce qui est près de toi.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
   { id: 'maison', texte: 'Chez toi, approche-toi de la douche ou du fourneau et appuie sur le bouton pour te laver ou cuisiner, puis mange à table. Le bouton « Sortir » t’emmène dans la rue.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.activite || GS.dehorsT > 0 },
-  { id: 'rue', texte: () => coarse ? 'Te voilà dans la rue. Le bouton « Aller · gestes », en bas à droite, ouvre « Aller à » (pour aller vers un lieu) et « Prendre un zém ». En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.' : 'Te voilà dans la rue. En bas à droite, « Aller à » t’emmène vers un lieu et « Prendre un zém » appelle un zém. En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.', quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier, duree: 15 },
-  { id: 'vie', texte: 'En haut à gauche : ton argent, ta faim, ton logement et ton travail. Mange quand la faim baisse : au maquis, au food court de la Cité ou chez toi.', quand: () => GS.dehorsT > 16, fait: () => false, duree: 10 },
+  { id: 'rue', texte: () => coarse ? 'Te voilà dans la rue. Le bouton « Aller · gestes », en bas à droite, ouvre « Aller à » (pour aller vers un lieu) et « Prendre un zém ». En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.' : 'Te voilà dans la rue. En bas à droite, « Aller à » t’emmène vers un lieu et « Prendre un zém » appelle un zém. En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.', quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier },
+  { id: 'vie', texte: 'En haut à gauche : ton argent, ta faim, ton logement et ton travail. Mange quand la faim baisse : au maquis, au food court de la Cité ou chez toi.', quand: () => GS.dehorsT > 16 && !!VIE.data?.metier, fait: () => !!VIE.service, duree: 40 }, // se ferme quand on commence à travailler
 ];
 function majGuideSalon(dt) {
   if (!guideSalon?.actif()) return;
@@ -552,7 +559,12 @@ function angleDedans(P, dist, inc) {
 function menu(ouvrir) {
   const el = $('#vieHud'); if (!el || (ouvrir && el.hidden)) return;
   el.classList.toggle('ouvert', ouvrir); $('#vhVoile').hidden = !ouvrir; $('#vhMenu')?.setAttribute('aria-expanded', String(ouvrir));
-  S.menu = ouvrir; if (ouvrir) S.touches.clear();
+  S.menu = ouvrir; if (ouvrir) { S.touches.clear(); majSon(); }
+}
+// Son : le même interrupteur que le bouton Son de Zém Run (AUDIO.muet). La ville, les pièces et les voix s'y plient.
+function majSon() {
+  const b = $('#vhSon'); if (b) { b.textContent = AUDIO.muet ? 'Son : coupé' : 'Son : activé'; b.setAttribute('aria-pressed', String(!AUDIO.muet)); }
+  $('#jhSon')?.setAttribute('aria-pressed', String(!AUDIO.muet));
 }
 
 // ---------- Avec un ami : il conduit sa moto ou sa voiture, on monte avec lui ----------
@@ -720,6 +732,7 @@ export function initSalon(data) {
   $('#slZem')?.addEventListener('click', helerZem);
   $('#vhTravail')?.addEventListener('click', menuTravail);
   $('#vhMenu')?.addEventListener('click', () => menu(true)); $('#vhReprendre')?.addEventListener('click', () => menu(false)); $('#vhVoile')?.addEventListener('click', () => menu(false));
+  $('#vhSon')?.addEventListener('click', () => { AUDIO.muet = !AUDIO.muet; if (AUDIO.muet) { taire(); moteurMaj(0, false); } else audioCtx(); majSon(); });
   $('#vhInviter')?.addEventListener('click', () => { menu(false); $('#slInviter')?.click(); }); $('#vhQuitter')?.addEventListener('click', () => { menu(false); $('#slQuitter')?.click(); });
   $('#vieHud')?.addEventListener('click', e => { if (S.menu && e.target.closest('.vh-boutons button:not(.vh-menu)')) menu(false); }); // Commerces, Louer, Pause… : la fenêtre qui s'ouvre passe devant
   $('#vhPause')?.addEventListener('click', basculerPause);

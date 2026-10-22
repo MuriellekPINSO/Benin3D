@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { remettre } from './remise.js';
 import { $ } from './base.js';
 import { AUDIO, son } from './audio.js';
-import { JEU, LANE, demiChaussee, fmtF, latTrottoir, pose, toast } from './jeu.js';
+import { JEU, LANE, casserSerie, demiChaussee, fmtF, latTrottoir, pose, toast } from './jeu.js';
 import { DISC, bulle, dialogue, nouveauSigne, personne } from './discussions.js';
 import { FEUX } from './feux.js';
 import { traverser } from './pietons.js';
@@ -108,6 +108,7 @@ function agent(st) {
 /** Contrôle de police : « feu » (feu rouge brûlé) ou « constat » (après un accident). */
 export function police(st, motif) {
   if (R.police) return;
+  if (motif === 'feu') casserSerie(st, 'feu rouge');
   st.v = Math.min(st.v, 2);
   // Débutant (ligne express, ou aucune course encore finie) : le premier contrôle est un avertissement,
   // les suivants coûtent moitié prix, et sans argent on repart quand même.
@@ -150,10 +151,10 @@ export function police(st, motif) {
 export function accident(st) {
   st.v = 0; st.service = Math.max(st.service, 1.2);
   const c = DISC.client;
-  if (c && Math.random() < .5) {
+  if (c && Math.random() < .5) { // le client a eu peur : il descend
     bulle(c.siege, choisir(['Je descends ! Je prends un autre zém.', 'Tu veux me tuer ? Je descends ici !', 'Arrête ! Je ne monte plus avec toi.']), { ton: 'fort', duree: 3 });
     toast(`${c.nom.split(' ').slice(-1)[0]} ${c.femme ? 'est descendue' : 'est descendu'} : course perdue`, 2.4, 'mal');
     const s = c.siege; DISC.client = null; st.passagers = 0; setTimeout(() => { if (!DISC.client && s) s.visible = false; }, 1500);
     nouveauSigne(st.s + 160 + Math.random() * 120);
-  } else setTimeout(() => { if (JEU.etat === st && JEU.actif) police(st, 'constat'); }, 900);
+  } // plus de constat de police : l'accident se paie déjà sur la recette (jeu.js accidentCourse), la course continue
 }

@@ -81,9 +81,12 @@ function image(now) {
     shadowSize = want; const c = sun.shadow.camera; c.left = c.bottom = -want; c.right = c.top = want; c.updateProjectionMatrix();
   }
   scene.fog.near = Math.min(dist * 1.3 + 1800, 26000); scene.fog.far = Math.min(dist * 4.2 + 9000, 62000);
-  // À pied, rien n'est dessiné au-delà du brouillard, où tout a déjà la couleur de l'horizon : depuis les rues de Cotonou,
+  // Téléphone, au ras du sol (à pied, en course, ou de près) : le brouillard se rapproche, 4 km au lieu de 9. Entre les
+  // bâtiments, on ne voit guère plus loin, et ce qui est au-delà n'est plus dessiné (Danfo Run en montre bien moins).
+  if (LITE && dist < 200) { scene.fog.near = Math.min(scene.fog.near, 1400 + dist * 4); scene.fog.far = Math.min(scene.fog.far, 4000 + dist * 20); }
+  // À pied et en course, rien n'est dessiné au-delà du brouillard, où tout a déjà la couleur de l'horizon : depuis les rues de Cotonou,
   // les 30 000 pilotis de Ganvié et Ouidah passaient sinon par la carte graphique. Le ciel est ramené en deçà.
-  const loin = salonActif() && !JEU.actif ? Math.ceil(scene.fog.far / 500) * 500 : 130000;
+  const loin = salonActif() || JEU.actif ? Math.ceil(scene.fog.far / 500) * 500 : 130000; // à pied et en course
   if (camera.far !== loin) { camera.far = loin; camera.updateProjectionMatrix(); sky.scale.setScalar(Math.min(1, loin * .9 / 100000)); }
   sky.position.copy(camera.position);
   if (E.foamMat) E.foamMat.uniforms.uTime.value = U.uTime.value;
@@ -184,6 +187,14 @@ async function main() {
 if (import.meta.env.DEV) Promise.all([import('./jeu.js'), import('./bordure.js'), import('./discussions.js'), import('./personnages.js'), import('./pietons.js')]).then(([j, b, d, p, pi]) => { window.__cotonou = { E, camera, controls, JEU, scene, renderer, creerObjet: j.creerObjet, BORD: b.BORD, DISC: d.DISC, personnage3d: p.personnage3d, personnagesPrets: p.personnagesPrets, personne: d.personne, traverser: pi.traverser, marchandeReelle: pi.marchandeReelle }; });
 // …et de quoi tourner la vidéo de présentation (survols, ambiance, musique) depuis un script.
 if (import.meta.env.DEV) Promise.all([import('./explorer.js'), import('./interface.js'), import('./donnees-lieux.js'), import('./ambiances.js'), import('./monde-reel.js'), import('./musique.js')]).then(([ex, it, dl, am, mr, mu]) => { window.__video = { finVol: ex.finVol, startFlight: it.startFlight, PLACES: dl.PLACES, setMood: am.setMood, monumentsEnVisite: mr.monumentsEnVisite, musique: mu.musiqueForcee, THREE }; });
+
+// Appli installable (public/manifest.webmanifest, public/sw.js), pas en développement : le cache gênerait Vite.
+if (!import.meta.env.DEV && 'serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => { }));
+// « Installer l'appli » sur l'accueil, quand le navigateur le propose (Chrome sur Android, comme Danfo Run).
+let invitation = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); invitation = e; const b = $('#acInstaller'); if (b) b.hidden = false; });
+addEventListener('appinstalled', () => { invitation = null; const b = $('#acInstaller'); if (b) b.hidden = true; });
+$('#acInstaller')?.addEventListener('click', async () => { if (!invitation) return; invitation.prompt(); await invitation.userChoice.catch(() => { }); invitation = null; $('#acInstaller').hidden = true; });
 
 main().catch(err => {
   console.error(err);

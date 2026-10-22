@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400..700&family=JetBrains+Mono:wght@500&display=swap">
 <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml">
 <meta name="theme-color" content="#1A7D52">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icones/apple-touch-icon.png">
 <!-- Aperçu du lien (WhatsApp, Facebook, X) : adresses absolues, l'image fait 1200 × 630 -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Kutɔnu Vibes">
@@ -138,15 +140,16 @@
         <button type="button" class="btn-ghost" id="jmRetour">Retour à la carte</button>
       </div>
       <p class="jm-aide jm-aide-doigt"><b>Au doigt</b> : le zém avance seul · <b>glisse à gauche ou à droite</b> : changer de file, et tourner au carrefour · <b>glisse vers le haut</b> : sauter · <b>glisse vers le bas et garde le doigt posé</b> : freiner, t’arrêter au feu rouge ou à l’arrêt · bouton <b>E</b> : interagir · <b>Pause</b> en haut à droite.</p>
-      <p class="jm-aide jm-aide-clavier"><b>↑</b> accélérer (le zém n'avance que si tu appuies, il ralentit dès que tu relâches) · <b>↓</b> freiner (à l'arrêt, appuie encore : <b>marche arrière</b>) · <b>U</b> demi-tour · <b>arrête-toi au feu rouge</b>, sinon la police te met une amende · demande au client s'il a son casque · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
+      <p class="jm-aide jm-aide-clavier"><b>↑</b> accélérer (le zém n'avance que si tu appuies, il ralentit dès que tu relâches) · <b>↓</b> freiner (à l'arrêt, appuie encore : <b>marche arrière</b>) · <b>U</b> demi-tour · <b>arrête-toi au feu rouge</b>, sinon la police te met une amende · demande au client s'il a son casque · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>R</b> radio · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
       <label class="jm-option"><input type="checkbox" id="jmVoix"> Voix des personnages (ils parlent à voix haute)</label>
       <label class="jm-option" hidden><input type="checkbox" id="jmGlisser"> Conduite au doigt : le zém avance seul, glisse pour changer de file, sauter ou freiner</label>
+      <label class="jm-option" hidden><input type="checkbox" id="jmGaucher"> Je joue de la main gauche : Frein, Gaz et E passent à gauche</label>
       <button type="button" class="jm-guide" id="jmGuide">Revoir la prise en main</button>
     </div>
     <div class="jeu-hud" id="jeuHud" hidden>
       <div class="jh-haut">
         <div class="jh-ligne panel"><b id="jhNom"></b><span id="jhProchain"></span><div class="jh-barre"><i id="jhProg"></i><span id="jhArrets"></span></div></div>
-        <div class="jh-stats panel"><b id="jhArgent">0 F</b><span id="jhVies"></span><span id="jhVitesse">0 km/h</span><span id="jhPassagers"></span><span class="jh-carbu"><small>Essence</small><span class="jh-essence" id="jhEssence"><i></i></span><b id="jhLitres"></b></span><span class="jh-pop" id="jhPop" aria-hidden="true"></span></div>
+        <div class="jh-stats panel"><b id="jhArgent">0 F</b><em class="jh-serie" id="jhSerie" hidden title="Série de clients : recette multipliée"></em><span id="jhVitesse">0 km/h</span><span id="jhPassagers"></span><span class="jh-carbu"><small>Essence</small><span class="jh-essence" id="jhEssence"><i></i></span><b id="jhLitres"></b></span><span class="jh-pop" id="jhPop" aria-hidden="true"></span></div>
       </div>
       <div class="jh-quartier" id="jhQuartier"></div>
       <div class="jh-carrefour" id="jhCarrefour" hidden></div>
@@ -173,19 +176,20 @@
         <button type="button" id="jbS" aria-label="Sauter">Saut</button>
         <button type="button" id="jbD" aria-label="File de droite">▶</button>
       </div>
-      <div class="jh-coin"><button type="button" id="jhSon" aria-pressed="true" title="Couper les sons">Son</button><button type="button" id="jhPause">Pause</button></div>
+      <div class="jh-coin"><button type="button" id="jhRadio" aria-pressed="false" title="Changer de radio (R)">Radio</button><button type="button" id="jhSon" aria-pressed="true" title="Couper les sons">Son</button><button type="button" id="jhPause">Pause</button></div>
     </div>
     <div class="jeu-fin panel" id="jeuFin" hidden>
       <h2></h2><p class="jf-sous"></p>
       <div class="jf-stats"></div>
       <div class="jf-quiz"></div>
-      <div class="jf-actions"><button type="button" class="jouer" id="jfRejouer">Rejouer</button><button type="button" class="btn-ghost" id="jfClassement">Classement</button><button type="button" class="btn-ghost" id="jfMarche" hidden>Marché artisanal</button><button type="button" class="btn-ghost" id="jfLignes">Autre ligne</button><button type="button" class="btn-ghost" id="jfCarte">Revenir à la carte</button></div>
+      <div class="jf-actions"><button type="button" class="jouer jf-partager" id="jfPartager" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg><span>Partager mon billet</span></button><button type="button" class="jouer" id="jfRejouer">Rejouer</button><button type="button" class="btn-ghost" id="jfClassement">Classement</button><button type="button" class="btn-ghost" id="jfMarche" hidden>Marché artisanal</button><button type="button" class="btn-ghost" id="jfLignes">Autre ligne</button><button type="button" class="btn-ghost" id="jfCarte">Revenir à la carte</button></div>
     </div>
     <div class="jeu-classement panel" id="jeuClassement" hidden role="dialog" aria-modal="true" aria-labelledby="jcTitre">
       <button type="button" class="jm-fermer" id="jcFermer" aria-label="Fermer le classement">×</button>
       <span class="jm-eyebrow">Zém Run</span>
       <h2 id="jcTitre">Classement</h2>
       <form class="jc-nom" id="jcNomForm"><label for="jcNom">Ton nom</label><input id="jcNom" maxlength="16" autocomplete="nickname" placeholder="Ton nom ou ton surnom"><button type="submit" class="jouer">Enregistrer</button><small id="jcNomEtat" role="status"></small></form>
+      <div class="jc-periodes" id="jcPeriodes" role="group" aria-label="Période"></div>
       <div class="jc-lignes" id="jcLignes" role="tablist" aria-label="Lignes de Zém Run"></div>
       <ol class="jc-liste" id="jcListe"></ol>
       <p class="jc-moi" id="jcMoi"></p>
@@ -225,6 +229,7 @@
     <header class="ac-barre">
       <span class="ac-marque"><svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="11" fill="#1A7D52"/><path d="M 13.781 29.9 A 11.8 11.8 0 1 0 13.781 18.1" fill="none" stroke="#242424" stroke-width="5.8" stroke-linecap="round"/><circle cx="24" cy="24" r="2.9" fill="#F5B800"/></svg>Kutɔnu Vibes</span>
       <span class="ac-enligne" id="acEnLigne" hidden><i></i><b></b> en ligne</span>
+      <button class="ac-installer" type="button" id="acInstaller" hidden>Installer l’appli</button>
       <a class="ac-langue" href="en/" hreflang="en">English</a>
     </header>
     <nav class="ac-puces" aria-label="Autres façons de jouer">
@@ -271,11 +276,11 @@
     <small class="ev-sur">Esplanade de l’Amazone · ce soir</small>
     <h2 id="evTitre">Concert de l’Esplanade</h2>
     <p>Une scène face à la statue, un grand écran, des lumières et toute la ville qui danse. L’entrée coûte 100 F, à payer avec ta cagnotte du jeu.</p>
-    <p class="ev-momo" hidden>Tu peux aussi la payer pour de vrai avec MTN MoMo ou Moov Money : tu tapes ton numéro, puis tu valides sur ton téléphone. Le billet vaut pour toute la journée.</p>
+    <p class="ev-momo" hidden>Tu peux aussi la payer pour de vrai avec MTN MoMo, Moov Money ou Celtiis Cash : tu tapes ton numéro, puis tu valides sur ton téléphone. Le billet vaut pour toute la journée.</p>
     <p class="ev-solde"></p>
     <p class="ev-manque" hidden>Il te faut 100 F dans ta cagnotte : gagne-les en faisant des courses dans Zém Run.</p>
     <p class="ev-etat" id="evEtat" role="status" aria-live="polite" hidden></p>
-    <p class="ev-test-momo" hidden>Mode test : choisis « Momo Test » et le numéro 0164000001. Aucun vrai argent n’est débité.</p>
+    <p class="ev-test-momo" hidden>Mode test : choisis MTN et le numéro 0164000001. Aucun vrai argent n’est débité.</p>
     <div class="ev-actions"><button type="button" class="jouer" id="evPayer">Payer 100 F et entrer</button><button type="button" class="jouer ev-btn-momo" id="evMomo" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg><span>Payer 100 F par MoMo</span></button><button type="button" class="btn-ghost" id="evAnnuler">Pas maintenant</button></div>
   </div>
   <button type="button" class="ev-quitter" id="evQuitter" hidden>Quitter le concert</button>
@@ -285,7 +290,7 @@
     <small class="ev-sur">Nouveau</small>
     <h2 id="slTitre">Vivre à Cotonou</h2>
     <p>Réveille-toi chez toi, trouve un métier, gagne ta vie, prends un zém ou ta moto, et retrouve tes amis à l’Amazone, à la Haie Vive ou à la plage.</p>
-    <label class="sl-champ">Ton nom <input id="slNom" maxlength="16" autocomplete="nickname" placeholder="Ex. : Murielle"></label>
+    <label class="sl-champ">Ton nom <input id="slNom" maxlength="16" autocomplete="nickname" placeholder="Facultatif"></label>
     <p class="sl-titre">Ton personnage</p>
     <div class="gr-genre" id="slGenre" role="radiogroup" aria-label="Femme ou homme"></div>
     <div class="gr-tenues sl-tenues" id="slAvatars" role="radiogroup" aria-label="Ta tenue"></div>
@@ -336,7 +341,7 @@
       <b class="vh-vitesse" id="vhVitesse" hidden></b>
       <small class="vh-gps" id="vhGps" hidden></small>
       <div class="vh-boutons"><button type="button" class="vh-louer" id="vhTravail">Travailler</button><button type="button" class="vh-louer vh-louer2" id="vhPause" hidden>Pause</button><button type="button" class="vh-louer vh-louer2" id="vhFinir" hidden>Finir la journée</button><button type="button" class="vh-louer vh-louer2" id="vhLouer" hidden></button><button type="button" class="vh-louer vh-louer2" id="vhCommerces">Commerces</button><button type="button" class="vh-louer vh-louer2 vh-menu" id="vhMenu" aria-expanded="false" title="Menu (Échap)">Menu</button></div>
-      <div class="vh-menu-plus"><button type="button" class="jouer" id="vhReprendre">Reprendre</button><button type="button" class="vh-louer vh-louer2" id="vhInviter">Inviter un ami</button><button type="button" class="vh-louer vh-louer2" id="vhQuitter">Quitter la partie</button></div>
+      <div class="vh-menu-plus"><button type="button" class="jouer" id="vhReprendre">Reprendre</button><button type="button" class="vh-louer vh-louer2" id="vhSon" aria-pressed="true">Son : activé</button><button type="button" class="vh-louer vh-louer2" id="vhInviter">Inviter un ami</button><button type="button" class="vh-louer vh-louer2" id="vhQuitter">Quitter la partie</button></div>
     </div>
     <div class="sl-haut panel"><div><b>Salon <span id="slCodeAff"></span></b><small id="slNb"></small></div><button type="button" class="jouer" id="slInviter">Inviter</button><button type="button" id="slVue" title="Changer de vue (V)">Voir de haut</button><button type="button" id="slCopier">Copier le lien</button><button type="button" id="slQuitter">Quitter</button></div>
     <div class="sl-chat panel" id="slChat">
