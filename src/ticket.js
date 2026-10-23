@@ -2,7 +2,7 @@
 // Au bilan de Zém Run, une image façon billet du syndicat (logo, recette, clients, distance, frôlements, numéro du billet)
 // part sur WhatsApp ou ailleurs en un geste : partage de fichier quand le téléphone le permet, sinon le texte seul,
 // sinon un lien WhatsApp. L'image est préparée dès l'arrivée du bilan : le partage doit suivre le clic sans attendre.
-const SITE = 'https://kutɔnuvibes.com';
+const SITE = 'https://kotonuvibes.com';
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 const POLICE = '"Google Sans", "Plus Jakarta Sans", system-ui, sans-serif', MONO = '"JetBrains Mono", ui-monospace, Menlo, monospace';
 
@@ -40,7 +40,7 @@ async function dessiner(d) {
   });
   // L'invitation.
   c.fillStyle = '#f5b700'; c.fillRect(0, H - 110, W, 110);
-  c.fillStyle = '#1d1a16'; c.font = `800 40px ${POLICE}`; c.textAlign = 'center'; c.fillText('Fais mieux sur kutɔnuvibes.com', W / 2, H - 55); c.textAlign = 'left';
+  c.fillStyle = '#1d1a16'; c.font = `800 40px ${POLICE}`; c.textAlign = 'center'; c.fillText('Fais mieux sur kotonuvibes.com', W / 2, H - 55); c.textAlign = 'left';
   return new Promise(ok => cv.toBlob(ok, 'image/png'));
 }
 // Une ligne de texte réduite jusqu'à tenir dans la largeur.

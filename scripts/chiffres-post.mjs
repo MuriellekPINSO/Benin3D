@@ -60,7 +60,7 @@ const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8">
       <div><b>${nb(T.salon)}</b><span>vies commencées en ville</span></div>
       <div><b>${nb(T.zemrun)}</b><span>courses de zém</span></div>
     </div>
-    <div class="url">kutɔnuvibes.com</div>
+    <div class="url">kotonuvibes.com</div>
   </div>
 </body></html>`;
 
