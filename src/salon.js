@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { $, coarse, toXZ } from './base.js';
 import { PLACES } from './donnees-lieux.js';
 import { creerGuide } from './guide.js';
+import { BALADES, DEVANT_KOIN, PRES_DE_KOIN } from './koinkoin.js';
 import { compterUneFois, lieuStats } from './statistiques.js';
 import { obstacleArene, siegeGradins } from './ouidah.js';
 import { dansArbre, dansFoule } from './lieux.js';
@@ -16,10 +17,10 @@ import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personna
 import { stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment, obstaclesPres, profondeurRue } from './rue.js';
 import { hauteurSol } from './sols.js';
-import { T, actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, vehiculeDe } from './trajets.js';
+import { actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe } from './trajets.js';
 import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
-import { alerteDuJour, assurerVie, bonjourDuJour, ecrire as ecrireVie, louerMoto, majVie, prechargerVie, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
+import { alerteDuJour, assurerVie, bonjourDuJour, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
 import { basculerPause, finirJournee, menuTravail } from './metiers.js';
 import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces } from './commerces.js';
@@ -52,10 +53,10 @@ const PHRASES = ['Salut !', 'Ça va ?', 'On y va !', 'On mange où ?', 'Attends-
 // Lieux de rendez-vous : id dans PLACES, nom dans le menu, « je vais … », décalage du point d'arrivée (mètres,
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
-const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0]]; // 7e : intérieur dont on arrive devant la porte
+const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['koinkoin', 'Koin Koin Vélo (location)', 'chez Koin Koin Vélo', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0]]; // 7e : intérieur dont on arrive devant la porte
 const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
-const S = { orbite: 0, orbiteT: 0, actif: false, public: false, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 't:top-f', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, bras: 1, autres: new Map(), vus: new Set() };
+const S = { orbite: 0, orbiteT: 0, actif: false, public: false, balade: null, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 't:top-f', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, bras: 1, autres: new Map(), vus: new Set() };
 export const salonActif = () => S.actif;
 export const pieceDuSalon = () => S.actif ? S.lieu : null; // la pièce où l'on est (main.js n'y dessine que ses abords)
 const cible = new THREE.Vector3(), voulue = new THREE.Vector3();
@@ -275,23 +276,67 @@ const tousLieux = () => [...LIEUX, ...lieuxCommerces().map(c => [c.id, c.nom, c.
 function destination(L) {
   if (L[0].startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === L[0]); return c && [c.x, c.z, c.cap]; }
   if (L[0] === 'station') { const st = stationLaPlusProche(S.x, S.z); return st && [st[0], st[1], 0]; }
+  if (L[0] === 'koinkoin') return DEVANT_KOIN; // devant le comptoir, face à la boutique
   if (L[0] === 'maison') { const I = maisonActuelle(); if (!I) return null; const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; } // devant sa porte (maison.js)
   const p = PLACES.find(q => q.id === L[0]), I = L[6] && INTERIEURS.get(L[6]); if (!p) return null;
   if (I) { const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; }
   const [x, z] = toXZ(p.lat, p.lon); return [x + L[3], z + L[4], L[5]];
 }
+// ---------- Koin Koin Vélo : louer au comptoir ----------
+function actionsKoinKoin() {
+  if (T.mode !== 'pied' || S.lieu || !PRES_DE_KOIN(S.x, S.z)) return [];
+  if (VIE.data?.vehicule === 'velo') return [...(S.balade ? [] : [{ texte: 'Partir en balade', f: choisirBalade }]), { texte: 'Rendre le vélo', f: rendreVelo }];
+  if (VIE.data?.vehicule) return []; // on a déjà une moto ou une voiture : pas deux véhicules à la fois
+  return [{ texte: `Louer un vélo · ${LOCATION_VELO.toLocaleString('fr-FR')} F`, f: prendreVelo }];
+}
+async function prendreVelo() {
+  if (!(await louerVelo())) return;
+  garerSonVehicule(); son('piece');
+  ligne(`Vélo loué pour ${HEURES_VELO} h. Il est posé à côté : approche-toi et « Monter sur ton vélo ».`);
+}
+async function rendreVelo() {
+  if (!reprendreVehicule()) return ligne('Descends d’abord du vélo.');
+  S.balade = null; await rendreLocation(); ligne('Vélo rendu. Merci, à bientôt chez Koin Koin !');
+}
+// ---------- Les balades en groupe ----------
+// Le meneur annonce chaque étape dans la discussion ; les autres n'ont qu'à cliquer « Y aller ». Rien à
+// synchroniser entre les navigateurs : le fil du salon suffit, et il marche aussi bien entre inconnus.
+function choisirBalade() {
+  choisir('Quelle balade ?', BALADES.map(B => ({
+    texte: B.nom, sous: `${B.etapes.length} étape${B.etapes.length > 1 ? 's' : ''} · ${B.etapes.map(e => LIEUX.find(l => l[0] === e)?.[1]).filter(Boolean).join(', ')}`,
+    f: () => lancerBalade(B),
+  })), { annuler: 'Pas maintenant' });
+}
+function lancerBalade(B) {
+  S.balade = { id: B.id, etape: 0 };
+  annoncerEtape(B, 0, `Je pars en balade « ${B.nom} » avec Koin Koin`);
+}
+function annoncerEtape(B, i, debut) {
+  const id = B.etapes[i], L = LIEUX.find(l => l[0] === id); if (!L) return;
+  S.canal?.dire({ n: S.nom, txt: `${debut || `Étape ${i + 1} de la balade « ${B.nom} »`} : rendez-vous ${L[2]} !`, lieu: id });
+  aller(id, false);
+}
+function actionsBalade() {
+  const b = S.balade; if (!b) return [];
+  const B = BALADES.find(x => x.id === b.id); if (!B) return [];
+  const out = [];
+  if (b.etape < B.etapes.length - 1) out.push({ texte: `Balade : annoncer l’étape ${b.etape + 2}`, f: () => { b.etape++; annoncerEtape(B, b.etape); } });
+  else out.push({ texte: 'Finir la balade', f: () => { S.balade = null; S.canal?.dire({ n: S.nom, txt: `Fin de la balade « ${B.nom} ». Merci à tous !` }); } });
+  return out;
+}
 /** Se rend à un lieu de rendez-vous ; `proposer` : prévient les autres, qui peuvent suivre d'un clic. En voiture
  *  ou à moto, on n'y saute pas : le GPS trace l'itinéraire par les routes. */
 function aller(id, proposer = true) {
   if (id.startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === id); if (c) allerVers(c.x, c.z, c.cap, c.nom); return; } // chez soi, au travail : on ne l'annonce pas
-  const L = LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || ((id === 'station' || id === 'maison') && {}); if (!L || !p) return;
+  const L = LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || ((id === 'station' || id === 'maison' || id === 'koinkoin') && {}); if (!L || !p) return;
   if (T.mode === 'conduit') { const d = destination(L); if (d) gps(d[0], d[1], id === 'station' ? (stationLaPlusProche(S.x, S.z)?.[2] || L[1]) : L[1]); return; }
   if (T.mode === 'ami') { const A = S.autres.get(S.ami); S.canal?.dire({ n: S.nom, txt: `${A ? `${A.nom}, emmène-moi` : 'Emmène-moi'} ${L[2]} !`, lieu: id }); return; }
   if (T.mode !== 'pied') return;
   const I = id === 'maison' ? maisonActuelle() : L[6] && INTERIEURS.get(L[6]);
   if (I && S.lieu === I) return; // on y est déjà
   if (S.lieu) dehors(false);
-  if (id === 'station') { const d = destination(L); if (!d) return; S.x = d[0] + 6; S.z = d[1]; S.cap = -Math.PI / 2; }
+  if (id === 'koinkoin') { const d = destination(L); S.x = d[0] + (Math.random() - .5) * 3; S.z = d[1]; S.cap = d[2]; }
+  else if (id === 'station') { const d = destination(L); if (!d) return; S.x = d[0] + 6; S.z = d[1]; S.cap = -Math.PI / 2; }
   else if (I) { const a = arriveeDehors(I); S.x = a.x + (Math.random() - .5) * 2; S.z = a.z; S.cap = a.cap + Math.PI; } // devant la porte, face à elle
   else { const [x, z] = toXZ(p.lat, p.lon); S.x = x + L[3] + (Math.random() - .5) * 4; S.z = z + L[4] + (Math.random() - .5) * 4; S.cap = L[5]; }
   S.saut = true; S.geste = 'idle';
@@ -370,9 +415,10 @@ async function entrerSalon(code) {
   S.canal = c;
   S.code = code; S.public = PUBLICS.includes(code); S.actif = true; statut(''); compterUneFois('salon'); lieuStats('salon');
   $('#salon').hidden = true; $('#salonHud').hidden = false; $('#slJoy').hidden = !coarse; $('#slCourir').hidden = !coarse;
-  // En ville, pas de code à montrer, et pas de chat libre avec des inconnus : les phrases toutes faites et les gestes suffisent.
+  // En ville, pas de code à montrer. Le chat libre reste ouvert : on vient justement pour se présenter
+  // et se parler, ce que des phrases toutes faites ne permettent pas.
   $('#slSalonLbl').textContent = S.public ? 'En ville' : `Salon ${code}`;
-  $('#slForm').hidden = S.public;
+  $('#slTexte').placeholder = S.public ? 'Écris à tout le monde… (Entrée)' : 'Écris à tes amis… (Entrée)';
   document.getElementById('app').classList.add('mode-salon');
   // À pied, il faut la ville en 3D autour de soi : la « Vue réelle » (images Google à plat) attendra la sortie.
   S.vueReelle = $('#togGoogle')?.getAttribute('aria-pressed') === 'true'; if (S.vueReelle) $('#togGoogle').click();
@@ -415,7 +461,7 @@ async function porter(modele, forcer = false) {
 function quitter() {
   if (!S.actif) return;
   lieuStats('carte');
-  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; dehors(); sauverVie(); quitterCommerces(); quitterChapitres(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
+  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterChapitres(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
   S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
   for (const A of S.autres.values()) retirer(A); S.autres.clear();
@@ -589,7 +635,7 @@ export function majSalon(dt) {
   S.actions = T.mode === 'ami' ? actionsAmi()
     : occupe() ? actionsMaison() // couché : se lever ; sous la douche, aux fourneaux : arrêter
     : S.gradin ? [{ texte: 'Se lever', f: leverGradins }]
-    : [...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...(vehAvant ? entrer : []), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : [])]; // l'action du lieu d'abord, « Sortir » en dernier
+    : [...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsKoinKoin(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : [])]; // l'action du lieu d'abord, « Sortir » en dernier
   // La touche de chaque bouton : celle de la manette si elle est branchée (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
   const touches = S.pad && performance.now() - S.padT < 1000 ? (S.pad.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
   ['#slEntrer', '#slAction2', '#slAction3'].forEach((sel, k) => { // trois au plus (apprenti à l'arrêt : encaisser, crier, donner le départ)

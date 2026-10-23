@@ -12,7 +12,7 @@ import { dansCirculation } from './trafic.js';
 import { scene } from './scene.js';
 import { plusTard } from './telechargements.js';
 import { TABLIERS, mergeColored, roadLines } from './ville.js';
-import { TOKPA_3D, ZEMS_3D, gabaritDe, matVeh, partsTokpa, partsVoiture, partsZem } from './vehicules.js';
+import { TOKPA_3D, ZEMS_3D, gabaritDe, matVeh, partsTokpa, partsVelo, partsVoiture, partsZem } from './vehicules.js';
 
 // ---------- Conduire dans la ville (Ma vie, salon entre amis) ----------
 // On monte sur sa moto ou dans sa voiture et on roule où l'on veut, mais sur les routes : la chaussée et
@@ -30,6 +30,9 @@ export const VEHICULES = {
   taxi: { nom: 'taxi', long: 4.3, larg: 1.8, vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
   tokpa: { nom: 'tokpa-tokpa', long: 5, larg: 1.9, vmax: 20, accel: 3.8, frein: 7.5, recul: 2.5, braquage: 1.05, reservoir: 10, kmParLitre: 4, cache: true }, // l'apprenti se tient à la porte latérale, à droite (metiers.js)
   zem: { nom: 'zém', long: 2, larg: .8, vmax: 18, accel: 5, frein: 9, recul: 2, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.62 },
+  // Le vélo Koin Koin : lent, nerveux au démarrage, il tourne court. `pedale` : pas d'essence, donc jamais
+  // de panne sèche et rien à consommer (trajets.js saute le carburant pour lui).
+  velo: { nom: 'vélo', long: 1.8, larg: .6, vmax: 7, accel: 2.8, frein: 7, recul: 1.2, braquage: 2.3, reservoir: 0, kmParLitre: 0, pedale: true, selle: [.95, -.3], arriere: -.5 },
 };
 export const PRIX_LITRE = 680; // à la pompe (Zém Run : 680 F à la station, 500 F le kpayo)
 const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote automatique
@@ -55,7 +58,7 @@ export function creerVehicule(type, { couleur } = {}) {
   let m;
   if (type === 'tokpa') { m = TOKPA_3D.geo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(mergeColored(partsTokpa()), matVeh); m.castShadow = true; } // le minibus de Zém Run (Tripo)
   else if (gabarit) m = gabarit.clone();
-  else { m = new THREE.Mesh(mergeColored(type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : couleur || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: couleur, chemise: '#f2c21b' })), matVeh); m.castShadow = true; m.receiveShadow = true; }
+  else { m = new THREE.Mesh(mergeColored(type === 'velo' ? partsVelo({}) : type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : couleur || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: couleur, chemise: '#f2c21b' })), matVeh); m.castShadow = true; m.receiveShadow = true; } // le vélo est vide : c'est le personnage du joueur qu'on voit dessus
   m.rotation.y = -Math.PI / 2 + (gabarit && MODELES[type] && DEMI_TOUR[type] ? Math.PI : 0); g.add(m); // avant +x → +z
   scene.add(g);
   // Roues qui tournent, fumée, poussière (roues.js) : elles se posent dans le repère du véhicule, l'avant vers +x,

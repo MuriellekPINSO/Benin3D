@@ -30,7 +30,7 @@ export function initTrajets(data, ctx) {
   initMetiers(data, { ...ctx, T, gps, choisir, asseoirSur, garerSonVehicule, etiquette }); // zém, taxi, tokpa-tokpa (metiers.js)
 }
 // Comment on nomme le véhicule : monter dans…, descendre de…
-const NOMS = { voiture: ['ta voiture', 'de la voiture'], moto: ['ta moto', 'de la moto'], taxi: ['le taxi', 'du taxi'], tokpa: ['le tokpa-tokpa', 'du tokpa-tokpa'] };
+const NOMS = { voiture: ['ta voiture', 'de la voiture'], moto: ['ta moto', 'de la moto'], velo: ['ton vélo', 'du vélo'], taxi: ['le taxi', 'du taxi'], tokpa: ['le tokpa-tokpa', 'du tokpa-tokpa'] };
 const nomDe = V => (V.travail && V.type === 'moto' ? ['la moto du patron', 'de la moto'] : NOMS[V.type] || NOMS.voiture);
 
 // Un point de route libre près de (x, z), pour garer un véhicule ou faire venir un zém.
@@ -43,13 +43,16 @@ export function entrerMonde() {
   quitterMonde(); T.mode = 'pied';
   garerSonVehicule();
 }
+/** Le loueur reprend le véhicule : il disparaît de la rue. Seulement à pied, pas en roulant dessus. */
+export function reprendreVehicule() { if (T.mode !== 'pied') return false; retirerVehicule(T.veh); T.veh = null; return true; }
 export function garerSonVehicule() {
   const type = VIE.data?.vehicule; if (!type || !VEHICULES[type] || T.veh) return;
   const o = S.lieu ? arriveeDehors(S.lieu) : S; // dans un bâtiment (chez soi au réveil) : dans la rue, devant la porte
   const p = pointDeRoute(o.x + Math.sin(o.cap + Math.PI / 2) * 4, o.z + Math.cos(o.cap + Math.PI / 2) * 4, 0, 150); if (!p) return;
   T.veh = creerVehicule(type, { couleur: type === 'voiture' ? '#7a1f2b' : '#a32b26' }); placer(T.veh, p[0], p[1], Math.atan2(p[0] - o.x, p[1] - o.z));
-  const nom = type === 'voiture' ? 'Ta voiture' : 'Ta moto', e = etiquette(nom); e.position.y = type === 'voiture' ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
-  const d = Math.round(Math.hypot(p[0] - o.x, p[1] - o.z) / 5) * 5; if (d > 8 && !S.lieu) ligne(`${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
+  const nom = type === 'voiture' ? 'Ta voiture' : type === 'velo' ? 'Ton vélo' : 'Ta moto', e = etiquette(nom); e.position.y = type === 'voiture' ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
+  const d = Math.round(Math.hypot(p[0] - o.x, p[1] - o.z) / 5) * 5;
+  if (d > 8 && !S.lieu) ligne(type === 'velo' ? `Ton vélo est posé sur la route, à ${d} m : suis l’étiquette jaune.` : `${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
 }
 // Étiquette au-dessus de son véhicule, pour le retrouver (cachée quand on est dessus).
 function etiquette(texte) {
@@ -102,7 +105,11 @@ export function actions() {
 function monter() {
   const V = T.veh; if (!V) return;
   const cote = V.type === 'tokpa' ? 1.5 : V.D.cache ? 1.3 : .55, bx = V.x + Math.sin(V.cap + Math.PI / 2) * cote, bz = V.z + Math.cos(V.cap + Math.PI / 2) * cote;
-  T.trans = { t: 0, duree: .9, de: [S.x, S.z], vers: [bx, bz], fin: () => { T.mode = 'conduit'; S.cap = V.cap; moteur(V.type === 'tokpa' || V.type === 'taxi' ? 'voiture' : V.type); son('bosse'); ligne(`Tu montes ${V.D.cache ? 'dans' : 'sur'} ${nomDe(V)[0]}. Flèches ou ZQSD : accélérer, freiner puis reculer, tourner.`); } };
+  // Un vélo n'a pas de moteur : pas de ronflement quand on l'enfourche, et rien à faire monter en régime.
+  T.trans = { t: 0, duree: .9, de: [S.x, S.z], vers: [bx, bz], fin: () => {
+    T.mode = 'conduit'; S.cap = V.cap; if (!V.D.pedale) moteur(V.type === 'tokpa' || V.type === 'taxi' ? 'voiture' : V.type); son('bosse');
+    ligne(V.D.pedale ? `Tu montes sur ${nomDe(V)[0]}. Flèches ou ZQSD : pédaler, freiner, tourner.` : `Tu montes ${V.D.cache ? 'dans' : 'sur'} ${nomDe(V)[0]}. Flèches ou ZQSD : accélérer, freiner puis reculer, tourner.`);
+  } };
 }
 function descendre() {
   const V = T.veh; if (!V || Math.abs(V.v) > .8) return;
@@ -326,11 +333,11 @@ export function majTrajets(dt, av, tour) {
   if (metier) return metier;
   if (T.mode === 'avion') { const suivi = majVol(dt); if (suivi) return suivi; } // en vol (à l'arrivée : on redescend à pied)
   if (T.mode === 'conduit') {
-    const V = T.veh, panne = !(carburant() > 0);
+    const V = T.veh, panne = !V.D.pedale && !(carburant() > 0); // un vélo ne tombe jamais en panne sèche
     if (panne && !T.panneDite) { T.panneDite = true; ligne('Panne sèche ! Tu avances au pas : « Aller à » → « Station-service la plus proche » pour le GPS.'); }
     const km0 = V.km, choc = piloter(V, av, tour, dt, { panne }); if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
-    T.conso += (V.km - km0) / V.D.kmParLitre; if (T.conso > .01) { consommer(T.conso); T.conso = 0; }
-    moteurMaj(Math.abs(V.v), true);
+    if (!V.D.pedale) { T.conso += (V.km - km0) / V.D.kmParLitre; if (T.conso > .01) { consommer(T.conso); T.conso = 0; } }
+    if (!V.D.pedale) moteurMaj(Math.abs(V.v), true);
     S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; S.anim = 'assis';
     asseoirSur(S.moi, V, false); if (V.etiquette) V.etiquette.visible = false;
     const kmh = Math.round(Math.abs(V.v) * 3.6); $('#vhVitesse').hidden = false; $('#vhVitesse').textContent = `${kmh} km/h${V.v < -.2 ? ' · marche arrière' : ''}`;

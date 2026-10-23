@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { B3, C3, matVeh, partsVoiture, partsZem } from './vehicules.js';
+import { B3, C3, matVeh, partsVelo, partsVoiture, partsZem } from './vehicules.js';
 import { E } from './etat.js';
 import { LITE } from './base.js';
 import { mergeColored, roadLines } from './ville.js';
@@ -33,22 +33,15 @@ function partsCamion() {
   for (const z of [.75, -.75]) add(B3(.05, .16, .34).translate(3.62, 1.05, z), '#f4efd8');
   return P;
 }
-function partsVelo() {
-  const P = [], add = (g, hex) => P.push([g, hex]), pagne = ['#2f6fb0', '#d6372b', '#2f8a4a', '#d9a521', '#8e3c8f'][Math.floor(Math.random() * 5)];
-  for (const x of [-.52, .52]) add(new THREE.TorusGeometry(.32, .03, 5, 16).translate(x, .34, 0), '#1c1c1e');
-  add(C3(.025, .025, 1.05, 5).rotateZ(Math.PI / 2).translate(0, .52, 0), '#7d8790'); add(C3(.025, .025, .55, 5).rotateZ(.5).translate(-.15, .6, 0), '#7d8790');
-  add(C3(.025, .025, .5, 5).rotateZ(-.35).translate(.42, .62, 0), '#7d8790'); add(B3(.2, .05, .1).translate(-.25, .86, 0), '#2a2622'); // fourche, selle
-  add(C3(.14, .17, .55, 8).translate(-.18, 1.18, 0), pagne); add(new THREE.SphereGeometry(.11, 8, 6).translate(-.12, 1.56, 0), '#5a3a26'); // le cycliste
-  for (const z of [.09, -.09]) add(C3(.045, .045, .55, 5).rotateZ(.35).translate(-.05, .72, z), '#2a2622');
-  return P;
-}
 function maillages() {
   const def = [
     ['voiture', 0], ['voiture', 1], ['voiture', 2], ['voiture', 3], ['voiture', 4], ['voiture', 5],
     ['taxi', 0], ['zem', 0], ['camion', 0], ['camion', 1], ['velo', 0], ['velo', 1],
   ];
   for (const [t, k] of def) {
-    const parts = t === 'voiture' ? partsVoiture(COULEURS[k]) : t === 'taxi' ? partsVoiture('#f2c21b') : t === 'zem' ? partsZem({ passager: '#2f6fb0' }) : t === 'camion' ? partsCamion() : partsVelo();
+    // Un vélo sur deux est un Koin Koin (cadre blanc, jantes bleues, le canard) ; l'autre, un vélo comme on en croise partout.
+    const velo = k === 0 ? { pilote: true, haut: '#e8e8e4' } : { pilote: true, canard: false, casque: false, cadre: '#2f6fb0', jante: '#9aa1a7', haut: '#d9a521' };
+    const parts = t === 'voiture' ? partsVoiture(COULEURS[k]) : t === 'taxi' ? partsVoiture('#f2c21b') : t === 'zem' ? partsZem({ passager: '#2f6fb0' }) : t === 'camion' ? partsCamion() : partsVelo(velo);
     const m = new THREE.InstancedMesh(mergeColored(parts), matVeh, N); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.frustumCulled = false; m.castShadow = !LITE; m.visible = false;
     scene.add(m); (C.meshes.get(t) || C.meshes.set(t, []).get(t)).push(m);
   }

@@ -563,7 +563,30 @@
     " personnes : ": " people: ",
     " personnes": " people",
     " amis : ": " friends: ",
-    "Salon ": "Room "
+    "Salon ": "Room ",
+    "'Écris à tout le monde… (Entrée)'": "'Write to everyone… (Enter)'",
+    "'Écris à tes amis… (Entrée)'": "'Write to your friends… (Enter)'",
+    "'Koin Koin Vélo (location)'": "'Koin Koin Vélo (bike rental)'",
+    "'chez Koin Koin Vélo'": "'to Koin Koin Vélo'",
+    "'Partir en balade'": "'Start a group ride'",
+    "'Rendre le vélo'": "'Return the bike'",
+    "'Descends d’abord du vélo.'": "'Get off the bike first.'",
+    "'Vélo rendu. Merci, à bientôt chez Koin Koin !'": "'Bike returned. Thanks, see you at Koin Koin!'",
+    "'Quelle balade ?'": "'Which ride?'",
+    "'Pas maintenant'": "'Not now'",
+    "'Finir la balade'": "'End the ride'",
+    "Louer un vélo · ": "Rent a bike · ",
+    "Vélo loué pour ": "Bike rented for ",
+    " h. Il est posé à côté : approche-toi et « Monter sur ton vélo ».": " h. It's parked next to you: walk up to it and “Get on your bike”.",
+    " étape": " stop",
+    "Je pars en balade « ": "I'm off on the “",
+    " » avec Koin Koin": "” ride with Koin Koin",
+    "Étape ": "Stop ",
+    " de la balade « ": " of the “",
+    " : rendez-vous ": " ride: meeting point ",
+    "Balade : annoncer l’étape ": "Ride: announce stop ",
+    "Fin de la balade « ": "End of the “",
+    " ». Merci à tous !": "” ride. Thanks everyone!"
   },
   "src/interieurs.js": {
     "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -717,7 +740,10 @@
     "Bonjour de Cotonou ! ": "Good morning from Cotonou! ",
     "' Reviens demain, il sera plus gros.'": "' Come back tomorrow, it’ll be bigger.'",
     " jours de suite : cadeau du jour": " days in a row: today’s gift",
-    "'Cadeau du jour'": "'Today’s gift'"
+    "'Cadeau du jour'": "'Today’s gift'",
+    "'Ton vélo Koin Koin est rendu : les deux heures sont passées.'": "'Your Koin Koin bike is back at the shop: the two hours are up.'",
+    "location d’un vélo Koin Koin (": "Koin Koin bike rental (",
+    " pour louer un vélo.": " to rent a bike."
   },
   "src/trajets.js": {
     "'Ta voiture'": "'Your car'",
@@ -783,11 +809,18 @@
     "'Le zém ne trouve pas de route jusqu’à toi : approche-toi d’une rue.'": "'The zém can’t find a road to you: move closer to a street.'",
     "). Il t’attendra au bord de la rue, à ": "). It will wait for you at the roadside, ",
     " m : rejoins-le.": " m away: go and meet it.",
-    "'Ton zém'": "'Your zém'"
+    "'Ton zém'": "'Your zém'",
+    "'ton vélo'": "'your bike'",
+    "'du vélo'": "'the bike'",
+    "'Ton vélo'": "'Your bike'",
+    "Ton vélo est posé sur la route, à ": "Your bike is parked on the road, ",
+    "Tu montes sur ": "You get on ",
+    ". Flèches ou ZQSD : pédaler, freiner, tourner.": ". Arrows or WASD: pedal, brake, turn."
   },
   "src/conduite.js": {
     "'zém'": "'zém'",
-    "'le litre'": "'per litre'"
+    "'le litre'": "'per litre'",
+    "'vélo'": "'bike'"
   },
   "src/vol.js": {
     "'fr-FR'": "'en-US'",
