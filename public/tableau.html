@@ -21,7 +21,7 @@
   .marque b { font-size: 19px; font-weight: 700; }
   .marque small { color: var(--encre-2); font-size: 14px; }
   .ouvrir { display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 999px; background: var(--vert); color: #fff; font-weight: 500; text-decoration: none; }
-  .tuiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
   .tuile { background: var(--carte); border-radius: 22px; padding: 18px 20px; box-shadow: 0 6px 22px rgba(21, 33, 27, .06); display: grid; gap: 6px; min-width: 0; }
   .tuile small { color: var(--encre-2); font-size: 14px; }
   .tuile b { font-size: 40px; line-height: 1.05; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
@@ -73,6 +73,7 @@
 
   <div class="tuiles">
     <div class="tuile direct"><small class="pastille"><i></i>En ligne maintenant</small><b id="enLigne">–</b><div class="ou" id="ou"></div></div>
+    <div class="tuile"><small>Depuis le début</small><b id="tTotal">–</b><span class="ecart">appareils venus sur le site</span></div>
     <div class="tuile"><small>Visiteurs aujourd’hui</small><b id="visiteurs">–</b><span class="ecart" id="visiteursEcart"></span></div>
     <div class="tuile"><small>Nouveaux aujourd’hui</small><b id="nouveaux">–</b><span class="ecart">premier passage sur cet appareil</span></div>
     <div class="tuile"><small>Pages vues aujourd’hui</small><b id="vues">–</b><span class="ecart">chaque ouverture du site</span></div>
@@ -156,6 +157,7 @@
       const d = (auj.visiteurs || 0) - (hier.visiteurs || 0);
       $('#visiteursEcart').textContent = `hier : ${nb(hier.visiteurs)}${d ? ` (${d > 0 ? '+' : ''}${nb(d)})` : ''}`;
       const tot = k => Object.values(J).reduce((a, v) => a + (v[k] || 0), 0);
+      $('#tTotal').textContent = nb(tot('nouveaux'));
       $('#tVisiteurs').textContent = nb(tot('visiteurs')); $('#tNouveaux').textContent = nb(tot('nouveaux')); $('#tSalon').textContent = nb(tot('salon')); $('#tZemrun').textContent = nb(tot('zemrun'));
       const derniers = Array.from({ length: 30 }, (_, k) => jour(29 - k));
       dessiner(derniers.map(j => ({ j, ...J[j] })));
