@@ -1083,7 +1083,10 @@
     "'Tu es au guichet 1 : reste devant, les clients font la queue en face de toi.'": "'You’re at counter 1: stay there, customers queue in front of you.'",
     "'Quand un client attend, touche « Recevoir le client suivant », puis choisis la bonne réponse à sa demande.'": "'When a customer is waiting, tap “Serve the next customer”, then pick the right answer to their request.'",
     "'Chaque client bien servi te paie et te fait monter, d’agent jusqu’à DG.'": "'Every customer served well pays you and moves you up, from agent all the way to CEO.'",
-    "<div class=\"momo-carte panel\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"metierTitre\"><small class=\"ev-sur\">Ton métier</small><h2 id=\"metierTitre\"></h2><ol class=\"metier-etapes\"></ol><div class=\"ev-actions\"><button type=\"button\" class=\"jouer\">C’est parti !</button></div></div>": "<div class=\"momo-carte panel\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"metierTitre\"><small class=\"ev-sur\">Your job</small><h2 id=\"metierTitre\"></h2><ol class=\"metier-etapes\"></ol><div class=\"ev-actions\"><button type=\"button\" class=\"jouer\">Let’s go!</button></div></div>"
+    "<div class=\"momo-carte panel\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"metierTitre\"><small class=\"ev-sur\">Ton métier</small><h2 id=\"metierTitre\"></h2><ol class=\"metier-etapes\"></ol><div class=\"ev-actions\"><button type=\"button\" class=\"jouer\">C’est parti !</button></div></div>": "<div class=\"momo-carte panel\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"metierTitre\"><small class=\"ev-sur\">Your job</small><h2 id=\"metierTitre\"></h2><ol class=\"metier-etapes\"></ol><div class=\"ev-actions\"><button type=\"button\" class=\"jouer\">Let’s go!</button></div></div>",
+    "'Ton client monte…'": "'Your customer is getting on…'",
+    "'Ton client descend et te paie…'": "'Your customer gets off and pays…'",
+    "'Ton client s’en va…'": "'Your customer is walking away…'"
   },
   "src/metiers-ville.js": {
     "'fr-FR'": "'en-US'",

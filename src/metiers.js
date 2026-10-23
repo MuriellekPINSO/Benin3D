@@ -323,7 +323,8 @@ export function chocMetier() {
 }
 function descendreClient(C) {
   const V = T.veh; if (!V) return;
-  C.x = V.x + Math.sin(V.cap - Math.PI / 2) * (V.D.cache ? 1.6 : 1.1); C.z = V.z + Math.cos(V.cap - Math.PI / 2) * (V.D.cache ? 1.6 : 1.1);
+  const ecart = V.D.cache ? 1.9 : 1.7; // à 1,1 m du deux-roues, vu de derrière, il avait l'air encore assis dessus
+  C.x = V.x + Math.sin(V.cap - Math.PI / 2) * ecart; C.z = V.z + Math.cos(V.cap - Math.PI / 2) * ecart;
   C.p.visible = true; C.p.position.set(C.x, 0, C.z); C.p.rotation.y = V.cap - Math.PI / 2; C.p.userData.jouer('idle');
   if (T.gps) { retirerRuban(T.gps.m); T.gps = null; }
 }
@@ -369,7 +370,13 @@ function majClient(dt) {
     if (C.t < 3 && pietonOk(C.p.position.x + Math.sin(C.p.rotation.y) * .5, C.p.position.z + Math.cos(C.p.rotation.y) * .5)) marcher(C.p, away, dt);
     if (C.t > 3) { retirerClient(); W.attente = Math.min(W.attente, 6); }
   }
-  W.mission = !W.client ? '' : C.etat === 'signe' ? `Un client te fait signe · ${Math.round(d / 5) * 5} m` : '';
+  // Tant que le client est encore là, on ne dit pas d'en chercher un autre : il descend, il paie, il s'éloigne.
+  // Les joueurs le voyaient « encore sur la moto » pendant que la consigne demandait déjà le suivant.
+  W.mission = !W.client ? ''
+    : C.etat === 'signe' ? `Un client te fait signe · ${Math.round(d / 5) * 5} m`
+    : C.etat === 'monte' ? 'Ton client monte…'
+    : C.etat === 'paie' ? 'Ton client descend et te paie…'
+    : C.etat === 'part' ? 'Ton client s’en va…' : '';
 }
 function marcher(p, vers, dt, v = 1.4) {
   const dx = vers[0] - p.position.x, dz = vers[1] - p.position.z, d = Math.hypot(dx, dz); if (d < .15) return true;

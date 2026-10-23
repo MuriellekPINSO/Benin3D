@@ -49,7 +49,10 @@ export function partsKoinKoin() {
   const P = [], add = (geo, hex) => P.push([geo, hex]);
   add(B3(6, 2.6, 2.5).translate(0, 1.3, 0), KOIN.cadre); // le conteneur
   add(B3(6.1, .36, 2.6).translate(0, 2.62, 0), KOIN.jante); // le bandeau bleu du haut
-  add(B3(4.2, 1.4, .08).translate(0, 1.55, 1.28), '#0b5f85'); // la vitre du guichet (un aplat noir faisait un trou)
+  // La façade est à l'ombre (le soleil passe derrière) : elle ne reçoit que la lumière du ciel. Les
+  // couleurs sont rangées en linéaire par mergeColored, donc tout ce qui est déjà sombre y devient noir —
+  // un bleu nuit faisait un trou dans le conteneur. Il faut un bleu clair pour que la vitre se voie.
+  add(B3(4.2, 1.4, .08).translate(0, 1.55, 1.28), KOIN.jante); // la vitre du guichet, du bleu de la marque (un aplat noir faisait un trou)
   add(B3(4.36, .12, .16).translate(0, 2.3, 1.3), KOIN.jante); add(B3(4.36, .1, .16).translate(0, .86, 1.3), KOIN.jante); // l'encadrement
   for (const x of [-1.4, 0, 1.4]) add(B3(.08, 1.4, .1).translate(x, 1.55, 1.32), KOIN.cadre); // les montants
   add(B3(4.3, .14, .5).translate(0, .78, 1.45), '#caa06a'); // le comptoir

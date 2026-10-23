@@ -97,6 +97,13 @@ function creer() {
   }
   C.pret = true;
 }
+// Un véhicule qu'on peut retirer sans que personne ne le voie s'effacer : loin devant, ou dans son dos.
+// `cap` est le regard du joueur (son personnage, ou le capot de son véhicule).
+function horsDeVue(J, x, z) {
+  const dx = x - J.x, dz = z - J.z;
+  if (dx * dx + dz * dz > 70 * 70) return true;
+  return typeof J.cap === 'number' && dx * Math.sin(J.cap) + dz * Math.cos(J.cap) < -8;
+}
 const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), pos = new THREE.Vector3(), un = new THREE.Vector3(1, 1, 1), zero = new THREE.Vector3(0, 0, 0);
 
 /** À chaque image du salon : `J` la position du joueur (à pied ou en véhicule), ou null (dedans : rien à montrer). */
@@ -132,14 +139,25 @@ export function majCirculation(dt, J) {
     let p = poser(V.R, V.s, V.dir), x = p.x - p.dz * V.lane, z = p.z + p.dx * V.lane;
     // Garde-fou : le freinage est progressif (9 m/s² au plus). Il faut 9 m à une voiture lancée à 47 km/h pour
     // s'arrêter, et le joueur qui pose le pied sur la chaussée juste devant elle se faisait traverser. Au contact,
-    // elle s'arrête net et attend qu'il s'écarte (sauf au carrefour, où elle vient de changer de rue).
-    if (V.R === R0 && toucheJoueur(J, x, z, Math.atan2(p.dx, p.dz), V.hl, V.hw, Jr + .2)) {
-      V.s = s0; V.v = 0; p = poser(V.R, V.s, V.dir); x = p.x - p.dz * V.lane; z = p.z + p.dx * V.lane;
+    // elle s'arrête net et attend qu'il s'écarte. On revient sur la rue d'avant, pas seulement au point d'avant :
+    // au carrefour, celle qui venait de tourner gardait sa nouvelle rue et traversait le joueur (les joueurs l'ont
+    // signalé : « elle passe en toi »).
+    if (toucheJoueur(J, x, z, Math.atan2(p.dx, p.dz), V.hl, V.hw, Jr + .2)) {
+      V.R = R0; V.s = s0; V.v = 0; p = poser(V.R, V.s, V.dir); x = p.x - p.dz * V.lane; z = p.z + p.dx * V.lane;
     }
-    // Jamais de bouchon sans fin : un véhicule que le joueur retient depuis 5 s s'en va, il réapparaît hors de vue.
-    // Sinon, collés devant et derrière lui, ils attendaient qu'il parte pendant qu'il ne pouvait plus bouger.
-    if (V.v < .3 && Math.hypot(x - J.x, z - J.z) < V.hl + Jr + 5) { V.bloque = (V.bloque || 0) + dt; if (V.bloque > 5) { V.bloque = 0; V.R = null; continue; } }
-    else V.bloque = 0;
+    // Jamais de bouchon sans fin : un véhicule que le joueur retient longtemps finit par s'en aller et réapparaît
+    // ailleurs. Mais il ne doit pas s'évaporer sous son nez — les joueurs voyaient des voitures disparaître devant
+    // eux. Trois garde-fous : on ne compte que celles que le joueur bloque vraiment (devant elles, dans leur file,
+    // pas celles simplement arrêtées à côté) ; on attend 8 s au lieu de 5 ; et on ne les retire que de dos ou de
+    // loin, jamais dans le champ de vision.
+    const barre = V.v < .3 && devant > 0 && devant < V.hl + Jr + 4 && cote < V.hw + Jr + .7;
+    if (barre) {
+      V.bloque = (V.bloque || 0) + dt;
+      // De dos ou de loin, on l'enlève au bout de 8 s. Sous les yeux du joueur, on attend : il finira par
+      // s'écarter. Mais s'il est lui-même coincé entre deux voitures, personne ne bougerait plus — au bout de
+      // 20 s on en retire une quand même, c'est le moindre mal.
+      if (V.bloque > (horsDeVue(J, x, z) ? 8 : 20)) { V.bloque = 0; V.R = null; continue; }
+    } else V.bloque = 0;
     V.px = x; V.pz = z; V.fx = p.dx; V.fz = p.dz; V.cap = Math.atan2(p.dx, p.dz);
     if ((x - J.x) ** 2 + (z - J.z) ** 2 < 1600) E.circulation.push(V); // solide près du joueur (trafic.js, dansCirculation)
   }
