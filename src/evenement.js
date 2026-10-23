@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { $, toXZ } from './base.js';
 import { son } from './audio.js';
-import { controls, scene } from './scene.js';
+import { camera, controls, hemi, renderer, scene, sun } from './scene.js';
 import { E } from './etat.js';
 import { startFlight } from './interface.js';
 import { setMood } from './ambiances.js';
@@ -9,7 +9,7 @@ import { JEU, fmtF, sauver } from './jeu.js';
 import { PLACES } from './donnees-lieux.js';
 import { musiqueEvenement } from './musique.js';
 import { fouleCorps, fouleTete, fouleTissus } from './lieux.js';
-import { chargerDanses, personnage3d, personnagesPrets } from './personnages.js';
+import { chargerDanses, chargerPersonnages, personnage3d, personnagesPrets } from './personnages.js';
 import { LITE } from './base.js';
 import { echecCertain, paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
 import { avatarPorte } from './mode.js';
@@ -22,7 +22,12 @@ import { avatarPorte } from './mode.js';
 // demande l'accord de ses organisateurs.
 
 export const PRIX_ENTREE = 100;
-const EV = { moi: null, enAttente: null, groupe: null, actif: false, ecran: null, ctx: null, foule: null, tetes: null, places: [], spots: [], t: 0, raf: 0, scene: null, sx: 0, sz: 0, danseurs: null };
+const EV = { moi: null, enAttente: null, groupe: null, actif: false, ecran: null, ctx: null, foule: null, tetes: null, places: [], spots: [], t: 0, raf: 0, scene: null, sx: 0, sz: 0, danseurs: null, artistes: null, telephones: null, cible: null, camEcran: null, toileEcran: null, planEcran: null, image: 0 };
+// L'écran géant montre ce qui se passe vraiment sur place : une deuxième caméra filme l'artiste, puis le public, et son
+// image est posée sur l'écran (couche ÉCRAN : elle ne voit que les gens, pas l'écran lui-même, sinon l'image se répète
+// à l'infini). Entre deux plans, l'écran revient aux motifs et au nom du concert, comme dans un vrai spectacle.
+const ECRAN = 3;
+const surEcran = o => o.traverse(x => x.layers.enable(ECRAN));
 
 function construire() {
   const p = PLACES.find(q => q.id === 'amazone'); const [ax, az] = toXZ(p.lat, p.lon);
@@ -38,7 +43,15 @@ function construire() {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256; EV.ctx = cv.getContext('2d');
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; EV.ecran = tex;
   const ecran = new THREE.Mesh(new THREE.PlaneGeometry(20, 10), new THREE.MeshBasicMaterial({ map: tex }));
-  ecran.position.set(sx, 7.2, sz + 5.4); ecran.rotation.y = Math.PI; g.add(ecran); // tourné vers la statue (au nord)
+  ecran.position.set(sx, 7.2, sz + 5.4); ecran.rotation.y = Math.PI; g.add(ecran); EV.planEcran = ecran; EV.toileEcran = tex; // tourné vers la statue (au nord)
+  // L'image filmée sur place, posée sur l'écran. Petite (c'est un écran vu de loin) et redessinée une image sur trois.
+  const [lw, lh] = LITE ? [256, 144] : [448, 252];
+  EV.cible = new THREE.WebGLRenderTarget(lw, lh); EV.cible.texture.colorSpace = THREE.SRGBColorSpace;
+  EV.camEcran = new THREE.PerspectiveCamera(30, lw / lh, .5, 90); EV.camEcran.layers.set(ECRAN);
+  hemi.layers.enable(ECRAN); sun.layers.enable(ECRAN); // sans elles, la caméra de l'écran ne verrait que du noir
+  // Le fond de scène n'existe que pour l'image de l'écran : sans lui, on verrait le ciel derrière l'artiste.
+  const fond = new THREE.Mesh(new THREE.PlaneGeometry(26, 12), new THREE.MeshBasicMaterial({ color: '#0a0c10' }));
+  fond.position.set(sx, 5, sz + 4.6); fond.rotation.y = Math.PI; fond.layers.set(ECRAN); g.add(fond);
   // Projecteurs : cônes de lumière qui balaient la foule.
   const lum = ['#ff3b6b', '#3bd1ff', '#ffd23b', '#9b5bff', '#3bff8a', '#ff8a3b'];
   for (let i = 0; i < 6; i++) {
@@ -46,10 +59,14 @@ function construire() {
     c.position.set(sx - 10 + i * 4, 12.4, sz - 4); g.add(c); EV.spots.push(c);
   }
   // La foule : silhouettes en tissus wax, tournées vers la scène, qui sautent en rythme (derrière les danseurs des premiers rangs).
-  const n = 520, corps = new THREE.InstancedMesh(fouleCorps, new THREE.MeshLambertMaterial(), n), tetes = new THREE.InstancedMesh(fouleTete, new THREE.MeshLambertMaterial({ color: '#4a2f22' }), n);
-  for (let i = 0; i < n; i++) { const x = sx + (Math.random() - .5) * 46, z = az + 6 + Math.random() * 20; EV.places.push([x, z, Math.random() * 6.28, .8 + Math.random() * .5]); corps.setColorAt(i, fouleTissus[i % fouleTissus.length]); }
+  const n = LITE ? 700 : 1600, corps = new THREE.InstancedMesh(fouleCorps, new THREE.MeshLambertMaterial(), n), tetes = new THREE.InstancedMesh(fouleTete, new THREE.MeshLambertMaterial({ color: '#4a2f22' }), n);
+  for (let i = 0; i < n; i++) { const x = sx + (Math.random() - .5) * 62, z = az - 8 + Math.random() * 34; EV.places.push([x, z, Math.random() * 6.28, .8 + Math.random() * .5]); corps.setColorAt(i, fouleTissus[i % fouleTissus.length]); }
   corps.frustumCulled = tetes.frustumCulled = false; // positions mises à jour à chaque image
-  g.add(corps, tetes); EV.foule = corps; EV.tetes = tetes;
+  g.add(corps, tetes); EV.foule = corps; EV.tetes = tetes; surEcran(corps); surEcran(tetes);
+  // Les téléphones levés : un spectateur sur quatre filme, une petite lueur blanche au bout du bras.
+  const nt = Math.round(n / 4);
+  const tel = new THREE.InstancedMesh(new THREE.PlaneGeometry(.12, .22), new THREE.MeshBasicMaterial({ color: '#fff6d8', transparent: true, opacity: .9, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }), nt);
+  tel.frustumCulled = false; tel.renderOrder = 4; g.add(tel); EV.telephones = tel; surEcran(tel);
 }
 // Les premiers rangs : de vrais personnages (personnages.js) qui dansent et acclament, chacun à son rythme.
 const DANSES = ['danse1', 'danse2', 'acclame'];
@@ -62,8 +79,28 @@ function danseurs() {
     const rang = Math.floor(i / 10);
     m.position.set(EV.sx + ((i % 10) - 4.5) * 2.1 + (Math.random() - .5) * .8, 0, EV.sz - 6 - rang * 2.2 - Math.random() * .6);
     m.rotation.y = (Math.random() - .5) * .5; // face à la scène
-    m.userData.jouer(DANSES[(i * 7) % 3], 0); EV.groupe.add(m); EV.danseurs.push(m);
+    m.userData.jouer(DANSES[(i * 7) % 3], 0); EV.groupe.add(m); EV.danseurs.push(m); surEcran(m);
   }
+}
+// Sous les projecteurs : les matières sont copiées, puis éclairées de l'intérieur. Sans ça, la nuit, l'artiste
+// est une silhouette noire sur l'écran géant (ajouter une vraie lampe recompilerait toute la scène, voir halo()).
+function sousLesProjecteurs(m, force = .5) {
+  m.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    o.material = Array.isArray(o.material) ? o.material.map(x => x.clone()) : o.material.clone();
+    for (const x of [].concat(o.material)) if (x.emissive) { x.emissive.copy(x.color); if (x.map) x.emissiveMap = x.map; x.emissiveIntensity = force; x.needsUpdate = true; }
+  });
+}
+// L'artiste et ses deux danseurs, sur le plancher de la scène : c'est eux que filme la caméra de l'écran.
+// Sans personne sur scène, le concert sonnait vide — on payait 100 F pour regarder un écran de motifs.
+function artistes() {
+  if (EV.artistes || !personnagesPrets()) return;
+  EV.artistes = [];
+  [[0, -4, 'danse1', true], [-4.2, -2.2, 'danse2', false], [4.2, -2.2, 'danse2', true], [-8.4, -1, 'acclame', true], [8.4, -1, 'acclame', false]].forEach(([dx, dz, danse, femme], i) => {
+    const m = personnage3d(8100 + i * 17, { femme }); if (!m) return;
+    m.position.set(EV.sx + dx, 1.6, EV.sz + dz); m.rotation.y = Math.PI; // face au public
+    m.userData.jouer(danse, 0); sousLesProjecteurs(m, i ? .42 : .6); const h = halo(); h.scale.setScalar(i ? 1 : 1.5); surEcran(h); m.add(h); EV.groupe.add(m); EV.artistes.push(m); surEcran(m);
+  });
 }
 function dessinerEcran(t) {
   const c = EV.ctx, w = 512, h = 256, teinte = (t * 40) % 360;
@@ -75,6 +112,17 @@ function dessinerEcran(t) {
   EV.ecran.needsUpdate = true;
 }
 const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), s1 = new THREE.Vector3(1, 1, 1), Y = new THREE.Vector3(0, 1, 0);
+const couleurTmp = new THREE.Color();
+/** L'image de l'écran géant : un plan sur l'artiste, puis un plan sur le public, comme un cadreur de concert. */
+function filmer(t, plan) {
+  const cam = EV.camEcran;
+  if (plan === 'artiste') { cam.position.set(EV.sx + Math.sin(t * .22) * 2.8, 3.5, EV.sz - 10.2); cam.lookAt(EV.sx, 2.9, EV.sz - 4); }
+  else { cam.position.set(EV.sx, 4.6, EV.sz - 5.6); cam.lookAt(EV.sx + Math.sin(t * .17) * 10, 1.5, EV.sz - 28); } // la foule, vue de la scène
+  const expo = renderer.toneMappingExposure, fond = renderer.getClearColor(couleurTmp).getHex(), alpha = renderer.getClearAlpha();
+  renderer.toneMappingExposure = expo * (plan === 'artiste' ? 3 : 4.2); renderer.setClearColor(0x06080c, 1); // il fait nuit : l'image de l'écran est poussée, le public plus encore (pas de projecteur sur lui)
+  renderer.setRenderTarget(EV.cible); renderer.render(scene, cam); renderer.setRenderTarget(null);
+  renderer.toneMappingExposure = expo; renderer.setClearColor(fond, alpha);
+}
 function boucle(now) {
   if (!EV.actif) return;
   const t = now / 1000, temps = 60 / 118; // pulsation du morceau
@@ -83,14 +131,32 @@ function boucle(now) {
     m4.compose(v.set(x, saut, z), q.setFromAxisAngle(Y, Math.PI + Math.sin(t + ph) * .2), s1); EV.foule.setMatrixAt(i, m4); EV.tetes.setMatrixAt(i, m4);
   });
   EV.foule.instanceMatrix.needsUpdate = true; EV.tetes.instanceMatrix.needsUpdate = true;
+  // Les téléphones levés : un spectateur sur quatre, le bras qui bouge un peu avec la musique.
+  if (EV.telephones) {
+    const tel = EV.telephones;
+    for (let i = 0; i < tel.count; i++) {
+      const [x, z, ph, f] = EV.places[i * 4];
+      const saut = Math.max(0, Math.sin((t / temps) * Math.PI + ph)) * .35 * f;
+      m4.compose(v.set(x + Math.sin(t * 1.3 + ph) * .12, 1.78 * f + saut, z - .18), q.setFromAxisAngle(Y, Math.PI), s1); tel.setMatrixAt(i, m4);
+    }
+    tel.instanceMatrix.needsUpdate = true;
+  }
   EV.spots.forEach((c, i) => { c.rotation.x = Math.sin(t * .9 + i) * .55 - .35; c.rotation.z = Math.cos(t * .7 + i * 1.3) * .5; });
-  if (Math.floor(t * 12) !== Math.floor((t - .016) * 12)) dessinerEcran(t);
+  // L'écran : huit secondes sur l'artiste, quatre sur le public, quatre de motifs au nom du concert.
+  const phase = t % 16, plan = phase < 8 ? 'artiste' : phase < 12 ? 'public' : '';
+  if (plan && EV.cible) {
+    if (EV.planEcran.material.map !== EV.cible.texture) { EV.planEcran.material.map = EV.cible.texture; EV.planEcran.material.needsUpdate = true; }
+    if (EV.image++ % (LITE ? 4 : 3) === 0) filmer(t, plan); // une image sur trois suffit pour un écran vu de loin
+  } else {
+    if (EV.planEcran.material.map !== EV.toileEcran) { EV.planEcran.material.map = EV.toileEcran; EV.planEcran.material.needsUpdate = true; }
+    if (Math.floor(t * 12) !== Math.floor((t - .016) * 12)) dessinerEcran(t);
+  }
   EV.raf = requestAnimationFrame(boucle);
 }
 function entrer() {
   if (EV.actif) return; // déjà au concert
   if (!EV.groupe) construire();
-  if (personnagesPrets()) chargerDanses().then(() => { if (EV.actif) danseurs(); }); // les danses arrivent en quelques secondes
+  chargerPersonnages().then(() => chargerDanses()).then(() => { if (EV.actif) { artistes(); danseurs(); } }); // les danses arrivent en quelques secondes ; sans attendre, la scène restait vide quand on entrait tôt
   EV.groupe.visible = true; EV.actif = true; setMood('nuit'); musiqueEvenement(true);
   EV.minDist = controls.minDistance; controls.minDistance = 5; // au concert, on peut s'approcher de la foule
   startFlight(EV.scene.clone(), 32, 1.2, Math.PI - .65, 2.6); // derrière la foule, en biais (la statue est dans l'axe de la scène)
@@ -100,7 +166,7 @@ function entrer() {
   avatarPorte().then(m => {
     if (!m || !EV.actif || EV.moi) return;
     m.position.set(EV.sx, 0, EV.sz - 7.1); m.userData.jouer('danse1', 0); // au milieu, entre le 1er et le 2e rang
-    m.userData.tete.add(etiquetteToi()); m.add(halo()); EV.groupe.add(m); EV.moi = m;
+    m.userData.tete.add(etiquetteToi()); sousLesProjecteurs(m, .35); m.add(halo()); EV.groupe.add(m); EV.moi = m; surEcran(m);
     // La caméra se pose au bord de la scène, face au joueur : on voit sa tenue, la foule derrière lui.
     startFlight(m.position.clone().setY(1), 7.5, 1.0, .91, 2.4);
   });
@@ -198,4 +264,6 @@ export function initEvenement() {
   window.addEventListener('keydown', e => { if (e.key === 'Escape' && EV.actif) quitterEvenement(); });
 }
 export const evenementActif = () => EV.actif;
+if (import.meta.env.DEV) window.__concert = { EV, camera, controls, renderer }; // pour les tests : placer la caméra devant la scène
+
 void E;
