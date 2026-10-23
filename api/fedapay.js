@@ -120,7 +120,7 @@ async function lireCorps(req) {
 }
 // Seules les pages du jeu demandent un paiement (les navigateurs envoient toujours Origin sur un POST) : en ligne, le
 // domaine et les aperçus Vercel du projet « tours » ; en local (vite.config.js), localhost et le wifi de la maison.
-const ORIGINES_EN_LIGNE = /^https:\/\/((www\.)?xn--kutnuvibes-ghe\.com|tours[\w-]*\.vercel\.app)$/;
+const ORIGINES_EN_LIGNE = /^https:\/\/((www\.)?(xn--kutnuvibes-ghe|kotonuvibes)\.com|tours[\w-]*\.vercel\.app)$/; // les deux noms de domaine du site
 const ORIGINES_LOCALES = /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?$/;
 const origineAdmise = o => ORIGINES_EN_LIGNE.test(o) || (!process.env.VERCEL && ORIGINES_LOCALES.test(o));
 
