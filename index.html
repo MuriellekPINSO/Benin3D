@@ -303,7 +303,8 @@
     <p class="sl-titre">Ton personnage</p>
     <div class="gr-genre" id="slGenre" role="radiogroup" aria-label="Femme ou homme"></div>
     <div class="gr-tenues sl-tenues" id="slAvatars" role="radiogroup" aria-label="Ta tenue"></div>
-    <div class="ev-actions"><button type="button" class="jouer" id="slCreer">Commencer</button></div>
+    <div class="ev-actions"><button type="button" class="jouer" id="slCreer">Entrer en ville</button><button type="button" id="slPrive">Entre amis seulement</button></div>
+    <small class="sl-aide">En ville, tu croises des gens que tu ne connais pas. Entre amis, personne d’autre que ceux à qui tu envoies le lien.</small>
     <p class="sl-titre">Un ami t’a envoyé un code ?</p>
     <div class="sl-rejoindre"><input id="slCode" maxlength="6" placeholder="Code (6 lettres)" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" id="slRejoindre">Rejoindre mon ami</button></div>
     <p class="ev-etat" id="slEtat" role="status" aria-live="polite" hidden></p>
@@ -352,7 +353,7 @@
       <div class="vh-boutons"><button type="button" class="vh-louer" id="vhTravail">Travailler</button><button type="button" class="vh-louer vh-louer2" id="vhPause" hidden>Pause</button><button type="button" class="vh-louer vh-louer2" id="vhFinir" hidden>Finir la journée</button><button type="button" class="vh-louer vh-louer2" id="vhLouer" hidden></button><button type="button" class="vh-louer vh-louer2" id="vhCommerces">Commerces</button><button type="button" class="vh-louer vh-louer2 vh-menu" id="vhMenu" aria-expanded="false" title="Menu (Échap)">Menu</button></div>
       <div class="vh-menu-plus"><button type="button" class="jouer" id="vhReprendre">Reprendre</button><button type="button" class="vh-louer vh-louer2" id="vhSon" aria-pressed="true">Son : activé</button><button type="button" class="vh-louer vh-louer2" id="vhCompte">Mon compte</button><button type="button" class="vh-louer vh-louer2" id="vhInviter">Inviter un ami</button><button type="button" class="vh-louer vh-louer2" id="vhQuitter">Quitter la partie</button></div>
     </div>
-    <div class="sl-haut panel"><div><b>Salon <span id="slCodeAff"></span></b><small id="slNb"></small></div><button type="button" class="jouer" id="slInviter">Inviter</button><button type="button" id="slVue" title="Changer de vue (V)">Voir de haut</button><button type="button" id="slCopier">Copier le lien</button><button type="button" id="slQuitter">Quitter</button></div>
+    <div class="sl-haut panel"><div><b id="slSalonLbl"></b><small id="slNb"></small></div><button type="button" class="jouer" id="slInviter">Inviter</button><button type="button" id="slVue" title="Changer de vue (V)">Voir de haut</button><button type="button" id="slCopier">Copier le lien</button><button type="button" id="slQuitter">Quitter</button></div>
     <div class="sl-chat panel" id="slChat">
       <button type="button" class="sl-chat-fermer" id="slChatFermer" aria-label="Fermer la discussion" title="Fermer la discussion">×</button>
       <ol id="slMessages" aria-live="polite" aria-label="Messages du salon"></ol>

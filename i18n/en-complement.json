@@ -275,7 +275,10 @@
     "Comment veux-tu conduire ?": "How do you want to drive?",
     "Le zém avance seul. Tu glisses le doigt pour changer de file, sauter, freiner.": "The zém rides on its own. You swipe to change lanes, jump or brake.",
     "Avec des boutons": "With buttons",
-    "Gaz, Frein, ◀ ▶, Saut et E à l'écran, comme sur une manette.": "Gas, Brake, ◀ ▶, Jump and E on screen, like a gamepad."
+    "Gaz, Frein, ◀ ▶, Saut et E à l'écran, comme sur une manette.": "Gas, Brake, ◀ ▶, Jump and E on screen, like a gamepad.",
+    "Entrer en ville": "Enter the city",
+    "Entre amis seulement": "Friends only",
+    "En ville, tu croises des gens que tu ne connais pas. Entre amis, personne d’autre que ceux à qui tu envoies le lien.": "In the city you run into people you don’t know. Among friends, nobody but the people you send the link to."
   },
   "src/evenement.js": {
     "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -545,7 +548,22 @@
     "'Changer de vue (V)'": "'Change view (V)'",
     "'Marche avec le joystick, et touche « Courir » pour courir. Les boutons verts en bas changent selon ce qui est près de toi.'": "'Walk with the joystick, and tap “Run” to run. The green buttons at the bottom change depending on what is near you.'",
     "'Son : coupé'": "'Sound: off'",
-    "'Son : activé'": "'Sound: on'"
+    "'Son : activé'": "'Sound: on'",
+    "'Salut !'": "'Hi!'",
+    "'Merci !'": "'Thanks!'",
+    "'À plus !'": "'See you!'",
+    "'En ville'": "'In the city'",
+    "'Il y a beaucoup de monde en ce moment : toutes les villes sont pleines. Réessaie dans un instant, ou crée un salon entre amis.'": "'It’s busy right now: every city is full. Try again in a moment, or start a room with friends.'",
+    "'Viens vivre à Cotonou avec moi, on se retrouve en ville :'": "'Come and live in Cotonou with me, let’s meet in the city:'",
+    "'1 personne'": "'1 person'",
+    " a quitté la ville.": " left the city.",
+    " est arrivé en ville.": " arrived in the city.",
+    "Bienvenue en ville": "Welcome to the city",
+    " ! Ici tu croises des gens que tu ne connais pas. Salue-les, et regarde « Aller à » : il dit où il y a du monde.": "! Here you run into people you don’t know. Say hello to them, and watch “Go to”: it tells you where the crowd is.",
+    " personnes : ": " people: ",
+    " personnes": " people",
+    " amis : ": " friends: ",
+    "Salon ": "Room "
   },
   "src/interieurs.js": {
     "'Chez Tantie Rose'": "'Chez Tantie Rose'",

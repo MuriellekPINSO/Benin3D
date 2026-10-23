@@ -41,16 +41,21 @@ import { camera, canvas, controls, scene } from './scene.js';
 // serveur (BroadcastChannel) : c'est le mode de test.
 
 const MAX = 8, ENVOI = .2, LETTRES = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', CLE = 'cotonou3d.salon';
+// La ville publique : on y entre sans invitation, au lieu d'un code que l'on s'envoie entre amis. Ces codes-là
+// sont connus d'avance et les mêmes pour tout le monde. On remplit la première ville qui a de la place, dans
+// l'ordre : mieux vaut huit personnes dans une ville que une personne dans huit villes. Douze villes de 8 font
+// 96 places, à peu près la limite du plan gratuit de Firebase (100 connexions en même temps).
+const PUBLICS = ['VILLEA', 'VILLEB', 'VILLEC', 'VILLED', 'VILLEE', 'VILLEF', 'VILLEG', 'VILLEH', 'VILLEJ', 'VILLEK', 'VILLEM', 'VILLEN'];
 const GESTES = [['salut', 'Saluer'], ['danse1', 'Danser'], ['rire', 'Rire'], ['assis', 'S’asseoir'], ['telephone', 'Téléphoner']];
 const ANIMS = new Set(['idle', 'marche', 'parle', ...GESTES.map(g => g[0])]);
-const PHRASES = ['Ça va ?', 'On y va !', 'On mange où ?', 'Attends-moi !', 'Trop bien ici', 'Viens voir !'];
+const PHRASES = ['Salut !', 'Ça va ?', 'On y va !', 'On mange où ?', 'Attends-moi !', 'Trop bien ici', 'Viens voir !', 'Merci !', 'À plus !'];
 // Lieux de rendez-vous : id dans PLACES, nom dans le menu, « je vais … », décalage du point d'arrivée (mètres,
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
 const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0]]; // 7e : intérieur dont on arrive devant la porte
 const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
-const S = { orbite: 0, orbiteT: 0, actif: false, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 't:top-f', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, bras: 1, autres: new Map(), vus: new Set() };
+const S = { orbite: 0, orbiteT: 0, actif: false, public: false, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 't:top-f', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, bras: 1, autres: new Map(), vus: new Set() };
 export const salonActif = () => S.actif;
 export const pieceDuSalon = () => S.actif ? S.lieu : null; // la pièce où l'on est (main.js n'y dessine que ses abords)
 const cible = new THREE.Vector3(), voulue = new THREE.Vector3();
@@ -100,6 +105,17 @@ async function canalFirebase(code, R) {
     quitter: () => { off.forEach(f => f()); d.onDisconnect(moi).cancel().catch(() => { }); d.remove(moi).catch(() => { }); },
   };
 }
+/** La première ville publique où il reste une place. Les villes déjà pleines à notre arrivée sont passées. */
+async function villeLibre(pleines = []) {
+  if (S.local) return PUBLICS[0];
+  const { d, db } = await firebase(); await joueur();
+  for (const code of PUBLICS) {
+    if (pleines.includes(code)) continue;
+    try { if ((await d.get(d.ref(db, `zem_salons/${code}/joueurs`))).size < MAX) return code; }
+    catch { return code; } // on n'a pas pu compter : on tente quand même, canalFirebase refusera si c'est plein
+  }
+  return null;
+}
 function erreur(e) {
   const c = e?.code || '';
   if (c === 'complet') return `Ce salon est complet (${MAX} amis au maximum).`;
@@ -148,12 +164,12 @@ function retirer(A) { if (A.g) { retirerBulle(A); scene.remove(A.g); A.g.userDat
 // ---------- Les autres joueurs ----------
 function surEtat(id, e) {
   let A = S.autres.get(id);
-  if (!e) { if (A) { retirer(A); S.autres.delete(id); majListe(); if (A.nom) ligne(`${A.nom} a quitté le salon.`); } return; }
+  if (!e) { if (A) { retirer(A); S.autres.delete(id); majListe(); if (A.nom) ligne(S.public ? `${A.nom} a quitté la ville.` : `${A.nom} a quitté le salon.`); } return; }
   if (typeof e.x !== 'number' || typeof e.z !== 'number') return;
   if (!A) { A = { id, x: e.x, z: e.z, cap: e.h || 0, nom: '', modele: '', g: null, enCours: false, bulle: null, bulleFin: 0 }; S.autres.set(id, A); }
   const avant = A.etat?.sur; A.etat = e;
   const nom = nettoyer(e.n, 16) || 'Ami';
-  if (nom !== A.nom) { const nouveau = !A.nom; A.nom = nom; if (A.g) { A.g.userData.tete.remove(A.etiquette); A.etiquette = etiquette(nom); A.g.userData.tete.add(A.etiquette); } majListe(); if (nouveau) ligne(`${nom} est arrivé dans le salon.`); }
+  if (nom !== A.nom) { const nouveau = !A.nom; A.nom = nom; if (A.g) { A.g.userData.tete.remove(A.etiquette); A.etiquette = etiquette(nom); A.g.userData.tete.add(A.etiquette); } majListe(); if (nouveau) ligne(S.public ? `${nom} est arrivé en ville.` : `${nom} est arrivé dans le salon.`); }
   const moi = S.R?.id; if (moi && (e.sur === moi) !== (avant === moi)) ligne(e.sur === moi ? `${nom} monte avec toi : roule, tu l’emmènes.` : `${nom} descend.`);
   if (e.m !== A.modele && !A.enCours) habiller(A);
 }
@@ -168,7 +184,21 @@ async function habiller(A) {
 }
 function majListe() {
   const el = $('#slNb'); if (!el) return;
-  const n = S.autres.size + 1; el.textContent = n === 1 ? 'Tu es seul pour l’instant' : `${n} amis : ${[S.nom, ...[...S.autres.values()].map(A => A.nom)].filter(Boolean).join(', ')}`;
+  const n = S.autres.size + 1, gens = [S.nom, ...[...S.autres.values()].map(A => A.nom)].filter(Boolean).join(', ');
+  el.textContent = n === 1 ? 'Tu es seul pour l’instant' : S.public ? `${n} personnes : ${gens}` : `${n} amis : ${gens}`;
+}
+
+/** En ville, le menu « Aller à » dit combien de gens sont déjà sur place : on va là où il y a du monde.
+ *  « Chez moi » et « Station-service » sont propres à chacun, on ne les compte pas. */
+function majLieuxMonde() {
+  const al = $('#slAller'); if (!al || !S.actif || !S.public) return;
+  const gens = [...S.autres.values()].map(A => A.etat).filter(e => e && typeof e.x === 'number');
+  for (const L of LIEUX) {
+    const o = [...al.options].find(o => o.value === L[0]); if (!o || L[0] === 'maison' || L[0] === 'station') continue;
+    const d = destination(L);
+    const n = d ? gens.filter(e => Math.hypot(e.x - d[0], e.z - d[1]) < 70).length : 0;
+    o.textContent = n ? `${L[1]} · ${n === 1 ? '1 personne' : `${n} personnes`}` : L[1];
+  }
 }
 
 // ---------- Chat ----------
@@ -303,6 +333,23 @@ async function entrer(code) {
   entreeEnCours = true;
   try { await entrerSalon(code); } finally { entreeEnCours = false; }
 }
+/** « Entrer en ville » : la ville publique, sans code ni invitation. */
+async function entrerVille() {
+  if (S.actif || entreeEnCours) return;
+  entreeEnCours = true;
+  try {
+    const pleines = [];
+    for (let essai = 0; essai < 3; essai++) {
+      const code = await villeLibre(pleines);
+      if (!code) break;
+      const e = await entrerSalon(code);
+      if (e?.code !== 'complet') return; // entré, ou une autre erreur déjà affichée
+      pleines.push(code); // quelqu'un a pris la dernière place pendant qu'on arrivait
+    }
+    statut('Il y a beaucoup de monde en ce moment : toutes les villes sont pleines. Réessaie dans un instant, ou crée un salon entre amis.', 'mal');
+  } finally { entreeEnCours = false; }
+}
+/** Entre dans un salon ; rend l'erreur si la connexion a échoué (le message est déjà affiché). */
 async function entrerSalon(code) {
   // Sans nom, on en propose un (il se change dans la fenêtre du salon) : refuser « Commencer » faisait partir des joueurs.
   if (!nettoyer($('#slNom').value, 16)) $('#slNom').value = nomAuHasard(estFemme(S.modele));
@@ -319,10 +366,13 @@ async function entrerSalon(code) {
   if (!vie) { (await canal).c?.quitter(); statut('Impossible de charger ta vie : vérifie ta connexion.', 'mal'); return; }
   statut('Connexion au salon…');
   const { c, e } = await canal;
-  if (e) { console.warn('salon', e); statut(erreur(e), 'mal'); return; }
+  if (e) { console.warn('salon', e); statut(erreur(e), 'mal'); return e; }
   S.canal = c;
-  S.code = code; S.actif = true; statut(''); compterUneFois('salon'); lieuStats('salon');
-  $('#salon').hidden = true; $('#salonHud').hidden = false; $('#slCodeAff').textContent = code; $('#slJoy').hidden = !coarse; $('#slCourir').hidden = !coarse;
+  S.code = code; S.public = PUBLICS.includes(code); S.actif = true; statut(''); compterUneFois('salon'); lieuStats('salon');
+  $('#salon').hidden = true; $('#salonHud').hidden = false; $('#slJoy').hidden = !coarse; $('#slCourir').hidden = !coarse;
+  // En ville, pas de code à montrer, et pas de chat libre avec des inconnus : les phrases toutes faites et les gestes suffisent.
+  $('#slSalonLbl').textContent = S.public ? 'En ville' : `Salon ${code}`;
+  $('#slForm').hidden = S.public;
   document.getElementById('app').classList.add('mode-salon');
   // À pied, il faut la ville en 3D autour de soi : la « Vue réelle » (images Google à plat) attendra la sortie.
   S.vueReelle = $('#togGoogle')?.getAttribute('aria-pressed') === 'true'; if (S.vueReelle) $('#togGoogle').click();
@@ -331,7 +381,10 @@ async function entrerSalon(code) {
   const maison = maisonActuelle(); // la partie commence chez soi, au lit (maison.js)
   if (maison) { dedans(maison); reveil(maison); } else aller('amazone', false);
   majListe(); rendreVie();
-  ligne(`Bienvenue dans le salon ${code}${S.local ? ' (mode test : seuls les onglets de ce navigateur se voient)' : ''} ! Invite tes amis avec « Inviter ».`);
+  const test = S.local ? ' (mode test : seuls les onglets de ce navigateur se voient)' : '';
+  ligne(S.public
+    ? `Bienvenue en ville${test} ! Ici tu croises des gens que tu ne connais pas. Salue-les, et regarde « Aller à » : il dit où il y a du monde.`
+    : `Bienvenue dans le salon ${code}${test} ! Invite tes amis avec « Inviter ».`);
   const alerte = alerteDuJour(); if (alerte) ligne(alerte);
   bonjourDuJour().then(b => { if (b && S.actif) { ligne(b); son('piece'); } }).catch(() => { });
   for (const m of entrerCommerces()) ligne(m); // ce que les commerces ont vendu pendant l'absence (commerces.js)
@@ -375,14 +428,15 @@ function quitter() {
   startFlight(new THREE.Vector3(S.x, 0, S.z), 160, 1.05, S.cap + Math.PI, 1.6);
 }
 /** Inviter : le partage du téléphone, sinon le lien copié (pour le coller où l'on veut) et WhatsApp ouvert. */
+const lienSalon = () => `${location.origin}${location.pathname}${S.public ? '' : `?salon=${S.code}`}`;
 async function inviter() {
-  const url = `${location.origin}${location.pathname}?salon=${S.code}`, texte = `Viens vivre à Cotonou avec moi ! Salon ${S.code} :`;
+  const url = lienSalon(), texte = S.public ? 'Viens vivre à Cotonou avec moi, on se retrouve en ville :' : `Viens vivre à Cotonou avec moi ! Salon ${S.code} :`;
   try { if (navigator.share) { await navigator.share({ title: 'Vivre à Cotonou', text: texte, url }); return; } } catch (e) { if (e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(url); ligne('Lien du salon copié : colle-le où tu veux, ou envoie-le sur WhatsApp.'); } catch { ligne(`Envoie ce lien à tes amis : ${url}`); }
   window.open(`https://wa.me/?text=${encodeURIComponent(`${texte} ${url}`)}`, '_blank', 'noopener');
 }
 async function copier() {
-  const url = `${location.origin}${location.pathname}?salon=${S.code}`;
+  const url = lienSalon();
   try { await navigator.clipboard.writeText(url); ligne('Lien copié : colle-le dans WhatsApp pour tes amis.'); } catch { ligne(`Envoie ce lien à tes amis : ${url}`); }
 }
 
@@ -493,6 +547,8 @@ export function majSalon(dt) {
   // setViewOffset fixe aussi camera.aspect (largeur / hauteur données) : avec (1, 1…), l'image devenait carrée, étirée deux fois en hauteur.
   if (haut !== !!camera.view?.enabled) { if (haut) camera.setViewOffset(camera.aspect, 1, 0, .12, camera.aspect, 1); else camera.clearViewOffset(); }
   majAmbianceSalon(dt, { x: P.x, z: P.z, dedans: !!S.lieu, public: !!S.lieu && !S.lieu.prive, clients: S.lieu ? 0 : genteCommerces(S.x, S.z) }); // les bruits de la ville (ambiance-salon.js)
+  // Où il y a du monde, dans le menu « Aller à » : toutes les deux secondes, c'est bien assez.
+  S.lieuxT = (S.lieuxT || 0) - dt; if (S.lieuxT <= 0) { S.lieuxT = 2; majLieuxMonde(); }
   // Sa position aux autres, cinq fois par seconde (et au moins toutes les 2,5 s pour rester « présent »).
   S.envoi -= dt; S.depuis += dt;
   if (S.envoi <= 0 && S.canal) {
@@ -719,16 +775,17 @@ export function initSalon(data) {
     ...LIEUX.filter(L => L[0] !== 'station').map(L => { const d = destination(L); return d && { id: L[0], nom: L[1], x: d[0], z: d[1], type: L[0] === 'maison' ? 'maison' : 'lieu' }; }).filter(Boolean),
     ...lieuxCommerces().map(c => ({ id: c.id, nom: c.nom, x: c.x, z: c.z, type: 'commerce' })),
   ] });
-  if (import.meta.env.DEV) window.__salon = { S, T, VIE, surRoute, profondeurRue, dansBatiment, profondeurInterieur, obstaclesPres, porter }; // pour les tests (console, scripts)
+  if (import.meta.env.DEV) window.__salon = { S, T, VIE, LIEUX, surRoute, profondeurRue, dansBatiment, profondeurInterieur, obstaclesPres, porter, destination, majLieuxMonde }; // pour les tests (console, scripts)
   S.local = new URLSearchParams(location.search).has('salon-local');
   $('#btnSalon')?.addEventListener('click', ouvrir); $('#btnVivre')?.addEventListener('click', ouvrir);
   $('#slGestesTog')?.addEventListener('click', e => { const o = !$('#slActions').classList.contains('gestes'); $('#slActions').classList.toggle('gestes', o); e.currentTarget.setAttribute('aria-expanded', String(o)); });
   $('#slFermer')?.addEventListener('click', () => { $('#salon').hidden = true; });
-  $('#slCreer')?.addEventListener('click', () => entrer(codeAleatoire()));
+  $('#slCreer')?.addEventListener('click', entrerVille);
+  $('#slPrive')?.addEventListener('click', () => entrer(codeAleatoire()));
   const rejoindre = () => { const c = nettoyer($('#slCode').value, 6).toUpperCase(); if (!/^[A-Z2-9]{6}$/.test(c)) return statut('Le code du salon fait 6 caractères (lettres et chiffres).', 'mal'); entrer(c); };
   $('#slRejoindre')?.addEventListener('click', rejoindre);
   $('#slCode')?.addEventListener('keydown', e => { if (e.key === 'Enter') rejoindre(); });
-  $('#slNom')?.addEventListener('keydown', e => { if (e.key === 'Enter') ($('#slCode').value ? rejoindre() : entrer(codeAleatoire())); });
+  $('#slNom')?.addEventListener('keydown', e => { if (e.key === 'Enter') ($('#slCode').value ? rejoindre() : entrerVille()); });
   $('#slNom')?.addEventListener('input', e => e.target.setCustomValidity(''));
   $('#slInviter')?.addEventListener('click', inviter);
   $('#slCopier')?.addEventListener('click', copier);

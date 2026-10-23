@@ -788,9 +788,10 @@ button { font: inherit; color: inherit; }
 .gr-boite { width: min(480px, 100%); }
 .gr-argent { margin: 0; font-weight: 700; }
 .gr-note { color: var(--ink-2); }
+.sl-aide { display: block; margin-top: 8px; font-size: 13px; line-height: 1.45; opacity: .72; }
 .sl-rejoindre { display: flex; gap: 8px; margin: 12px 0 8px; }
 .sl-rejoindre input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: .08em; }
-.sl-rejoindre button, .sl-haut button:not(.jouer), .sl-chat form button { border: 1px solid var(--line); background: var(--panel-solid); border-radius: 999px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
+.salon .ev-actions button:not(.jouer), .sl-rejoindre button, .sl-haut button:not(.jouer), .sl-chat form button { border: 1px solid var(--line); background: var(--panel-solid); border-radius: 999px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
 .salon-hud { position: absolute; inset: 0; pointer-events: none; z-index: 15; }
 .salon-hud > * { pointer-events: auto; }
 .sl-haut { position: absolute; top: var(--gutter); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; border-radius: 999px; max-width: calc(100% - 2 * var(--gutter)); flex-wrap: wrap; justify-content: center; }
