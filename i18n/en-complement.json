@@ -165,7 +165,8 @@
     " ne répond pas : essaie la suivante": " isn’t responding: try the next one",
     "Accident ! Attention ": "Crash! Watch out for ",
     " · glisse pour changer de file, vers le haut pour sauter": " · swipe to change lanes, up to jump",
-    " · Gaz et Frein en bas, E pour agir": " · Gas and Brake below, E to act"
+    " · Gaz et Frein en bas, E pour agir": " · Gas and Brake below, E to act",
+    "'Bolide électrique'": "'Electric sports car'"
   },
   "index.html": {
     "Crédits": "Credits",
@@ -1731,7 +1732,8 @@
     "<details class=\"jp-tampons\"><summary>Tampons de Cotonou · ": "<details class=\"jp-tampons\"><summary>Cotonou stamps · ",
     "</summary><p>Dépose un client dans un quartier pour tamponner ta carte (+": "</summary><p>Drop a customer in a neighbourhood to stamp your card (+",
     " la première fois).</p><div>": " the first time).</p><div>",
-    "'monté sur ton zém'": "'fitted on your zém'"
+    "'monté sur ton zém'": "'fitted on your zém'",
+    "><b>Bolide électrique</b><small>": "><b>Electric sports car</b><small>"
   },
   "src/ticket.js": {
     "'ZÉM RUN · BILLET DE COURSE'": "'ZÉM RUN · RIDE TICKET'",

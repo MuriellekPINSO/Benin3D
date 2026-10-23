@@ -87,6 +87,7 @@ export function serieDuJour() {
 
 // Taxi à débloquer : quatre à six lignes complètes de recette (le cahier des charges donnait 5 F comme exemple).
 export const PRIX_VOITURE = 20000;
+export const PRIX_BOLIDE = 500; // le coupé électrique du garage
 // ---------- Menu : cagnotte, missions, garage ----------
 function tamponsHTML(p) {
   const tous = quartiersATamponner(), faits = p.tampons || {}, n = tous.filter(q => faits[q]).length;
@@ -109,17 +110,19 @@ export function rendreProgression() {
       ${Object.entries(AMELIORATIONS).map(([k, A]) => { const a = ameliore(k); return `<button type="button" data-a="${k}" class="${a ? 'actif' : ''}" ${a || p.cagnotte < A.prix ? 'disabled' : ''}><b>${A.nom}</b><small>${A.txt} · ${a ? 'monté sur ton zém' : fmtF(A.prix)}</small></button>`; }).join('')}
       ${Object.entries(BONUS).map(([k, B]) => `<button type="button" data-b="${k}" ${p.cagnotte < B.prix ? 'disabled' : ''}><b>${B.nom}${p.bonus[k] ? ` · ${p.bonus[k]} en réserve` : ''}</b><small>${B.txt} · ${fmtF(B.prix)}</small></button>`).join('')}</div>
       <button type="button" data-v="voiture" class="${p.voiture ? 'actif' : ''}" ${!p.voiture && p.cagnotte < PRIX_VOITURE ? 'disabled' : ''}><b>Taxi (voiture)</b><small>${p.voiture ? (p.vehicule === 'voiture' ? 'Choisi pour les lignes de zém · retour au zém' : 'Débloqué · le choisir') : `Débloquer · ${fmtF(PRIX_VOITURE)}`}</small></button>
+      <button type="button" data-v="bolide" class="${p.bolide ? 'actif' : ''}" ${!p.bolide && p.cagnotte < PRIX_BOLIDE ? 'disabled' : ''}><b>Bolide électrique</b><small>${p.bolide ? (p.vehicule === 'bolide' ? 'Choisi pour les lignes de zém · retour au zém' : 'Débloqué · le choisir') : `Débloquer · ${fmtF(PRIX_BOLIDE)}`}</small></button>
     </details>`;
   el.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
     const k = b.dataset.k, K = KLAXONS[k];
     if (!p.achetes.includes(k)) { if (p.cagnotte < K.prix) return; p.cagnotte -= K.prix; p.achetes.push(k); }
     p.klaxon = k; sauver(); son('klaxon', k); rendreProgression(); el.querySelector('details').open = true;
   }));
-  el.querySelector('[data-v]')?.addEventListener('click', () => {
-    if (!p.voiture) { if (p.cagnotte < PRIX_VOITURE) return; p.cagnotte -= PRIX_VOITURE; p.voiture = true; p.vehicule = 'voiture'; son('piece'); }
-    else p.vehicule = p.vehicule === 'voiture' ? 'zem' : 'voiture';
+  el.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => {
+    const v = b.dataset.v, prix = v === 'bolide' ? PRIX_BOLIDE : PRIX_VOITURE; // on l'achète une fois, puis on le choisit ou non
+    if (!p[v]) { if (p.cagnotte < prix) return; p.cagnotte -= prix; p[v] = true; p.vehicule = v; son('piece'); }
+    else p.vehicule = p.vehicule === v ? 'zem' : v;
     sauver(); rendreProgression(); remplirLignes(); el.querySelector('details').open = true;
-  });
+  }));
   el.querySelectorAll('[data-a]').forEach(b => b.addEventListener('click', () => {
     const k = b.dataset.a; if (ameliore(k) || p.cagnotte < AMELIORATIONS[k].prix) return;
     p.cagnotte -= AMELIORATIONS[k].prix; (p.garage ||= {})[k] = true; sauver(); son('piece'); rendreProgression(); el.querySelector('details').open = true;

@@ -12,7 +12,7 @@ import { E } from './etat.js';
 import { startFlight } from './interface.js';
 import { VEGETATION, texteToile } from './lieux.js';
 import { U, camera, controls, scene } from './scene.js';
-import { TOKPA_3D, ZEMS_3D, B3, C3, matVeh, partsChevre, partsMarchande, partsTokpa, partsVoiture, partsZem } from './vehicules.js';
+import { TOKPA_3D, ZEMS_3D, B3, C3, matVeh, partsBolide, partsChevre, partsMarchande, partsTokpa, partsVoiture, partsZem } from './vehicules.js';
 import { TABLIERS, mergeColored } from './ville.js';
 import { chargerMasques, procession } from './egungun.js';
 import { satelliteVisible } from './satellite.js';
@@ -38,11 +38,12 @@ import { animerMoto } from './roues.js';
 
 // ---------- Zém Run : le jeu ----------
 /** Véhicules qui prennent un client à la fois, avec négociation (zém et taxi). */
-export const avecClients = v => v === 'zem' || v === 'voiture';
+export const avecClients = v => v === 'zem' || v === 'voiture' || v === 'bolide';
 export const VEH = {
   zem: { nom: 'Zémidjan', vmax: 25, accel: 4.4, larg: .75, long: 2.1, places: 1, tarif: [200, 450], cam: [6.4, 3] },
   tokpa: { nom: 'Tokpa-tokpa', vmax: 21, accel: 3.2, larg: 1.9, long: 5, places: 14, tarif: [150, 300], cam: [12.5, 5.2] },
   voiture: { nom: 'Taxi', vmax: 27, accel: 4.6, larg: 1.8, long: 4.3, places: 1, tarif: [300, 600], cam: [9.5, 3.8] }, // à débloquer au garage (priorité 3)
+  bolide: { nom: 'Bolide électrique', vmax: 34, accel: 7.2, larg: 1.85, long: 4.3, places: 1, tarif: [500, 900], cam: [10, 3.9] }, // le coupé du garage : plus rapide, course mieux payée
 };
 export const QUIZ = {
   centre: [["Où se trouve le plus grand marché à ciel ouvert d'Afrique de l'Ouest ?", ['Dantokpa', 'Ganhi', 'Akpakpa'], 0], ["Dans quel quartier se dresse la cathédrale rayée de rouge et de blanc ?", ['Missèbo', 'Ganhi', 'Étoile Rouge'], 1], ["Combien de ponts relient le centre à Akpakpa ?", ['Deux', 'Trois', 'Cinq'], 1]],
@@ -385,7 +386,7 @@ export function lancerLigne(L, veh) {
   const detaille = veh === 'zem' && ZEMS_3D.moto;
   const taxiTripo = veh === 'voiture' && tripoDispo('voiture');
   const tokpaTripo = veh === 'tokpa' && TOKPA_3D.geo; // le vrai minibus (Tripo), sinon celui dessiné en code
-  const j = detaille ? ZEMS_3D.moto.clone() : taxiTripo ? new THREE.Group() : tokpaTripo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(mergeColored(veh === 'zem' ? partsZem({ passager: false }) : veh === 'voiture' ? partsVoiture('#f2c21b') : partsTokpa()), matVeh); j.castShadow = !LITE;
+  const j = detaille ? ZEMS_3D.moto.clone() : taxiTripo ? new THREE.Group() : tokpaTripo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(mergeColored(veh === 'zem' ? partsZem({ passager: false }) : veh === 'voiture' ? partsVoiture('#f2c21b') : veh === 'bolide' ? partsBolide() : partsTokpa()), matVeh); j.castShadow = !LITE;
   const grp = new THREE.Group(); grp.add(j);
   if (taxiTripo) poserTripo('voiture', j, { largeur: 4.3, rot: Math.PI / 2 }); // taxi généré par Tripo
   if (veh === 'zem') { // numéro au dos du gilet
@@ -922,7 +923,8 @@ export function remplirLignes() {
   for (const L of JEU.lignes) {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'jm-ligne';
     const km = (L.arrets[L.arrets.length - 1].s / 1000).toFixed(1), court = L === JEU.lignes.reduce((m, l) => l.arrets[l.arrets.length - 1].s < m.arrets[m.arrets.length - 1].s ? l : m, JEU.lignes[0]);
-    const veh = L.veh === 'zem' && JEU.prog?.voiture && JEU.prog.vehicule === 'voiture' ? 'voiture' : L.veh;
+    const P = JEU.prog, choisi = P?.vehicule; // le véhicule débloqué au garage remplace le zém sur ses lignes
+    const veh = L.veh === 'zem' && ((choisi === 'voiture' && P.voiture) || (choisi === 'bolide' && P.bolide)) ? choisi : L.veh;
     b.innerHTML = `<span class="jm-veh ${veh}">${veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : 'Tokpa'}</span><b>${L.nom}</b>${court ? '<em class="jm-debut">Pour commencer</em>' : ''}<small>${L.arrets.map(a => a.nom).join(' → ')}</small><span class="jm-meta">${km} km · ${Math.max(5, Math.round(km * 2.6))} min environ · ${L.arrets.slice(1).reduce((n, a, k) => n + 1 + nbIntermediaires(a.s - L.arrets[k].s), 0)} arrêts${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
     b.addEventListener('click', () => { JEU.numero = ($('#jmNumero').value || '1234').slice(0, 5); sauver(); JEU.fini = false; lancerLigne(L, veh); annoncerDepart(L.id, veh); }); // à deux : l'autre part sur la même ligne
     el.appendChild(b);

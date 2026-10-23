@@ -76,6 +76,30 @@ export function partsVoiture(couleur) {
   for (const z of [0.6, -0.6]) add(B3(0.05, 0.14, 0.32).translate(2.16, 0.78, z), '#f4efd8');
   return P;
 }
+// Le bolide électrique : un coupé bas en coin, verrière sombre d'un seul tenant, bas de caisse noir et
+// grandes roues — la silhouette des sportives électriques. Dessiné en boîtes, comme les autres véhicules.
+export function partsBolide(couleur = '#eceff2') {
+  const P = [], add = (g, hex) => P.push([g, hex]);
+  const sombre = '#15181c', vitre = '#222931', jante = '#aab1b8';
+  add(B3(3.9, 0.24, 1.66).translate(0, 0.25, 0), sombre);                            // châssis, plus étroit que les roues
+  add(B3(4.2, 0.28, 1.76).translate(0, 0.5, 0), couleur);                            // flancs
+  add(B3(1.7, 0.3, 1.92).translate(-1.05, 0.54, 0), couleur);                        // épaules arrière, larges
+  add(B3(1.8, 0.2, 1.68).rotateZ(-0.075).translate(1.2, 0.72, 0), couleur);          // capot qui plonge
+  add(B3(0.66, 0.14, 1.46).rotateZ(-0.26).translate(2.02, 0.58, 0), couleur);        // le museau, en pointe
+  add(B3(1.75, 0.28, 1.4).translate(-0.15, 0.82, 0), vitre);                         // verrière basse
+  add(B3(1.1, 0.09, 1.26).translate(-0.4, 1.0, 0), couleur);                         // toit fin
+  add(B3(0.95, 0.2, 1.34).rotateZ(0.34).translate(-1.2, 0.86, 0), vitre);            // lunette arrière fuyante
+  add(B3(0.8, 0.26, 1.88).translate(-1.76, 0.62, 0), couleur);                       // croupe
+  add(B3(0.1, 0.09, 1.56).translate(-2.13, 0.68, 0), '#c1272d');                     // bandeau rouge, en travers
+  add(B3(0.14, 0.07, 1.18).translate(2.12, 0.6, 0), '#f3f6ff');                      // bandeau de phares
+  add(B3(0.44, 0.14, 1.5).translate(-1.92, 0.3, 0), sombre);                         // diffuseur arrière
+  for (const z of [0.86, -0.86]) add(B3(1.5, 0.16, 0.1).translate(-0.1, 0.36, z), sombre); // jupes latérales
+  for (const x of [1.36, -1.4]) for (const z of [0.93, -0.93]) {
+    add(C3(0.36, 0.36, 0.22, 14).rotateX(Math.PI / 2).translate(x, 0.36, z), '#17171a');
+    add(C3(0.21, 0.21, 0.24, 10).rotateX(Math.PI / 2).translate(x, 0.36, z), jante);
+  }
+  return P;
+}
 export function partsChevre() {
   const P = [], add = (g, hex) => P.push([g, hex]);
   add(B3(0.85, 0.38, 0.34).translate(0, 0.62, 0), '#e8e2d4'); add(B3(0.3, 0.38, 0.34).translate(-0.25, 0.62, 0), '#6a4a32');
