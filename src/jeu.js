@@ -396,7 +396,7 @@ export function lancerLigne(L, veh) {
   const faisceau = new THREE.Mesh(GJ.phares.geo, GJ.phares.mat); faisceau.renderOrder = 12; faisceau.visible = false; grp.add(faisceau); grp.userData.phares = faisceau;
   JEU.decor.add(grp); JEU.joueur = grp;
   JEU.anim?.liberer(); JEU.anim = veh === 'zem' ? animerMoto(grp, { parent: JEU.decor }) : null; // roues qui tournent, fumée, poussière (roues.js)
-  JEU.etat = { s: 4, v: 0, file: 0, lat: 0, y: 0, vy: 0, accidents: 0, argent: 0, passagers: veh === 'tokpa' ? 6 : 0, prochain: 1, servis: 0, manques: 0, frolements: 0, pieces: 0, invul: 0, service: 0, secousse: 0, frein: false, spawn: 40, quartier: '', temps: 0, carte: 0, casque: 0, superSaut: false, parcouru: 0, voyageurs: 0, doux: !!L.express || !Object.keys(JEU.meilleur).length };
+  JEU.etat = { s: 4, v: 0, file: 0, lat: 0, y: 0, vy: 0, accidents: 0, argent: 0, froleSuite: 0, passagers: veh === 'tokpa' ? 6 : 0, prochain: 1, servis: 0, manques: 0, frolements: 0, pieces: 0, invul: 0, service: 0, secousse: 0, frein: false, spawn: 40, quartier: '', temps: 0, carte: 0, casque: 0, superSaut: false, parcouru: 0, voyageurs: 0, doux: !!L.express || !Object.keys(JEU.meilleur).length };
   // Bonus achetés au garage, série de jours, le collecteur, et le premier client.
   const P = JEU.prog, st0 = JEU.etat; essenceDepart(st0);
   if (P.bonus.casque > 0) { P.bonus.casque--; st0.casque = 1; }
@@ -712,7 +712,9 @@ export function majJeu(dt) {
         } else if (!o.contact && st.v > .5) { o.contact = true; son('bosse'); } // simple contact au pas
       }
     }
-    if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(ecart) < (o.T.larg + V.larg) / 2 + (st.temps - (st.changeT ?? -9) < 1.1 ? 1.9 : 1.1)) { // juste après un changement de file, on compte plus large (Danfo Run) o.frole = true; st.frolements++; st.froleSuite = st.temps - (st.froleT ?? -99) < 5 ? (st.froleSuite || 0) + 1 : 1; st.froleT = st.temps;
+    // Frôlement : juste après un changement de file, on compte plus large (Danfo Run).
+    if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(ecart) < (o.T.larg + V.larg) / 2 + (st.temps - (st.changeT ?? -9) < 1.1 ? 1.9 : 1.1)) {
+      o.frole = true; st.frolements++; st.froleSuite = st.temps - (st.froleT ?? -99) < 5 ? (st.froleSuite || 0) + 1 : 1; st.froleT = st.temps;
       const g = Math.min(65, 15 + 10 * (st.froleSuite - 1)); st.argent += g; gainPetit(st.froleSuite > 1 ? `Ça passe ! ${fois(st.froleSuite)} +${g} F` : `Ça passe ! +${g} F`); vibrer('piece'); evenement('frole'); progres('frolements', st.frolements); }
     restants.push(o);
   }
