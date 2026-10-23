@@ -47,7 +47,7 @@
   th:first-child, td:first-child { text-align: left; }
   th { font-size: 13px; font-weight: 500; color: var(--encre-2); }
   tbody tr:first-child td { font-weight: 700; }
-  .totaux { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .totaux { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
   .totaux div { background: var(--fond); border-radius: 16px; padding: 12px 14px; display: grid; gap: 2px; }
   .totaux b { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .totaux small, .note { color: var(--encre-2); font-size: 13px; }
@@ -90,6 +90,7 @@
     <div class="totaux">
       <div><small>Visiteurs (par jour, cumulés)</small><b id="tVisiteurs">–</b></div>
       <div><small>Appareils différents</small><b id="tNouveaux">–</b></div>
+      <div><small>Ouvertures du site</small><b id="tVues">–</b></div>
       <div><small>Entrées dans le salon</small><b id="tSalon">–</b></div>
       <div><small>Parties de Zém Run</small><b id="tZemrun">–</b></div>
     </div>
@@ -158,6 +159,7 @@
       $('#visiteursEcart').textContent = `hier : ${nb(hier.visiteurs)}${d ? ` (${d > 0 ? '+' : ''}${nb(d)})` : ''}`;
       const tot = k => Object.values(J).reduce((a, v) => a + (v[k] || 0), 0);
       $('#tTotal').textContent = nb(tot('nouveaux'));
+      $('#tVues').textContent = nb(tot('vues'));
       $('#tVisiteurs').textContent = nb(tot('visiteurs')); $('#tNouveaux').textContent = nb(tot('nouveaux')); $('#tSalon').textContent = nb(tot('salon')); $('#tZemrun').textContent = nb(tot('zemrun'));
       const derniers = Array.from({ length: 30 }, (_, k) => jour(29 - k));
       dessiner(derniers.map(j => ({ j, ...J[j] })));

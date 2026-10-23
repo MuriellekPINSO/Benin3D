@@ -262,7 +262,13 @@ async function payerEnMoMo() {
   const [txt, cls] = MESSAGES[r.statut] || DOUTE; // jamais « rien n'a été prélevé » sans que FedaPay l'ait dit
   etatMomo(txt, cls);
 }
+// Copie de test seulement (localhost ou réseau local) : ?concert entre au concert sans payer, pour aller le voir.
+// Sur le vrai site, le paramètre ne fait rien : l'entrée reste à PRIX_ENTREE.
+const copieLocale = () => /^(localhost$|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|100\.)/.test(location.hostname) || location.hostname.endsWith('.local');
 export function initEvenement() {
+  if (copieLocale() && new URLSearchParams(location.search).has('concert')) {
+    setTimeout(() => { const a = $('#accueil'); if (a) a.hidden = true; garderBillet(); entrer(); }, 2000); // le temps que la ville soit là
+  }
   // En local seulement : ?verifier=<transaction> reprend un paiement déjà fait (Concert, puis « Vérifier mon paiement »).
   if (import.meta.env.DEV) { const v = new URLSearchParams(location.search).get('verifier'); if (/^\d{1,15}$/.test(v || '')) memoriserAttente(v); }
   $('#btnConcert')?.addEventListener('click', ouvrir);
