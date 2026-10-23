@@ -54,7 +54,7 @@ function majBulles(dt) {
     const vu = v.z < 1 && Math.abs(v.x) < 1.15 && Math.abs(v.y) < 1.15 && dist < 140;
     b.el.style.opacity = vu ? Math.min(1, b.t / .3, (b.d - b.t) / .12) : 0;
     // La bulle reste entière à l'écran, même quand la personne est tout au bord.
-    const ech = THREE.MathUtils.clamp(26 / Math.max(dist, 1), .72, 1.05);
+    const ech = THREE.MathUtils.clamp(26 / Math.max(dist, 1), .62, .92);
     if (!b.w) { b.w = b.el.offsetWidth; b.h = b.el.offsetHeight; }
     const dx = b.w * ech / 2 + 8, x = THREE.MathUtils.clamp((v.x * .5 + .5) * r.width, dx, Math.max(dx, r.width - dx)), y = THREE.MathUtils.clamp((-v.y * .5 + .5) * r.height, b.h * ech + 8, r.height - 8);
     places.push({ b, x, y, w: b.w * ech, h: b.h * ech, ech, vu });
@@ -66,6 +66,9 @@ function majBulles(dt) {
     const p = places[i]; if (!p.vu) continue;
     for (let j = 0; j < i; j++) { const q = places[j]; if (q.vu && Math.abs(p.x - q.x) < (p.w + q.w) / 2 + 4 && p.y > q.y - q.h - 4) p.y = q.y - q.h - 4; }
     p.y = Math.max(p.y, p.h + 8);
+    // En course, jamais dans la moitié basse de l'écran : les cris des vendeuses (« Kpayo ! », « Dokô ! ») en gros
+    // caractères cachaient la route juste devant le zém (retour d'un testeur, 22/10).
+    if (JEU.actif) p.y = Math.max(p.h + 8, Math.min(p.y, r.height * .46));
   }
   for (const { b, x, y, ech } of places) b.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%) scale(${ech.toFixed(3)})`;
 }
@@ -423,6 +426,10 @@ function suivant() {
   const cl = DISC.client; if (cl && d.qui.startsWith(cl.nom)) for (const b of BULLES) if (b.ancre === cl.siege) b.t = Math.min(b.t, .12); // la carte dit déjà sa question : pas deux fois
   const box = el.querySelector('.choix'); box.innerHTML = '';
   d.choix.forEach(([t], k) => { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<kbd>${k + 1}</kbd>${t}`; b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); repondre(k); }); box.append(b); });
+  // Téléphone tenu droit : le dialogue se pose juste sous les panneaux du haut, quelle que soit leur hauteur
+  // (nom de ligne sur deux lignes), pour ne couvrir ni la barre des arrêts ni la route.
+  const haut = matchMedia('(max-width: 720px) and (orientation: portrait)').matches ? $('.jh-haut')?.getBoundingClientRect().bottom : 0;
+  el.style.top = haut ? `${Math.round(haut + 8)}px` : '';
   el.hidden = false; son('arret');
   if (/^[«“"]/.test(d.texte.trim())) parler(d.texte, d.voix || voixQui(d.qui), 2);
   if (d.bloquant && JEU.etat) JEU.etat.service = 99; // arrêté le temps de répondre (plein, client qui monte)

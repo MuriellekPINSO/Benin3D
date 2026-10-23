@@ -11,7 +11,7 @@ import { rectSansConstruction } from './zones.js';
 // tuiles de 1 km (npm run donnees) et chargés autour de la caméra : toutes les maisons
 // réelles du quartier où l'on se trouve, au lieu des maisons inventées.
 
-const BG = { index: null, taille: 1000, tuiles: new Map(), t: 0, enCours: 0, visible: true, retires: 0, lus: 0, parClasse: {} };
+const BG = { index: null, taille: 1000, tuiles: new Map(), emprises: new Set(), t: 0, enCours: 0, visible: true, retires: 0, lus: 0, parClasse: {} };
 
 // ---------- Pas de maison sur la chaussée ----------
 // Google détecte aussi des « bâtiments » sur les routes (camions, auvents, gares routières) et ses emprises
@@ -76,7 +76,7 @@ async function charger(k) {
     const [tx, tz] = k.split('_').map(Number), { T, ids } = horsChaussee(brut);
     e.mesh = maillageLot(T, 2e6 + Math.floor(hash(tx * 977 + tz, 5) * 1e6), ids);
     e.mesh.castShadow = false; e.mesh.visible = BG.visible; scene.add(e.mesh);
-    ajouterEmprises(T, [tx * BG.taille, tz * BG.taille, (tx + 1) * BG.taille, (tz + 1) * BG.taille]);
+    if (!BG.emprises.has(k)) { BG.emprises.add(k); ajouterEmprises(T, [tx * BG.taille, tz * BG.taille, (tx + 1) * BG.taille, (tz + 1) * BG.taille]); } // les emprises restent quand la tuile part : à son retour, on les rajoutait en double
   } catch (err) { console.warn('tuile', k, err); }
   finally { BG.enCours--; }
 }

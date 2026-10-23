@@ -505,7 +505,19 @@ button { font: inherit; color: inherit; }
 .jp-g button.actif { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent); }
 .jp-g button:disabled { opacity: .5; cursor: not-allowed; }
 .jp-g small { color: var(--ink-2); font-size: 11.5px; }
-@media (max-width: 720px) { .jh-dialogue { bottom: 150px; } .jh-dialogue .dit { font-size: 16px; } .jp-g { grid-template-columns: 1fr; } .bulle { font-size: 15px; max-width: 220px; } }
+@media (max-width: 720px) { .jh-dialogue { bottom: 150px; } .jh-dialogue .dit { font-size: 16px; } .jp-g { grid-template-columns: 1fr; } .bulle { font-size: 14px; max-width: 190px; } }
+/* Téléphone tenu droit : le dialogue du client était posé en travers de la route, juste devant la roue, et il poussait
+   les boutons de conduite (« les textes se chevauchent et cachent la route », testeur du 22/10). Il monte sous les
+   panneaux du haut, au-dessus de l'horizon ; la mini-carte s'efface le temps de répondre. */
+@media (max-width: 720px) and (orientation: portrait) {
+  .jh-dialogue { top: 110px; bottom: auto; padding: 8px 12px 10px; }
+  .jh-dialogue .dit { margin: 4px 0 8px; font-size: 15px; }
+  .jh-dialogue .choix { gap: 6px; }
+  .jh-dialogue .choix button { flex: 1 1 100%; padding: 8px 10px; font-size: 13.5px; }
+  .jeu-hud:has(.jh-dialogue:not([hidden])) .jh-mini,
+  .jeu-hud:has(.jh-dialogue:not([hidden])) .jh-rue,
+  .jeu-hud:has(.jh-dialogue:not([hidden])) .jh-repere { display: none; } /* le temps de répondre, rien ne s'empile sous le dialogue */
+}
 
 /* Marché artisanal : discuter avec la vendeuse, payer */
 .boutique { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 30; width: min(820px, calc(100% - 2 * var(--gutter))); max-height: calc(100% - 2 * var(--gutter)); overflow-y: auto; padding: 18px 20px 20px; }
@@ -571,7 +583,17 @@ button { font: inherit; color: inherit; }
 .au-doigt .jh-boutons #jbG, .au-doigt .jh-boutons #jbD, .au-doigt .jh-boutons #jbA, .au-doigt .jh-boutons #jbS { display: none; }
 @media (max-width: 720px) { .au-doigt .jh-boutons { left: auto; right: 12px; justify-content: flex-end; gap: 8px; } .au-doigt .jh-boutons button { flex: 0 0 auto; padding: 14px 18px; min-width: 72px; } }
 .jm-option { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
-@media (max-width: 720px) { .jh-action { bottom: 300px; } }
+/* Téléphone : le choix du mode de conduite, en évidence dans le menu (un testeur voulait « des boutons comme dans les jeux »). */
+.jm-conduite { margin: 12px 0 2px; }
+.jm-conduite > b { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 800; }
+.jm-conduite-choix { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.jm-conduite-choix button { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--chip); color: var(--ink); font: 800 14px/1.2 var(--font-body); text-align: left; cursor: pointer; }
+.jm-conduite-choix button small { font: 600 11.5px/1.35 var(--font-body); color: var(--ink-2); }
+.jm-conduite-choix button[aria-pressed="true"] { background: var(--accent); border-color: transparent; color: #1d1a16; }
+.jm-conduite-choix button[aria-pressed="true"] small { color: #1d1a16; opacity: .78; }
+@media (max-width: 720px) { .jh-action { bottom: 300px; } .jh-plein { bottom: 356px; } }
+.jh-plein { bottom: 284px; background: rgba(140, 90, 10, .9); }
+#jhAction:not([hidden]) ~ .jh-plein { display: none; } /* une seule invite à la fois : ce qui est à côté passe d'abord */
 
 /* « Sur place » : vidéo de drone et photos prises à Cotonou */
 .sur-place { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; max-height: 66vh; overflow: auto; }
@@ -893,8 +915,16 @@ button { font: inherit; color: inherit; }
 .ch-annuler { justify-self: end; border: 0; background: transparent; color: var(--ink-2); font-weight: 700; cursor: pointer; padding: 6px 10px; }
 
 /* ---------- Ma vie : la prochaine étape (chapitres.js) ---------- */
-.chap-hud { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); z-index: 5; width: min(440px, calc(100% - 2 * var(--gutter))); display: grid; gap: 6px; padding: 10px 14px 11px; border-radius: 16px; text-align: left; color: var(--ink); font: inherit; cursor: pointer; transition: background .25s, color .25s; }
+.chap-hud { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); z-index: 5; width: min(440px, calc(100% - 2 * var(--gutter))); display: grid; gap: 6px; padding: 10px 14px 11px; border-radius: 16px; text-align: left; color: var(--ink); font: inherit; transition: background .25s, color .25s; }
 .chap-hud[hidden] { display: none; }
+.chap-corps { all: unset; display: grid; gap: inherit; cursor: pointer; padding-right: 30px; }
+.chap-corps:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
+/* Replier : le chapitre et la barre seulement. */
+.chap-replier { position: absolute; top: 4px; right: 6px; width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent; color: var(--ink-2); font: 700 16px/30px var(--font-body); cursor: pointer; transition: transform .2s; }
+.chap-replier:hover { background: var(--line); }
+.chap-hud.reussi .chap-replier { color: #fff; }
+.chap-hud.replie .chap-etape, .chap-hud.replie .chap-prime { display: none; }
+.chap-hud.replie .chap-replier { transform: rotate(180deg); }
 /* Ordinateur : le guide, l'étape du chapitre et les boutons d'action restent entre la discussion (à gauche) et le panneau
    de droite ; sur un écran de portable, ils passaient sous la discussion et recouvraient « Envoyer ». */
 @media (min-width: 721px) {
@@ -1120,4 +1150,23 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
 /* Téléphone en hauteur : Radio, Son et Pause en colonne sous la mini-carte. En ligne sous le bandeau, les trois boutons
    recouvraient la plaque « Vous roulez sur ». */
 @media (pointer: coarse) and (orientation: portrait) { .jh-coin { top: 318px; flex-direction: column; align-items: flex-end; gap: 6px; } }
+/* Mon compte (compte.js) : même fenêtre que le paiement, un bouton Google, l'e-mail et le mot de passe. */
+.compte-formulaire { display: flex; flex-direction: column; gap: 8px; }
+.compte-formulaire[hidden] { display: none; }
+.compte-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 12px 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: #1f1f1f; font: 700 15px/1 var(--font-body); cursor: pointer; }
+.compte-google svg { width: 20px; height: 20px; flex: none; }
+.compte-google:disabled { opacity: .6; cursor: default; }
+.compte-ou { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; color: var(--ink-2); font-size: 12.5px; }
+.compte-ou::before, .compte-ou::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.compte-champ { box-sizing: border-box; width: 100%; font: 500 16px/1.2 var(--font-body); color: var(--ink); background: var(--panel-solid); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.compte-champ:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.compte-lien { align-self: flex-start; border: 0; background: none; padding: 2px 0; color: var(--ink-2); font: 600 13px/1.2 var(--font-body); text-decoration: underline; cursor: pointer; }
+.compte-lien[hidden] { display: none; }
+#compteValider.charge::before { content: ''; width: 13px; height: 13px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: ev-tourne .8s linear infinite; }
+.ac-compte { border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; background: var(--chip); color: var(--ink); font: 700 12.5px/1 var(--font-body); cursor: pointer; }
+/* Accueil, petit téléphone : la barre (logo, en ligne, Installer, Mon compte, English) tient sur la largeur. */
+@media (max-width: 480px) { .ac-barre { gap: 8px; padding: 6px 10px 6px 8px; max-width: calc(100% - 2 * var(--gutter)); } .ac-installer, .ac-compte { padding: 6px 9px; font-size: 12px; } }
+/* « Ton métier » : comment ça marche, à la première prise de chaque métier (metiers.js). */
+.metier-etapes { margin: 4px 0 6px; padding-left: 22px; display: grid; gap: 8px; line-height: 1.4; }
+.metier-etapes li::marker { font-weight: 800; color: var(--accent); }
 

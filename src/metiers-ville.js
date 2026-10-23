@@ -33,6 +33,17 @@ export function initVille(ctx, data) {
 const ALT = 40; // hauteur du sol des intérieurs (interieurs.js)
 function pnj(graine, role, x, y, z, cap = 0) { const p = A.perso(graine, role); p.position.set(x, y, z); p.rotation.y = cap; scene.add(p); p.g = p; return p; }
 function marcherVers(p, x, z, dt, v = 1.4) { return A.marcher(p, [x, z], dt, v); }
+/**
+ * Jeu à deux, même métier : si un ami occupe déjà la place (même pièce, à moins de 0,9 m), on se met à côté, le long de
+ * (dx, dz). Au guichet 1, les deux personnages se superposaient ; chez l'autre joueur, l'ami, caché dans son propre corps,
+ * semblait absent (testeurs, 22/10).
+ */
+function placeLibre(x, z, dx, dz, pas = [1, -1, 2, -2]) {
+  const ici = S.lieu?.id || '', amis = [...(S.autres?.values() || [])].filter(a => a.etat && (a.etat.i || '') === ici);
+  const pris = (px, pz) => amis.some(a => Math.hypot(a.etat.x - px, a.etat.z - pz) < .9);
+  for (const k of [0, ...pas]) { const px = x + dx * k, pz = z + dz * k; if (!pris(px, pz)) return [px, pz]; }
+  return [x, z];
+}
 function finBulles(...qui) { const t = performance.now(); for (const q of qui) if (q?.bulle && t > q.bulleFin) X.retirerBulle(q); }
 /** La monnaie à rendre : options autour de la bonne somme ; `fini(rendu)` reçoit la somme choisie (rejouée si trop peu). */
 function rendreMonnaie(billet, prix, titre, fini) {
@@ -71,8 +82,9 @@ function demarrerMarche() {
   const r = A.routeSous(x0, z0, 220) || A.routeSous(x0, z0, 500); if (!r) { X.ligne('Le marché Dantokpa n’est pas disponible.'); return false; }
   const spot = A.trottoir(r.x, r.z, r.e.dx, r.e.dz) || [r.x + 5, r.z]; const versRue = Math.atan2(r.x - spot[0], r.z - spot[1]);
   if (S.lieu) X.dehors(false);
-  V.m = { x: spot[0], z: spot[1], cap: versRue, rx: r.x, rz: r.z, dx: r.e.dx, dz: r.e.dz, stock: 0, produit: '', g: null, client: null, attente: 3, ventes: 0 };
-  S.x = spot[0] - Math.sin(versRue) * 1.1; S.z = spot[1] - Math.cos(versRue) * 1.1; S.cap = versRue; S.y = 0; S.saut = true; S.geste = 'idle'; // derrière l'étal, face aux clients
+  const l = Math.hypot(r.e.dx, r.e.dz) || 1, [px, pz] = placeLibre(spot[0] - Math.sin(versRue) * 1.1, spot[1] - Math.cos(versRue) * 1.1, r.e.dx / l * 3, r.e.dz / l * 3); // l'étal d'un ami : le sien à côté, le long de la rue
+  V.m = { x: px + Math.sin(versRue) * 1.1, z: pz + Math.cos(versRue) * 1.1, cap: versRue, rx: r.x, rz: r.z, dx: r.e.dx, dz: r.e.dz, stock: 0, produit: '', g: null, client: null, attente: 3, ventes: 0 };
+  S.x = px; S.z = pz; S.cap = versRue; S.y = 0; S.saut = true; S.geste = 'idle'; // derrière l'étal, face aux clients
   X.ligne('Te voilà au marché Dantokpa, derrière ton étal. Achète d’abord ton stock (« Acheter du stock »), puis vends aux clients qui passent : annonce ton prix, ils marchandent, et rends bien la monnaie.');
   return true;
 }
@@ -144,7 +156,7 @@ function foodCourt() { return INTERIEURS.get('cite-foodcourt'); }
 function entrerFoodCourt(x, z, cap) {
   const I = foodCourt(); if (!I) { X.ligne('Le food court de la Cité n’est pas disponible.'); return null; }
   if (S.lieu !== I) { if (S.lieu) X.dehors(false); X.dedans(I); }
-  const p = dansLaPiece(I, x, z, cap); S.x = p.x; S.z = p.z; S.cap = cap; S.y = p.y; S.saut = true;
+  const p = dansLaPiece(I, x, z, cap); [S.x, S.z] = placeLibre(p.x, p.z, 1, 0, [1, 2]); S.cap = cap; S.y = p.y; S.saut = true; // côté salle : à gauche, la cuisinière du comptoir
   return I;
 }
 function assiette() {
@@ -312,7 +324,7 @@ function demarrerAgence(id) {
   const I = INTERIEURS.get(`agence-${id}`); if (!I) { X.ligne('Cette agence n’est pas disponible.'); return false; }
   if (S.lieu !== I) { if (S.lieu) X.dehors(false); X.dedans(I); }
   const poste = I.guichets.find(g => g.id === 'poste'), p = dansLaPiece(I, poste.x, poste.z + .3, Math.PI);
-  S.x = p.x; S.z = p.z; S.cap = Math.PI; S.y = p.y; S.saut = true;
+  [S.x, S.z] = placeLibre(p.x, p.z, 1.1, 0); S.cap = Math.PI; S.y = p.y; S.saut = true; // toujours derrière le guichet 1 (3,4 m de large)
   V.ag = { id, I, file: [], attente: 1, servis: 0, fete: null };
   const n = carriere(id), M = METIERS[id];
   X.ligne(`Bienvenue chez ${M.entreprise} : tu es ${titreDans(posteDe(n))} au guichet 1. Reçois les clients un par un et choisis la bonne réponse. Chaque client bien servi te rapporte ${fmt(salaireAgence(id))} et fait avancer ta carrière.`);
@@ -321,8 +333,8 @@ function demarrerAgence(id) {
 const salaireAgence = id => Math.round(AGENCES[id].salaire * CARRIERE[posteDe(carriere(id))][3] / 25) * 25;
 function majAgence(dt) {
   const G = V.ag; if (!G) return; const I = G.I, poste = I.guichets.find(g => g.id === 'poste');
-  if (G.file.length < 4) { G.attente -= dt; if (G.attente <= 0) { G.attente = 6 + Math.random() * 6;
-    const e = dansLaPiece(I, (Math.random() - .5) * 3, -I.d / 2 + 1.5), p = pnj(9900 + Math.floor(Math.random() * 300), null, e.x, ALT, e.z);
+  if (G.file.length < 4) { G.attente -= dt; if (G.attente <= 0) { G.attente = G.file.length < 2 ? 3 + Math.random() * 3 : 6 + Math.random() * 6; // file courte : le suivant ne tarde pas (un testeur attendait, 22/10)
+    const e = G.servis || G.file.length ? dansLaPiece(I, (Math.random() - .5) * 3, -I.d / 2 + 1.5) : dansLaPiece(I, poste.x + (Math.random() - .5) * 2, 0), p = pnj(9900 + Math.floor(Math.random() * 300), null, e.x, ALT, e.z); // le premier attend déjà dans la salle, près du guichet 1 : de la porte, il mettait 8 s
     G.file.push({ p, g: p, etat: 'vient', t: 0 });
   } }
   G.file.forEach((c, k) => {
@@ -334,7 +346,8 @@ function majAgence(dt) {
   G.file = G.file.filter(c => !c.fini);
   if (G.fete) majFete(dt, G);
   const n = carriere(G.id), i = posteDe(n), suiv = CARRIERE[i + 1];
-  mission(`${METIERS[G.id].entreprise} · ${titrePoste(i)}${suiv ? ` · ${suiv[0] - n} client${suiv[0] - n > 1 ? 's' : ''} avant ${titreDans(i + 1)}` : ''} · ${G.file.filter(c => c.etat === 'attend').length} en attente`);
+  const attend = G.file.filter(c => c.etat === 'attend').length, auPoste = S.lieu === I && guichetProche(I, S.x, S.z)?.id === 'poste';
+  mission(`${METIERS[G.id].entreprise} · ${titrePoste(i)}${suiv ? ` · ${suiv[0] - n} client${suiv[0] - n > 1 ? 's' : ''} avant ${titreDans(i + 1)}` : ''} · ${!attend ? 'un client arrive…' : `${attend} en attente${auPoste ? '' : ' : retourne au guichet 1'}`}`);
 }
 function servirClient() {
   const G = V.ag, c = G.file.find(e => e.etat === 'attend'); if (!c) return;

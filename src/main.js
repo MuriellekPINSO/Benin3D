@@ -31,6 +31,7 @@ import { animerEtals, construireEtals, initBoutique } from './artisans.js';
 import { initOffre } from './publicites.js';
 import { initMode } from './mode.js';
 import { horsDeLaPiece } from './interieurs.js';
+import { ouvrirCompte, synchroniserAuDemarrage } from './compte.js';
 import { initSalon, majSalon, pieceDuSalon, salonActif } from './salon.js';
 import { chargerTokpa, chargerZems, prechargerZems } from './vehicules.js';
 import { demarrerTelechargements, plusTard } from './telechargements.js';
@@ -173,6 +174,7 @@ async function main() {
   requestAnimationFrame(t => { last = t; loop(t); });
   setTimeout(() => { $('#loader').classList.add('done'); demarrerTelechargements(); }, 150); // les modèles détaillés, une fois la ville affichée
   setTimeout(demarrerStats, 2500); // présence et compteurs du tableau de bord (statistiques.js)
+  setTimeout(synchroniserAuDemarrage, 1500); // avec un compte : la partie jouée sur un autre téléphone (compte.js)
   accueil(); // d'abord la visite en musique, ou la ville tout de suite
   // Le temps qu'il faisait la dernière fois.
   try { const m = localStorage.getItem('cotonou3d.meteo'); if (m && m !== 'soleil') changerMeteo(m); } catch { }
@@ -194,6 +196,7 @@ if (!import.meta.env.DEV && 'serviceWorker' in navigator) addEventListener('load
 let invitation = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); invitation = e; const b = $('#acInstaller'); if (b) b.hidden = false; });
 addEventListener('appinstalled', () => { invitation = null; const b = $('#acInstaller'); if (b) b.hidden = true; });
+for (const id of ['#acCompte', '#vhCompte', '#jmCompte']) $(id)?.addEventListener('click', () => ouvrirCompte());
 $('#acInstaller')?.addEventListener('click', async () => { if (!invitation) return; invitation.prompt(); await invitation.userChoice.catch(() => { }); invitation = null; $('#acInstaller').hidden = true; });
 
 main().catch(err => {

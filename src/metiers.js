@@ -32,7 +32,7 @@ export function initMetiers(data, ctx) {
   S = ctx.S; T = ctx.T; X = ctx;
   const L = data.L.lignes?.find(l => l.id === 'calavi'); if (L) W.ligne = preparerLigne(L);
   const ici = new Set(['etoile', 'dantokpa', 'amazone', 'cathedrale', 'stade', 'haievive', 'fidjrosse', 'uac', 'cite', 'golden', 'novotel', 'mtn', 'moov', 'superu', 'martyrs', 'ganhi', 'aeroport', 'port', 'bioguera', 'seme', 'zongo']);
-  if (import.meta.env.DEV) window.__metiers = { W, menuTravail, negocier: () => negocier(), accepter: p => accepter(p), crier: () => crierDestination(), encaisser: () => encaisser(), depart: () => depart(W.tk), finir: () => finirJournee(), dansBatiment, sens: () => { const V = W.tk?.V, r = V && routeSous(V.x, V.z, 6); return !r ? 'hors route' : !r.e.sens ? 'double sens' : r.e.dx * Math.sin(V.cap) + r.e.dz * Math.cos(V.cap) > 0 ? 'bon sens' : 'contresens'; } }; // pour les tests
+  if (import.meta.env.DEV) window.__metiers = { W, menuTravail, commencer: id => commencer(id), negocier: () => negocier(), accepter: p => accepter(p), crier: () => crierDestination(), encaisser: () => encaisser(), depart: () => depart(W.tk), finir: () => finirJournee(), dansBatiment, sens: () => { const V = W.tk?.V, r = V && routeSous(V.x, V.z, 6); return !r ? 'hors route' : !r.e.sens ? 'double sens' : r.e.dx * Math.sin(V.cap) + r.e.dz * Math.cos(V.cap) > 0 ? 'bon sens' : 'contresens'; } }; // pour les tests
   initVille({ S, T, X: ctx, A: { perso, retirerPerso, marcher, trottoir, experience, routeSous, routeProche } }, data); // commerce, restauration, entreprises
   W.dests = [...QUARTIERS.filter(q => q[2] > 2.2).map(([n, la, lo]) => [n, ...toXZ(la, lo)]), ...PLACES.filter(p => ici.has(p.id)).map(p => [p.name, ...toXZ(p.lat, p.lon)])]; // sans Ouidah : c'est l'avion
 }
@@ -75,6 +75,33 @@ export function menuTravail() {
   ];
   X.choisir('Travailler à Cotonou', familles.map(([texte, sous, f]) => ({ texte, sous, f })));
 }
+// « Comment ça marche » : à la première prise de chaque métier, une fiche à l'écran. L'explication n'était que dans la
+// discussion, souvent repliée sur téléphone : un testeur a attendu au guichet sans savoir qu'il fallait « Recevoir le
+// client suivant » (22/10).
+const GUIDE_METIER = {
+  zem: ['Roule dans la ville : des clients te font signe au bord de la rue.', 'Arrête-toi à côté d’eux, discute le prix, puis emmène-les.', 'À l’arrivée, ils te paient. Avec la moto du patron, tu lui dois 1 000 F ce soir.'],
+  taxi: ['Roule dans la ville : des clients te font signe au bord de la rue.', 'Arrête-toi à côté d’eux, puis emmène-les où ils veulent.', 'À l’arrivée, ils te paient. Avec le taxi du patron, tu lui dois 3 000 F ce soir.'],
+  chauffeur: ['Va à la gare routière de Godomey : ton tokpa-tokpa t’y attend.', 'Suis la ligne et arrête-toi aux arrêts : les passagers montent, l’apprenti encaisse.', 'Ce soir, tu verses 3 000 F au patron.'],
+  apprenti: ['À la gare de Godomey, monte à la porte du tokpa-tokpa.', 'Aux arrêts, « Crier » fait venir du monde et « Encaisser » fait payer chaque passager : rends la bonne monnaie.', 'Chaque passager bien encaissé te rapporte ta part.'],
+  marche: ['Tu es derrière ton étal du marché Dantokpa.', 'Achète d’abord ton stock : bouton « Acheter du stock ».', 'Quand un client s’arrête, touche « Répondre au client » : annonce ton prix, il marchande, puis rends bien la monnaie.'],
+  cuisinier: ['Tu es en cuisine au food court de la Cité, au comptoir « Chez Tantie Rose ».', 'Les clients font la queue devant toi : touche « Préparer », puis choisis les trois bons ingrédients du plat.', 'Chaque plat réussi te rapporte de l’argent.'],
+  serveur: ['Au food court de la Cité, un client lève la main : va à sa table (étiquette « Commande »).', 'Touche « Prendre la commande », récupère le plat au bon comptoir, puis « Servir » à sa table.', 'Chaque client servi te rapporte de l’argent.'],
+  entreprise: ['Tu es au guichet 1 : reste devant, les clients font la queue en face de toi.', 'Quand un client attend, touche « Recevoir le client suivant », puis choisis la bonne réponse à sa demande.', 'Chaque client bien servi te paie et te fait monter, d’agent jusqu’à DG.'],
+};
+function expliquerMetier(id) {
+  let vus = []; try { vus = JSON.parse(localStorage.getItem('kutonu.metiers.vus') || '[]'); } catch { /* */ }
+  if (vus.includes(id)) return;
+  try { localStorage.setItem('kutonu.metiers.vus', JSON.stringify([...vus, id])); } catch { /* navigation privée */ }
+  const etapes = GUIDE_METIER[id] || (METIERS[id]?.famille === 'entreprise' ? GUIDE_METIER.entreprise : null); if (!etapes) return;
+  let el = document.getElementById('metierFiche');
+  if (!el) { el = document.createElement('div'); el.id = 'metierFiche'; el.className = 'momo metier-fiche'; (document.getElementById('app') || document.body).append(el); }
+  el.innerHTML = `<div class="momo-carte panel" role="dialog" aria-modal="true" aria-labelledby="metierTitre"><small class="ev-sur">Ton métier</small><h2 id="metierTitre"></h2><ol class="metier-etapes"></ol><div class="ev-actions"><button type="button" class="jouer">C’est parti !</button></div></div>`;
+  el.querySelector('h2').textContent = nomMetier(METIERS[id]);
+  el.querySelector('ol').append(...etapes.map(t => { const li = document.createElement('li'); li.textContent = t; return li; }));
+  const fermer = () => { el.hidden = true; };
+  el.querySelector('button').onclick = fermer; el.onclick = e => { if (e.target === el) fermer(); };
+  el.hidden = false; el.querySelector('button').focus();
+}
 async function commencer(id) {
   const v = VIE.data, M = METIERS[id];
   if (M.famille !== 'transport') { // commerce, restauration, entreprises : metiers-ville.js
@@ -82,6 +109,7 @@ async function commencer(id) {
     if (v.metier !== id) await ecrire({ metier: id });
     W.id = id; VIE.service = id; W.patron = false;
     if (!demarrerVille(id)) { W.id = ''; VIE.service = ''; }
+    else expliquerMetier(id);
     rendreVie(); return;
   }
   if (S.lieu) { X.ligne('Sors d’abord du bâtiment pour aller travailler.'); return; }
@@ -108,6 +136,7 @@ async function commencer(id) {
     if (id === 'zem') enfilerGilet();
     X.ligne(id === 'zem' ? `Tu es zémidjan, gilet n° ${numero()} sur le dos. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux pour discuter le prix.` : 'Tu fais le taxi. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux.');
   } else allerGare(id, reprise);
+  expliquerMetier(id);
   rendreVie();
 }
 const numero = () => String(JEU.numero || '1234').slice(0, 5);

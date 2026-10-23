@@ -50,7 +50,7 @@ const PHRASES = ['Ça va ?', 'On y va !', 'On mange où ?', 'Attends-moi !', 'Tr
 const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0]]; // 7e : intérieur dont on arrive devant la porte
 const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
-const S = { orbite: 0, orbiteT: 0, actif: false, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 't:top-f', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, autres: new Map(), vus: new Set() };
+const S = { orbite: 0, orbiteT: 0, actif: false, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 't:top-f', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, bras: 1, autres: new Map(), vus: new Set() };
 export const salonActif = () => S.actif;
 export const pieceDuSalon = () => S.actif ? S.lieu : null; // la pièce où l'on est (main.js n'y dessine que ses abords)
 const cible = new THREE.Vector3(), voulue = new THREE.Vector3();
@@ -474,9 +474,12 @@ export function majSalon(dt) {
   }
   else if (!suivi?.libre && voulue.y - P.y < 14) { // dehors, au ras des toits : si un bâtiment se trouve entre le personnage et la caméra, elle s'approche (jamais dans un mur) ; pas en avion
     let k = 1; for (let i = 1; i <= 12; i++) { const f = i / 12, px = cible.x + (voulue.x - cible.x) * f, pz = cible.z + (voulue.z - cible.z) * f; if (dansBatiment(px, pz) || profondeurRue(px, pz, .2) > 0 || obstacleArene(px, pz, .2) > 0) { k = Math.max(.15, (i - 1) / 12); break; } } // ni bâtiment, ni mur de parcelle ou portail, ni mur de l'arène
-    if (k < 1) voulue.set(cible.x + (voulue.x - cible.x) * k, cible.y + (voulue.y - cible.y) * k + .4, cible.z + (voulue.z - cible.z) * k);
-  }
-  if (S.saut || suivi?.libre) { camera.position.copy(voulue); S.saut = false; } else camera.position.lerp(voulue, 1 - Math.exp(-dt * (suivi ? 5 : 7))); // en avion (temps accéléré), la caméra reste collée derrière
+    // Le long d'un mur, le rayon y entrait et en sortait d'une image à l'autre : la caméra avançait et reculait sans cesse
+    // (vidéo d'un testeur, 22/10). Elle se rapproche aussitôt (jamais dans le mur), mais ne recule que doucement.
+    S.bras = k < S.bras ? k : S.bras + (k - S.bras) * (1 - Math.exp(-dt * 2.5));
+    if (S.bras < .999) voulue.set(cible.x + (voulue.x - cible.x) * S.bras, cible.y + (voulue.y - cible.y) * S.bras + .4 * Math.min(1, (1 - S.bras) * 6), cible.z + (voulue.z - cible.z) * S.bras);
+  } else S.bras = 1;
+  if (S.saut || suivi?.libre) { camera.position.copy(voulue); S.saut = false; } else camera.position.lerp(voulue, 1 - Math.exp(-dt * (suivi ? 6.5 : 7))); // en avion (temps accéléré), la caméra reste collée derrière
   controls.target.copy(cible);
   for (const b of [$('#slVue'), $('#slVue2')]) if (b && b.disabled !== !!S.lieu) { b.disabled = !!S.lieu; b.title = S.lieu ? 'La vue change une fois dehors' : 'Changer de vue (V)'; } // dedans, la caméra reste près de soi : le premier clic ne faisait rien
   const near = S.lieu ? .3 : .6; if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); } // dehors : deux fois plus de précision de profondeur au loin
@@ -634,12 +637,17 @@ function gene(x, z) {
   return Math.max(bord, profondeurRue(x, z), obstacleArene(x, z), corps(x, z));
 }
 // Dehors, des marches et des estrades (sols.js) : on monte une marche de 0,45 m au plus ; plus haut, c'est un mur.
+// Contre un mur en biais, essayer seulement les deux axes ne suffisait pas, et le corps qui frôlait la façade ne pouvait
+// que s'en écarter : on restait collé, comme devant un « mur invisible » (testeurs, 22/10). On essaie donc aussi le même
+// pas tourné de 30°, 60° puis 80° (raccourci d'autant), et l'on peut longer un mur sans s'y enfoncer davantage.
+const GLISSE = [.52, 1.05, 1.4].flatMap(a => [a, -a]).map(a => [Math.cos(a), Math.sin(a)]);
 function deplacer(nx, nz) {
-  const ici = gene(S.x, S.z);
-  for (const [x, z] of [[nx, nz], [nx, S.z], [S.x, nz]]) {
+  const ici = gene(S.x, S.z), dx = nx - S.x, dz = nz - S.z;
+  const essais = [[nx, nz], ...GLISSE.map(([c, s]) => [S.x + (dx * c - dz * s) * c, S.z + (dx * s + dz * c) * c]), [nx, S.z], [S.x, nz]];
+  for (const [x, z] of essais) {
     const [cx, cz] = S.lieu ? limiter(S.lieu, x, z) : [x, z], p = gene(cx, cz);
     if (!S.lieu && hauteurSol(cx, cz) - S.y > .45) continue;
-    if (p === 0 || p < ici - 1e-4) { S.x = cx; S.z = cz; if (!S.lieu) S.y = hauteurSol(cx, cz); return; }
+    if (p === 0 || p < ici - 1e-4 || (p < 1 && p <= ici + 1e-4)) { S.x = cx; S.z = cz; if (!S.lieu) S.y = hauteurSol(cx, cz); return; } // à 99, on est dans un bâtiment : on peut seulement en sortir
   }
 }
 

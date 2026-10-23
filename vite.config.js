@@ -14,8 +14,11 @@ const apiLocale = () => {
     const cle = loadEnv('development', process.cwd(), 'FEDAPAY_').FEDAPAY_SECRET_KEY;
     // Le fichier est relu dès qu'il change : sans ça, `npm run preview` gardait la version chargée au démarrage (le 22/10,
     // la copie de test parlait encore à l'ancien /api/fedapay et refusait chaque paiement).
-    const api = pathToFileURL(path.resolve('api/fedapay.js')).href; // adresse absolue : Vite ne réécrit pas cet import
-    server.middlewares.use('/api/fedapay', async (req, res) => (await import(/* @vite-ignore */ `${api}?v=${fs.statSync('api/fedapay.js').mtimeMs}`)).default(req, res, cle));
+    // /api/paiements : les paiements du jeu pour le tableau de bord (en local, sans le code d'accès de middleware.js).
+    for (const nom of ['fedapay', 'paiements']) {
+      const api = pathToFileURL(path.resolve(`api/${nom}.js`)).href; // adresse absolue : Vite ne réécrit pas cet import
+      server.middlewares.use(`/api/${nom}`, async (req, res) => (await import(/* @vite-ignore */ `${api}?v=${fs.statSync(`api/${nom}.js`).mtimeMs}`)).default(req, res, cle));
+    }
   };
   return { name: 'api-locale', configureServer: brancher, configurePreviewServer: brancher };
 };

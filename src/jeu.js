@@ -21,8 +21,9 @@ import { BORD, majBordure, majMiniCarte, nettoyerBordure, preparerBordure } from
 import { bulle, clientRate, collecte, departApprenti, deposerClient, dialogue, DISC, etiquetteClient, evenement, klaxonner, majDiscussions, nettoyerDiscussions, nouveauClient, nouveauSigne, placerCollecteur, preparerDiscussions, repondre } from './discussions.js';
 import { ameliore, assurerMissions, progDefaut, progres, rendreProgression, serieDuJour, tamponner } from './missions.js';
 import { preparerTicket } from './ticket.js';
+import { sauvegarderEnLigne } from './compte.js';
 import { etalPres, ouvrirBoutique } from './artisans.js';
-import { essenceDepart, facteurEssence, majEssence } from './essence.js';
+import { essenceDepart, facteurEssence, fairePlein, majEssence } from './essence.js';
 import { interagir, majInteractions } from './interactions.js';
 import { METEO } from './meteo.js';
 import { vibrer } from './manette.js';
@@ -57,7 +58,7 @@ JEU.gaucher = false; // téléphone : boutons Frein, Gaz et E à gauche (option 
 JEU.glisser = coarse; // au doigt, façon Subway Surfers : le zém avance seul, on glisse pour changer de file, sauter, freiner (option du menu)
 try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; if (typeof s.glisser === 'boolean') JEU.glisser = s.glisser; JEU.gaucher = !!s.gaucher; } catch (e) { }
 const auDoigt = () => coarse && JEU.glisser;
-export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, autoGaz: JEU.autoGaz, glisser: JEU.glisser, gaucher: JEU.gaucher })); } catch (e) { } };
+export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, autoGaz: JEU.autoGaz, glisser: JEU.glisser, gaucher: JEU.gaucher })); } catch (e) { } sauvegarderEnLigne(); }; // avec un compte, aussi en ligne (compte.js)
 export const fmtF = n => `${Math.round(n).toLocaleString('fr-FR')}\u00a0F`; // espace insécable : « 2 000 » et « F » restent sur la même ligne
 
 // Lissage (Chaikin) des virages, mais seulement sur les 7 derniers mètres avant chaque coin et les 7 premiers après :
@@ -596,7 +597,7 @@ export function majJeu(dt) {
     // Marche arrière, au pas : un nouvel appui sur le frein une fois arrêté. Le frein qui vient d'arrêter la moto
     // la tient arrêtée (au feu rouge, à l'arrêt), sans repartir en arrière.
     if (st.frein || st.freinM) {
-      if (st.v > .05) { st.v = Math.max(0, st.v - 15 * (1 - .35 * METEO.pluie) * dt); st.recul = 0; st.tenu = true; } // route mouillée : on freine moins bien
+      if (st.v > .05) { st.v = Math.max(0, st.v - 21 * (1 - .35 * METEO.pluie) * dt); st.recul = 0; st.tenu = true; } // 21 m/s² : il mord tout de suite (« le frein ne prend pas vite », testeur du 22/10) ; route mouillée : moins bien
       else if (st.tenu) st.v = Math.min(0, st.v + 5 * dt);
       else { st.recul = (st.recul || 0) + dt; if (st.recul > .45) { st.v = Math.max(-RECUL, st.v - 3 * dt); if (!st.reculVu) { st.reculVu = true; toast('Marche arrière', 1.2); } } }
     }
@@ -789,7 +790,7 @@ export function majJeu(dt) {
   // Elle suit le cap du véhicule avec un temps de retard et tourne autour de lui, toujours à `d` mètres : placée d'un
   // coup dans l'axe de la route, elle passait au travers du zém dans un virage serré ou un demi-tour, et le perdait.
   const cap = Math.atan2(p.dx, p.dz); if (JEU.capCam == null) JEU.capCam = cap;
-  JEU.capCam += Math.atan2(Math.sin(cap - JEU.capCam), Math.cos(cap - JEU.capCam)) * Math.min(1, dt * 3);
+  JEU.capCam += Math.atan2(Math.sin(cap - JEU.capCam), Math.cos(cap - JEU.capCam)) * Math.min(1, dt * 4.5); // à 3, le virage semblait « lourd » (testeur, 22/10)
   const hx = Math.sin(JEU.capCam), hz = Math.cos(JEU.capCam);
   // Pas de caméra dans un mur : si une façade, un mur ou une maison se trouve entre le zém et elle, elle s'approche et se lève.
   let kc = 1; for (let i = 2; i <= 10; i++) { const f = i / 10, x = p.x - hx * d * f, z = p.z - hz * d * f; if (dansBatiment(x, z) || profondeurRue(x, z, .3) > 0) { kc = Math.max(.35, (i - 1) / 10); break; } }
@@ -1022,7 +1023,7 @@ export function initJeu(data) {
       if (Math.abs(dx) < pas * (t0.n ? 1.2 : 1) || maintenant - t0.dernier < 150) return;
       (dx < 0 ? gauche : droite)(); t0.n++; t0.dernier = maintenant; t0.x = e.clientX; t0.y = e.clientY;
     } else if (dy < -40 && !t0.saut) { t0.saut = true; sauter(); t0.y = e.clientY; }
-    else if (dy > pas && !t0.frein && st()) { st().freinM = true; t0.frein = true; }
+    else if (dy > 26 && Math.abs(dy) > Math.abs(dx) && !t0.frein && st()) { st().freinM = true; t0.frein = true; } // freiner : un petit glisser vers le bas suffit
   });
   const lacher = () => { if (t0?.frein && st()) st().freinM = false; t0 = null; };
   zone.addEventListener('pointerup', lacher); zone.addEventListener('pointercancel', lacher);
@@ -1031,11 +1032,24 @@ export function initJeu(data) {
   $('#jhCarrefour').addEventListener('pointerdown', e => { const b = e.target.closest('button[data-dir]'); if (b && !b.disabled) { e.preventDefault(); virage(+b.dataset.dir); } });
   guideJeu = creerGuide({ cle: 'zemrun.guide', el: $('#jhGuide'), titre: 'Prise en main', etapes: etapesJeu() });
   $('#jmGuide')?.addEventListener('click', () => { guideJeu.revoir(); $('#jmGuide').textContent = 'Le guide s’affichera à la prochaine course'; });
-  btn('#jbG', gauche); btn('#jbD', droite); btn('#jbS', sauter); btn('#jbE', interagir); btn('#jhAction', interagir);
+  btn('#jbG', gauche); btn('#jbD', droite); btn('#jbS', sauter); btn('#jbE', interagir); btn('#jhAction', interagir); btn('#jhPlein', fairePlein);
   const maintenu = (id, cle) => { const b = $(id); b.addEventListener('pointerdown', e => { e.preventDefault(); if (st()) st()[cle] = true; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { if (st()) st()[cle] = false; }); };
   maintenu('#jbF', 'frein'); maintenu('#jbA', 'gaz');
   $('#jmVoix').checked = VOIX.on; $('#jmVoix').addEventListener('change', e => voixActives(e.target.checked)); $('#jmVoix').closest('label').hidden = !voixDispo();
-  const glisser = $('#jmGlisser'); if (glisser) { glisser.closest('label').hidden = !coarse; glisser.checked = JEU.glisser; glisser.addEventListener('change', e => { JEU.glisser = e.target.checked; sauver(); $('#jeu').classList.toggle('au-doigt', auDoigt()); }); }
+  // Au téléphone, le mode de conduite se choisit en grand dans le menu : au doigt, ou avec les boutons Gaz, Frein,
+  // ◀ ▶, Saut et E (un testeur du 22/10 voulait « des boutons à l'écran comme dans les jeux » sans les trouver).
+  const conduite = $('#jmConduite');
+  if (conduite) {
+    conduite.hidden = !coarse;
+    const majConduite = () => {
+      $('#jmcDoigt').setAttribute('aria-pressed', String(JEU.glisser));
+      $('#jmcBoutons').setAttribute('aria-pressed', String(!JEU.glisser));
+      $('#jeu').classList.toggle('au-doigt', auDoigt());
+    };
+    const choisir = v => { if (JEU.glisser === v) return; JEU.glisser = v; sauver(); majConduite(); };
+    btn('#jmcDoigt', () => choisir(true)); btn('#jmcBoutons', () => choisir(false));
+    majConduite();
+  }
   $('#jeu').classList.toggle('au-doigt', auDoigt());
   const gaucher = $('#jmGaucher'); if (gaucher) { gaucher.closest('label').hidden = !coarse; gaucher.checked = JEU.gaucher; gaucher.addEventListener('change', e => { JEU.gaucher = e.target.checked; sauver(); $('#jeu').classList.toggle('gaucher', JEU.gaucher); }); }
   $('#jeu').classList.toggle('gaucher', JEU.gaucher);

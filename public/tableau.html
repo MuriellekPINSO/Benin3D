@@ -53,6 +53,9 @@
   .totaux small, .note { color: var(--encre-2); font-size: 13px; }
   .note { margin: 0; }
   .etat { margin: 0; padding: 14px 16px; border-radius: 16px; background: #fff6d6; color: #5a4300; }
+  table.paiements tbody tr:first-child td { font-weight: 400; }
+  table.paiements th:nth-child(2), table.paiements td:nth-child(2) { text-align: left; white-space: normal; min-width: 180px; }
+  table.paiements tbody td.paye { color: var(--vert); font-weight: 700; } table.paiements tbody td.rate { color: var(--encre-2); }
   @media (max-width: 820px) { .tuiles, .totaux { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tuile b { font-size: 32px; } }
 </style>
 </head>
@@ -96,7 +99,34 @@
     <h2>Jour par jour</h2>
     <div class="tableau"><table><thead><tr><th>Jour</th><th>Visiteurs</th><th>Nouveaux</th><th>Pages vues</th><th>Salon</th><th>Zém Run</th></tr></thead><tbody id="jours"></tbody></table></div>
   </section>
+
+  <section class="bloc" id="paiements">
+    <h2>Paiements Mobile Money</h2>
+    <div class="totaux">
+      <div><small>Paiements reçus</small><b id="pRecus">–</b></div>
+      <div><small>Montant reçu</small><b id="pMontant">–</b></div>
+      <div><small>Aujourd’hui · cette semaine</small><b id="pRecents">–</b></div>
+      <div><small>Tentatives non abouties</small><b id="pTentatives">–</b></div>
+    </div>
+    <p class="note" id="pObjets">Lecture des paiements chez FedaPay…</p>
+    <div class="tableau"><table class="paiements"><thead><tr><th>Quand</th><th>Quoi</th><th>Opérateur</th><th>Montant</th><th>Statut</th></tr></thead><tbody id="pListe"></tbody></table></div>
+    <p class="note">Relu chez FedaPay à l’ouverture de la page (une minute de retard au plus). Le compte FedaPay est partagé avec Qualiwo : seules les transactions du jeu sont comptées. Tentative non aboutie : demande abandonnée, refusée ou expirée, rien n’a été prélevé.</p>
+  </section>
 </div>
+<script type="module">
+  // Les paiements du jeu (api/paiements.js), sous le même code d'accès que cette page. Une demande en attente depuis plus
+  // de 15 minutes est affichée « Non abouti » : le joueur a abandonné, FedaPay la fera expirer plus tard.
+  const $ = s => document.querySelector(s), nb = n => (n ?? 0).toLocaleString('fr-FR'), F = n => `${nb(n)} F`;
+  const STATUTS = { approved: ['Payé', 'paye'], transferred: ['Payé', 'paye'], pending: ['En attente', ''], expired: ['Expiré', 'rate'], canceled: ['Annulé', 'rate'], declined: ['Refusé', 'rate'], refunded: ['Remboursé', 'rate'] };
+  const OBJETS = { concert: 'entrée du concert', commerce: 'ouverture de commerce', boutique: 'boutique de mode' };
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  fetch('/api/paiements', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(P => {
+    $('#pRecus').textContent = nb(P.recus); $('#pMontant').textContent = F(P.montant); $('#pRecents').textContent = `${nb(P.aujourdhui)} · ${nb(P.semaine)}`; $('#pTentatives').textContent = nb(P.tentatives);
+    $('#pObjets').textContent = 'Par objet : ' + Object.entries(P.parObjet).map(([k, v]) => `${OBJETS[k] || k} ${nb(v.recus)} (${F(v.montant)})`).join(' · ');
+    $('#pListe').innerHTML = P.derniers.length ? P.derniers.map(t => { const [s, c] = t.statut === 'pending' && Date.now() - Date.parse(t.t) > 15 * 60e3 ? ['Non abouti', 'rate'] : STATUTS[t.statut] || [t.statut, '']; return `<tr><td>${new Date(t.t).toLocaleString('fr-FR', { timeZone: 'Africa/Porto-Novo', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td><td>${esc(t.quoi)}</td><td>${esc(t.operateur || '—')}</td><td>${F(t.montant)}</td><td class="${c}">${s}</td></tr>`; }).join('')
+      : '<tr><td colspan="5">Aucun paiement pour l’instant.</td></tr>';
+  }).catch(() => { $('#pObjets').textContent = 'Paiements indisponibles pour le moment : FedaPay ne répond pas. Recharge la page dans un instant.'; });
+</script>
 
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';

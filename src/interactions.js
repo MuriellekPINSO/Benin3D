@@ -4,7 +4,7 @@ import { $ } from './base.js';
 import { moteurMaj, son } from './audio.js';
 import { BORD } from './bordure.js';
 import { DISC, bulle, causerGroupe, dialogue, passantDemande, prendreSigne } from './discussions.js';
-import { servir } from './essence.js';
+import { fairePlein, servir } from './essence.js';
 import { etalPres, ouvrirBoutique } from './artisans.js';
 import { JEU, fmtF, pose, toast, avecClients } from './jeu.js';
 
@@ -106,7 +106,8 @@ export function majInteractions(st, C, dt) {
 }
 /** Touche E (ou bouton « Interagir ») : une seule chose à côté → on la fait ; plusieurs → on choisit. */
 export function interagir() {
-  const st = JEU.etat; if (!st || !I.liste.length) return;
+  const st = JEU.etat; if (!st) return;
+  if (!I.liste.length) { fairePlein(); return; } // rien à côté : E fait le plein au prochain vendeur s'il est proposé
   if (st.v > 1.2) return toast('Arrête-toi d’abord', 1);
   // Ce que le joueur demande passe devant la causerie du client (qui reprendra après).
   const faire = f => () => { DISC.forcer = true; try { f(); } finally { DISC.forcer = false; } };

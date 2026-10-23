@@ -22,7 +22,7 @@ export const CHAPITRES = [
   { titre: 'Avoir sa moto', etapes: [
     { texte: 'Aie ton propre véhicule : « Menu », en haut à gauche, puis « Louer une moto ».', prime: 500, fait: () => !!VIE.data?.vehicule },
     { texte: 'Fais le plein dans une station-service (« Aller à » : la station la plus proche).', prime: 300, compte: 'plein', but: 1 },
-    { texte: 'Fais 5 courses de zém ou de taxi.', prime: 1500, compte: 'course', but: 5 },
+    { texte: 'Fais 3 courses de zém ou de taxi : « Travailler », puis Zémidjan ou Chauffeur de taxi.', prime: 1500, compte: 'course', but: 3 }, // 5, c'était trop : un testeur a abandonné là (22/10)
     { texte: 'Mets 10 000 F de côté pour ouvrir ton commerce.', prime: 0, fait: () => (VIE.data?.argent || 0) >= 10000 },
   ] },
   { titre: 'Ouvrir son commerce', etapes: [
@@ -46,7 +46,12 @@ export const chapitreFini = () => CH.i >= ETAPES.length;
 export function initChapitres({ ligne, guide }) {
   CH.ligne = ligne; CH.guide = guide;
   surSignal((evt, n) => { const e = etape(); if (CH.charge && e?.compte === evt) { CH.n += n; if (CH.n < e.but) sauver(); afficher(); } });
-  $('#chapHud')?.addEventListener('click', montrerChapitres);
+  $('#chapOuvrir')?.addEventListener('click', montrerChapitres);
+  // Replié, il ne reste que le chapitre et la barre : sur téléphone, le panneau entier cachait le jeu (testeur, 22/10).
+  let replie = false; try { replie = localStorage.getItem('kutonu.chap.replie') === '1'; } catch { /* navigation privée */ }
+  const plier = r => { replie = r; $('#chapHud')?.classList.toggle('replie', r); const b = $('#chapReplier'); if (b) { b.setAttribute('aria-expanded', String(!r)); b.setAttribute('aria-label', r ? 'Déplier l’étape' : 'Replier l’étape'); } };
+  plier(replie);
+  $('#chapReplier')?.addEventListener('click', () => { plier(!replie); try { localStorage.setItem('kutonu.chap.replie', replie ? '1' : '0'); } catch { /* */ } });
   if (import.meta.env.DEV) window.__chapitres = { CH, ETAPES, reussir: () => reussir() }; // pour les tests
 }
 /** À l'entrée dans le salon : la progression enregistrée. */

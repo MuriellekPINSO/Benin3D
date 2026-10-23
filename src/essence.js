@@ -3,7 +3,7 @@ import { payerEtRecevoir } from './remise.js';
 import { son } from './audio.js';
 import { BORD } from './bordure.js';
 import { bulle, dialogue, DISC } from './discussions.js';
-import { JEU, fmtF, toast } from './jeu.js';
+import { JEU, arretAuto, fmtF, toast } from './jeu.js';
 import { ameliore, progres } from './missions.js';
 
 // ---------- L'essence ----------
@@ -49,6 +49,15 @@ export function servir(st, it) {
   ], { defaut: st.essence < .6 ? 1 : 2, duree: 9, bloquant: true });
 }
 
+// « Faire le plein » : le zém se range seul devant le vendeur signalé et la discussion s'ouvre. S'arrêter pile au bon
+// endroit, puis toucher E, était difficile au doigt (retour d'un testeur, 22/10).
+const PLEIN = { it: null };
+export function fairePlein() {
+  const st = JEU.etat, it = PLEIN.it; if (!st || !it) return false;
+  arretAuto(it.s, it.side, () => servir(st, it)); PLEIN.it = null; $('#jhPlein').hidden = true;
+  toast(it.type === 'station' ? 'On se range à la station…' : 'On se range devant le kpayo…', 1.4);
+  return true;
+}
 /** À chaque image pendant la course. */
 export function majEssence(st, dt) {
   if (st.essence === undefined) return;
@@ -66,6 +75,13 @@ export function majEssence(st, dt) {
     const ds = it.s - st.s;
     if (ds > 40 && ds < 80 && !it.propose && !(st.temps < (st.proposeT ?? -99) + 25)) { it.propose = true; st.proposeT = st.temps; toast(`${it.type === 'station' ? `Station${it.nom ? ' ' + it.nom : ''}` : 'Kpayo'} à ${it.side > 0 ? 'droite' : 'gauche'} : arrête-toi devant, puis E pour le plein`, 2.6); break; }
   }
+  // Bouton « Faire le plein » : le prochain vendeur, tant que le réservoir est bas.
+  let pro = null;
+  if (st.essence < 1 || st.panne) for (const it of BORD.items) { const ds = it.s - st.s; if ((it.type === 'station' || it.type === 'kpayo') && ds > 10 && ds < 120 && (!pro || ds < pro.s - st.s)) pro = it; }
+  if (st.auto) pro = null; // déjà en train de se ranger
+  PLEIN.it = pro;
+  const b = $('#jhPlein');
+  if (b) { b.hidden = !pro; if (pro) b.querySelector('span').textContent = `Faire le plein · ${pro.type === 'station' ? 'station' : 'kpayo'} à ${pro.side > 0 ? 'droite' : 'gauche'}, ${Math.round(pro.s - st.s)} m`; }
   // Jauge du HUD.
   const el = $('#jhEssence'); if (el) { el.firstElementChild.style.width = `${Math.max(0, st.essence / reservoir() * 100).toFixed(0)}%`; el.classList.toggle('bas', st.essence < .45); }
   const li = $('#jhLitres'); if (li) li.textContent = `${Math.max(0, st.essence).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`;

@@ -1,4 +1,14 @@
 {
   "database": { "rules": "database.rules.json" },
-  "auth": { "providers": { "anonymous": true } }
+  "auth": {
+    "providers": {
+      "anonymous": true,
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Kutɔnu Vibes",
+        "supportEmail": "murielle@tamebi.ai",
+        "authorizedRedirectUris": ["https://zem-run-cotonou.firebaseapp.com/__/auth/handler"]
+      }
+    }
+  }
 }
