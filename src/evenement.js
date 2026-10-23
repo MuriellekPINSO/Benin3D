@@ -22,7 +22,7 @@ import { avatarPorte } from './mode.js';
 // demande l'accord de ses organisateurs.
 
 export const PRIX_ENTREE = 100;
-const EV = { moi: null, enAttente: null, groupe: null, actif: false, ecran: null, ctx: null, foule: null, tetes: null, places: [], spots: [], t: 0, raf: 0, scene: null, sx: 0, sz: 0, danseurs: null, artistes: null, telephones: null, cible: null, camEcran: null, toileEcran: null, planEcran: null, image: 0 };
+const EV = { moi: null, enAttente: null, groupe: null, actif: false, ecran: null, ctx: null, foule: null, tetes: null, places: [], spots: [], t: 0, raf: 0, scene: null, sx: 0, sz: 0, danseurs: null, artistes: null, video: null, videoEl: null, telephones: null, cible: null, camEcran: null, toileEcran: null, planEcran: null, image: 0 };
 // L'écran géant montre ce qui se passe vraiment sur place : une deuxième caméra filme l'artiste, puis le public, et son
 // image est posée sur l'écran (couche ÉCRAN : elle ne voit que les gens, pas l'écran lui-même, sinon l'image se répète
 // à l'infini). Entre deux plans, l'écran revient aux motifs et au nom du concert, comme dans un vrai spectacle.
@@ -49,6 +49,19 @@ function construire() {
   EV.cible = new THREE.WebGLRenderTarget(lw, lh); EV.cible.texture.colorSpace = THREE.SRGBColorSpace;
   EV.camEcran = new THREE.PerspectiveCamera(30, lw / lh, .5, 90); EV.camEcran.layers.set(ECRAN);
   hemi.layers.enable(ECRAN); sun.layers.enable(ECRAN); // sans elles, la caméra de l'écran ne verrait que du noir
+  // Une vidéo peut passer sur l'écran, entre deux plans de la caméra : public/videos/ecran.mp4, muette et en
+  // boucle (le navigateur n'autorise le démarrage automatique que sans le son, et le jeu a déjà sa musique).
+  // Pas de fichier, pas de souci : l'écran s'en tient à la caméra et aux motifs.
+  const vid = document.createElement('video');
+  vid.loop = vid.muted = vid.playsInline = true; vid.preload = 'metadata'; // le fichier n'est téléchargé qu'en entrant au concert
+  vid.addEventListener('loadeddata', () => {
+    const tv = new THREE.VideoTexture(vid); tv.colorSpace = THREE.SRGBColorSpace;
+    const a = (vid.videoWidth || 16) / (vid.videoHeight || 9), ecranA = 2; // 20 × 10 : on remplit l'écran et on rogne
+    if (a < ecranA) { tv.repeat.set(1, a / ecranA); tv.offset.set(0, (1 - a / ecranA) / 2); }
+    else { tv.repeat.set(ecranA / a, 1); tv.offset.set((1 - ecranA / a) / 2, 0); }
+    EV.video = tv;
+  }, { once: true });
+  vid.src = `${import.meta.env.BASE_URL}videos/ecran.mp4`; EV.videoEl = vid;
   // Le fond de scène n'existe que pour l'image de l'écran : sans lui, on verrait le ciel derrière l'artiste.
   const fond = new THREE.Mesh(new THREE.PlaneGeometry(26, 12), new THREE.MeshBasicMaterial({ color: '#0a0c10' }));
   fond.position.set(sx, 5, sz + 4.6); fond.rotation.y = Math.PI; fond.layers.set(ECRAN); g.add(fond);
@@ -142,15 +155,13 @@ function boucle(now) {
     tel.instanceMatrix.needsUpdate = true;
   }
   EV.spots.forEach((c, i) => { c.rotation.x = Math.sin(t * .9 + i) * .55 - .35; c.rotation.z = Math.cos(t * .7 + i * 1.3) * .5; });
-  // L'écran : huit secondes sur l'artiste, quatre sur le public, quatre de motifs au nom du concert.
-  const phase = t % 16, plan = phase < 8 ? 'artiste' : phase < 12 ? 'public' : '';
-  if (plan && EV.cible) {
-    if (EV.planEcran.material.map !== EV.cible.texture) { EV.planEcran.material.map = EV.cible.texture; EV.planEcran.material.needsUpdate = true; }
-    if (EV.image++ % (LITE ? 4 : 3) === 0) filmer(t, plan); // une image sur trois suffit pour un écran vu de loin
-  } else {
-    if (EV.planEcran.material.map !== EV.toileEcran) { EV.planEcran.material.map = EV.toileEcran; EV.planEcran.material.needsUpdate = true; }
-    if (Math.floor(t * 12) !== Math.floor((t - .016) * 12)) dessinerEcran(t);
-  }
+  // L'écran, en boucle : l'artiste, le public, la vidéo s'il y en a une, puis les motifs au nom du concert.
+  const duree = EV.video ? 20 : 16, phase = t % duree;
+  const plan = phase < 7 ? 'artiste' : phase < 11 ? 'public' : EV.video && phase < 18 ? 'video' : 'motifs';
+  const image = plan === 'video' ? EV.video : plan === 'motifs' ? EV.toileEcran : EV.cible?.texture;
+  if (image && EV.planEcran.material.map !== image) { EV.planEcran.material.map = image; EV.planEcran.material.needsUpdate = true; }
+  if (plan === 'artiste' || plan === 'public') { if (EV.image++ % (LITE ? 4 : 3) === 0) filmer(t, plan); } // une image sur trois suffit pour un écran vu de loin
+  else if (plan === 'motifs' && Math.floor(t * 12) !== Math.floor((t - .016) * 12)) dessinerEcran(t);
   EV.raf = requestAnimationFrame(boucle);
 }
 function entrer() {
@@ -161,6 +172,7 @@ function entrer() {
   EV.minDist = controls.minDistance; controls.minDistance = 5; // au concert, on peut s'approcher de la foule
   startFlight(EV.scene.clone(), 32, 1.2, Math.PI - .65, 2.6); // derrière la foule, en biais (la statue est dans l'axe de la scène)
   $('#evQuitter').hidden = false; $('#evenement').hidden = true;
+  EV.videoEl?.play().catch(() => { /* le navigateur refuse : l'écran garde la caméra et les motifs */ });
   EV.raf = requestAnimationFrame(boucle);
   // Le joueur danse au premier rang dans la tenue qu'il porte (boutique de mode), avec « Toi » au-dessus.
   avatarPorte().then(m => {
@@ -190,7 +202,7 @@ function etiquetteToi() {
 }
 export function quitterEvenement() {
   if (!EV.actif) return; EV.actif = false; cancelAnimationFrame(EV.raf);
-  musiqueEvenement(false); EV.groupe.visible = false; $('#evQuitter').hidden = true;
+  musiqueEvenement(false); EV.groupe.visible = false; $('#evQuitter').hidden = true; EV.videoEl?.pause();
   if (EV.moi) { EV.moi.userData.liberer(); EV.groupe.remove(EV.moi); EV.moi = null; }
   if (EV.minDist) controls.minDistance = EV.minDist;
 }
