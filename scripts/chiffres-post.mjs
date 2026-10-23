@@ -1,12 +1,16 @@
 // Carte des chiffres pour un post : lit les vrais compteurs dans Firebase (zem_stats/jours) et
 // en fait une image prête à publier. Rien n'est saisi à la main — l'image dit ce que dit la base.
-//   node scripts/chiffres-post.mjs [sortie.png]        (par défaut ~/Desktop/kutonuvibes-post.png)
+//   node scripts/chiffres-post.mjs [sortie.png] [--24h|--48h|--tout]
+// --24h : le dernier jour complet (hier). --48h : les deux derniers jours. --tout (défaut) : depuis le début.
+// Le libellé dit toujours la période réellement comptée : pas de « 24 h » posé sur un total de huit jours.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import { join } from 'node:path';
 
-const SORTIE = process.argv[2] || join(homedir(), 'Desktop', 'kutonuvibes-post.png');
+const args = process.argv.slice(2);
+const periode = args.find(a => /^--(24h|48h|tout)$/.test(a))?.slice(2) || 'tout';
+const SORTIE = args.find(a => !a.startsWith('--')) || join(homedir(), 'Desktop', `kutonuvibes-post${periode === 'tout' ? '' : '-' + periode}.png`);
 const CLI = (() => {
   const base = join(homedir(), '.npm/_npx');
   for (const d of readdirSync(base)) { const p = join(base, d, 'node_modules/.bin/firebase'); try { execFileSync(p, ['--version'], { stdio: 'ignore' }); return p; } catch { /* suivant */ } }
@@ -15,10 +19,20 @@ const CLI = (() => {
 
 const brut = execFileSync(CLI, ['database:get', '/zem_stats/jours', '--project', 'zem-run-cotonou'], { encoding: 'utf8', maxBuffer: 1 << 22 });
 const jours = JSON.parse(brut.slice(brut.indexOf('{')));
-const somme = k => Object.values(jours).reduce((a, j) => a + (j[k] || 0), 0);
-const T = { vues: somme('vues'), appareils: somme('nouveaux'), salon: somme('salon'), zemrun: somme('zemrun'), jours: Object.keys(jours).length };
+// La période retenue : le dernier jour complet, les deux derniers, ou tout. Aujourd'hui n'est pas fini,
+// donc « 24 h » compte hier, une journée entière et vérifiable.
+const cles = Object.keys(jours).sort();
+const aujourdhui = new Date().toLocaleDateString('fr-CA', { timeZone: 'Africa/Porto-Novo' });
+const complets = cles.filter(k => k !== aujourdhui);
+const retenus = periode === '24h' ? complets.slice(-1) : periode === '48h' ? cles.slice(-2) : cles;
+const somme = k => retenus.reduce((a, j) => a + (jours[j]?.[k] || 0), 0);
+const LIBELLE = { '24h': 'ouvertures du site en 24 heures', '48h': 'ouvertures du site en 48 heures' };
+const dateFr = s => new Date(`${s}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+const sousTitre = LIBELLE[periode] || `ouvertures du site en ${retenus.length} jours`;
+const detail = periode === '24h' ? dateFr(retenus[0]) : periode === '48h' ? `${dateFr(retenus[0])} et ${dateFr(retenus[1])}` : '';
+const T = { vues: somme('vues'), appareils: somme('nouveaux'), salon: somme('salon'), zemrun: somme('zemrun'), jours: retenus.length };
 const nb = n => n.toLocaleString('fr-FR').replace(/ | /g, ' ');
-console.log(`Depuis le début : ${nb(T.vues)} ouvertures · ${nb(T.appareils)} appareils · ${nb(T.salon)} vies · ${nb(T.zemrun)} courses`);
+console.log(`${sousTitre}${detail ? ` (${detail})` : ''} : ${nb(T.vues)} ouvertures · ${nb(T.appareils)} appareils · ${nb(T.salon)} vies · ${nb(T.zemrun)} courses`);
 
 const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,7 +53,7 @@ const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8">
   .url { font: 700 19px 'JetBrains Mono', monospace; opacity: .9; }
 </style></head><body>
   <div class="haut"><span class="logo">K</span>Kutɔnu Vibes · Cotonou en 3D</div>
-  <div class="grand">${nb(T.vues)}<small>ouvertures du site en ${T.jours} jours</small></div>
+  <div class="grand">${nb(T.vues)}<small>${sousTitre}${detail ? ` · ${detail}` : ''}</small></div>
   <div class="bas">
     <div class="chiffres">
       <div><b>${nb(T.appareils)}</b><span>appareils différents</span></div>
