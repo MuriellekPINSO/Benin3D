@@ -925,7 +925,7 @@ export function remplirLignes() {
     const km = (L.arrets[L.arrets.length - 1].s / 1000).toFixed(1), court = L === JEU.lignes.reduce((m, l) => l.arrets[l.arrets.length - 1].s < m.arrets[m.arrets.length - 1].s ? l : m, JEU.lignes[0]);
     const P = JEU.prog, choisi = P?.vehicule; // le véhicule débloqué au garage remplace le zém sur ses lignes
     const veh = L.veh === 'zem' && ((choisi === 'voiture' && P.voiture) || (choisi === 'bolide' && P.bolide)) ? choisi : L.veh;
-    b.innerHTML = `<span class="jm-veh ${veh}">${veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : 'Tokpa'}</span><b>${L.nom}</b>${court ? '<em class="jm-debut">Pour commencer</em>' : ''}<small>${L.arrets.map(a => a.nom).join(' → ')}</small><span class="jm-meta">${km} km · ${Math.max(5, Math.round(km * 2.6))} min environ · ${L.arrets.slice(1).reduce((n, a, k) => n + 1 + nbIntermediaires(a.s - L.arrets[k].s), 0)} arrêts${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
+    b.innerHTML = `<span class="jm-veh ${veh}">${veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : veh === 'bolide' ? 'Bolide' : 'Tokpa'}</span><b>${L.nom}</b>${court ? '<em class="jm-debut">Pour commencer</em>' : ''}<small>${L.arrets.map(a => a.nom).join(' → ')}</small><span class="jm-meta">${km} km · ${Math.max(5, Math.round(km * 2.6))} min environ · ${L.arrets.slice(1).reduce((n, a, k) => n + 1 + nbIntermediaires(a.s - L.arrets[k].s), 0)} arrêts${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
     b.addEventListener('click', () => { JEU.numero = ($('#jmNumero').value || '1234').slice(0, 5); sauver(); JEU.fini = false; lancerLigne(L, veh); annoncerDepart(L.id, veh); }); // à deux : l'autre part sur la même ligne
     el.appendChild(b);
   }

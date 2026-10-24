@@ -166,7 +166,8 @@
     "Accident ! Attention ": "Crash! Watch out for ",
     " · glisse pour changer de file, vers le haut pour sauter": " · swipe to change lanes, up to jump",
     " · Gaz et Frein en bas, E pour agir": " · Gas and Brake below, E to act",
-    "'Bolide électrique'": "'Electric sports car'"
+    "'Bolide électrique'": "'Electric sports car'",
+    "'Bolide'": "'Sports car'"
   },
   "index.html": {
     "Crédits": "Credits",
