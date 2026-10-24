@@ -290,13 +290,16 @@ export function tenirPlat(nom, points) {
   jeterPlat();
   const g = assiette(); (S.moi?.userData.main || scene).add(g); g.position.set(0, .05, .05);
   T.plat = { g, nom, points, reste: 1 };
-  ligne(`Tu as ton ${nom.toLowerCase()} : assieds-toi à une table pour manger.`);
+  ligne(`Tu as ton ${nom.toLowerCase()} : assieds-toi pour manger, à une table ou sur ton tabouret.`);
 }
 function jeterPlat() { if (T.plat) { T.plat.g.parent?.remove(T.plat.g); T.plat = null; } }
-/** Appelé quand on s'assoit sur une chaise : l'assiette qu'on porte se pose sur la table, et on mange. */
-export function asseoir(c) {
+/**
+ * Appelé quand on s'assoit : l'assiette qu'on porte se pose devant soi, et on mange. `haut` est la hauteur
+ * du plat : la table par défaut, les genoux (55 cm) quand on s'assoit sur son tabouret dans la rue.
+ */
+export function asseoir(c, haut) {
   if (!T.plat) return;
-  const p = devantChaise(c.x, c.z, c.cap); T.plat.g.parent?.remove(T.plat.g); scene.add(T.plat.g); T.plat.g.position.set(p.x, S.y + p.y, p.z);
+  const p = devantChaise(c.x, c.z, c.cap); T.plat.g.parent?.remove(T.plat.g); scene.add(T.plat.g); T.plat.g.position.set(p.x, S.y + (haut ?? p.y), p.z);
   T.repas = { t: 0, duree: 24, dit: 0, chaise: [c.x, c.z] };
 }
 function majRepas(dt) {
@@ -327,7 +330,10 @@ export function choisir(titre, options, { annuler = 'Annuler' } = {}) {
 export function majTrajets(dt, av, tour) {
   majStations(S.x, S.z); majZem(dt); majRepas(dt); majAeroports();
   const metier = majMetiers(dt); // apprenti de tokpa-tokpa : la caméra suit le minibus
-  if (T.plat && !T.repas && S.anim === 'assis' && S.lieu) { const c = siegeProche(S.lieu, S.x, S.z); if (c && Math.hypot(c.x - S.x, c.z - S.z) < .3) asseoir(c); } // l'assiette arrive alors qu'on est déjà assis
+  if (T.plat && !T.repas && S.anim === 'assis') { // l'assiette arrive alors qu'on est déjà assis (à une table, ou sur son tabouret dans la rue)
+    const c = S.lieu ? siegeProche(S.lieu, S.x, S.z) : S.tabouret && { x: S.tabouret.x, z: S.tabouret.z, cap: S.cap };
+    if (c && Math.hypot(c.x - S.x, c.z - S.z) < .3) asseoir(c, S.lieu ? undefined : .55);
+  }
   if (T.trans) { // on marche jusqu'au véhicule (ya, yb : on monte sur l'aile de l'avion, on en descend)
     const A = T.trans; A.t += dt; const k = Math.min(1, A.t / A.duree);
     S.x = A.de[0] + (A.vers[0] - A.de[0]) * k; S.z = A.de[1] + (A.vers[1] - A.de[1]) * k; S.cap = Math.atan2(A.vers[0] - A.de[0], A.vers[1] - A.de[1]) || S.cap; S.anim = 'marche';

@@ -246,7 +246,9 @@ function geste(nom) {
     if (!S.lieu && siegeGradins(S.x, S.z)) { assoirGradins(); return; }
     const c = S.lieu && siegeProche(S.lieu, S.x, S.z);
     if (c) { S.x = c.x; S.z = c.z; S.cap = c.cap; asseoir(c); } // si l'on porte une assiette, on la pose et on mange
-    else if (!S.lieu && T.mode === 'pied') poserTabouret();
+    // Dehors, on s'assoit sur son tabouret : l'assiette se posait nulle part et restait collée à la main pour
+    // toujours, même en changeant de quartier (retour d'un testeur, 24/10). On mange dessus, sur les genoux.
+    else if (!S.lieu && T.mode === 'pied') { poserTabouret(); asseoir({ x: S.x, z: S.z, cap: S.cap }, .55); }
     else { ligne('Approche-toi d’une table pour t’asseoir.'); return; }
   }
   S.geste = nom; S.gesteFin = nom === 'salut' || nom === 'rire' ? performance.now() + 3200 : 0; // saluer et rire durent un moment, danser et s'asseoir jusqu'au prochain pas
@@ -580,7 +582,16 @@ export function majSalon(dt) {
     const k = murEntre(S.lieu, cible.x, cible.z, voulue.x, voulue.z); if (k < 1) voulue.set(cible.x + (voulue.x - cible.x) * k, voulue.y, cible.z + (voulue.z - cible.z) * k);
   }
   else if (!suivi?.libre && voulue.y - P.y < 14) { // dehors, au ras des toits : si un bâtiment se trouve entre le personnage et la caméra, elle s'approche (jamais dans un mur) ; pas en avion
-    let k = 1; for (let i = 1; i <= 12; i++) { const f = i / 12, px = cible.x + (voulue.x - cible.x) * f, pz = cible.z + (voulue.z - cible.z) * f; if (dansBatiment(px, pz) || profondeurRue(px, pz, .2) > 0 || obstacleArene(px, pz, .2) > 0) { k = Math.max(.15, (i - 1) / 12); break; } } // ni bâtiment, ni mur de parcelle ou portail, ni mur de l'arène
+    // Douze rayons et un pas de 58 cm à 7 m de recul : la caméra pouvait s'arrêter dans la façade, et comme le
+    // plan rapproché est à 60 cm, on voyait l'intérieur du bâtiment (retour d'un testeur, 24/10). Vingt-quatre
+    // rayons, la caméra testée comme une bulle de 55 cm (pas comme un point), et on recule de 50 cm en plus.
+    const lg = Math.hypot(voulue.x - cible.x, voulue.z - cible.z), marge = lg > .5 ? .5 / lg : 0;
+    let k = 1;
+    for (let i = 1; i <= 24; i++) {
+      const f = i / 24, px = cible.x + (voulue.x - cible.x) * f, pz = cible.z + (voulue.z - cible.z) * f;
+      const dedans = dansBatiment(px, pz) || BULLE.some(([u, v]) => dansBatiment(px + u, pz + v)) || profondeurRue(px, pz, .55) > 0 || obstacleArene(px, pz, .55) > 0; // ni bâtiment, ni mur de parcelle ou portail, ni mur de l'arène
+      if (dedans) { k = Math.max(.15, f - marge); break; }
+    }
     // Le long d'un mur, le rayon y entrait et en sortait d'une image à l'autre : la caméra avançait et reculait sans cesse
     // (vidéo d'un testeur, 22/10). Elle se rapproche aussitôt (jamais dans le mur), mais ne recule que doucement.
     S.bras = k < S.bras ? k : S.bras + (k - S.bras) * (1 - Math.exp(-dt * 2.5));
@@ -731,6 +742,8 @@ function descendreAmi(message = '') {
 // Dehors, aussi : l'épaisseur du corps contre les façades (huit points autour de lui), l'arène de Ouidah, la foule, les
 // amis, le zém qui attend, les véhicules garés et les avions.
 const ANNEAU = Array.from({ length: 8 }, (_, k) => [Math.sin(k * Math.PI / 4) * .3, Math.cos(k * Math.PI / 4) * .3]);
+// La caméra n'est pas un point : on la teste comme une bulle d'un rayon un peu plus grand que son plan rapproché.
+const BULLE = Array.from({ length: 8 }, (_, k) => [Math.sin(k * Math.PI / 4) * .55, Math.cos(k * Math.PI / 4) * .55]);
 function boite(x, z, cx, cz, cap, hl, hw, r = .3) { const dx = x - cx, dz = z - cz, u = Math.abs(dx * Math.sin(cap) + dz * Math.cos(cap)), v = Math.abs(dx * Math.cos(cap) - dz * Math.sin(cap)); return u < hl + r && v < hw + r ? Math.min(hl + r - u, hw + r - v) : 0; }
 function corps(x, z) {
   let p = Math.max(dansFoule(x, z), dansArbre(x, z), obstacleAvions(x, z), corpsCommerces(x, z), dansCirculation(x, z)); // + l'équipe et les clients des commerces, les zems et tokpas qui roulent

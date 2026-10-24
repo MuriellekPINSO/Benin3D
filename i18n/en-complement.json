@@ -789,7 +789,6 @@
     "Il te faut ": "You need ",
     " pour ça.": " for that.",
     "Tu as ton ": "You have your ",
-    " : assieds-toi à une table pour manger.": ": sit down at a table to eat.",
     "'Hmm, c’est bon !'": "'Mmm, that’s good!'",
     "'Ça, c’est du bon.'": "'Now that’s tasty.'",
     "'Il faut revenir ici.'": "'We have to come back here.'",
@@ -828,7 +827,8 @@
     "Tu montes sur ": "You get on ",
     ". Flèches ou ZQSD : pédaler, freiner, tourner.": ". Arrows or WASD: pedal, brake, turn.",
     "'loin à pied : prends un zém.'": "'a long walk: take a zém.'",
-    "'suis les chevrons.'": "'follow the chevrons.'"
+    "'suis les chevrons.'": "'follow the chevrons.'",
+    " : assieds-toi pour manger, à une table ou sur ton tabouret.": ": sit down to eat, at a table or on your stool."
   },
   "src/conduite.js": {
     "'zém'": "'zém'",
