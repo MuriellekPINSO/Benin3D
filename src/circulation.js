@@ -39,7 +39,7 @@ function maillages() {
     ['taxi', 0], ['zem', 0], ['camion', 0], ['camion', 1], ['velo', 0], ['velo', 1],
   ];
   for (const [t, k] of def) {
-    // Un vélo sur deux est un Koin Koin (cadre blanc, jantes bleues, le canard) ; l'autre, un vélo comme on en croise partout.
+    // Un vélo sur deux est un Caï Caï (cadre blanc, jantes bleues, le canard) ; l'autre, un vélo comme on en croise partout.
     const velo = k === 0 ? { pilote: true, haut: '#e8e8e4' } : { pilote: true, canard: false, casque: false, cadre: '#2f6fb0', jante: '#9aa1a7', haut: '#d9a521' };
     const parts = t === 'voiture' ? partsVoiture(COULEURS[k]) : t === 'taxi' ? partsVoiture('#f2c21b') : t === 'zem' ? partsZem({ passager: '#2f6fb0' }) : t === 'camion' ? partsCamion() : partsVelo(velo);
     const m = new THREE.InstancedMesh(mergeColored(parts), matVeh, N); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.frustumCulled = false; m.castShadow = !LITE; m.visible = false;

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { $, coarse, toXZ } from './base.js';
 import { PLACES } from './donnees-lieux.js';
 import { creerGuide } from './guide.js';
-import { BALADES, DEVANT_KOIN, POSE_VELO, PRES_DE_KOIN } from './koinkoin.js';
+import { BALADES, DEVANT_CAI, POSE_VELO, PRES_DE_CAI } from './caicai.js';
 import { compterUneFois, lieuStats } from './statistiques.js';
 import { obstacleArene, siegeGradins } from './ouidah.js';
 import { dansArbre, dansFoule } from './lieux.js';
@@ -53,7 +53,7 @@ const PHRASES = ['Salut !', 'Ça va ?', 'On y va !', 'On mange où ?', 'Attends-
 // Lieux de rendez-vous : id dans PLACES, nom dans le menu, « je vais … », décalage du point d'arrivée (mètres,
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
-const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['koinkoin', 'Koin Koin Vélo (location)', 'chez Koin Koin Vélo', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0]]; // 7e : intérieur dont on arrive devant la porte
+const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['caicai', 'Caï Caï Vélo (location)', 'chez Caï Caï Vélo', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0]]; // 7e : intérieur dont on arrive devant la porte
 const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
 const S = { orbite: 0, orbiteT: 0, actif: false, public: false, balade: null, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 't:top-f', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, bras: 1, autres: new Map(), vus: new Set() };
@@ -276,15 +276,15 @@ const tousLieux = () => [...LIEUX, ...lieuxCommerces().map(c => [c.id, c.nom, c.
 function destination(L) {
   if (L[0].startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === L[0]); return c && [c.x, c.z, c.cap]; }
   if (L[0] === 'station') { const st = stationLaPlusProche(S.x, S.z); return st && [st[0], st[1], 0]; }
-  if (L[0] === 'koinkoin') return DEVANT_KOIN; // devant le comptoir, face à la boutique
+  if (L[0] === 'caicai') return DEVANT_CAI; // devant le comptoir, face à la boutique
   if (L[0] === 'maison') { const I = maisonActuelle(); if (!I) return null; const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; } // devant sa porte (maison.js)
   const p = PLACES.find(q => q.id === L[0]), I = L[6] && INTERIEURS.get(L[6]); if (!p) return null;
   if (I) { const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; }
   const [x, z] = toXZ(p.lat, p.lon); return [x + L[3], z + L[4], L[5]];
 }
-// ---------- Koin Koin Vélo : louer au comptoir ----------
-function actionsKoinKoin() {
-  if (T.mode !== 'pied' || S.lieu || !PRES_DE_KOIN(S.x, S.z)) return [];
+// ---------- Caï Caï Vélo : louer au comptoir ----------
+function actionsCaiCai() {
+  if (T.mode !== 'pied' || S.lieu || !PRES_DE_CAI(S.x, S.z)) return [];
   if (VIE.data?.vehicule === 'velo') return [...(S.balade ? [] : [{ texte: 'Partir en balade', f: choisirBalade }]), { texte: 'Rendre le vélo', f: rendreVelo }];
   if (VIE.data?.vehicule) return []; // on a déjà une moto ou une voiture : pas deux véhicules à la fois
   return [{ texte: `Louer un vélo · ${LOCATION_VELO.toLocaleString('fr-FR')} F`, f: prendreVelo }];
@@ -296,7 +296,7 @@ async function prendreVelo() {
 }
 async function rendreVelo() {
   if (!reprendreVehicule()) return ligne('Descends d’abord du vélo.');
-  S.balade = null; await rendreLocation(); ligne('Vélo rendu. Merci, à bientôt chez Koin Koin !');
+  S.balade = null; await rendreLocation(); ligne('Vélo rendu. Merci, à bientôt chez Caï Caï !');
 }
 // ---------- Les balades en groupe ----------
 // Le meneur annonce chaque étape dans la discussion ; les autres n'ont qu'à cliquer « Y aller ». Rien à
@@ -309,7 +309,7 @@ function choisirBalade() {
 }
 function lancerBalade(B) {
   S.balade = { id: B.id, etape: 0 };
-  annoncerEtape(B, 0, `Je pars en balade « ${B.nom} » avec Koin Koin`);
+  annoncerEtape(B, 0, `Je pars en balade « ${B.nom} » avec Caï Caï`);
 }
 function annoncerEtape(B, i, debut) {
   const id = B.etapes[i], L = LIEUX.find(l => l[0] === id); if (!L) return;
@@ -328,14 +328,14 @@ function actionsBalade() {
  *  ou à moto, on n'y saute pas : le GPS trace l'itinéraire par les routes. */
 function aller(id, proposer = true) {
   if (id.startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === id); if (c) allerVers(c.x, c.z, c.cap, c.nom); return; } // chez soi, au travail : on ne l'annonce pas
-  const L = LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || ((id === 'station' || id === 'maison' || id === 'koinkoin') && {}); if (!L || !p) return;
+  const L = LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || ((id === 'station' || id === 'maison' || id === 'caicai') && {}); if (!L || !p) return;
   if (T.mode === 'conduit') { const d = destination(L); if (d) gps(d[0], d[1], id === 'station' ? (stationLaPlusProche(S.x, S.z)?.[2] || L[1]) : L[1]); return; }
   if (T.mode === 'ami') { const A = S.autres.get(S.ami); S.canal?.dire({ n: S.nom, txt: `${A ? `${A.nom}, emmène-moi` : 'Emmène-moi'} ${L[2]} !`, lieu: id }); return; }
   if (T.mode !== 'pied') return;
   const I = id === 'maison' ? maisonActuelle() : L[6] && INTERIEURS.get(L[6]);
   if (I && S.lieu === I) return; // on y est déjà
   if (S.lieu) dehors(false);
-  if (id === 'koinkoin') { const d = destination(L); S.x = d[0] + (Math.random() - .5) * 3; S.z = d[1]; S.cap = d[2]; }
+  if (id === 'caicai') { const d = destination(L); S.x = d[0] + (Math.random() - .5) * 3; S.z = d[1]; S.cap = d[2]; }
   else if (id === 'station') { const d = destination(L); if (!d) return; S.x = d[0] + 6; S.z = d[1]; S.cap = -Math.PI / 2; }
   else if (I) { const a = arriveeDehors(I); S.x = a.x + (Math.random() - .5) * 2; S.z = a.z; S.cap = a.cap + Math.PI; } // devant la porte, face à elle
   else { const [x, z] = toXZ(p.lat, p.lon); S.x = x + L[3] + (Math.random() - .5) * 4; S.z = z + L[4] + (Math.random() - .5) * 4; S.cap = L[5]; }
@@ -635,7 +635,7 @@ export function majSalon(dt) {
   S.actions = T.mode === 'ami' ? actionsAmi()
     : occupe() ? actionsMaison() // couché : se lever ; sous la douche, aux fourneaux : arrêter
     : S.gradin ? [{ texte: 'Se lever', f: leverGradins }]
-    : [...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsKoinKoin(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : [])]; // l'action du lieu d'abord, « Sortir » en dernier
+    : [...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : [])]; // l'action du lieu d'abord, « Sortir » en dernier
   // La touche de chaque bouton : celle de la manette si elle est branchée (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
   const touches = S.pad && performance.now() - S.padT < 1000 ? (S.pad.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
   ['#slEntrer', '#slAction2', '#slAction3'].forEach((sel, k) => { // trois au plus (apprenti à l'arrêt : encaisser, crier, donner le départ)

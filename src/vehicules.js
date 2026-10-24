@@ -39,38 +39,38 @@ export function partsZem(c = {}) {
   }
   return P;
 }
-// ---------- Vélo Koin Koin (koinkoinvelo.com, Cotonou) ----------
+// ---------- Vélo Caï Caï (le loueur du jeu, voir caicai.js) ----------
 // Leurs vélos de ville, d'après leurs photos : cadre blanc, jantes bleu ciel, guidon relevé, porte-bagages
 // arrière. Le canard orange de leur logo est peint sur le cadre. Le cycliste est en option : sur un vélo
 // garé il n'y a personne, et celui que le joueur enfourche le montre, lui, avec son propre personnage.
-export const KOIN = { cadre: '#f4f6f7', jante: '#0c8fd0', canard: '#f9912b', pneu: '#1c1c1e', acier: '#b9bdc1' };
+export const CAI = { cadre: '#f4f6f7', jante: '#0c8fd0', canard: '#f9912b', pneu: '#1c1c1e', acier: '#b9bdc1' };
 export function partsVelo(c = {}) {
   const P = [], add = (g, hex) => P.push([g, hex]);
-  const cadre = c.cadre || KOIN.cadre, jante = c.jante || KOIN.jante;
+  const cadre = c.cadre || CAI.cadre, jante = c.jante || CAI.jante;
   // Un tube du point (ax, ay) au point (bx, by), vu de côté : le cylindre pointe vers +y, on le couche.
   const tube = (ax, ay, bx, by, r, hex, z = 0) => {
     const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || .001;
     add(C3(r, r, L, 6).rotateZ(Math.atan2(-dx, dy)).translate((ax + bx) / 2, (ay + by) / 2, z), hex);
   };
   for (const x of [-.55, .55]) { // pneu, jante bleue, moyeu
-    add(new THREE.TorusGeometry(.34, .042, 5, 18).translate(x, .34, 0), KOIN.pneu);
+    add(new THREE.TorusGeometry(.34, .042, 5, 18).translate(x, .34, 0), CAI.pneu);
     add(new THREE.TorusGeometry(.295, .022, 4, 18).translate(x, .34, 0), jante);
-    add(C3(.05, .05, .09, 6).rotateX(Math.PI / 2).translate(x, .34, 0), KOIN.acier);
+    add(C3(.05, .05, .09, 6).rotateX(Math.PI / 2).translate(x, .34, 0), CAI.acier);
   }
   tube(-.55, .34, -.02, .33, .028, cadre); tube(-.55, .34, -.3, .88, .026, cadre); // bases et haubans
   tube(-.02, .33, -.3, .9, .034, cadre); tube(-.02, .33, .47, .74, .036, cadre); // tube de selle, tube diagonal
   tube(-.29, .86, .46, .78, .032, cadre); tube(.47, .74, .45, .95, .032, cadre); // tube supérieur, tube de direction
-  tube(.46, .9, .55, .34, .027, KOIN.acier, .055); tube(.46, .9, .55, .34, .027, KOIN.acier, -.055); // fourche
+  tube(.46, .9, .55, .34, .027, CAI.acier, .055); tube(.46, .9, .55, .34, .027, CAI.acier, -.055); // fourche
   add(B3(.26, .07, .13).translate(-.3, .95, 0), '#2a2622'); // selle
-  tube(-.3, .9, -.3, .96, .026, KOIN.acier);
-  add(C3(.022, .022, .46, 6).rotateX(Math.PI / 2).translate(.45, 1.02, 0), KOIN.acier); // guidon relevé
+  tube(-.3, .9, -.3, .96, .026, CAI.acier);
+  add(C3(.022, .022, .46, 6).rotateX(Math.PI / 2).translate(.45, 1.02, 0), CAI.acier); // guidon relevé
   for (const z of [.23, -.23]) add(C3(.024, .024, .13, 5).rotateZ(Math.PI / 2).translate(.39, 1.02, z), '#2a2622'); // poignées
   add(C3(.09, .09, .03, 10).rotateX(Math.PI / 2).translate(-.02, .33, .06), '#4a4a4c'); // plateau
-  for (const z of [.1, -.1]) add(C3(.016, .016, .34, 5).rotateZ(.5).translate(-.02, .33, z), KOIN.acier); // manivelles
+  for (const z of [.1, -.1]) add(C3(.016, .016, .34, 5).rotateZ(.5).translate(-.02, .33, z), CAI.acier); // manivelles
   for (const [x, y, z] of [[.1, .21, .12], [-.12, .5, -.12]]) add(B3(.11, .025, .055).translate(x, y, z), '#2a2622'); // pédales, sous les pieds du cycliste
-  add(B3(.3, .025, .22).translate(-.5, .78, 0), KOIN.acier); // porte-bagages
-  for (const z of [.09, -.09]) tube(-.42, .78, -.55, .36, .015, KOIN.acier, z);
-  if (c.canard !== false) add(new THREE.SphereGeometry(.055, 7, 5).scale(1.5, 1, .35).translate(.16, .56, .035), KOIN.canard); // le canard peint sur le tube diagonal
+  add(B3(.3, .025, .22).translate(-.5, .78, 0), CAI.acier); // porte-bagages
+  for (const z of [.09, -.09]) tube(-.42, .78, -.55, .36, .015, CAI.acier, z);
+  if (c.canard !== false) add(new THREE.SphereGeometry(.055, 7, 5).scale(1.5, 1, .35).translate(.16, .56, .035), CAI.canard); // le canard peint sur le tube diagonal
   if (c.pilote) { // en selle, le dos droit et les mains sur le guidon : un vélo de ville, pas un coureur
     const haut = c.haut || '#2f6fb0', peau = c.peau || '#5a3a26', bas = c.bas || '#2b2f36';
     tube(-.26, .97, -.17, 1.44, .145, haut); // le buste, de la selle aux épaules
@@ -83,7 +83,7 @@ export function partsVelo(c = {}) {
     }
     add(C3(.05, .05, .1, 7).translate(-.16, 1.5, 0), peau);
     add(new THREE.SphereGeometry(.14, 9, 7).scale(1.05, 1, 1).translate(-.14, 1.62, 0), peau);
-    if (c.casque !== false) add(new THREE.SphereGeometry(.155, 9, 6).scale(1.05, .72, 1).translate(-.14, 1.69, 0), c.casque || KOIN.jante);
+    if (c.casque !== false) add(new THREE.SphereGeometry(.155, 9, 6).scale(1.05, .72, 1).translate(-.14, 1.69, 0), c.casque || CAI.jante);
   }
   if (c.panier) { add(B3(.26, .18, .3).translate(.52, .96, 0), '#c9a26b'); add(B3(.24, .03, .28).translate(.52, 1.05, 0), '#8f6f45'); }
   return P;

@@ -20,7 +20,7 @@ export const LOGEMENTS = {
   villa: { nom: 'Villa à Fidjrossè', loyer: 20000 },
 };
 export const LOCATION_MOTO = 1500; // F par jour
-// Koin Koin Vélo affiche 4 000 F le vélo pour 1 à 2 heures. Dans le jeu c'est 2 000 F : un joueur
+// Les loueurs de Cotonou demandent 4 000 F le vélo pour 1 à 2 heures. Dans le jeu c'est 2 000 F : un joueur
 // « Débrouillard » commence avec 2 000 F, et à 4 000 F personne ne voyait jamais la boutique ni les balades.
 export const LOCATION_VELO = 2000, HEURES_VELO = 2;
 const RESERVOIRS = { moto: 3, voiture: 6, taxi: 6, tokpa: 10, velo: 0 }; // litres (échelle du jeu, voir conduite.js) ; le vélo ne boit rien
@@ -126,7 +126,7 @@ export async function assurerVie(local, { nom, modele }) {
   payerLoyers(); await versementEchu();
   if (VIE.data.vehiculeFin && Date.now() > VIE.data.vehiculeFin && (VIE.data.vehicule === 'moto' || VIE.data.vehicule === 'velo')) {
     const velo = VIE.data.vehicule === 'velo'; ecrire({ vehicule: '', carburant: 0, vehiculeFin: 0 });
-    VIE.alerte ||= velo ? 'Ton vélo Koin Koin est rendu : les deux heures sont passées.' : 'Ta location de moto est terminée : tu peux en relouer une.';
+    VIE.alerte ||= velo ? 'Ton vélo Caï Caï est rendu : les deux heures sont passées.' : 'Ta location de moto est terminée : tu peux en relouer une.';
   }
   VIE.faimT = 0; rendreVie();
   return VIE.data;
@@ -188,10 +188,10 @@ export function majVie(dt) {
   }
   VIE.sauveT += dt; if (VIE.sauveT > 30) { VIE.sauveT = 0; sauverVie(); }
 }
-/** Loue un vélo chez Koin Koin Vélo, pour deux heures. */
+/** Loue un vélo chez Caï Caï Vélo, pour deux heures. */
 export async function louerVelo() {
   if (!VIE.data || VIE.data.vehicule) return false;
-  if (!(await depenser(LOCATION_VELO, `location d’un vélo Koin Koin (${HEURES_VELO} h)`))) { annonce(`Il te faut ${fmt(LOCATION_VELO)} pour louer un vélo.`); return false; }
+  if (!(await depenser(LOCATION_VELO, `location d’un vélo Caï Caï (${HEURES_VELO} h)`))) { annonce(`Il te faut ${fmt(LOCATION_VELO)} pour louer un vélo.`); return false; }
   await ecrire({ vehicule: 'velo', carburant: 0, vehiculeFin: Date.now() + HEURES_VELO * 36e5 }); rendreVie(); return true;
 }
 /** Rend le véhicule loué avant la fin (vélo rapporté au comptoir) : rien n'est remboursé. */
