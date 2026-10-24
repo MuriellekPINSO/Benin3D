@@ -55,7 +55,10 @@ function indexer() {
     const cum = [0]; for (let j = 1; j < L.pts.length; j++) cum.push(cum[j - 1] + Math.hypot(L.pts[j][0] - L.pts[j - 1][0], L.pts[j][1] - L.pts[j - 1][1]));
     const R = { L, li, cum, len: cum[cum.length - 1], hw: (L.w || 6) / 2, sens: !!L.sens }; if (R.len < 15) return; L._circ = R;
     for (let j = 0; j < L.pts.length; j += 2) { const k = Math.floor(L.pts[j][0] / CELL) + ',' + Math.floor(L.pts[j][1] / CELL); let l = C.grille.get(k); if (!l) C.grille.set(k, l = new Set()); l.add(R); }
-    for (const [fin, p] of [[0, L.pts[0]], [1, L.pts[L.pts.length - 1]]]) { const k = cleBout(p[0], p[1]); let l = C.bouts.get(k); if (!l) C.bouts.set(k, l = []); l.push({ R, fin }); }
+    // Carrefours : on indexe TOUS les points de la rue, pas seulement ses deux bouts. Beaucoup de croisements sont
+    // des T, où une rue se termine au milieu d'une autre : le bout de la première ne tombait sur le bout d'aucune
+    // autre, le véhicule n'avait nulle part où tourner et filait tout droit (« certains ne savent pas tourner »).
+    for (let j = 0; j < L.pts.length; j++) { const k = cleBout(L.pts[j][0], L.pts[j][1]); let l = C.bouts.get(k); if (!l) C.bouts.set(k, l = []); l.push({ R, s: cum[j] }); }
   });
   C.cleBout = cleBout;
 }
@@ -119,7 +122,11 @@ export function majCirculation(dt, J) {
     let vise = V.vmax;
     for (const W of C.vehicules) {
       if (W === V || W.R !== V.R || W.dir !== V.dir || Math.abs(W.lane - V.lane) > 1.6) continue;
-      const ecart = (W.s - V.s) * V.dir - W.hl - V.hl; if (ecart > 0 && ecart < 14) vise = Math.min(vise, ecart < 3 ? 0 : W.v * (ecart / 14));
+      // On visait W.v * (ecart / 14) : derrière un vélo à 3 m/s, une voiture plafonnait à 2,8 m/s même à 13 m, et
+      // la file entière ralentissait de proche en proche — d'où les véhicules « très lents sans raison ». On vise
+      // maintenant la vitesse de celui de devant, plus ce que l'écart permet de gagner.
+      const ecart = (W.s - V.s) * V.dir - W.hl - V.hl;
+      if ((W.s - V.s) * V.dir > 0 && ecart < 14) vise = Math.min(vise, ecart < 2.5 ? 0 : W.v + (ecart - 2.5) * .9);
     }
     const ax = J.x - V.px, az = J.z - V.pz, devant = ax * V.fx + az * V.fz, cote = Math.abs(ax * V.fz - az * V.fx);
     if (devant > 0 && devant < V.hl + Jr + 12 && cote < V.hw + Jr + .7) vise = Math.min(vise, Math.max(0, (devant - V.hl - Jr - 2) * 1.1)); // freine à temps : arrêt à 2 m de son pare-chocs
@@ -128,13 +135,22 @@ export function majCirculation(dt, J) {
     V.s += V.v * dt * V.dir;
     if (V.s < 0 || V.s > V.R.len) { // au bout de la rue : la suivante (au carrefour), sinon demi-tour
       const bout = V.s < 0 ? 0 : 1, p = bout ? V.R.L.pts[V.R.L.pts.length - 1] : V.R.L.pts[0];
-      const suite = (C.bouts.get(C.cleBout(p[0], p[1])) || []).filter(b => b.R !== V.R && (!b.R.sens || b.fin === 0));
-      if (suite.length) { const b = suite[Math.floor(Math.random() * suite.length)]; V.R = b.R; V.dir = b.fin === 0 ? 1 : -1; V.s = b.fin === 0 ? .5 : b.R.len - .5; V.lane = voie(b.R, V.type.id); }
-      else if (V.R.sens) { V.R = null; continue; }
-      // Au bout d'une impasse, il ne fait plus demi-tour : il réapparaît ailleurs. Avant, dans une petite rue sans
-      // issue, toute la circulation faisait la navette au même endroit, et ceux qui revenaient roulaient dans la file
-      // de ceux qui arrivaient.
-      else { V.R = null; continue; }
+      const suite = (C.bouts.get(C.cleBout(p[0], p[1])) || []).filter(b => b.R !== V.R && b.s > .5 && b.s < b.R.len - .5);
+      // On rejoint la rue croisée en son milieu : il faut donc vérifier la place, sinon on atterrit sur un autre
+      // véhicule et les deux se bloquent (la première version doublait le nombre de véhicules à l'arrêt).
+      let pris = null;
+      for (let essai = 0; essai < 4 && suite.length && !pris; essai++) {
+        const b = suite.splice(Math.floor(Math.random() * suite.length), 1)[0];
+        const dir = b.R.sens ? 1 : b.s < b.R.len / 2 ? 1 : -1, lane = voie(b.R, V.type.id);
+        const occupe = C.vehicules.some(W => W !== V && W.R === b.R && W.dir === dir && Math.abs(W.lane - lane) < 1.6 && Math.abs(W.s - b.s) < W.hl + V.hl + 4);
+        if (!occupe) pris = { R: b.R, dir, s: b.s, lane };
+      }
+      if (pris) { V.R = pris.R; V.dir = pris.dir; V.s = pris.s; V.lane = pris.lane; }
+      // Impasse, ou sens unique sans suite. Le faire réapparaître ailleurs évite la navette dans les petites rues,
+      // mais les joueurs voyaient des voitures s'évaporer devant eux : on ne le retire que de dos ou de loin, et
+      // sous les yeux du joueur il fait demi-tour, ce qui est de toute façon ce qu'on ferait.
+      else if (horsDeVue(J, V.px, V.pz)) { V.R = null; continue; } // impasse, ou pas de place au carrefour
+      else { V.dir = -V.dir; V.s = THREE.MathUtils.clamp(V.s, .5, V.R.len - .5); V.v = 0; V.lane = voie(V.R, V.type.id); }
     }
     let p = poser(V.R, V.s, V.dir), x = p.x - p.dz * V.lane, z = p.z + p.dx * V.lane;
     // Garde-fou : le freinage est progressif (9 m/s² au plus). Il faut 9 m à une voiture lancée à 47 km/h pour
