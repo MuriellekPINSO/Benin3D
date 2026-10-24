@@ -1,10 +1,11 @@
 // ---------- Audio : radio, moteur, effets ----------
 export const AUDIO = { ctx: null, buf: null, src: null, radio: false, moteur: null, gainR: null, muet: false };
 export function audioCtx() { try { if (!AUDIO.ctx) AUDIO.ctx = new (window.AudioContext || window.webkitAudioContext)(); if (AUDIO.ctx.state === 'suspended') AUDIO.ctx.resume(); } catch (e) { } return AUDIO.ctx; }
-// Radios béninoises en direct (annuaire libre Radio Browser) : leur musique, sans fichier à nous dont il faudrait les
+// Radios béninoises en direct (annuaires libres Radio Browser et OnlineRadioBox) : leur musique, sans fichier à nous dont il faudrait les
 // droits ; « Ambiance du jeu » est la musique d'origine (public/audio/radio.mp3, droits à vérifier, voir le README).
 export const STATIONS = [
   { id: 'cotonou', nom: 'Radio Cotonou 94.3', sous: 'Musique africaine · en direct', url: 'https://stream.zeno.fm/o9bspgm4y78vv' },
+  { id: 'kiff', nom: 'Kiff FM', sous: 'La radio jeune du Bénin · en direct', url: 'https://listen.radioking.com/radio/613798/stream/675604' },
   { id: 'ortb', nom: 'ORTB Radio Bénin', sous: 'La radio nationale · en direct', url: 'https://listen.radioking.com/radio/47608/stream/84430' },
   { id: 'parakou', nom: 'ORTB Radio Parakou', sous: 'Depuis le nord du Bénin · en direct', url: 'https://listen.radioking.com/radio/51919/stream/88927' },
   { id: 'jeu', nom: 'Ambiance du jeu', sous: 'Sans connexion', url: null },

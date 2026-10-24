@@ -1406,7 +1406,9 @@
     "'La radio nationale · en direct'": "'National radio · live'",
     "'Depuis le nord du Bénin · en direct'": "'From northern Benin · live'",
     "'Ambiance du jeu'": "'Game soundtrack'",
-    "'Sans connexion'": "'Works offline'"
+    "'Sans connexion'": "'Works offline'",
+    "'Kiff FM'": "'Kiff FM'",
+    "'La radio jeune du Bénin · en direct'": "'Benin youth radio · live'"
   },
   "src/explorer.js": {
     "<p class=\"rm-titre\">Radios du Bénin</p>": "<p class=\"rm-titre\">Radios of Benin</p>",
