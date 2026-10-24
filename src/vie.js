@@ -20,7 +20,9 @@ export const LOGEMENTS = {
   villa: { nom: 'Villa à Fidjrossè', loyer: 20000 },
 };
 export const LOCATION_MOTO = 1500; // F par jour
-export const LOCATION_VELO = 4000, HEURES_VELO = 2; // le tarif de Koin Koin Vélo : 4 000 F le vélo pour 1 à 2 heures
+// Koin Koin Vélo affiche 4 000 F le vélo pour 1 à 2 heures. Dans le jeu c'est 2 000 F : un joueur
+// « Débrouillard » commence avec 2 000 F, et à 4 000 F personne ne voyait jamais la boutique ni les balades.
+export const LOCATION_VELO = 2000, HEURES_VELO = 2;
 const RESERVOIRS = { moto: 3, voiture: 6, taxi: 6, tokpa: 10, velo: 0 }; // litres (échelle du jeu, voir conduite.js) ; le vélo ne boit rien
 // Les métiers du transport (étape 2, première vague) : metiers.js. Sans véhicule à soi, on travaille avec celui
 // d'un patron, qu'on lui rembourse par un versement en fin de journée (comme les vrais zémidjans).
