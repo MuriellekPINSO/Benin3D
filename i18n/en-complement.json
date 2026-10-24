@@ -586,7 +586,8 @@
     " : rendez-vous ": " ride: meeting point ",
     "Balade : annoncer l’étape ": "Ride: announce stop ",
     "Fin de la balade « ": "End of the “",
-    " ». Merci à tous !": "” ride. Thanks everyone!"
+    " ». Merci à tous !": "” ride. Thanks everyone!",
+    " h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ».": " h. It's parked in front of the shop: walk up to it and “Get on your bike”."
   },
   "src/interieurs.js": {
     "'Chez Tantie Rose'": "'Chez Tantie Rose'",

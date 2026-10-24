@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { $, coarse, toXZ } from './base.js';
 import { PLACES } from './donnees-lieux.js';
 import { creerGuide } from './guide.js';
-import { BALADES, DEVANT_KOIN, PRES_DE_KOIN } from './koinkoin.js';
+import { BALADES, DEVANT_KOIN, POSE_VELO, PRES_DE_KOIN } from './koinkoin.js';
 import { compterUneFois, lieuStats } from './statistiques.js';
 import { obstacleArene, siegeGradins } from './ouidah.js';
 import { dansArbre, dansFoule } from './lieux.js';
@@ -291,8 +291,8 @@ function actionsKoinKoin() {
 }
 async function prendreVelo() {
   if (!(await louerVelo())) return;
-  garerSonVehicule(); son('piece');
-  ligne(`Vélo loué pour ${HEURES_VELO} h. Il est posé à côté : approche-toi et « Monter sur ton vélo ».`);
+  garerSonVehicule(POSE_VELO); son('piece');
+  ligne(`Vélo loué pour ${HEURES_VELO} h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ».`);
 }
 async function rendreVelo() {
   if (!reprendreVehicule()) return ligne('Descends d’abord du vélo.');

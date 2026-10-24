@@ -14,6 +14,8 @@ const [AX, AZ] = toXZ(LAT, LON);
 // pour que le point d'arrivée devant elle tombe au bon endroit. On s'arrête à 4,2 m, hors de l'auvent.
 export const KOIN_LIEU = { x: AX + 38, z: AZ - 62 };
 export const DEVANT_KOIN = [KOIN_LIEU.x, KOIN_LIEU.z + 4.2, Math.PI]; // x, z, et le regard vers la boutique
+// Où le loueur pose le vélo : à trois pas du comptoir, hors de l'auvent, roue vers la ville.
+export const POSE_VELO = { x: KOIN_LIEU.x - 2.4, z: KOIN_LIEU.z + 4, cap: 0 };
 export const PRES_DE_KOIN = (x, z) => Math.hypot(x - KOIN_LIEU.x, z - KOIN_LIEU.z) < 9;
 
 // Leurs balades en groupe, celles de leur programme, chacune par des lieux de rendez-vous du jeu

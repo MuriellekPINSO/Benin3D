@@ -45,11 +45,13 @@ export function entrerMonde() {
 }
 /** Le loueur reprend le véhicule : il disparaît de la rue. Seulement à pied, pas en roulant dessus. */
 export function reprendreVehicule() { if (T.mode !== 'pied') return false; retirerVehicule(T.veh); T.veh = null; return true; }
-export function garerSonVehicule() {
+/** `ou` ({ x, z, cap }) : un emplacement imposé — le vélo qu'on loue est posé devant la boutique, pas sur la
+ *  route la plus proche, qui pouvait être à 15 m de l'autre côté d'une haie. */
+export function garerSonVehicule(ou = null) {
   const type = VIE.data?.vehicule; if (!type || !VEHICULES[type] || T.veh) return;
   const o = S.lieu ? arriveeDehors(S.lieu) : S; // dans un bâtiment (chez soi au réveil) : dans la rue, devant la porte
-  const p = pointDeRoute(o.x + Math.sin(o.cap + Math.PI / 2) * 4, o.z + Math.cos(o.cap + Math.PI / 2) * 4, 0, 150); if (!p) return;
-  T.veh = creerVehicule(type, { couleur: type === 'voiture' ? '#7a1f2b' : '#a32b26' }); placer(T.veh, p[0], p[1], Math.atan2(p[0] - o.x, p[1] - o.z));
+  const p = ou ? [ou.x, ou.z] : pointDeRoute(o.x + Math.sin(o.cap + Math.PI / 2) * 4, o.z + Math.cos(o.cap + Math.PI / 2) * 4, 0, 150); if (!p) return;
+  T.veh = creerVehicule(type, { couleur: type === 'voiture' ? '#7a1f2b' : '#a32b26' }); placer(T.veh, p[0], p[1], ou ? ou.cap : Math.atan2(p[0] - o.x, p[1] - o.z));
   const nom = type === 'voiture' ? 'Ta voiture' : type === 'velo' ? 'Ton vélo' : 'Ta moto', e = etiquette(nom); e.position.y = type === 'voiture' ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
   const d = Math.round(Math.hypot(p[0] - o.x, p[1] - o.z) / 5) * 5;
   if (d > 8 && !S.lieu) ligne(type === 'velo' ? `Ton vélo est posé sur la route, à ${d} m : suis l’étiquette jaune.` : `${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);

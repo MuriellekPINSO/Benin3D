@@ -4,7 +4,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { TRIPO, urlTripo } from './batiments-tripo.js';
 import { construireReseau, itineraireCourt } from './carrefours.js';
 import { personne } from './discussions.js';
-import { dansBatiment, dansObstacleRue } from './rue.js';
+import { dansBatiment, dansObstacleRue, pietonOk } from './rue.js';
 import { hauteurSol } from './sols.js';
 import { animerMoto } from './roues.js';
 import { dansTerrePlein } from './terre-pleins.js';
@@ -138,7 +138,9 @@ export function piloter(V, av, tour, dt, { panne = false } = {}) {
 // bâtiments : avant, seul le centre comptait, et tout le capot rentrait dans la clôture.
 const horsMur = (x, z) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && !dansCirculation(x, z, .05) && hauteurSol(x, z) < .25; // ni dans un zém ou un tokpa qui roule, ni sur des marches (sols.js)
 function passe(V, x, z) {
-  if (!surRoute(x, z)) return false;
+  // Un vélo n'est pas tenu à la chaussée : il roule partout où l'on marche — l'esplanade, les trottoirs —,
+  // comme à Cotonou. Sans ça, celui qu'on loue sur l'esplanade de l'Amazone ne pouvait pas avancer d'un mètre.
+  if (!surRoute(x, z) && !(V.D.pedale && pietonOk(x, z))) return false;
   const L = (V.D.long ?? 2) / 2 * .92 * (Math.sign(V.v) || 1), W = (V.D.larg ?? .8) / 2 * .9, sx = Math.sin(V.cap), cz = Math.cos(V.cap), fx = x + sx * L, fz = z + cz * L;
   return horsMur(fx, fz) && horsMur(fx + cz * W, fz - sx * W) && horsMur(fx - cz * W, fz + sx * W);
 }
