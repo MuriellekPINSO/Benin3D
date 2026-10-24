@@ -259,8 +259,21 @@ export function majRuban(dt) { if (texChevron) texChevron.offset.y = (texChevron
 export function retirerRuban(m) { if (m) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); } }
 /** Distance restante le long du chemin depuis (x, z). */
 export function reste(pts, x, z) {
-  let bi = 0, bd = Infinity; for (let i = 0; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - x, pts[i][1] - z); if (d < bd) { bd = d; bi = i; } }
-  return { ecart: bd, m: bd + longueur(pts.slice(bi)) };
+  // Distance au segment le plus proche, et non au sommet le plus proche : sur une rue droite, deux nœuds sont
+  // parfois à 80 m l'un de l'autre, et l'on se croyait à 40 m de son itinéraire en roulant pile dessus. Le GPS
+  // ne pouvait donc se recalculer qu'au-delà d'un écart énorme, et le kilométrage restant sautait d'un nœud à
+  // l'autre (un testeur : « il ne se met pas à jour en fonction de notre position »).
+  if (!pts.length) return { ecart: Infinity, m: 0 };
+  if (pts.length === 1) { const d = Math.hypot(pts[0][0] - x, pts[0][1] - z); return { ecart: d, m: d }; }
+  let bi = 0, bd = Infinity, bt = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], ux = pts[i + 1][0] - ax, uz = pts[i + 1][1] - az, l2 = ux * ux + uz * uz;
+    const t = l2 ? Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / l2)) : 0;
+    const d = Math.hypot(ax + ux * t - x, az + uz * t - z);
+    if (d < bd) { bd = d; bi = i; bt = t; }
+  }
+  const [ax, az] = pts[bi], px = ax + (pts[bi + 1][0] - ax) * bt, pz = az + (pts[bi + 1][1] - az) * bt;
+  return { ecart: bd, m: bd + Math.hypot(pts[bi + 1][0] - px, pts[bi + 1][1] - pz) + longueur(pts.slice(bi + 1)) };
 }
 
 // ---------- Stations-service (les 64 d'OpenStreetMap), construites quand on approche ----------

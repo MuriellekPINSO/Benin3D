@@ -149,7 +149,9 @@ function majGps(dt, x, z, cap) {
   // À pied on arrive sur le pas de la porte ; au volant, 22 m suffisent (on se gare au bord).
   if (Math.hypot(G.x - x, G.z - z) < (T.mode === 'pied' ? 7 : 22)) { ligne(`Tu es arrivé : ${G.nom}.`); son('arret'); retirerRuban(G.m); T.gps = null; $('#vhGps').hidden = true; return; }
   T.gpsT += dt;
-  if (r.ecart > 35 && T.gpsT > 2) { T.gpsT = 0; const pts = itineraire(x, z, cap, G.x, G.z); if (pts) { retirerRuban(G.m); G.pts = pts; G.m = ruban(pts); } } // on s'est écarté : nouvel itinéraire
+  // L'écart est maintenant mesuré au segment, pas au sommet : on peut redescendre le seuil de 35 m à 12, donc
+  // recalculer dès qu'on a pris la mauvaise rue au lieu d'attendre d'être à un demi-pâté de maisons.
+  if (r.ecart > 12 && T.gpsT > 1.5) { T.gpsT = 0; const pts = itineraire(x, z, cap, G.x, G.z); if (pts) { retirerRuban(G.m); G.pts = pts; G.m = ruban(pts); } } // on s'est écarté : nouvel itinéraire
   $('#vhGps').hidden = false; $('#vhGps').textContent = `→ ${G.nom} · ${r.m > 950 ? `${(r.m / 1000).toFixed(1).replace('.', ',')} km` : `${Math.round(r.m / 10) * 10} m`}`;
 }
 
