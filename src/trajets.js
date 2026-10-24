@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $ } from './base.js';
 import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js';
-import { PRIX_LITRE, VEHICULES, creerVehicule, initStations, itineraire, longueur, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
+import { PRIX_LITRE, VEHICULES, creerVehicule, initStations, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
 import { dansBatiment, dansObstacleRue, decalee } from './rue.js';
 import { E } from './etat.js';
 import { dansCirculation } from './trafic.js';
@@ -137,13 +137,17 @@ export function gps(x, z, nom) {
   retirerRuban(T.gps?.m); T.gps = null;
   if (!pts || pts.length < 2) { ligne(`Pas d’itinéraire trouvé jusqu’à ${nom}.`); return false; }
   T.gps = { pts, m: ruban(pts), nom, x, z }; T.gpsT = 0;
-  ligne(`Itinéraire jusqu’à ${nom} : ${(longueur(pts) / 1000).toFixed(1).replace('.', ',')} km. Suis la ligne bleue.`);
+  const km = longueur(pts) / 1000;
+  // À pied, au-delà de 800 m, la marche n'est plus raisonnable : on dit tout de suite quoi faire.
+  ligne(`${nom} · ${km < .95 ? `${Math.round(km * 100) * 10} m` : `${km.toFixed(1).replace('.', ',')} km`} · ${T.mode === 'pied' && km > .8 ? 'loin à pied : prends un zém.' : 'suis les chevrons.'}`);
   return true;
 }
 function majGps(dt, x, z, cap) {
   const G = T.gps; if (!G) { $('#vhGps').hidden = true; return; }
+  majRuban(dt);
   const r = reste(G.pts, x, z);
-  if (Math.hypot(G.x - x, G.z - z) < 22) { ligne(`Tu es arrivé : ${G.nom}.`); son('arret'); retirerRuban(G.m); T.gps = null; $('#vhGps').hidden = true; return; }
+  // À pied on arrive sur le pas de la porte ; au volant, 22 m suffisent (on se gare au bord).
+  if (Math.hypot(G.x - x, G.z - z) < (T.mode === 'pied' ? 7 : 22)) { ligne(`Tu es arrivé : ${G.nom}.`); son('arret'); retirerRuban(G.m); T.gps = null; $('#vhGps').hidden = true; return; }
   T.gpsT += dt;
   if (r.ecart > 35 && T.gpsT > 2) { T.gpsT = 0; const pts = itineraire(x, z, cap, G.x, G.z); if (pts) { retirerRuban(G.m); G.pts = pts; G.m = ruban(pts); } } // on s'est écarté : nouvel itinéraire
   $('#vhGps').hidden = false; $('#vhGps').textContent = `→ ${G.nom} · ${r.m > 950 ? `${(r.m / 1000).toFixed(1).replace('.', ',')} km` : `${Math.round(r.m / 10) * 10} m`}`;

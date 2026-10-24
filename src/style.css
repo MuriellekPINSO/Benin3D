@@ -1171,3 +1171,26 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
 .metier-etapes { margin: 4px 0 6px; padding-left: 22px; display: grid; gap: 8px; line-height: 1.4; }
 .metier-etapes li::marker { font-weight: 800; color: var(--accent); }
 
+
+/* ---------- En jeu : plus épuré, et des boutons qu'on attrape au doigt ----------
+   Inspiré des tableaux de bord de ville en 3D : des pastilles posées aux quatre coins, peu de texte, la
+   ville qu'on voit au travers. Le jeu garde les couleurs du site (crème et vert) : seule la densité change. */
+.salon-hud .panel { background: rgba(255, 255, 255, .86); }
+.salon-hud .sl-haut b { white-space: nowrap; } /* « En ville » passait à la ligne sur un téléphone */
+.sl-guide { font-size: 13.5px; line-height: 1.45; }
+
+/* Au doigt : 44 px de haut partout (recommandation d'Apple et de Google), sinon on vise à côté. */
+@media (pointer: coarse) {
+  .salon-hud :is(.vh-boutons .vh-louer, .sl-haut button, .sl-courir, .sl-actions button, .sl-actions select, .sl-boutons button) { min-height: 44px; }
+  .salon-hud .sl-haut button { padding: 10px 16px; }
+  .vh-boutons .vh-louer { padding: 10px 16px; }
+  .sl-courir { padding: 11px 18px; }
+}
+@media (pointer: coarse) and (max-width: 720px) {
+  .sl-haut { padding: 6px 6px 6px 12px; gap: 6px; }
+  .sl-haut b { font-size: 14px; }
+  /* Au-dessus de « Courir » (bas 146 px, haut ~190) : le guide prend toute la largeur sur un téléphone,
+     donc rien ne peut se mettre à côté — il doit passer par-dessus, pas devant. */
+  .sl-guide { bottom: 200px; padding: 10px 14px; font-size: 13px; }
+  .sl-guide .ev-sur { font-size: 10px; }
+}

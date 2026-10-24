@@ -587,7 +587,16 @@
     "Balade : annoncer l’étape ": "Ride: announce stop ",
     "Fin de la balade « ": "End of the “",
     " ». Merci à tous !": "” ride. Thanks everyone!",
-    " h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ».": " h. It's parked in front of the shop: walk up to it and “Get on your bike”."
+    " h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ».": " h. It's parked in front of the shop: walk up to it and “Get on your bike”.",
+    "'Tu te réveilles chez toi. Touche « Se lever ».'": "'You wake up at home. Tap “Get up”.'",
+    "'Tu te réveilles chez toi. [E] pour te lever.'": "'You wake up at home. [E] to get up.'",
+    "'Le joystick pour marcher, « Courir » pour courir.'": "'Joystick to walk, “Run” to run.'",
+    "'Flèches ou [Z] [Q] [S] [D] pour marcher. Clique dans la ville pour tourner la caméra, [Échap] pour la libérer.'": "'Arrows or [W] [A] [S] [D] to walk. Click in the city to steer the camera, [Esc] to release it.'",
+    "'Approche-toi de la douche, du fourneau ou de la table : le bouton vert fait le reste.'": "'Walk up to the shower, the stove or the table: the green button does the rest.'",
+    "'« Aller · gestes », en bas à droite : choisis où aller, le chemin s’allume au sol. « Travailler », en haut à gauche, te trouve un métier.'": "'“Go · gestures”, bottom right: pick where to go, the way lights up on the ground. “Work”, top left, finds you a job.'",
+    "'« Aller à », en bas à droite : choisis où aller, le chemin s’allume au sol. « Travailler », en haut à gauche, te trouve un métier.'": "'“Go to”, bottom right: pick where to go, the way lights up on the ground. “Work”, top left, finds you a job.'",
+    "'En haut à gauche : ton argent et ta faim. Mange quand elle baisse — maquis, food court, ou chez toi.'": "'Top left: your money and your hunger. Eat when it drops — a maquis, the food court, or at home.'",
+    " · ta destination": " · where you’re going"
   },
   "src/interieurs.js": {
     "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -816,7 +825,9 @@
     "'Ton vélo'": "'Your bike'",
     "Ton vélo est posé sur la route, à ": "Your bike is parked on the road, ",
     "Tu montes sur ": "You get on ",
-    ". Flèches ou ZQSD : pédaler, freiner, tourner.": ". Arrows or WASD: pedal, brake, turn."
+    ". Flèches ou ZQSD : pédaler, freiner, tourner.": ". Arrows or WASD: pedal, brake, turn.",
+    "'loin à pied : prends un zém.'": "'a long walk: take a zém.'",
+    "'suis les chevrons.'": "'follow the chevrons.'"
   },
   "src/conduite.js": {
     "'zém'": "'zém'",

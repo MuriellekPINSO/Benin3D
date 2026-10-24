@@ -324,8 +324,9 @@ function actionsBalade() {
   else out.push({ texte: 'Finir la balade', f: () => { S.balade = null; S.canal?.dire({ n: S.nom, txt: `Fin de la balade « ${B.nom} ». Merci à tous !` }); } });
   return out;
 }
-/** Se rend à un lieu de rendez-vous ; `proposer` : prévient les autres, qui peuvent suivre d'un clic. En voiture
- *  ou à moto, on n'y saute pas : le GPS trace l'itinéraire par les routes. */
+/** Se rend à un lieu de rendez-vous ; `proposer` : prévient les autres, qui peuvent suivre d'un clic.
+ *  On n'y saute plus, à pied non plus : le chemin s'allume au sol et l'on y va à pied, en zém ou au volant.
+ *  Seuls les lieux qu'aucune route ne relie (Ouidah, à 35 km) gardent l'ancien saut. */
 function aller(id, proposer = true) {
   if (id.startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === id); if (c) allerVers(c.x, c.z, c.cap, c.nom); return; } // chez soi, au travail : on ne l'annonce pas
   const L = LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || ((id === 'station' || id === 'maison' || id === 'caicai') && {}); if (!L || !p) return;
@@ -335,6 +336,11 @@ function aller(id, proposer = true) {
   const I = id === 'maison' ? maisonActuelle() : L[6] && INTERIEURS.get(L[6]);
   if (I && S.lieu === I) return; // on y est déjà
   if (S.lieu) dehors(false);
+  const d0 = destination(L), nom0 = id === 'station' ? (stationLaPlusProche(S.x, S.z)?.[2] || L[1]) : L[1];
+  if (d0 && Math.hypot(d0[0] - S.x, d0[1] - S.z) > 12 && gps(d0[0], d0[1], nom0)) {
+    if (proposer && id !== 'station' && id !== 'maison') S.canal?.dire({ n: S.nom, txt: `Je vais ${L[2]}, venez !`, lieu: id });
+    return;
+  }
   if (id === 'caicai') { const d = destination(L); S.x = d[0] + (Math.random() - .5) * 3; S.z = d[1]; S.cap = d[2]; }
   else if (id === 'station') { const d = destination(L); if (!d) return; S.x = d[0] + 6; S.z = d[1]; S.cap = -Math.PI / 2; }
   else if (I) { const a = arriveeDehors(I); S.x = a.x + (Math.random() - .5) * 2; S.z = a.z; S.cap = a.cap + Math.PI; } // devant la porte, face à elle
@@ -343,11 +349,12 @@ function aller(id, proposer = true) {
   if (proposer && id !== 'station' && id !== 'maison') S.canal?.dire({ n: S.nom, txt: `Je vais ${L[2]}, venez !`, lieu: id });
 }
 
-/** Va jusqu'à un point de la ville (une boutique, commerces.js) : à pied, on y est aussitôt ; en voiture, le GPS y mène. */
+/** Va jusqu'à un point de la ville (une boutique, commerces.js) : le chemin s'allume au sol, à pied comme au volant. */
 function allerVers(x, z, cap, nom) {
   if (T.mode === 'conduit') { gps(x, z, nom); return; }
   if (T.mode !== 'pied') { ligne('Termine d’abord ton trajet.'); return; }
   if (S.lieu) dehors(false);
+  if (Math.hypot(x - S.x, z - S.z) > 12 && gps(x, z, nom)) return;
   S.x = x; S.z = z; S.y = 0; S.cap = cap; S.saut = true; S.geste = 'idle';
 }
 
@@ -494,11 +501,11 @@ const nomAuHasard = femme => { const l = PRENOMS[femme ? 'f' : 'h']; return l[Ma
 const GS = { vuCouche: false, marche: 0, px: null, pz: 0, activite: false, dehorsT: 0 };
 let guideSalon = null;
 const etapesSalon = () => [
-  { id: 'lever', texte: () => coarse ? 'Tu te réveilles chez toi. Touche le bouton vert « Se lever », en bas.' : 'Tu te réveilles chez toi. Appuie sur [E] (ou le bouton vert en bas) pour te lever.', quand: () => !!S.couche, fait: () => GS.vuCouche && !S.couche },
-  { id: 'marcher', texte: () => coarse ? 'Marche avec le joystick, et touche « Courir » pour courir. Les boutons verts en bas changent selon ce qui est près de toi.' : 'Marche avec les flèches ou [Z] [Q] [S] [D]. Clique dans la ville : la souris dirige la caméra ([Échap] la libère). Les boutons verts en bas changent selon ce qui est près de toi.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
-  { id: 'maison', texte: 'Chez toi, approche-toi de la douche ou du fourneau et appuie sur le bouton pour te laver ou cuisiner, puis mange à table. Le bouton « Sortir » t’emmène dans la rue.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.activite || GS.dehorsT > 0 },
-  { id: 'rue', texte: () => coarse ? 'Te voilà dans la rue. Le bouton « Aller · gestes », en bas à droite, ouvre « Aller à » (pour aller vers un lieu) et « Prendre un zém ». En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.' : 'Te voilà dans la rue. En bas à droite, « Aller à » t’emmène vers un lieu et « Prendre un zém » appelle un zém. En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.', quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier },
-  { id: 'vie', texte: 'En haut à gauche : ton argent, ta faim, ton logement et ton travail. Mange quand la faim baisse : au maquis, au food court de la Cité ou chez toi.', quand: () => GS.dehorsT > 16 && !!VIE.data?.metier, fait: () => !!VIE.service, duree: 40 }, // se ferme quand on commence à travailler
+  { id: 'lever', texte: () => coarse ? 'Tu te réveilles chez toi. Touche « Se lever ».' : 'Tu te réveilles chez toi. [E] pour te lever.', quand: () => !!S.couche, fait: () => GS.vuCouche && !S.couche },
+  { id: 'marcher', texte: () => coarse ? 'Le joystick pour marcher, « Courir » pour courir.' : 'Flèches ou [Z] [Q] [S] [D] pour marcher. Clique dans la ville pour tourner la caméra, [Échap] pour la libérer.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
+  { id: 'maison', texte: 'Approche-toi de la douche, du fourneau ou de la table : le bouton vert fait le reste.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.activite || GS.dehorsT > 0 },
+  { id: 'rue', texte: () => coarse ? '« Aller · gestes », en bas à droite : choisis où aller, le chemin s’allume au sol. « Travailler », en haut à gauche, te trouve un métier.' : '« Aller à », en bas à droite : choisis où aller, le chemin s’allume au sol. « Travailler », en haut à gauche, te trouve un métier.', quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier },
+  { id: 'vie', texte: 'En haut à gauche : ton argent et ta faim. Mange quand elle baisse — maquis, food court, ou chez toi.', quand: () => GS.dehorsT > 16 && !!VIE.data?.metier, fait: () => !!VIE.service, duree: 40 }, // se ferme quand on commence à travailler
 ];
 function majGuideSalon(dt) {
   if (!guideSalon?.actif()) return;
@@ -780,7 +787,10 @@ export function manetteSalon(m) {
 function helerZem() {
   if (T.mode !== 'pied' || S.lieu) { ligne(S.lieu ? 'Sors d’abord pour héler un zém.' : 'Tu es déjà en route.'); return; }
   const proches = tousLieux().filter(L => { if (L[0] === 'station') return false; const d = destination(L); return d && Math.hypot(d[0] - S.x, d[1] - S.z) < 15000; }); // Ouidah ↔ Cotonou : 35 km, c'est l'avion
-  choisir('Zém ! Où vas-tu ?', proches.map(L => ({ texte: L[1], f: () => {
+  // Un chemin est déjà tracé : c'est là qu'on veut aller, donc il passe en tête de la liste.
+  const vise = T.gps && proches.find(L => { const d = destination(L); return d && Math.hypot(d[0] - T.gps.x, d[1] - T.gps.z) < 25; });
+  if (vise) proches.splice(0, 0, ...proches.splice(proches.indexOf(vise), 1));
+  choisir('Zém ! Où vas-tu ?', proches.map(L => ({ texte: L === vise ? `${L[1]} · ta destination` : L[1], f: () => {
     const d = destination(L); if (!d) return;
     const q = prixZem(S.x, S.z, S.cap, d[0], d[1]); if (!q) { ligne('Le zém ne connaît pas la route jusque-là.'); return; }
     if (q.km < .15) { ligne('Tu y es déjà !'); return; }

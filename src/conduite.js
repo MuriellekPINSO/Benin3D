@@ -219,19 +219,43 @@ function sansAllerRetour(pts) {
   return pts;
 }
 export const longueur = pts => pts.reduce((s, p, i) => (i ? s + Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) : 0), 0);
-/** Ruban bleu posé sur la route, du véhicule à la destination. */
+// Le chemin à suivre : des chevrons blancs sur un fond bleu, peints au sol et qui défilent vers la
+// destination. Un chevron tous les PAS mètres ; la texture est partagée par tous les rubans, et c'est son
+// décalage qui les anime tous d'un coup (majRuban).
+const PAS_CHEVRON = 2.4;
+let texChevron = null;
+function chevrons() {
+  if (texChevron) return texChevron;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const c = cv.getContext('2d');
+  c.fillStyle = 'rgba(24,116,198,.5)'; c.fillRect(0, 0, 64, 64);
+  c.strokeStyle = 'rgba(255,255,255,.92)'; c.lineWidth = 12; c.lineCap = 'round'; c.lineJoin = 'round';
+  c.beginPath(); c.moveTo(7, 46); c.lineTo(32, 20); c.lineTo(57, 46); c.stroke(); // la pointe vers l'avant
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  return (texChevron = t);
+}
+/** Ruban posé sur la route, du véhicule (ou de ses pieds) jusqu'à la destination. */
 export function ruban(pts) {
-  const pos = [], idx = [], w = .7;
+  const pos = [], uv = [], idx = [], w = .85;
+  let l = 0;
   for (let i = 0; i < pts.length; i++) {
-    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l * w, nz = dx / l * w;
+    if (i) l += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], ln = Math.hypot(dx, dz) || 1, nx = -dz / ln * w, nz = dx / ln * w;
     const y = hauteur(pts[i][0], pts[i][1], 0) + .22;
     pos.push(pts[i][0] + nx, y, pts[i][1] + nz, pts[i][0] - nx, y, pts[i][1] - nz);
+    uv.push(0, l / PAS_CHEVRON, 1, l / PAS_CHEVRON); // v court le long du chemin : les chevrons ne s'étirent pas
     if (i) { const o = (i - 1) * 2; idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2); }
   }
-  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx);
-  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: '#2ea8ff', transparent: true, opacity: .75, depthWrite: false, side: THREE.DoubleSide }));
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: chevrons(), transparent: true, opacity: .92, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
   m.renderOrder = 4; scene.add(m); return m;
 }
+/** Fait défiler les chevrons vers la destination (une seule texture pour tous les rubans). */
+export function majRuban(dt) { if (texChevron) texChevron.offset.y = (texChevron.offset.y - dt * .55) % 1; }
 export function retirerRuban(m) { if (m) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); } }
 /** Distance restante le long du chemin depuis (x, z). */
 export function reste(pts, x, z) {
