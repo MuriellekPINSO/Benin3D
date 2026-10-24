@@ -183,7 +183,7 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
   const mixer = new THREE.AnimationMixer(corps), actions = {};
   for (const [nom, clip] of Object.entries(M.clips)) actions[nom] = mixer.clipAction(clip);
   const os = nom => corps.getObjectByName(nom);
-  const E = { g, mixer, actions, courante: null, tete: new THREE.Object3D(), main: new THREE.Object3D(), osTete: os('Head'), osMain: os('R_Hand'), crane: M.crane * ech, orphelin: 0, ph: hash(i, 93) * 10 };
+  const E = { g, mixer, actions, courante: null, corps, velo: null, osVelo: null, tete: new THREE.Object3D(), main: new THREE.Object3D(), osTete: os('Head'), osMain: os('R_Hand'), crane: M.crane * ech, orphelin: 0, ph: hash(i, 93) * 10 };
   g.add(E.tete); E.main.position.set(0, 1.1, .25); g.add(E.main);
   E.tete.position.set(0, taille + .08, 0);
   const jouer = (nom, fondu = .35) => {
@@ -204,7 +204,9 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
   if (!manuel) P.actifs.add(E); // manuel : animé par son propriétaire (userData.maj), ex. la cabine d'essayage
   g.userData = {
     tete: E.tete, main: E.main, femme: M.femme, graine: i, modele: id, haut: 1.15, jouer, peut: nom => !!(actions[nom] || M.clips[nom]), // peut('course') : seuls les modèles des joueurs savent courir
-    maj: dt => { mixer.update(dt); suivre(E); },
+    maj: dt => { mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); suivre(E); },
+    // `phase` tourne avec les pédales (radians) ; null rend le personnage à son animation.
+    velo: phase => { E.velo = phase; },
     anim: (t, parle, signe) => {
       if (assise) return;
       if (signe) jouer('salut');
@@ -215,6 +217,37 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
     liberer: () => { P.actifs.delete(E); mixer.stopAllAction(); mixer.uncacheRoot(corps); },
   };
   return g;
+}
+
+// ---------- La pose à vélo ----------
+// L'animation « assis » laisse les bras le long du corps et les jambes pendantes : sur un vélo, on a les
+// mains au guidon et les pieds qui tournent. On repose donc quatre paires d'os par-dessus l'animation, à
+// chaque image et APRÈS le mixer — avant, il les réécrivait aussitôt.
+const OS_VELO = ['L_Thigh', 'R_Thigh', 'L_Calf', 'R_Calf', 'L_Upperarm', 'R_Upperarm', 'L_Forearm', 'R_Forearm'];
+const vAv = new THREE.Vector3(), vCote = new THREE.Vector3(), vBut = new THREE.Vector3(), vHaut = new THREE.Vector3(0, 1, 0), qTmp = new THREE.Quaternion();
+/** Oriente un os vers `vBut` (direction, en repère monde). Plutôt que de deviner des angles d'Euler — ce qui
+ *  donnait une cycliste les jambes en l'air —, on part de la direction de l'os au repos (vers son premier
+ *  enfant) et on calcule la rotation qui l'amène là où on la veut. Marche quel que soit le squelette. */
+function viser(o, x, y, z) {
+  if (!o) return;
+  const enfant = o.children.find(c => c.isBone); if (!enfant) return;
+  const repos = o.userData.reposVelo ||= enfant.position.clone().normalize();
+  o.parent.getWorldQuaternion(qTmp).invert();
+  vBut.set(x, y, z).normalize().applyQuaternion(qTmp);
+  o.quaternion.setFromUnitVectors(repos, vBut);
+}
+function poserVelo(E, phase) {
+  const os = E.osVelo ||= Object.fromEntries(OS_VELO.map(n => [n, E.corps.getObjectByName(n)]));
+  E.g.getWorldDirection(vAv); // l'avant du personnage (+z de son groupe) : il regarde où va le vélo
+  vCote.crossVectors(vAv, vHaut).normalize();
+  for (const c of [1, -1]) { // 1 : la gauche, −1 : la droite
+    const p = c > 0 ? 'L_' : 'R_', t = phase + (c > 0 ? 0 : Math.PI); // une jambe pousse pendant que l'autre remonte
+    const a = (kAv, kHaut, kCote = 0) => [vAv.x * kAv + vCote.x * kCote, kHaut, vAv.z * kAv + vCote.z * kCote];
+    viser(os[p + 'Upperarm'], ...a(.78, -.58, .10 * c)); // l'épaule part vers le guidon
+    viser(os[p + 'Forearm'], ...a(.74, -.62, .04 * c)); // le coude à peine plié
+    viser(os[p + 'Thigh'], ...a(.50 + .22 * Math.sin(t), -.85, .13 * c)); // la cuisse monte et descend
+    viser(os[p + 'Calf'], ...a(.05 + .45 * Math.sin(t + 1), -.95, .05 * c)); // le mollet suit la pédale
+  }
 }
 
 // La tête et la main suivent les os (pour les bulles, le casque, les objets échangés).
@@ -233,6 +266,6 @@ export function majPersonnages(dt) {
     let vis = E.g.visible; for (let o = E.g.parent; vis && o; o = o.parent) vis = o.visible;
     if (!vis) continue;
     E.g.getWorldPosition(v); if (v.distanceToSquared(camera.position) > 160 * 160) continue;
-    E.mixer.update(dt); suivre(E);
+    E.mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); suivre(E);
   }
 }

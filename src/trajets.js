@@ -65,7 +65,7 @@ function etiquette(texte) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); sp.scale.set(.145, .033, 1); sp.renderOrder = 30; return sp;
 }
 export function quitterMonde() {
-  quitterMetiers(); arreterVol(); moteurStop(); retirerVehicule(T.veh); T.veh = null; if (T.zem) retirerVehicule(T.zem.V); T.zem = null;
+  quitterMetiers(); arreterVol(); moteurStop(); S.moi?.userData.velo?.(null); retirerVehicule(T.veh); T.veh = null; if (T.zem) retirerVehicule(T.zem.V); T.zem = null;
   retirerRuban(T.gps?.m); T.gps = null; jeterPlat(); T.repas = null; T.trans = null; T.mode = 'pied';
   if (S?.moi) S.moi.visible = true;
 }
@@ -115,7 +115,7 @@ function monter() {
 }
 function descendre() {
   const V = T.veh; if (!V || Math.abs(V.v) > .8) return;
-  V.v = 0; moteurStop(); T.mode = 'pied';
+  V.v = 0; moteurStop(); T.mode = 'pied'; S.moi?.userData.velo?.(null); // sinon il marche les bras tendus
   const cote = V.type === 'tokpa' ? 1.9 : V.D.cache ? 1.6 : 1; S.x = V.x + Math.sin(V.cap + Math.PI / 2) * cote; S.z = V.z + Math.cos(V.cap + Math.PI / 2) * cote; S.cap = V.cap; S.y = 0;
   if (S.moi) S.moi.visible = true;
   sauverVie();
@@ -356,11 +356,15 @@ export function majTrajets(dt, av, tour) {
   return null;
 }
 /** Pose un personnage sur la selle (pilote ou passager), ou le cache dans la voiture. */
+// Un tour de pédalier tous les 2,2 m environ : la phase suit la distance, donc les jambes s'arrêtent avec le vélo.
+const phaseVelo = V => V.km * 1000 / 2.2 * Math.PI * 2;
 export function asseoirSur(p, V, passager) {
   if (!p) return;
   const s = siege(V, passager); p.visible = !!s; if (!s) return;
   v3.set(0, s.y, s.z).applyAxisAngle(THREE.Object3D.DEFAULT_UP, V.cap);
   p.position.set(V.x + v3.x, V.y + v3.y, V.z + v3.z); p.rotation.y = V.cap; p.userData.jouer?.('assis');
+  // Au guidon d'un vélo, « assis » ne suffit pas : bras tendus et jambes qui tournent (personnages.js).
+  p.userData.velo?.(V.D.pedale && !passager ? phaseVelo(V) : null);
 }
 /** Pour les amis : leur véhicule sous eux (créé à la demande). */
 export function vehiculeDe(A, type) {
