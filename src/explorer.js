@@ -7,7 +7,6 @@ import { E } from './etat.js';
 import { startFlight } from './interface.js';
 import { basculerMondeReel, monumentsEnVisite } from './monde-reel.js';
 import { camera, controls } from './scene.js';
-import { nombreEnLigne } from './statistiques.js';
 
 // ---------- Explorer : catégories, radio, présentation ----------
 export const CATS = { hotel: 'Hôtels', monument: 'Monuments', institution: 'Institutions', culte: 'Monuments', marche: 'Marchés', eau: 'Mer et lagune', plage: 'Mer et lagune', transport: 'Transport', savoir: 'Savoir', quartier: 'Quartiers' };
@@ -81,8 +80,6 @@ export function accueil() {
   $('#acZemRun')?.addEventListener('click', () => { fermer(); $('#btnJouer')?.click(); }, { once: true }); // le menu de Zém Run
   window.addEventListener('keydown', clavier);
   ($('#acVivre') || $('#acVisite')).focus({ preventScroll: true });
-  // « N en ligne » dans la barre du haut, seulement quand il y a du monde (« 2 en ligne » ferait vide).
-  setTimeout(async () => { const n = await nombreEnLigne(); if (n >= 5 && !el.hidden) { $('#acEnLigne b').textContent = n.toLocaleString('fr-FR'); $('#acEnLigne').hidden = false; } }, 3500);
 }
 export function initExplorer() {
   initCategories();

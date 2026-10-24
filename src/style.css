@@ -362,8 +362,6 @@ button { font: inherit; color: inherit; }
 .ac-barre { position: absolute; top: var(--gutter); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 18px; padding: 8px 18px 8px 10px; border-radius: 999px; background: var(--panel-solid); box-shadow: var(--shadow); white-space: nowrap; max-width: calc(100% - 2 * var(--gutter)); box-sizing: border-box; }
 .ac-marque { display: flex; align-items: center; gap: 10px; font: 700 20px/1 var(--font-display); letter-spacing: -.01em; }
 .ac-marque .logo { width: 36px; height: 36px; flex: none; }
-.ac-enligne { display: flex; align-items: center; gap: 7px; color: var(--accent); font-weight: 500; font-size: 15px; }
-.ac-enligne i { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
 .ac-langue { color: var(--ink-2); font-weight: 500; text-decoration: none; }
 .ac-installer { border: 0; border-radius: 999px; padding: 7px 12px; background: #1a7d52; color: #fff; font: 700 12.5px/1 var(--font-body); cursor: pointer; }
 .ac-langue:hover { color: var(--ink); }
@@ -1166,7 +1164,7 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
 .compte-lien[hidden] { display: none; }
 #compteValider.charge::before { content: ''; width: 13px; height: 13px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: ev-tourne .8s linear infinite; }
 .ac-compte { border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; background: var(--chip); color: var(--ink); font: 700 12.5px/1 var(--font-body); cursor: pointer; }
-/* Accueil, petit téléphone : la barre (logo, en ligne, Installer, Mon compte, English) tient sur la largeur. */
+/* Accueil, petit téléphone : la barre (logo, Installer, Mon compte, English) tient sur la largeur. */
 @media (max-width: 480px) { .ac-barre { gap: 8px; padding: 6px 10px 6px 8px; max-width: calc(100% - 2 * var(--gutter)); } .ac-installer, .ac-compte { padding: 6px 9px; font-size: 12px; } }
 /* « Ton métier » : comment ça marche, à la première prise de chaque métier (metiers.js). */
 .metier-etapes { margin: 4px 0 6px; padding-left: 22px; display: grid; gap: 8px; line-height: 1.4; }
