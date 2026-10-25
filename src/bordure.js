@@ -114,6 +114,19 @@ function texPeinte(txt) {
   c.fillText(txt, 256, 84);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; cacheTex.set(txt, t); return t;
 }
+/** Panneau d'arrêt : fond jaune, « ARRÊT » et le nom de l'arrêt dessous. */
+function texArret(nom) {
+  const cle = 'arret:' + nom; if (cacheTex.has(cle)) return cacheTex.get(cle);
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 212; const c = cv.getContext('2d');
+  c.fillStyle = '#f2c21b'; c.fillRect(0, 0, 512, 212);
+  c.strokeStyle = '#1d2b36'; c.lineWidth = 12; c.strokeRect(10, 10, 492, 192);
+  c.fillStyle = '#1d2b36'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.font = '900 62px Impact, "Arial Black", system-ui, sans-serif'; c.fillText('ARRÊT', 256, 62);
+  let t = 44; c.font = `800 ${t}px system-ui, sans-serif`;
+  while (c.measureText(nom).width > 460 && t > 20) { t -= 3; c.font = `800 ${t}px system-ui, sans-serif`; }
+  c.fillText(nom, 256, 146);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; cacheTex.set(cle, tex); return tex;
+}
 const matCote = new THREE.MeshStandardMaterial({ color: '#3a3f44', roughness: .6 });
 function panneau(tex, w, h) {
   const front = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
@@ -205,6 +218,18 @@ const FAB = {
     if (ZEMS_3D.motoLod) for (let i = 0; i < 3; i++) { const z = new THREE.Mesh(ZEMS_3D.motoLod.geo, ZEMS_3D.motoLod.mat); z.position.set(-1.2 + i * 1.1, 0, -.2); z.rotation.y = Math.PI / 2 + .25 * (i - 1); g.add(z); }
     return { g, liberer: [] };
   },
+  // « Les arrêts de bus/zem doivent être beaucoup plus visibles » (un testeur, 24/10). Jusqu'ici, un arrêt
+  // n'existait que sur la mini-carte : au bord de la route, rien ne le distinguait — le décor y posait au
+  // mieux un arbre. Un poteau peint et un panneau jaune, comme les arrêts de Cotonou, vus de loin.
+  arret(it) {
+    const g = new THREE.Group();
+    const mat = m(gc('mArret', () => new THREE.CylinderGeometry(.08, .1, 3.2, 8)), K.mat('#f2c21b'), 0, 1.6, 0, g);
+    for (let i = 0; i < 3; i++) m(gc('bgArret', () => new THREE.CylinderGeometry(.095, .095, .3, 8)), K.mat('#1d2b36'), 0, .5 + i * .8, 0, g); // bagues sombres : on le voit tourner
+    mat.castShadow = !LITE;
+    const pan = panneau(texArret(it.nom), 1.5, .62); pan.position.set(0, 3.25, .06); g.add(pan);
+    const dos = panneau(texArret(it.nom), 1.5, .62); dos.position.set(0, 3.25, -.06); dos.rotation.y = Math.PI; g.add(dos); // lisible dans les deux sens
+    return { g, liberer: [] };
+  },
   pub(it) { // grand panneau 4 × 3 sur deux mâts, tourné vers ceux qui arrivent
     const g = new THREE.Group();
     for (const x of [-1.5, 1.5]) m(gc('mpub', () => new THREE.CylinderGeometry(.11, .14, 4.4, 8)), '#8d9196', x, 2.2, -.15, g);
@@ -261,6 +286,12 @@ export function preparerBordure(L, C, arrets) {
     vus.push(pr);
     items.push({ type: c.t === 'station' ? 'station' : 'enseigne', t: c.t, nom: c.nom, s: pr.s, side: pr.side, off: c.t === 'station' ? OFF + 2 : OFF + .4 });
   }
+  // Un panneau à chaque arrêt, des deux côtés de la route : on le voit en arrivant, quel que soit son sens.
+  // Le reste du décor s'écarte déjà des arrêts (libre(), plus haut), donc rien ne vient le cacher.
+  for (const a of arrets) {
+    if (a.s < 5 || a.s > C.L - 5) continue; // les terminus comptent : c'est là qu'on attend le plus
+    for (const side of [-1, 1]) items.push({ type: 'arret', nom: a.nom, s: a.s, side, off: OFF + .2 });
+  }
   // Vie de rue entre les commerces.
   const GEN = ['kpayo', 'vendeuse', 'vendeuse', 'momo', 'peinte', 'peinte', 'vulca', 'zems'];
   for (const side of [-1, 1]) {
@@ -282,14 +313,17 @@ export function preparerBordure(L, C, arrets) {
   for (let s = 20; s < C.L - 20; s += 36) if (!surPont(s)) items.push({ type: 'poteau', s, side: -1, off: OFF - 1.2 });
   // Chacun à sa place sur le vrai bas-côté, entre la chaussée et les murs : rien sur un terre-plein,
   // sur l'autre chaussée ni dans un bâtiment. Les grands panneaux se dressent derrière les murs.
-  const RECUL = { vendeuse: 1.2, kpayo: 1.3, momo: 1.5, vulca: 1.3, peinte: 1, zems: 2.2, enseigne: 1.5, station: 3.2 };
+  const RECUL = { vendeuse: 1.2, kpayo: 1.3, momo: 1.5, vulca: 1.3, peinte: 1, zems: 2.2, enseigne: 1.5, station: 3.2, arret: .6 }; // le panneau d'arrêt se tient au plus près du bord
   const places = items.filter(it => {
     if (it.type === 'poteau') { // au bord, d'un seul côté (les câbles se suivent) ; jamais au milieu d'un carrefour ni dans un mur
       it.lat = -(demiChaussee(C, it.s) + .5); const q = pose(C, it.s, it.lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
       return pietonOk(q.x, q.z, -q.dz, q.dx); // (direction en travers : la rue suivie ne compte pas, les rues qui la croisent si)
     }
     if (it.type === 'pub') { const f = C.front ? C.front[Math.max(0, Math.min(C.n - 1, Math.round(it.s)))] : 9.8; it.lat = it.side * (f + 1); return true; }
-    const lat = latTrottoir(C, it.s, it.side, RECUL[it.type] ?? 1.3); if (lat === null) return false;
+    const lat = latTrottoir(C, it.s, it.side, RECUL[it.type] ?? 1.3);
+    // Pas de trottoir praticable : tout le décor renonce, sauf le panneau d'arrêt. Un poteau tient au bord du
+    // bitume, et c'est justement aux endroits mal dégagés qu'on a le plus besoin de voir où s'arrêter.
+    if (lat === null) { if (it.type !== 'arret') return false; it.lat = it.side * (demiChaussee(C, it.s) + .5); return true; }
     it.lat = lat; return true;
   });
   B.items = places.sort((a, b) => a.s - b.s); B.ptr = 0;
