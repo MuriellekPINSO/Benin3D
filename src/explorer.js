@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { AUDIO, STATIONS, dureeVisite, musiqueVisite, prechargerMusique, radio } from './audio.js';
-import { CHANSONS, arreterChanson, chansonActive, initLecteur, jouerChanson, suspendreChanson } from './lecteur.js';
+import { CHANSONS, ORDRE, arreterChanson, chansonActive, initLecteur, jouerChanson, suspendreChanson } from './lecteur.js';
 import { $, coarse } from './base.js';
 import { PLACES } from './donnees-lieux.js';
 import { E } from './etat.js';
@@ -96,7 +96,8 @@ export function initExplorer() {
   const remplirMenu = (erreur = '') => {
     const radioOn = AUDIO.radio, ch = chansonActive(), coche = v => `aria-checked="${v}"`;
     menuR.innerHTML = (erreur ? `<p class="rm-erreur">${erreur}</p>` : '')
-      + '<p class="rm-titre">Musique du Bénin</p>' + CHANSONS.map(([, t, a], i) => `<button type="button" role="menuitemradio" ${coche(ch === i)} data-chanson="${i}"><b>${t}</b><small>${a}</small></button>`).join('')
+      // Dans l'ordre d'écoute (lecteur.js) : la liste s'ouvrait sur cinq Angélique Kidjo d'affilée.
+      + '<p class="rm-titre">Musique du Bénin</p>' + ORDRE.map(i => { const [, t, a] = CHANSONS[i]; return `<button type="button" role="menuitemradio" ${coche(ch === i)} data-chanson="${i}"><b>${t}</b><small>${a}</small></button>`; }).join('')
       + '<p class="rm-titre">Radios en direct</p>' + STATIONS.map(st => `<button type="button" role="menuitemradio" ${coche(radioOn && AUDIO.station === st.id)} data-station="${st.id}"><b>${st.nom}</b><small>${st.sous}</small></button>`).join('')
       + (radioOn || ch >= 0 ? '<button type="button" role="menuitem" class="rm-stop" data-station="">Arrêter la musique</button>' : '');
   };
