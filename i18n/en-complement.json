@@ -12,7 +12,8 @@
   },
   "src/style.css": {
     "'L’apprenti · '": "'The apprentice · '",
-    "'Essence'": "'Fuel'"
+    "'Essence'": "'Fuel'",
+    "'La carte graphique a été reprise par le navigateur. Recharge la page.'": "'The browser reclaimed the graphics card. Please reload the page.'"
   },
   "src/multijoueur.js": {
     "'La connexion directe ne passe pas entre vos deux réseaux (souvent en 4G). Essayez tous les deux sur le même wifi.'": "'The direct connection can’t get through between your two networks (often on 4G). Try both being on the same wifi.'",

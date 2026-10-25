@@ -86,6 +86,16 @@
   </section>
 
   <section class="bloc">
+    <h2>Incidents du jour</h2>
+    <div class="totaux">
+      <div><small>Erreurs JavaScript</small><b id="iErreurs">–</b></div>
+      <div><small>Promesses non traitées</small><b id="iPromesses">–</b></div>
+      <div><small>Carte graphique reprise (WebGL)</small><b id="iWebgl">–</b></div>
+    </div>
+    <p class="note">Une fois par appareil et par type : un même plantage se répète souvent cent fois par seconde. On compte combien de fois, pas pourquoi — remonter le message demanderait un nouveau chemin dans Firebase et ses règles.</p>
+  </section>
+
+  <section class="bloc">
     <h2>Depuis le début</h2>
     <div class="totaux">
       <div><small>Visiteurs (par jour, cumulés)</small><b id="tVisiteurs">–</b></div>
@@ -155,6 +165,7 @@
     onValue(ref(db, 'zem_stats/jours'), s => {
       const J = s.val() || {}, auj = J[jour()] || {}, hier = J[jour(1)] || {};
       $('#visiteurs').textContent = nb(auj.visiteurs); $('#nouveaux').textContent = nb(auj.nouveaux); $('#vues').textContent = nb(auj.vues);
+      $('#iErreurs').textContent = nb(auj.erreurs); $('#iPromesses').textContent = nb(auj.promesses); $('#iWebgl').textContent = nb(auj.webgl_perdu);
       const d = (auj.visiteurs || 0) - (hier.visiteurs || 0);
       $('#visiteursEcart').textContent = `hier : ${nb(hier.visiteurs)}${d ? ` (${d > 0 ? '+' : ''}${nb(d)})` : ''}`;
       const tot = k => Object.values(J).reduce((a, v) => a + (v[k] || 0), 0);

@@ -12,7 +12,8 @@ const P = { ref: null, d: null, ou: 'carte' };
 // En développement (localhost, tests automatiques), rien n'est compté ni lu, sauf avec ?stats dans l'adresse.
 const actif = () => !import.meta.env.DEV || new URLSearchParams(location.search).has('stats');
 
-async function compter(cle) {
+/** +1 au compteur `cle` du jour (les règles de la base n'acceptent que ça). */
+export async function compter(cle) {
   try { const { d, db } = await firebase(); await joueur(); await d.set(d.ref(db, `zem_stats/jours/${jour()}/${cle}`), d.increment(1)); }
   catch { /* hors ligne, ou règles pas encore déployées : tant pis pour ce compteur */ }
 }

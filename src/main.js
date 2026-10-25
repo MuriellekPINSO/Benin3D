@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { applyMood, sunDir } from './ambiances.js';
 import { $, LITE, reduceMotion } from './base.js';
 import { arreterConseils, conseils, decode, frame, loadTxt, status } from './chargement.js';
+import { surveillerIncidents } from './incidents.js';
 import { E } from './etat.js';
 import { accueil, initExplorer } from './explorer.js';
 import { TRIPO, chargerIndexTripo, urlTripo } from './batiments-tripo.js';
@@ -123,6 +124,7 @@ function finishRise() {
 
 // ---------- Démarrage ----------
 async function main() {
+  surveillerIncidents(renderer.domElement); // compter les plantages, et survivre à une perte du contexte WebGL
   conseils(); // de quoi lire pendant que la ville arrive, sur une connexion lente
   status('Téléchargement de la ville…', 2); await frame();
   const mo = n => (n / 1048576).toFixed(1).replace('.', ',');
