@@ -83,3 +83,26 @@ export function son(nom, variante) {
   else if (nom === 'choc') { const n = ctx.createBufferSource(), b = ctx.createBuffer(1, ctx.sampleRate * .35, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2; n.buffer = b; const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; const g = ctx.createGain(); g.gain.value = .5; n.connect(f).connect(g).connect(ctx.destination); n.start(); }
 }
 
+
+// ---------- Quitter le navigateur : le jeu se tait ----------
+// Sur téléphone, passer à une autre application laissait tourner le son et le jeu (« ça ne devrait pas être comme
+// ça », un testeur le 24/10). Un onglet caché n'anime plus rien de lui-même — le navigateur suspend
+// requestAnimationFrame — mais la radio, la musique et le contexte audio, eux, continuaient. On les suspend, et
+// l'on ne rallume que ce qui jouait.
+const ENDORMI = { radio: false, flux: false, visite: false };
+function endormir() {
+  ENDORMI.flux = !!AUDIO.flux && !AUDIO.flux.paused; if (ENDORMI.flux) AUDIO.flux.pause();
+  ENDORMI.visite = !!VISITE.el && !VISITE.el.paused; if (ENDORMI.visite) VISITE.el.pause();
+  ENDORMI.radio = AUDIO.radio;
+  try { AUDIO.ctx?.suspend(); } catch { /* contexte déjà fermé */ }
+}
+function reveiller() {
+  try { if (AUDIO.ctx?.state === 'suspended') AUDIO.ctx.resume(); } catch { /* contexte déjà fermé */ }
+  if (ENDORMI.flux) AUDIO.flux?.play().catch(() => { /* le navigateur veut un geste : la radio se rallume au doigt */ });
+  if (ENDORMI.visite) VISITE.el?.play().catch(() => { });
+  ENDORMI.flux = ENDORMI.visite = false;
+}
+document.addEventListener('visibilitychange', () => (document.hidden ? endormir() : reveiller()));
+// Sur iOS, passer à une autre application ne déclenche pas toujours visibilitychange : pagehide, si.
+addEventListener('pagehide', endormir);
+addEventListener('pageshow', reveiller);

@@ -424,6 +424,7 @@ async function entrerSalon(code) {
   S.canal = c;
   S.code = code; S.public = PUBLICS.includes(code); S.actif = true; statut(''); compterUneFois('salon'); lieuStats('salon');
   $('#salon').hidden = true; $('#salonHud').hidden = false; $('#slJoy').hidden = !coarse; $('#slCourir').hidden = !coarse;
+  mesurerBandeau();
   // En ville, pas de code à montrer. Le chat libre reste ouvert : on vient justement pour se présenter
   // et se parler, ce que des phrases toutes faites ne permettent pas.
   $('#slSalonLbl').textContent = S.public ? 'En ville' : `Salon ${code}`;
@@ -518,6 +519,28 @@ function majGuideSalon(dt) {
   GS.px = S.x; GS.pz = S.z;
   guideSalon.maj(dt);
 }
+/**
+ * Le bandeau du haut — la barre du salon, l'argent, la mini-carte — ne fait pas la même hauteur partout : la
+ * barre passe sur deux lignes dès que l'écran se resserre. Le guide, le chapitre et la carte se calaient sous une
+ * hauteur écrite en dur (50, 56, 58, 84 px selon les endroits) et se retrouvaient dessus : sur un téléphone tout
+ * se chevauchait, en portrait comme à l'horizontale (retours des testeurs du 24/10). On mesure le bas réel du
+ * bandeau, et le reste se place dessous (--sl-bandeau).
+ */
+function mesurerBandeau() {
+  if (bandeauVu) return;
+  const els = ['.sl-haut', '.vie-hud:not(.ouvert)', '.mini-carte'].map(s => $(s)).filter(Boolean);
+  if (!els.length) return;
+  bandeauVu = true;
+  const poser = () => {
+    let bas = 0;
+    for (const e of els) { if (e.hidden || !e.offsetParent) continue; const r = e.getBoundingClientRect(); if (r.top < innerHeight * .35) bas = Math.max(bas, r.bottom); }
+    document.documentElement.style.setProperty('--sl-bandeau', `${Math.round(bas)}px`);
+  };
+  const ro = new ResizeObserver(poser); for (const e of els) ro.observe(e);
+  addEventListener('resize', poser); poser();
+}
+let bandeauVu = false;
+
 export function majSalon(dt) {
   if (!S.actif) { E.joueur = null; majAmbianceSalon(dt, null); return; }
   majGuideSalon(dt);
@@ -578,8 +601,9 @@ export function majSalon(dt) {
   const lacet = P.cap + S.orbite;
   voulue.set(O.x - Math.sin(lacet) * dist * Math.cos(inc), O.y + hc + dist * Math.sin(inc), O.z - Math.cos(lacet) * dist * Math.cos(inc));
   if (S.lieu) { // la caméra reste dans la pièce, sous le plafond, et ne passe pas au travers des cloisons
-    const [cx, cz] = limiter(S.lieu, voulue.x, voulue.z, .35); voulue.set(cx, Math.min(voulue.y, S.y + (S.lieu.plafond ? S.lieu.plafond - .3 : 4)), cz);
-    const k = murEntre(S.lieu, cible.x, cible.z, voulue.x, voulue.z); if (k < 1) voulue.set(cible.x + (voulue.x - cible.x) * k, voulue.y, cible.z + (voulue.z - cible.z) * k);
+    const k = perche(S.lieu, cible, voulue);
+    voulue.set(cible.x + (voulue.x - cible.x) * k, cible.y + (voulue.y - cible.y) * k, cible.z + (voulue.z - cible.z) * k);
+    const [lx, lz] = limiter(S.lieu, voulue.x, voulue.z, MARGE_PIECE); voulue.set(lx, Math.min(voulue.y, plafondDe(S.lieu)), lz); // filet, si la cible elle-même touche une cloison
   }
   else if (!suivi?.libre && voulue.y - P.y < 14) { // dehors, au ras des toits : si un bâtiment se trouve entre le personnage et la caméra, elle s'approche (jamais dans un mur) ; pas en avion
     // Douze rayons et un pas de 58 cm à 7 m de recul : la caméra pouvait s'arrêter dans la façade, et comme le
@@ -668,9 +692,34 @@ export function majSalon(dt) {
 // Dans une petite pièce, reculer derrière soi collait la caméra au dos (au réveil, on ne voyait que la couverture) :
 // on cherche autour du personnage l'angle qui laisse le plus de recul, murs et cloisons compris. L'angle déjà choisi
 // garde un avantage, pour que la caméra n'hésite pas entre deux coins.
+/**
+ * Quelle part de la perche caméra (de `c` vers `v`) tient dans la pièce : 1 si tout y tient. On rabattait la
+ * caméra sur le bord (limiter) au lieu de la rapprocher : elle quittait l'axe du personnage et finissait plaquée
+ * dans un angle, à 42 cm d'une cloison alors que son plan rapproché est à 30, et le mur occupait la moitié de
+ * l'écran — « espace vide », « c'est bizarre et vilain » (deux testeurs, 24/10, au réveil dans la chambre).
+ * Maintenant elle se rapproche en restant derrière lui, comme le fait déjà la caméra du dehors.
+ */
+// 60 cm de marge ne suffisaient pas : l'enduit à 60 cm d'un objectif grand angle remplit encore le tiers de
+// l'écran. Et la caméra, calée juste sous le plafond, regardait la cloison de haut. On la garde à 2 m du sol.
+const MARGE_PIECE = .95;
+const plafondDe = I => S.y + Math.min(I.plafond ? I.plafond - .35 : 4, 2.05);
+function perche(I, c, v) {
+  const [px, pz] = I.centre;
+  // Jusqu'où aller avant de sortir : les deux cloisons extérieures, les cloisons intérieures, puis le plafond.
+  const borne = (a, b, h) => (Math.abs(b) <= h || b === a ? 1 : Math.max(0, ((b > 0 ? h : -h) - a) / (b - a)));
+  // murEntre s'arrête au dernier échantillon avant la cloison, sans marge : la caméra finissait à 86 cm d'un
+  // enduit, qui remplissait l'écran. On recule d'autant que pour les murs de la pièce.
+  const lg = Math.hypot(v.x - c.x, v.z - c.z) || 1;
+  let k = murEntre(I, c.x, c.z, v.x, v.z); if (k < 1) k = Math.max(0, k - MARGE_PIECE / lg);
+  k = Math.min(k, borne(c.x - px, v.x - px, I.w / 2 - MARGE_PIECE), borne(c.z - pz, v.z - pz, I.d / 2 - MARGE_PIECE));
+  const haut = plafondDe(I); if (v.y > haut && v.y !== c.y) k = Math.min(k, Math.max(0, (haut - c.y) / (v.y - c.y)));
+  return THREE.MathUtils.clamp(k, .22, 1); // jamais dans la tête du personnage
+}
+
 function angleDedans(P, dist, inc) {
   const L = S.lieu; if (S.dedansL !== L) { S.dedansL = L; S.dedansD = 0; }
-  const recul = d => { const l = P.cap + d, [x, z] = limiter(L, P.x - Math.sin(l) * dist * Math.cos(inc), P.z - Math.cos(l) * dist * Math.cos(inc), .35); return Math.hypot(x - P.x, z - P.z) * murEntre(L, P.x, P.z, x, z); };
+  const c = { x: P.x, y: P.y + 1.35, z: P.z }, v = { x: 0, y: P.y + 1.35 + dist * Math.sin(inc), z: 0 };
+  const recul = d => { const l = P.cap + d; v.x = P.x - Math.sin(l) * dist * Math.cos(inc); v.z = P.z - Math.cos(l) * dist * Math.cos(inc); return dist * perche(L, c, v); };
   let best = S.dedansD, bs = recul(best) - .3 * Math.abs(best) + .4;
   for (const d of [0, .5, -.5, 1, -1, 1.6, -1.6, 2.3, -2.3, Math.PI]) { const s = recul(d) - .3 * Math.abs(d); if (s > bs) { bs = s; best = d; } }
   return (S.dedansD = best);

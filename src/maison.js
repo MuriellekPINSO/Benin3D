@@ -275,7 +275,7 @@ export function coucher(I) {
   const S = H.S, L = I.lit, p = dansLaPiece(I, L.x, L.z);
   finActivite();
   S.couche = { x: p.x + Math.sin(L.a) * .85, y: p.y + L.y + .17, z: p.z + Math.cos(L.a) * .85, a: L.a }; // le dos posé sur le matelas (à +0,1, épaules et bras passaient au travers)
-  S.x = p.x; S.z = p.z; S.cap = L.vue; S.tangage = .7; S.saut = true; S.geste = 'idle';
+  S.x = p.x; S.z = p.z; S.cap = L.vue; S.tangage = .42; S.saut = true; S.geste = 'idle'; // 0,7 rad : la caméra montait sous le plafond et cadrait le mur d'en face plutôt que la chambre
   L.deplie.visible = true; L.plie.visible = false;
 }
 function lever() {

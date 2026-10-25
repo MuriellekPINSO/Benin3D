@@ -180,7 +180,7 @@ button { font: inherit; color: inherit; }
 .lecteur-boutons button:first-child { background: var(--accent); color: var(--accent-ink); }
 .mode-salon .lecteur { top: calc(var(--gutter) + 206px); } /* sous la mini-carte du salon */
 .dock:has(.radio-menu:not([hidden])) { z-index: 8; } /* le menu Musique passe devant le lecteur */
-@media (max-width: 720px) { .lecteur { top: 124px; right: 8px; } .mode-salon .lecteur { top: 180px; } }
+@media (max-width: 720px) { .lecteur { top: 124px; right: 8px; } .mode-salon .lecteur { top: calc(var(--sl-bandeau, 58px) + 66px); } }
 /* Carte du salon (carte-salon.js) : mini-carte ronde en haut à droite, grande carte par-dessus le jeu */
 .mini-carte { position: absolute; top: var(--gutter); right: var(--gutter); z-index: 4; width: 190px; height: 190px; border-radius: 50%; box-shadow: var(--shadow); cursor: pointer; }
 .mini-carte[hidden] { display: none; }
@@ -193,7 +193,7 @@ button { font: inherit; color: inherit; }
 .cg-tete button { min-width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-solid); color: var(--ink); font: 800 16px/1 var(--font-body); padding: 0 12px; cursor: pointer; }
 .cg-tete .cg-fermer { font-size: 22px; background: var(--chip); border: 0; }
 #carteGrandeCanvas { width: 100%; height: 100%; border-radius: 14px; touch-action: none; cursor: grab; }
-@media (max-width: 720px) { .mini-carte { top: 58px; right: 8px; width: 112px; height: 112px; } .carte-grande { inset: 8px; } .cg-tete small { display: none; } }
+@media (max-width: 720px) { .mini-carte { top: calc(var(--sl-bandeau, 58px) + 6px); right: 8px; width: 112px; height: 112px; } .carte-grande { inset: 8px; } .cg-tete small { display: none; } }
 .radio-menu { max-height: max(220px, min(calc(100vh - 270px), 520px)); overflow-y: auto; } /* sans passer sous les boutons du haut */
 /* Radio : liste des stations, au-dessus de la barre du bas */
 .radio-menu { position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%); z-index: 6; width: min(320px, calc(100vw - 2 * var(--gutter))); padding: 10px; display: grid; gap: 4px; }
@@ -896,7 +896,7 @@ button { font: inherit; color: inherit; }
 .vh-voile { position: fixed; inset: 0; background: rgba(10, 14, 12, .45); z-index: 39; }
 @media (pointer: coarse) { .vh-boutons .vh-louer { min-height: 36px; padding: 8px 14px; font-size: 13px; } } /* au doigt : 25 px de haut, c'était trop petit */
 @media (max-width: 720px) {
-  .vie-hud { top: 56px; left: 8px; width: auto; max-width: 62%; padding: 6px 10px; gap: 2px; }
+  .vie-hud { top: calc(var(--sl-bandeau, 56px) + 6px); left: 8px; width: auto; max-width: 62%; padding: 6px 10px; gap: 2px; }
   .vie-hud:not(.ouvert) #vhLogement, .vie-hud:not(.ouvert) #vhMetier { display: none; }
   .vie-hud.ouvert { top: 50%; left: 50%; }
   .vh-tete b { font-size: 16px; }
@@ -934,7 +934,12 @@ button { font: inherit; color: inherit; }
   .sl-guide, .chap-hud { left: calc(2 * var(--gutter) + 340px); right: calc(2 * var(--gutter) + 260px); width: auto; max-width: 460px; transform: none; margin-inline: auto; }
 }
 @media (min-width: 721px) and (max-width: 1180px) { /* trop serré entre les deux : en haut, sous la barre du salon */
-  .sl-guide, .chap-hud { top: 84px; bottom: auto; left: 310px; right: 210px; }
+  .sl-guide, .chap-hud { top: calc(var(--sl-bandeau, 84px) + 8px); bottom: auto; left: 310px; right: 210px; }
+}
+/* Fenêtre étroite (tablette en portrait, navigateur à moitié d'écran) : la barre du salon tient toute la largeur et
+   l'argent se glissait dessous. On le range à gauche sous la barre, comme sur un téléphone. */
+@media (min-width: 721px) and (max-width: 1100px) {
+  .vie-hud:not(.ouvert) { top: calc(var(--sl-bandeau, 56px) + 8px); }
 }
 /* « Ton départ » s'affichait par-dessus le formulaire « Vivre à Cotonou », encore visible dessous : une fenêtre à la fois. */
 #app:has(#vieTirage:not([hidden])) #salon { visibility: hidden; }
@@ -1087,7 +1092,7 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
   .sl-joy { left: 16px; bottom: 12px; transform: none; width: 96px; height: 96px; }
   .sl-agir { left: 130px; right: 150px; bottom: 10px; width: fit-content; max-width: none; transform: none; margin-inline: auto; flex-direction: row; flex-wrap: wrap; justify-content: center; }
   .sl-agir .jouer, .sl-agir2 { font-size: 13px; padding: 9px 13px; white-space: normal; line-height: 1.2; }
-  .sl-guide, .chap-hud { top: 50px; bottom: auto; left: 50%; right: auto; transform: translateX(-50%); width: min(420px, calc(100vw - 300px)); max-width: none; margin: 0; padding: 7px 11px; gap: 3px; }
+  .sl-guide, .chap-hud { top: calc(var(--sl-bandeau, 50px) + 6px); bottom: auto; left: 50%; right: auto; transform: translateX(-50%); width: min(420px, calc(100vw - 380px)); max-width: none; margin: 0; padding: 7px 11px; gap: 3px; } /* 190 px réservés de chaque côté : l’argent à gauche, la mini-carte à droite */
   .sl-guide p { font-size: 13px; line-height: 1.3; }
   .sl-aide, .sl-gestes-tog { display: none; }
   .sl-actions.ouvert .sl-gestes, .sl-chat.ouvert .sl-phrases { display: flex; }
