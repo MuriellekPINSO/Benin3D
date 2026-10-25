@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { majPortesDeNuit } from './interieurs.js';
 import { reduceMotion } from './base.js';
 import { E } from './etat.js';
 import { U, hemi, renderer, scene, skyMat, sun } from './scene.js';
@@ -35,5 +36,6 @@ export function applyMood(dt) {
   if (E.foamMat) E.foamMat.uniforms.uBright.value = m.foam;
   if (E.lamps) { E.lamps.material.opacity = Math.min(1, m.night * 1.15); E.lamps.visible = m.night > 0.05; }
   if (E.zems) E.zems.material.emissiveIntensity = m.night * 0.9;
+  majPortesDeNuit(m.night); // une ampoule au-dessus de chaque porte (interieurs.js)
 }
 

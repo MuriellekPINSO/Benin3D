@@ -50,6 +50,36 @@ function allumer(I) {
   LAMPE.visible = true;
 }
 export function cacherInterieurs() { LAMPE.visible = false; for (const I of INTERIEURS.values()) if (I.g) I.g.visible = false; }
+
+// ---------- La nuit, on voit où sont les portes ----------
+// « La nuit, les entrées des bâtiments sont peu visibles » (un testeur, 24/10). À Cotonou, une boutique ouverte
+// le soir, c'est d'abord une ampoule au-dessus de la porte. On en pose une à chaque entrée : un seul nuage de
+// points pour toutes, comme les lampadaires de la rue (trafic.js), allumé par ambiances.js selon l'heure.
+export function allumerLesPortes() {
+  if (!INTERIEURS.size || PORTES.n === INTERIEURS.size) return;
+  // Les intérieurs ne sont pas tous déclarés en même temps : la maison, les agences et les commerces arrivent
+  // après le food court et l'aéroport. On refait le nuage quand il en manque — quelques dizaines de points.
+  if (PORTES.points) { scene.remove(PORTES.points); PORTES.points.geometry.dispose(); PORTES.points.material.map?.dispose(); PORTES.points.material.dispose(); }
+  PORTES.n = INTERIEURS.size;
+  const pos = [];
+  // I.porte est dans la ville, au niveau de la mer — pas dans la pièce, qui est bâtie à 40 m au large (ALT).
+  for (const I of INTERIEURS.values()) pos.push(I.porte[0], 2.5, I.porte[1]);
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const cx = cv.getContext('2d'), gr = cx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,246,220,1)'); gr.addColorStop(.22, 'rgba(255,206,130,.9)'); gr.addColorStop(1, 'rgba(255,170,70,0)');
+  cx.fillStyle = gr; cx.fillRect(0, 0, 64, 64);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  PORTES.points = new THREE.Points(g, new THREE.PointsMaterial({ size: 5.5, map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: '#ffd79a', opacity: 0, fog: true }));
+  PORTES.points.renderOrder = 20; PORTES.points.visible = false; scene.add(PORTES.points);
+}
+/** `nuit` de 0 à 1 (ambiances.js) : les ampoules des portes s'allument au crépuscule. */
+export function majPortesDeNuit(nuit) {
+  if (nuit > .05) allumerLesPortes(); // au crépuscule : on prend les portes déclarées depuis
+  if (!PORTES.points) return;
+  PORTES.points.visible = nuit > .05;
+  PORTES.points.material.opacity = Math.min(1, nuit * 1.25);
+}
+const PORTES = { points: null, n: 0 };
 // Dans une pièce, on ne dessine que ce qui l'entoure : la ville est à des kilomètres, derrière les murs, et coûtait
 // pourtant 3,4 millions de triangles par image (assez pour faire fermer la page sur téléphone). Liste faite à l'entrée.
 const HORS = { I: null, liste: [] };

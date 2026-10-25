@@ -6,7 +6,7 @@ import { PRIX_LITRE, VEHICULES, creerVehicule, initStations, itineraire, longueu
 import { dansBatiment, dansObstacleRue, decalee } from './rue.js';
 import { E } from './etat.js';
 import { dansCirculation } from './trafic.js';
-import { arriveeDehors, comptoirProche, devantChaise, siegeProche } from './interieurs.js';
+import { allumerLesPortes, arriveeDehors, comptoirProche, devantChaise, siegeProche } from './interieurs.js';
 import { payerEtRecevoir, remettre } from './remise.js';
 import { scene } from './scene.js';
 import { VIE, carburant, consommer, depenser, faireLePlein, manger, reservoir, sauverVie } from './vie.js';
@@ -28,6 +28,7 @@ let S = null, ligne = () => { }, bulleLocale = null;
 export function initTrajets(data, ctx) {
   initStations(data.L.stations); S = ctx.S; ligne = ctx.ligne; bulleLocale = ctx.bulle; initVol(data, { ...ctx, T });
   initMetiers(data, { ...ctx, T, gps, choisir, asseoirSur, garerSonVehicule, etiquette }); // zém, taxi, tokpa-tokpa (metiers.js)
+  allumerLesPortes(); // toutes les portes sont déclarées : on pose l'ampoule du soir au-dessus de chacune
 }
 // Comment on nomme le véhicule : monter dans…, descendre de…
 const NOMS = { voiture: ['ta voiture', 'de la voiture'], moto: ['ta moto', 'de la moto'], velo: ['ton vélo', 'du vélo'], taxi: ['le taxi', 'du taxi'], tokpa: ['le tokpa-tokpa', 'du tokpa-tokpa'] };
