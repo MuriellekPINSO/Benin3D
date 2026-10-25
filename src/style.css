@@ -645,6 +645,9 @@ button { font: inherit; color: inherit; }
 .jh-guide p, .sl-guide p { margin: 0; font: 600 15px/1.4 var(--font-body); color: var(--ink); }
 .jh-guide kbd, .sl-guide kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font: 800 12px/1 var(--font-mono); vertical-align: 1px; }
 .jh-guide button, .sl-guide button { justify-self: start; border: 0; padding: 0; background: none; color: var(--ink-2); font: 600 12px/1.2 var(--font-body); text-decoration: underline; cursor: pointer; }
+/* Au doigt, « Masquer le guide » faisait 14 px de haut : on ne le touchait qu'une fois sur trois (mesuré sur un
+   écran de 412 px, 24/10). Quarante-quatre pixels, la taille d'un bout de doigt. */
+@media (pointer: coarse) { .jh-guide button, .sl-guide button { min-height: 44px; padding-block: 12px; } }
 @media (max-width: 720px) {
   .jh-guide { top: auto; bottom: 150px; left: 12px; right: 12px; width: auto; }
   .jh-dialogue:not([hidden]) ~ .jh-guide { display: none; } /* le dialogue dit déjà quoi faire ; empilés, ils cachaient la route */
