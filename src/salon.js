@@ -586,7 +586,17 @@ export function majSalon(dt) {
   // La circulation s'arrête devant lui (trafic.js, circulation.js) ; dedans, elle l'ignore. Elle doit connaître sa taille :
   // au volant, ce n'est plus un piéton mais une voiture de 4,4 m, et les autres s'arrêtaient à son milieu, déjà dans sa carrosserie.
   const J = S.lieu ? null : suivi ?? S;
-  if (J) { const Vj = T.mode === 'conduit' ? T.veh : T.mode === 'passager' ? T.zem?.V : T.mode === 'ami' ? S.autres.get(S.ami)?.veh : null; J.hl = Vj ? (Vj.D?.long ?? 2) / 2 : .3; J.hw = Vj ? (Vj.D?.larg ?? .8) / 2 : .3; }
+  if (J) {
+    const Vj = T.mode === 'conduit' ? T.veh : T.mode === 'passager' ? T.zem?.V : T.mode === 'ami' ? S.autres.get(S.ami)?.veh : null;
+    J.hl = Vj ? (Vj.D?.long ?? 2) / 2 : .3; J.hw = Vj ? (Vj.D?.larg ?? .8) / 2 : .3;
+    // Depuis combien de temps pousse-t-on sans avancer ? Un testeur s'est retrouvé « coincé entre les voitures,
+    // il ne pouvait même pas avancer, il a dû descendre et prendre un zém ». La circulation s'en sert pour
+    // desserrer l'embouteillage devant lui (circulation.js).
+    const avance = Math.hypot(J.x - (S.xAvant ?? J.x), J.z - (S.zAvant ?? J.z)) / Math.max(dt, .001);
+    S.xAvant = J.x; S.zAvant = J.z;
+    S.coince = Math.abs(av) > .2 && avance < .4 ? (S.coince || 0) + dt : 0;
+    J.coince = S.coince;
+  }
   E.joueur = J;
   if (!suivi && !majMaison(dt, av, tour)) { // chez soi, couché, sous la douche ou aux fourneaux : la maison place le personnage
     if (S.gradin && Math.abs(av) > .05) leverGradins(); // assis dans les gradins : avancer, c'est se lever

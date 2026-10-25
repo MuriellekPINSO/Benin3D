@@ -181,12 +181,45 @@ export function majCirculation(dt, J) {
     V.px = x; V.pz = z; V.fx = p.dx; V.fz = p.dz; V.cap = Math.atan2(p.dx, p.dz);
     if ((x - J.x) ** 2 + (z - J.z) ** 2 < 1600) E.circulation.push(V); // solide près du joueur (trafic.js, dansCirculation)
   }
+  desserrer(dt, J);
   // Les matrices : chacun à sa place, ceux qui n'ont pas de rue cachés.
   for (const V of C.vehicules) {
     if (!V.R) { m4.compose(pos.set(0, -50, 0), q.identity(), zero); V.mesh.setMatrixAt(V.idx, m4); continue; }
     q.setFromAxisAngle(Y, Math.atan2(-V.fz, V.fx)); m4.compose(pos.set(V.px, .04, V.pz), q, un); V.mesh.setMatrixAt(V.idx, m4);
   }
   for (const ms of C.meshes.values()) for (const m of ms) m.instanceMatrix.needsUpdate = true;
+}
+/**
+ * Le joueur pousse et n'avance pas : on desserre l'embouteillage devant lui.
+ *
+ * Un testeur s'est retrouvé « coincé entre les voitures, il ne pouvait même pas avancer, il a dû descendre et
+ * prendre un zém ». Le garde-fou qui existait ne traitait que le cas inverse — un véhicule que le joueur
+ * bloque. Quand c'est lui qui est pris dans la file, chacun attend celui de devant et plus rien ne bouge.
+ *
+ * On retire alors un véhicule à l'arrêt toutes les 1,2 s, en commençant par le plus loin et de préférence hors
+ * de vue : la file se vide par la tête, là où le joueur ne regarde pas, et le bouchon se dissout tout seul. En
+ * dernier recours seulement (après 12 s), on prend le plus proche, même visible : rester coincé est pire.
+ */
+let depuis = 0;
+function desserrer(dt, J) {
+  const t = J.coince || 0;
+  if (t < 3) { depuis = 0; return; }
+  depuis += dt; if (depuis < .8) return; depuis = 0;
+  const s = Math.sin(J.cap ?? 0), c = Math.cos(J.cap ?? 0);
+  let pris = null, score = -1;
+  for (const V of C.vehicules) {
+    if (!V.R || V.v > .5) continue;
+    const ax = V.px - J.x, az = V.pz - J.z, d = Math.hypot(ax, az); if (d > 50) continue;
+    // Ceux qui barrent vraiment la route d'abord : devant lui, dans son axe. Puis, de préférence, hors de vue —
+    // la file se vide par la tête, là où il ne regarde pas. Passé 10 s, on prend le plus proche même visible :
+    // rester coincé est pire que voir une voiture s'en aller.
+    const devant = (ax * s + az * c) / (d || 1);
+    const barre = devant > .35 ? 2000 : 0;
+    if (!barre && t < 10) continue; // au début, on ne touche qu'à ceux qui sont devant lui
+    const note = barre + (horsDeVue(J, V.px, V.pz) ? 500 : 0) + (t > 10 ? 50 - d : d);
+    if (note > score) { score = note; pris = V; }
+  }
+  if (pris) pris.R = null;
 }
 export function cacherCirculation() { C.actif = false; for (const ms of C.meshes.values()) for (const m of ms) m.visible = false; for (const V of C.vehicules) V.R = null; }
 /** Combien de véhicules roulent à moins de r mètres de (x, z) (pour le bruit de la circulation, ambiance-salon.js). */
