@@ -549,6 +549,20 @@ export function casserSerie(st, pourquoi) {
 // Il coûte : 150 F (50 F pour un débutant) pris sur la recette, la moto pile, la série de clients est perdue, et le
 // client peut descendre (regles.js accident).
 const PRIX_ACCIDENT = 150;
+// Quand on accroche quelqu'un à Cotonou, personne ne part sans rien dire — « lorsque deux personnes se
+// cognent, ils s'invectivent » (Murielle, 25/10). On rouspète, on ne s'insulte pas : le jeu est tout public.
+const PESTE = {
+  zem: ['Hé ! Tu as acheté la route ou quoi ?', 'Mon frère, tu conduis avec les yeux fermés ?', 'Ahn ! Doucement sur ma moto !'],
+  tokpa: ['Tu veux tuer les gens ou bien ?', 'Regarde devant toi, eh !'],
+  voiture: ['Mais tu es fou ! Ma portière !', 'Tu vas me payer ça, hein !'],
+  marchande: ['Mes marchandises ! Tu vas tout me payer !', 'Aïe ! Mon étalage, oh !'],
+  pieton: ['Eh ! Tu ne vois pas les gens ?', 'Doucement ! On marche ici !', 'Tu veux m’écraser ou bien ?'],
+};
+/** L'autre conducteur rouspète après un accrochage (une bulle au-dessus de lui). */
+function rouspeter(o) {
+  const l = PESTE[o.type]; if (!l || !o.mesh) return;
+  bulle(o.mesh, l[Math.floor(Math.random() * l.length)], { ton: 'fort' });
+}
 function accidentCourse(st, quoi) {
   st.accidents++; const cout = Math.min(st.argent, st.doux ? 50 : PRIX_ACCIDENT); st.argent -= cout;
   toast(`Accident ! Attention ${quoi}${cout ? ` · −${cout} F` : ''}`, 1.8, 'mal'); casserSerie(st, 'accident');
@@ -710,6 +724,7 @@ export function majJeu(dt) {
             st.v *= .2; st.invul = 1.8; st.secousse = .5; son('choc'); evenement('choc'); vibrer('choc');
             const noms = { zem: 'à l’autre zém', tokpa: 'au tokpa-tokpa', voiture: 'à la voiture', chevre: 'à la chèvre', marchande: 'à la marchande', travaux: 'aux travaux', egungun: ': on ne touche pas un Egungun' };
             accidentCourse(st, noms[o.type]);
+            rouspeter(o);
           }
         } else if (!o.contact && st.v > .5) { o.contact = true; son('bosse'); } // simple contact au pas
       }
@@ -854,11 +869,12 @@ export function majHud(st, C, V) {
 const RAYONS = { poteau: .25, vendeuse: .7, kpayo: .7, momo: .7, vulca: .7, peinte: .5, zems: 1.1 }, vP = new THREE.Vector3();
 function corpsDuBord(st, C, V, dt) {
   const j = JEU.joueur.position, c = pose(C, st.s, 0, tmpP2), hl = V.long / 2, hw = V.larg / 2, corps = [];
-  for (const o of BORD.vivants) if (RAYONS[o.type]) corps.push([o.g.position, RAYONS[o.type], o.type === 'poteau' ? 'au poteau' : 'à l’étal']);
-  for (const g of DISC.vivants) for (const m of g.membres) corps.push([m.getWorldPosition(vP).clone(), .3, 'aux passants']);
-  for (const h of DISC.signes) if (h.m) corps.push([h.m.position, .3, 'au client qui te faisait signe']);
-  for (const p of PT.marcheurs) corps.push([p.m.position, .3, 'au piéton']);
-  for (const [q, r, nom] of corps) {
+  // Quatrième champ : l'objet où accrocher une bulle quand on renverse quelqu'un (un poteau ne parle pas).
+  for (const o of BORD.vivants) if (RAYONS[o.type]) corps.push([o.g.position, RAYONS[o.type], o.type === 'poteau' ? 'au poteau' : 'à l’étal', o.type === 'poteau' ? null : o.g]);
+  for (const g of DISC.vivants) for (const m of g.membres) corps.push([m.getWorldPosition(vP).clone(), .3, 'aux passants', m]);
+  for (const h of DISC.signes) if (h.m) corps.push([h.m.position, .3, 'au client qui te faisait signe', h.m]);
+  for (const p of PT.marcheurs) corps.push([p.m.position, .3, 'au piéton', p.m]);
+  for (const [q, r, nom, qui] of corps) {
     const x = q.x - j.x, z = q.z - j.z; if (x * x + z * z > 9) continue;
     const u = x * c.dx + z * c.dz, v = -x * c.dz + z * c.dx;
     if (Math.abs(u) >= hl + r || Math.abs(v) >= hw + r) continue;
@@ -868,6 +884,7 @@ function corpsDuBord(st, C, V, dt) {
     if (v0 > 4.2 && st.invul <= 0) {
       st.v = 0; st.invul = 1.8; st.secousse = .5; son('choc'); vibrer('choc'); evenement('choc');
       accidentCourse(st, nom);
+      if (qui) bulle(qui, PESTE.pieton[Math.floor(Math.random() * PESTE.pieton.length)], { ton: 'fort' });
     } else if (v0 > .5 && !st.bute) { st.bute = .6; son('bosse'); }
     break;
   }
