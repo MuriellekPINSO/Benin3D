@@ -6,7 +6,7 @@ import { construireTerrePleins, initTerrePleins } from './terre-pleins.js';
 import * as THREE from 'three';
 import { applyMood, sunDir } from './ambiances.js';
 import { $, LITE, reduceMotion } from './base.js';
-import { decode, frame, loadTxt, status } from './chargement.js';
+import { arreterConseils, conseils, decode, frame, loadTxt, status } from './chargement.js';
 import { E } from './etat.js';
 import { accueil, initExplorer } from './explorer.js';
 import { TRIPO, chargerIndexTripo, urlTripo } from './batiments-tripo.js';
@@ -123,6 +123,7 @@ function finishRise() {
 
 // ---------- Démarrage ----------
 async function main() {
+  conseils(); // de quoi lire pendant que la ville arrive, sur une connexion lente
   status('Téléchargement de la ville…', 2); await frame();
   const mo = n => (n / 1048576).toFixed(1).replace('.', ',');
   // Zémidjans et statue : téléchargés pendant la construction de la ville (le réseau est libre, le processeur occupé).
@@ -173,6 +174,7 @@ async function main() {
   camera.lookAt(target);
   if (!reduceMotion) startFlight(target.clone(), 12500, 0.98, 0.42, 6.5);
   requestAnimationFrame(t => { last = t; loop(t); });
+  arreterConseils();
   setTimeout(() => { $('#loader').classList.add('done'); demarrerTelechargements(); }, 150); // les modèles détaillés, une fois la ville affichée
   setTimeout(demarrerStats, 2500); // présence et compteurs du tableau de bord (statistiques.js)
   setTimeout(synchroniserAuDemarrage, 1500); // avec un compte : la partie jouée sur un autre téléphone (compte.js)

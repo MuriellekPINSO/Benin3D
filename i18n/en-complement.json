@@ -1,6 +1,14 @@
 {
   "src/chargement.js": {
-    "'donnees/cotonou.json.gz'": "'donnees/cotonou.en.json.gz'"
+    "'donnees/cotonou.json.gz'": "'donnees/cotonou.en.json.gz'",
+    "'Glisse dans la ville pour tourner la caméra, et marche avec les flèches ou ZQSD.'": "'Drag in the city to turn the camera, and walk with the arrows or WASD.'",
+    "'Le bouton « Aller · gestes » ouvre « Aller à », « Prendre un zém » et la garde-robe.'": "'The “Go · gestures” button opens “Go to”, “Take a zém” and the wardrobe.'",
+    "'Un zém coûte 200 F au départ : c’est plus rapide que la marche jusqu’à Fidjrossè.'": "'A zém starts at 200 F: quicker than walking all the way to Fidjrossè.'",
+    "'En ville, tu croises de vrais joueurs. Dis-leur bonjour dans la discussion.'": "'In town you meet real players. Say hello to them in the chat.'",
+    "'Tu as faim ? Commande au food court de la Cité ministérielle, puis assieds-toi pour manger.'": "'Hungry? Order at the Cité ministérielle food court, then sit down to eat.'",
+    "'« Travailler », en haut à gauche, te trouve un métier : zémidjan, tokpa-tokpa, vendeuse…'": "'“Work”, top left, finds you a job: zémidjan, tokpa-tokpa, market seller…'",
+    "'Tu peux prendre l’avion pour Ouidah depuis l’aéroport Cardinal Bernardin Gantin.'": "'You can fly to Ouidah from Cardinal Bernardin Gantin airport.'",
+    "'La musique et les radios béninoises en direct sont dans le menu Musique.'": "'Music and live Beninese radio stations are in the Music menu.'"
   },
   "src/style.css": {
     "'L’apprenti · '": "'The apprentice · '",

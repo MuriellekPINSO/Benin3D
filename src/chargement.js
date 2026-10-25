@@ -2,6 +2,28 @@ import { $ } from './base.js';
 // ---------- Chargement ----------
 export const loadTxt = $('#loadTxt'), loadBar = $('#loadBar');
 export const status = (t, p) => { loadTxt.textContent = t; if (p != null) loadBar.style.width = p + '%'; };
+
+// Conseils pendant le chargement : sur une connexion lente, la ville met dix à vingt secondes à venir et l'on
+// regardait une barre avancer sans rien apprendre (« afficher une barre de progression et des conseils sur
+// l'écran de chargement, pour les connexions lentes » — un testeur, 24/10). Ils changent toutes les 4,5 s.
+const CONSEILS = [
+  'Glisse dans la ville pour tourner la caméra, et marche avec les flèches ou ZQSD.',
+  'Le bouton « Aller · gestes » ouvre « Aller à », « Prendre un zém » et la garde-robe.',
+  'Un zém coûte 200 F au départ : c’est plus rapide que la marche jusqu’à Fidjrossè.',
+  'En ville, tu croises de vrais joueurs. Dis-leur bonjour dans la discussion.',
+  'Tu as faim ? Commande au food court de la Cité ministérielle, puis assieds-toi pour manger.',
+  '« Travailler », en haut à gauche, te trouve un métier : zémidjan, tokpa-tokpa, vendeuse…',
+  'Tu peux prendre l’avion pour Ouidah depuis l’aéroport Cardinal Bernardin Gantin.',
+  'La musique et les radios béninoises en direct sont dans le menu Musique.',
+];
+let conseilT = 0;
+export function conseils() {
+  const el = document.getElementById('loadConseil'); if (!el || conseilT) return;
+  let i = Math.floor(Math.random() * CONSEILS.length);
+  const poser = () => { el.textContent = CONSEILS[i % CONSEILS.length]; i++; };
+  poser(); conseilT = setInterval(poser, 4500);
+}
+export function arreterConseils() { clearInterval(conseilT); conseilT = 0; }
 export const frame = () => new Promise(r => requestAnimationFrame(() => r()));
 // Données de la ville : JSON gzippé produit par `npm run donnees`. Certains hébergeurs
 // le décompressent déjà en route ; on ne décompresse que si l'en-tête gzip est là.
