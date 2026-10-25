@@ -805,7 +805,10 @@
   "'Silencieux et très vif. Une charge qui dure'": "'Silent and very quick. A charge that lasts'",
   "'Tu as déjà un véhicule : rends-le d’abord.'": "'You already have a vehicle: give it back first.'",
   "achat d’": "purchase of ",
-  " pour l’acheter.": " to buy it."
+  " pour l’acheter.": " to buy it.",
+  "'Tesla Roadster'": "'Tesla Roadster'",
+  "'Le coupé électrique : bas, large, et le plus rapide de Cotonou'": "'The electric coupé: low, wide, and the fastest thing in Cotonou'",
+  "Tu as de quoi t’acheter une voiture : Menu, puis « Acheter une voiture ». La moins chère est à ": "You can afford a car now: Menu, then « Buy a car ». The cheapest one costs "
  },
  "src/trajets.js": {
   "'Ta voiture'": "'Your car'",
@@ -884,7 +887,9 @@
  "src/conduite.js": {
   "'zém'": "'zém'",
   "'le litre'": "'per litre'",
-  "'vélo'": "'bike'"
+  "'vélo'": "'bike'",
+  "'bolide électrique'": "'electric speedster'",
+  "'Roadster'": "'Roadster'"
  },
  "src/vol.js": {
   "'fr-FR'": "'en-US'",

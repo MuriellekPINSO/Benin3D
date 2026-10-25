@@ -164,6 +164,38 @@ export function partsBolide(couleur = '#eceff2') {
   }
   return P;
 }
+// Le Roadster : le coupé électrique d'après la photo que Murielle a envoyée (25/10). Un coin très bas, un museau
+// pointu, une verrière sombre d'un seul tenant du pare-brise à la lunette, des ailes larges au-dessus de grandes
+// roues, et une arête qui court sur tout le flanc. Dessiné en boîtes, comme les autres véhicules du jeu.
+export function partsRoadster(couleur = '#dfe3e7') {
+  const P = [], add = (g, hex) => P.push([g, hex]);
+  const sombre = '#141619', verre = '#191e24', jante = '#b9c0c6';
+  // La carrosserie : trois dalles empilées, de plus en plus courtes, qui dessinent le coin.
+  add(B3(4.05, 0.26, 1.66).translate(0, 0.27, 0), sombre);                          // bas de caisse noir
+  add(B3(4.30, 0.34, 1.80).translate(0, 0.54, 0), couleur);                         // flancs
+  add(B3(3.10, 0.16, 1.74).translate(-0.35, 0.78, 0), couleur);                     // épaulement
+  add(B3(1.55, 0.20, 1.60).rotateZ(-0.12).translate(1.30, 0.80, 0), couleur);       // capot qui plonge
+  add(B3(0.95, 0.15, 1.26).rotateZ(-0.34).translate(2.05, 0.62, 0), couleur);       // museau en pointe
+  // La verrière, d'un seul tenant du pare-brise à la lunette.
+  add(B3(0.85, 0.30, 1.42).rotateZ(-0.46).translate(0.86, 0.99, 0), verre);         // pare-brise très couché
+  add(B3(1.55, 0.14, 1.46).translate(-0.20, 1.12, 0), verre);                       // toit de verre
+  add(B3(1.15, 0.26, 1.44).rotateZ(0.40).translate(-1.22, 0.98, 0), verre);         // lunette fuyante
+  add(B3(0.95, 0.20, 1.72).translate(-1.90, 0.76, 0), couleur);                     // croupe coupée net
+  // Les ailes : des arches basses et larges, juste au-dessus des roues.
+  for (const x of [1.42, -1.46]) add(B3(1.25, 0.30, 1.98).translate(x, 0.60, 0), couleur);
+  for (const x of [1.42, -1.46]) add(B3(1.05, 0.06, 2.02).translate(x, 0.74, 0), '#aeb6bd'); // le liseré du passage de roue
+  // Les détails : bandeaux, lame avant, diffuseur, jupes.
+  add(B3(0.09, 0.07, 1.44).translate(-2.34, 0.82, 0), '#c1272d');                   // bandeau rouge arrière
+  add(B3(0.10, 0.06, 1.16).translate(2.26, 0.66, 0), '#eef4ff');                    // bandeau de phares
+  add(B3(0.56, 0.09, 1.30).translate(2.18, 0.34, 0), sombre);                       // lame avant, au ras du sol
+  add(B3(0.52, 0.18, 1.46).translate(-2.06, 0.36, 0), sombre);                      // diffuseur
+  for (const z of [0.86, -0.86]) add(B3(1.9, 0.12, 0.10).translate(-0.1, 0.38, z), sombre); // jupes latérales
+  for (const x of [1.42, -1.46]) for (const z of [0.95, -0.95]) {
+    add(C3(0.40, 0.40, 0.24, 16).rotateX(Math.PI / 2).translate(x, 0.40, z), '#131316');
+    add(C3(0.25, 0.25, 0.27, 12).rotateX(Math.PI / 2).translate(x, 0.40, z), jante);
+  }
+  return P;
+}
 export function partsChevre() {
   const P = [], add = (g, hex) => P.push([g, hex]);
   add(B3(0.85, 0.38, 0.34).translate(0, 0.62, 0), '#e8e2d4'); add(B3(0.3, 0.38, 0.34).translate(-0.25, 0.62, 0), '#6a4a32');

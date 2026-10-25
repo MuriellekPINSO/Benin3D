@@ -23,18 +23,19 @@ export const LOCATION_MOTO = 1500; // F par jour
 // Les loueurs de Cotonou demandent 4 000 F le vélo pour 1 à 2 heures. Dans le jeu c'est 2 000 F : un joueur
 // « Débrouillard » commence avec 2 000 F, et à 4 000 F personne ne voyait jamais la boutique ni les balades.
 export const LOCATION_VELO = 2000, HEURES_VELO = 2;
-const RESERVOIRS = { moto: 3, voiture: 6, taxi: 6, tokpa: 10, velo: 0, citadine: 5, bolide: 9 }; // litres (échelle du jeu, voir conduite.js) ; le vélo ne boit rien
+const RESERVOIRS = { moto: 3, voiture: 6, taxi: 6, tokpa: 10, velo: 0, citadine: 5, bolide: 9, roadster: 10 }; // litres (échelle du jeu, voir conduite.js) ; le vélo ne boit rien
 // S'acheter une voiture : elle reste à soi, contrairement à la moto qu'on loue à la journée.
 //
-// Les prix sont ceux du JEU, pas ceux de la vraie vie. J'avais d'abord mis 450 000 et 1 800 000 F — les prix
-// de l'occasion à Cotonou — et c'était hors d'atteinte : on gagne 150 à 250 F par client servi, on démarre
-// « Débrouillard » avec 2 000 F, et la chambre coûte 500 F par jour. Il aurait fallu des mois. On se cale
-// donc sur ce que le jeu demande déjà : 1 500 F la journée de location de moto, 5 000 F le loyer d'un
-// appartement. La citadine vaut une douzaine de bonnes journées, le bolide reste le but qu'on vise longtemps
-// — et il est au-dessus des 150 000 F du départ « Fils à papa », qui ne peut donc pas l'avoir tout de suite.
+// Les prix sont ceux du JEU, pas ceux de la vraie vie. J'avais d'abord mis ceux de l'occasion à Cotonou
+// (450 000 et 1 800 000 F) : hors d'atteinte quand on gagne 150 à 250 F par client et qu'on démarre
+// « Débrouillard » avec 2 000 F. Puis 60 000 et 250 000, encore trop long. Prix fixés par Murielle le 25/10 :
+// deux voitures ordinaires au même prix — on choisit celle qu'on préfère, pas la plus chère — et le Roadster
+// à 5 000 F, celui qu'on vise. Repère : la journée de location de moto vaut 1 500 F, le loyer d'un appartement
+// 5 000 F. Une voiture, c'est donc une bonne journée de travail ; le Roadster, trois ou quatre.
 export const A_VENDRE = [
-  { id: 'citadine', nom: 'Citadine', prix: 60000, sous: 'Courte, haute, économe : celle qu’on croise partout' },
-  { id: 'bolide', nom: 'Bolide électrique', prix: 250000, sous: 'Silencieux et très vif. Une charge qui dure' },
+  { id: 'citadine', nom: 'Citadine', prix: 2000, sous: 'Courte, haute, économe : celle qu’on croise partout' },
+  { id: 'bolide', nom: 'Bolide électrique', prix: 2000, sous: 'Silencieux et très vif. Une charge qui dure' },
+  { id: 'roadster', nom: 'Tesla Roadster', prix: 5000, sous: 'Le coupé électrique : bas, large, et le plus rapide de Cotonou' },
 ];
 /** Achète un véhicule : il est à soi pour de bon (pas de vehiculeFin, contrairement à la location). */
 export async function acheterVehicule(id) {
@@ -325,4 +326,8 @@ export function rendreVie() {
   // « Acheter une voiture » ne s'affiche que si l'on a de quoi en payer au moins une : sinon c'est un bouton
   // qui ne mène qu'à des lignes grisées, et un écran de plus à lire pour rien.
   const a = $('#vhAcheter'); if (a) a.hidden = !!v.vehicule || !!VIE.travail || !!VIE.service || v.argent < Math.min(...A_VENDRE.map(x => x.prix));
+  // « Comment j'achète tout ça, où je prends ça ? » (Murielle, 25/10) : le bouton est dans le menu, et rien ne
+  // le disait. La première fois qu'on a de quoi, on le dit dans le fil — une seule fois par partie.
+  if (a && !a.hidden && !ditVoiture) { ditVoiture = true; annonce(`Tu as de quoi t’acheter une voiture : Menu, puis « Acheter une voiture ». La moins chère est à ${fmt(Math.min(...A_VENDRE.map(x => x.prix)))}.`); }
 }
+let ditVoiture = false;
