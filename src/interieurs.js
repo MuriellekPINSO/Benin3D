@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { personne } from './discussions.js';
 import { K, centroide, groupeLieu, obb, panneauTexte } from './lieux.js';
 import { CAMPAGNES, matAffiche } from './publicites.js';
-import { scene } from './scene.js';
+import { scene, sky } from './scene.js';
 
 // ---------- Intérieurs : entrer dans les bâtiments (salon entre amis) ----------
 // On entre par une porte dessinée sur la façade : devant elle, le salon propose « Entrer » ; dedans,
@@ -34,9 +34,22 @@ export function ouvrirInterieur(I) {
     const g = new THREE.Group(); g.name = `interieur-${I.id}`; g.position.set(I.centre[0], ALT, I.centre[1]); scene.add(g); I.g = g; K.into(g, () => I.construire(I));
     for (const o of g.children) if (o.userData?.jouer || o.userData?.pnj) I.obstacles.push([o.position.x, o.position.z, .22, .22]); // vendeurs, clients, voisins : on ne les traverse pas
   }
-  I.g.visible = true; return I;
+  I.g.visible = true; allumer(I); return I;
 }
-export function cacherInterieurs() { for (const I of INTERIEURS.values()) if (I.g) I.g.visible = false; }
+// Une pièce n'avait aucune lumière à elle : tout le jeu n'est éclairé que par le ciel et le soleil, qui
+// n'entrent pas sous un toit. Les enduits tombaient dans un gris plat — « espace vide », « c'est bizarre et
+// vilain » au réveil dans la chambre, et « la nuit, l'intérieur de certains lieux n'est pas éclairé » (trois
+// testeurs, 24/10). Une seule lampe pour tout le jeu, posée au milieu de la pièce où l'on se trouve : les
+// matériaux sont des Lambert, une lumière de plus ne coûte presque rien, et elle s'éteint dès qu'on ressort.
+const LAMPE = new THREE.PointLight(0xffeec8, 0, 26, 1.4);
+LAMPE.visible = false; scene.add(LAMPE);
+function allumer(I) {
+  LAMPE.position.set(I.centre[0], ALT + (I.plafond ? I.plafond - .45 : 2.3), I.centre[1]);
+  LAMPE.distance = Math.max(I.w, I.d) * 1.6;
+  LAMPE.intensity = Math.max(I.w, I.d) * 1.1; // décroissance en 1/d² : une grande pièce demande une lampe plus forte
+  LAMPE.visible = true;
+}
+export function cacherInterieurs() { LAMPE.visible = false; for (const I of INTERIEURS.values()) if (I.g) I.g.visible = false; }
 // Dans une pièce, on ne dessine que ce qui l'entoure : la ville est à des kilomètres, derrière les murs, et coûtait
 // pourtant 3,4 millions de triangles par image (assez pour faire fermer la page sur téléphone). Liste faite à l'entrée.
 const HORS = { I: null, liste: [] };
@@ -45,7 +58,11 @@ export function horsDeLaPiece(I, p) {
   if (!I) { HORS.I = null; HORS.liste.length = 0; return HORS.liste; }
   if (HORS.I !== I) {
     HORS.I = I; HORS.liste.length = 0; const b = new THREE.Box3();
-    for (const o of scene.children) if (!o.isLight && o !== I.g && !b.setFromObject(o).isEmpty() && b.distanceToPoint(p) > 150) HORS.liste.push(o);
+    // Jamais le ciel : il suit la caméra d'une image à l'autre, mais la liste se fait une fois pour toutes à
+    // l'entrée, et il était alors encore posé sur la ville, à des kilomètres de la pièce — donc rangé parmi les
+    // choses lointaines et caché tant qu'on restait dedans. Dans la cour, à ciel ouvert, on voyait le fond de la
+    // page au-dessus des murs (« espace vide », un testeur le 24/10).
+    for (const o of scene.children) if (!o.isLight && o !== I.g && o !== sky && !b.setFromObject(o).isEmpty() && b.distanceToPoint(p) > 150) HORS.liste.push(o);
   }
   return HORS.liste;
 }
