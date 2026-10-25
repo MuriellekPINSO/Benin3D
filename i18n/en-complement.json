@@ -288,7 +288,8 @@
     "Entrer en ville": "Enter the city",
     "Entre amis seulement": "Friends only",
     "En ville, tu croises des gens que tu ne connais pas. Entre amis, personne d’autre que ceux à qui tu envoies le lien.": "In the city you run into people you don’t know. Among friends, nobody but the people you send the link to.",
-    "Glisse dans la ville pour tourner la caméra · Flèches ou ZQSD : marcher · Maj : courir · E, R, F : actions · V : vue · M : carte · Entrée : écrire": "Drag in the city to turn the camera · Arrows or WASD: walk · Shift: run · E, R, F: actions · V: view · M: map · Enter: type"
+    "Glisse dans la ville pour tourner la caméra · Flèches ou ZQSD : marcher · Maj : courir · E, R, F : actions · V : vue · M : carte · Entrée : écrire": "Drag in the city to turn the camera · Arrows or WASD: walk · Shift: run · E, R, F: actions · V: view · M: map · Enter: type",
+    "Concert sur l’esplanade de l’Amazone (entrée offerte)": "Concert on the Amazone esplanade (free entry)"
   },
   "src/evenement.js": {
     "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",

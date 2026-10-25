@@ -31,9 +31,13 @@ export function creerRendu() {
   }
   // Rien n'a marché : on dit lequel des deux problèmes c'est, le message d'avant accusait toujours le second.
   const sansWebGL2 = !document.createElement('canvas').getContext('webgl2');
-  document.querySelector('#loadTxt').innerHTML = sansWebGL2
+  // Le message va dans l'écran de chargement s'il est là. S'il ne l'est pas, on ne masque surtout pas la vraie
+  // erreur par un « innerHTML of null » : c'est elle qui dit pourquoi la carte graphique a refusé.
+  const el = document.querySelector('#loadTxt');
+  if (el) el.innerHTML = sansWebGL2
     ? '<span class="err">Ce navigateur ne gère pas la 3D (WebGL 2).</span> Essaie Chrome ou Firefox à jour, ou un autre téléphone.'
     : '<span class="err">WebGL n\'a pas pu démarrer.</span> Activez l\'accélération matérielle du navigateur, puis rechargez la page.';
+  console.error('WebGL : aucun des quatre paliers n\'a démarré.', dernier);
   throw dernier;
 }
 export const renderer = creerRendu();

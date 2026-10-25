@@ -1,5 +1,5 @@
 import './style.css';
-import { initEvenement } from './evenement.js';
+import { initEvenement, majConcertDehors } from './evenement.js';
 import { initMultijoueur, majMultijoueur } from './multijoueur.js';
 import { construireFeux, majFeuxVille } from './feux.js';
 import { construireTerrePleins, initTerrePleins } from './terre-pleins.js';
@@ -101,6 +101,7 @@ function image(now) {
   if (E.zems) { E.zems.visible = E.zemOn && E.riseDone && dist < 5000 && !JEU.actif && !reelle; if (E.zemsProches) E.zemsProches.visible = E.zems.visible; if (E.zems.visible) updateZems(dt); }
   if (E.tokpas) { E.tokpas.visible = E.zemOn && E.riseDone && dist < 6000 && !JEU.actif && !reelle; if (E.tokpas.visible) majTokpas(dt); }
   majCirculation(dt, E.joueur); // dans « Vivre à Cotonou » : voitures, taxis, camions, vélos autour du joueur (circulation.js)
+  majConcertDehors(camera.position, dt); // les soirs de concert : la scène de l'Amazone se voit de loin (evenement.js)
   majMondeReel(JEU.actif && JEU.joueur ? JEU.joueur.position : t, JEU.actif);
   majMeteo(dt);
   majFeuxVille(U.uTime.value, JEU.actif || reelle); // feux tricolores cachés en jeu (le jeu a les siens) et en Vue réelle seule

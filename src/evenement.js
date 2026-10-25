@@ -18,10 +18,19 @@ import { avatarPorte } from './mode.js';
 // Une scène face à la statue, un grand écran, des lumières qui balaient, une foule qui danse et une
 // musique de concert composée par le jeu. Entrée : 100 F, payés avec la cagnotte du jeu ou, comme le
 // demande le cahier des charges, pour de vrai par MTN MoMo ou Moov Money (FedaPay, voir paiement.js ;
-// le billet payé vaut pour la journée). Le nom reste générique : utiliser celui d'un vrai festival
-// demande l'accord de ses organisateurs.
-
-export const PRIX_ENTREE = 100;
+// le billet payé vaut pour la journée).
+//
+// LE NOM. Il reste générique exprès : « We Love Eya » est un vrai festival, place de l'Amazone — le même
+// endroit que dans le jeu —, organisé par le Centre culturel Eya. Écrire son nom dans le jeu demande l'accord
+// de ses organisateurs. Le jour où tu l'as, il n'y a qu'une ligne à changer : NOM ci-dessous.
+export const NOM = 'Concert de l’Amazone';
+// L'entrée est offerte (demande de Murielle, 25/10). Le paiement MoMo et la cagnotte restent câblés : remettre
+// un prix ici les rallume, rien d'autre à toucher.
+export const PRIX_ENTREE = 0;
+// Les soirs de concert : les jours du mois où il a lieu. Le 30, pour l'édition annoncée.
+const SOIRS = [30];
+/** Y a-t-il un concert ce soir ? (heure du Bénin, UTC+1) */
+export const concertCeSoir = () => SOIRS.includes(new Date(Date.now() + 3600e3).getUTCDate());
 const EV = { moi: null, enAttente: null, groupe: null, actif: false, ecran: null, ctx: null, foule: null, tetes: null, places: [], spots: [], t: 0, raf: 0, scene: null, sx: 0, sz: 0, danseurs: null, artistes: null, video: null, videoEl: null, telephones: null, cible: null, camEcran: null, toileEcran: null, planEcran: null, image: 0 };
 // L'écran géant montre ce qui se passe vraiment sur place : une deuxième caméra filme l'artiste, puis le public, et son
 // image est posée sur l'écran (couche ÉCRAN : elle ne voit que les gens, pas l'écran lui-même, sinon l'image se répète
@@ -164,11 +173,39 @@ function boucle(now) {
   else if (plan === 'motifs' && Math.floor(t * 12) !== Math.floor((t - .016) * 12)) dessinerEcran(t);
   EV.raf = requestAnimationFrame(boucle);
 }
+// ---------- Le concert vu de la ville ----------
+// « Les gens qui vont à l'Amazone le 30 doivent voir qu'il se passe quelque chose là-bas. » La scène est déjà
+// posée aux vraies coordonnées de l'esplanade, dans la scène principale : elle était seulement cachée jusqu'à
+// ce qu'on paie. Les soirs de concert, on la montre dès qu'on s'en approche.
+//
+// On ne lance pas pour autant la boucle du concert : la foule instanciée, l'écran géant et sa deuxième caméra
+// coûtent cher et ne se lisent pas à deux cents mètres. De dehors, seuls les projecteurs balaient le ciel —
+// c'est ce qu'on voit d'un concert de loin, et c'est une poignée de rotations par image.
+const VU_DE_LOIN = 700, PRES = 90;
+/** Où est la scène, connu sans avoir à la construire (EV.sx n'existe qu'après construire()). */
+function placeDeLaScene() {
+  if (EV.place) return EV.place;
+  const p = PLACES.find(q => q.id === 'amazone'); if (!p) return null;
+  const [ax, az] = toXZ(p.lat, p.lon); return EV.place = [ax, az + 42];
+}
+export function majConcertDehors(p, dt) {
+  if (EV.actif || !concertCeSoir()) { if (EV.dehors) { EV.groupe.visible = false; EV.dehors = false; } return; }
+  const ou = placeDeLaScene(); if (!ou) return;
+  const d = Math.hypot(p.x - ou[0], p.z - ou[1]);
+  if (!EV.groupe && d > VU_DE_LOIN) return; // rien construit, rien à faire : on ne paie pas la scène pour une ville qu'on survole
+  if (d > VU_DE_LOIN) { if (EV.dehors) { EV.groupe.visible = false; EV.dehors = false; } return; }
+  if (!EV.groupe) { construire(); if (!EV.groupe) return; }
+  if (!EV.dehors) { EV.groupe.visible = true; EV.dehors = true; }
+  EV.tDehors = (EV.tDehors || 0) + dt;
+  const t = EV.tDehors;
+  EV.spots.forEach((c, i) => { c.rotation.x = Math.sin(t * .9 + i) * .55 - .35; c.rotation.z = Math.cos(t * .7 + i * 1.3) * .5; });
+  return d < PRES; // assez près pour qu'on propose d'entrer
+}
 function entrer() {
   if (EV.actif) return; // déjà au concert
   if (!EV.groupe) construire();
   chargerPersonnages().then(() => chargerDanses()).then(() => { if (EV.actif) { artistes(); danseurs(); } }); // les danses arrivent en quelques secondes ; sans attendre, la scène restait vide quand on entrait tôt
-  EV.groupe.visible = true; EV.actif = true; setMood('nuit'); musiqueEvenement(true);
+  EV.groupe.visible = true; EV.dehors = false; EV.actif = true; setMood('nuit'); musiqueEvenement(true);
   EV.minDist = controls.minDistance; controls.minDistance = 5; // au concert, on peut s'approcher de la foule
   startFlight(EV.scene.clone(), 32, 1.2, Math.PI - .65, 2.6); // derrière la foule, en biais (la statue est dans l'axe de la scène)
   $('#evQuitter').hidden = false; $('#evenement').hidden = true;
@@ -215,9 +252,9 @@ const CLE_ATTENTE = 'cotonou3d-paiement-concert';
 const memoriserAttente = id => { try { if (id) localStorage.setItem(CLE_ATTENTE, String(id)); else localStorage.removeItem(CLE_ATTENTE); } catch { /* navigation privée */ } };
 const attenteGardee = () => { try { const v = localStorage.getItem(CLE_ATTENTE); return /^\d{1,15}$/.test(v || '') ? v : null; } catch { return null; } };
 
-/** Fenêtre d'entrée : 100 F pris sur la cagnotte du jeu, ou payés par MoMo. */
+/** Fenêtre d'entrée : le prix pris sur la cagnotte du jeu, ou payé par MoMo. Entrée offerte : on entre. */
 function ouvrir() {
-  if (billetDuJour()) return entrer();
+  if (PRIX_ENTREE <= 0 || billetDuJour()) { garderBillet(); return entrer(); }
   const el = $('#evenement'), P = JEU.prog, assez = (P?.cagnotte || 0) >= PRIX_ENTREE, momo = paiementReel();
   el.querySelector('.ev-solde').textContent = `Ta cagnotte : ${fmtF(P?.cagnotte || 0)}`;
   el.querySelector('#evPayer').disabled = !assez;
