@@ -1,7 +1,6 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { LITE } from './base.js';
+import { chargeurGLB } from './textures.js';
 
 // ---------- Véhicules : zémidjan, tokpa-tokpa, voitures, chèvres, marchandes ----------
 // Zém : moto rouge à selle longue, conducteur en chemise jaune numérotée (Cotonou), casque.
@@ -189,7 +188,7 @@ export const matVeh = new THREE.MeshStandardMaterial({ vertexColors: true, rough
 // zem.glb : moto rouge, conducteur en chemise jaune et passagère au chapeau.
 // Gabarits : origine au sol au centre du véhicule, avant tourné vers +x.
 export const ZEMS_3D = { moto: null, zem: null, motoLod: null };
-const chargeur = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+const chargeur = chargeurGLB();
 
 /**
  * Remet un véhicule droit sur sa route (repris de Rues.redresser, 3D monde) :

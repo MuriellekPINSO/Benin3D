@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { $ } from './base.js';
 import { plusTard } from './telechargements.js';
+import { reduireImage } from './textures.js';
 
 // ---------- Publicité : un seul catalogue pour toute la ville et pour Zém Run ----------
 // Chaque campagne alimente les panneaux 4 × 3 des grands axes (rue.js) et les grands
@@ -68,9 +69,9 @@ export function affiche(c) {
   g.fillStyle = c.accent; g.fillRect(64, 600, 220, 14);
   // bande aux couleurs du drapeau, comme sur beaucoup de panneaux de Cotonou
   g.fillStyle = '#008751'; g.fillRect(0, h - 40, w * .34, 40); g.fillStyle = '#fcd116'; g.fillRect(w * .34, h - 40, w * .33, 40); g.fillStyle = '#e8112d'; g.fillRect(w * .67, h - 40, w * .33, 40);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  const tex = new THREE.CanvasTexture(reduireImage(cv)); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   // Le visuel de l'annonceur arrive une fois la ville affichée (l'affiche dessinée tient la place) ; dispose() : la taille change.
-  if (c.image) plusTard(() => new THREE.ImageLoader().loadAsync(import.meta.env.BASE_URL + c.image)).then(img => { tex.image = img; tex.dispose(); tex.needsUpdate = true; }).catch(e => console.warn(`affiche ${c.id}`, e.message));
+  if (c.image) plusTard(() => new THREE.ImageLoader().loadAsync(import.meta.env.BASE_URL + c.image)).then(img => { tex.image = reduireImage(img); tex.dispose(); tex.needsUpdate = true; }).catch(e => console.warn(`affiche ${c.id}`, e.message));
   cache.set(c.id, tex); return tex;
 }
 const mats = new Map();

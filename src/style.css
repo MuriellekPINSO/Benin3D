@@ -269,9 +269,15 @@ button { font: inherit; color: inherit; }
 .jh-boutons { position: absolute; left: 50%; bottom: var(--gutter); transform: translateX(-50%); display: none; gap: 8px; }
 .jh-boutons button, .jh-coin button { border: 0; background: rgba(20,24,30,.72); color: #fffaf0; font-weight: 700; border-radius: 16px; padding: 14px 16px; font-size: 15px; touch-action: none; }
 .jh-boutons #jbF { background: #b3261e; } .jh-boutons #jbS { background: #2f6fb0; }
+/* Radio, son, pause : trois ronds, comme la barre d'icônes de la ville. Écrits, ils prenaient la largeur d'un
+   téléphone et se retrouvaient sous le dialogue (Murielle, 25/10). */
 .jh-coin { position: absolute; right: var(--gutter); bottom: var(--gutter); display: flex; gap: 8px; }
-.jh-coin button { padding: 10px 14px; font-size: 13px; cursor: pointer; }
-.jh-coin #jhSon[aria-pressed="false"] { opacity: .55; text-decoration: line-through; }
+.jh-coin button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; cursor: pointer; }
+.jh-coin button svg { width: 20px; height: 20px; }
+.jh-coin #jhRadio[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.jh-coin #jhSon[aria-pressed="false"] { opacity: .5; }
+.jh-coin #jhSon[aria-pressed="false"]::after { content: ''; position: absolute; width: 26px; height: 2px; background: currentColor; transform: rotate(-45deg); }
+.jh-coin button { position: relative; }
 /* Google : voir en vrai, vue réelle, photos du jeu */
 .meta-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 .btn-reel { border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
@@ -309,11 +315,34 @@ button { font: inherit; color: inherit; }
 .jh-repere.on { opacity: 1; transform: none; }
 .jh-repere.gauche small::before { content: '← '; } .jh-repere.droite small::after { content: ' →'; }
 .jh-mini { position: absolute; right: var(--gutter); bottom: 72px; width: 220px; height: 220px; border-radius: 50%; box-shadow: 0 8px 24px rgba(0,0,0,.25); pointer-events: none; }
-@media (pointer: coarse), (max-width: 720px) { .jh-mini { width: 112px; height: 112px; bottom: auto; top: 196px; } .jh-rue { top: 128px; } .jh-rue b { font-size: 16px; } .jh-repere { top: 322px; } .jh-repere b { font-size: 18px; } }
-@media (pointer: coarse), (max-width: 720px) { .jh-boutons { display: flex; } .jh-coin { bottom: auto; top: 150px; } .jh-coin button { padding: 8px 12px; font-size: 12px; } .jh-boutons button { padding: 13px 12px; } }
+/* Téléphone : sous le bandeau du haut (mesuré dans jeu.js : --jh-haut), les icônes puis la mini-carte, à droite ;
+   le nom de la rue à gauche. Tout était posé à des hauteurs écrites en dur et le dialogue leur passait dessus. */
+@media (pointer: coarse), (max-width: 720px) {
+  /* « Prochain arrêt : … · 854 m » passe d'une ligne à deux au fil du trajet : le bandeau changeait de hauteur
+     plusieurs fois par seconde et tout ce qui se range dessous sautait avec lui. Deux lignes, toujours. */
+  .jh-ligne #jhProchain { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.5em; }
+  .jh-coin { bottom: auto; top: calc(var(--jh-haut, 104px) + 8px); }
+  .jh-mini { width: 112px; height: 112px; bottom: auto; top: calc(var(--jh-haut, 104px) + 60px); }
+  .jh-rue { top: calc(var(--jh-haut, 104px) + 8px); }
+  .jh-mission { top: calc(var(--jh-haut, 104px) + 60px); }
+  .jh-rue b { font-size: 16px; }
+  .jh-repere { top: calc(var(--jh-haut, 104px) + 186px); }
+  .jh-repere b { font-size: 18px; }
+  .jh-carrefour { top: calc(var(--jh-haut, 104px) + 180px); }
+  .jh-boutons { display: flex; }
+  .jh-boutons button { padding: 13px 12px; }
+  .jh-dialogue .choix button, .jh-demi, .jh-carrefour button, .jh-boutons button { min-height: 44px; }
+  /* Le temps de répondre, rien ne s'empile autour du dialogue (droit comme couché). */
+  .jeu-hud:has(.jh-dialogue:not([hidden])) :is(.jh-mini, .jh-rue, .jh-repere, .jh-coin, .jh-carrefour, .jh-carte, .jh-mission) { display: none; }
+}
 /* Téléphone : les sept boutons tiennent dans la largeur (◀ et ▶ n'étaient plus qu'à moitié visibles), au-dessus du logo Google. */
 @media (max-width: 720px) { .jh-boutons { left: 6px; right: 6px; transform: none; justify-content: space-between; gap: 4px; } .jh-boutons button { flex: 1 1 0; min-width: 0; padding: 13px 2px; font-size: 13px; } .vue-google .jh-boutons { bottom: 34px; } }
-.jeu-fin, .jeu-pause { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100% - 2 * var(--gutter))); max-height: calc(100% - 2 * var(--gutter)); overflow-y: auto; padding: 22px; }
+.jeu-fin, .jeu-pause { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: min(520px, calc(100% - 2 * var(--gutter))); max-height: calc(100% - 2 * var(--gutter)); overflow-y: auto; padding: 22px; } /* sans border-box, les 22 px de marge débordaient de l'écran */
+/* En pause, le panneau se posait au milieu des cartes et de la mini-carte, qui dépassaient tout autour
+   (capture du 25/10). Un voile par-dessus le jeu, et l'écran de course s'efface derrière. */
+.jeu-pause { z-index: 40; }
+#jeu:has(#jeuPause:not([hidden]))::before { content: ''; position: absolute; inset: 0; z-index: 39; background: rgba(8, 12, 16, .62); }
+#jeu:has(#jeuPause:not([hidden])) .jeu-hud { visibility: hidden; }
 /* Classement de Zém Run (classement.js) : par-dessus le menu et le bilan */
 .jeu-classement { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 8; box-sizing: border-box; width: min(520px, calc(100% - 2 * var(--gutter))); max-height: calc(100% - 2 * var(--gutter)); overflow-y: auto; padding: 22px; display: flex; flex-direction: column; gap: 12px; }
 .jeu-classement[hidden] { display: none; }
@@ -513,13 +542,14 @@ button { font: inherit; color: inherit; }
    les boutons de conduite (« les textes se chevauchent et cachent la route », testeur du 22/10). Il monte sous les
    panneaux du haut, au-dessus de l'horizon ; la mini-carte s'efface le temps de répondre. */
 @media (max-width: 720px) and (orientation: portrait) {
-  .jh-dialogue { top: 110px; bottom: auto; padding: 8px 12px 10px; }
+  /* Le dialogue se posait à 110 px, mais le bandeau du haut en fait 126 sur un téléphone : il mordait dessus
+     (capture de Murielle, 25/10). On réserve la hauteur du bandeau une fois pour toutes, et le dialogue se pose
+     juste en dessous — une hauteur fixe plutôt que mesurée, pour qu'il ne saute pas pendant qu'on lit. */
+  .jh-haut { min-height: 128px; }
+  .jh-dialogue { top: 146px; bottom: auto; padding: 8px 12px 10px; }
   .jh-dialogue .dit { margin: 4px 0 8px; font-size: 15px; }
   .jh-dialogue .choix { gap: 6px; }
   .jh-dialogue .choix button { flex: 1 1 100%; padding: 8px 10px; font-size: 13.5px; }
-  .jeu-hud:has(.jh-dialogue:not([hidden])) .jh-mini,
-  .jeu-hud:has(.jh-dialogue:not([hidden])) .jh-rue,
-  .jeu-hud:has(.jh-dialogue:not([hidden])) .jh-repere { display: none; } /* le temps de répondre, rien ne s'empile sous le dialogue */
 }
 
 /* Marché artisanal : discuter avec la vendeuse, payer */

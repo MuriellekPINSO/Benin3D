@@ -5,6 +5,7 @@ import { fresque, kobra } from './fresques.js';
 import { porteFoodCourt } from './interieurs.js';
 import { K, bake, barrieres, centroide, groupeLieu, mursPoly, obb, ruban, solPoly } from './lieux.js';
 import { ajouterEmprise, ajouterZoneLibre } from './rue.js';
+import { reduireImage } from './textures.js';
 
 // ---------- Boulevard de la Marina, de l'Amazone à Bio Guéra ----------
 // D'après des photos (Wikimedia Commons 2019–2026, gouv.bj, Accor) et des relevés sur
@@ -33,7 +34,7 @@ function lettres(txt, w, h, x, y, z, rot, encre, police = '900 150px "Google San
   if (fond) { c.fillStyle = fond; c.fillRect(0, 0, cv.width, cv.height); }
   c.fillStyle = encre; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = police;
   const lignes = txt.split('\n'); lignes.forEach((l, i) => c.fillText(l, 512, cv.height * (i + 1) / (lignes.length + 1), 980));
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const t = new THREE.CanvasTexture(reduireImage(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: t, transparent: !fond, alphaTest: fond ? 0 : .35, roughness: .6, side: THREE.DoubleSide }));
   m.position.set(x, y, z); m.rotation.y = rot; m.userData.garder = true; m.castShadow = false; K.racine.add(m); return m;
 }

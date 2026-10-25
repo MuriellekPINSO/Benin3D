@@ -1,8 +1,7 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { LITE } from './base.js';
 import { plusTard } from './telechargements.js';
+import { chargeurGLB } from './textures.js';
 
 // ---------- Bâtiments reconnaissables : modèles Tripo générés à partir de photos ----------
 // scripts/tripo.mjs fabrique public/modeles/batiments/<id>.glb à partir d'une photo
@@ -30,7 +29,7 @@ export const tripoDispo = id => TRIPO.dispo.has(id);
 
 // Réglages fins par bâtiment (rotation en radians, ajoutée à celle du lieu ; décalage local en mètres).
 export const REGLAGES = { congres: {}, cathedrale: { rot: -Math.PI / 2 }, porte: {}, etoile: {}, bioguera: {}, dome: { dy: -6, mat: { couleur: '#b7bbbe', rugosite: .5, metal: .25 } }, dantokpa: { rot: Math.PI / 2 }, bceao: {}, sofitel: { rot: Math.PI / 2 }, moov: { rot: Math.PI / 2, dz: -5 } }; // moov : façade (verre bleu, logo) vers l'avenue Jean-Paul II, alignée sur le bord nord de l'emprise // sofitel : façade courbe et auvent vers le boulevard // dantokpa : enseigne et étals vers la lagune // dome : photo de nuit, on garde le volume et une teinte argent // dome : le socle (parvis photographié) s'enfonce dans le sol
-const chargeur = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+const chargeur = chargeurGLB();
 /**
  * Pose le modèle `id` dans `parent` (repère local du lieu) : posé au sol, centré en (x, z),
  * mis à l'échelle par sa hauteur ou sa plus grande largeur, tourné de `rot` (radians).

@@ -1,7 +1,6 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { LITE } from './base.js';
+import { chargeurGLB } from './textures.js';
 
 // Egungun, les masques des revenants (culte des ancêtres yoruba, très présents
 // à Porto-Novo et Ouidah). D'après les photos fournies : costumes en étages de
@@ -101,7 +100,7 @@ const FICHIERS = { danseur: ['zangbeto', 1.95, 0], paire: ['egungun-traditionnel
 export const MASQUES = { modeles: null, promesse: null };
 export function chargerMasques() {
   if (MASQUES.promesse) return MASQUES.promesse;
-  const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const L = chargeurGLB();
   MASQUES.promesse = Promise.all(Object.entries(FICHIERS).map(([cle, [f]]) => L.loadAsync(import.meta.env.BASE_URL + `modeles/${f}.glb`)
     .then(g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = !LITE; o.receiveShadow = true; if (o.material.metalness > .5) o.material.metalness = .15; } }); return [cle, g.scene]; })
     .catch(e => { console.warn(`masque ${f} indisponible`, e); return [cle, null]; })))

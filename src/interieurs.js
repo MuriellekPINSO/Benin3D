@@ -3,6 +3,7 @@ import { personne } from './discussions.js';
 import { K, centroide, groupeLieu, obb, panneauTexte } from './lieux.js';
 import { CAMPAGNES, matAffiche } from './publicites.js';
 import { scene, sky } from './scene.js';
+import { reduireImage } from './textures.js';
 
 // ---------- Intérieurs : entrer dans les bâtiments (salon entre amis) ----------
 // On entre par une porte dessinée sur la façade : devant elle, le salon propose « Entrer » ; dedans,
@@ -25,7 +26,7 @@ export function etiquette(texte) {
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const c = cv.getContext('2d');
   c.font = '800 30px system-ui, sans-serif'; const w = Math.min(300, c.measureText(texte).width + 44);
   c.fillStyle = '#f2b705'; c.beginPath(); c.roundRect(160 - w / 2, 8, w, 54, 27); c.fill(); c.fillStyle = '#17130c'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(texte, 160, 36);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const t = new THREE.CanvasTexture(reduireImage(cv)); t.colorSpace = THREE.SRGBColorSpace;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); sp.scale.set(.145, .033, 1); sp.renderOrder = 30; return sp;
 }
 /** Construit la pièce à la première visite et l'affiche. */
@@ -158,7 +159,7 @@ function menu(titre, plats, couleur, w, h, x, y, z, rot) {
   c.fillStyle = '#fff'; c.font = '800 34px system-ui, sans-serif'; c.textBaseline = 'middle'; c.fillText(titre, 22, 36, 470);
   c.font = '600 27px system-ui, sans-serif';
   plats.forEach(([nom, prix], k) => { const yy = 112 + k * 50; c.fillStyle = '#f3ecdf'; c.textAlign = 'left'; c.fillText(nom, 22, yy, 360); c.fillStyle = '#f5c21b'; c.textAlign = 'right'; c.fillText(prix, 490, yy); });
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const t = new THREE.CanvasTexture(reduireImage(cv)); t.colorSpace = THREE.SRGBColorSpace;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, toneMapped: false }));
   m.position.set(x, y, z); m.rotation.y = rot; m.userData.garder = true; K.racine.add(m); return m;
 }
@@ -248,7 +249,7 @@ function ecranDeparts(w, h, x, y, z, rot) {
     c.fillStyle = '#ffffff'; c.fillText(hh, 26, yy); c.fillText(dest, 160, yy, 520); c.fillText(porte, 716, yy);
     c.fillStyle = statut === 'Embarquement' ? '#5fd38a' : statut === 'Retardé' ? '#ff8a6a' : '#f2c21b'; c.fillText(statut, 800, yy, 210);
   });
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const t = new THREE.CanvasTexture(reduireImage(cv)); t.colorSpace = THREE.SRGBColorSpace;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, toneMapped: false }));
   m.position.set(x, y, z); m.rotation.y = rot; m.userData.garder = true; K.racine.add(m); return m;
 }

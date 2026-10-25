@@ -1,6 +1,4 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { TRIPO, urlTripo } from './batiments-tripo.js';
 import { construireReseau, itineraireCourt } from './carrefours.js';
 import { personne } from './discussions.js';
@@ -13,6 +11,7 @@ import { scene } from './scene.js';
 import { plusTard } from './telechargements.js';
 import { TABLIERS, mergeColored, roadLines } from './ville.js';
 import { TOKPA_3D, ZEMS_3D, gabaritDe, matVeh, partsBolide, partsCitadine, partsTokpa, partsVelo, partsVoiture, partsZem } from './vehicules.js';
+import { chargeurGLB } from './textures.js';
 
 // ---------- Conduire dans la ville (Ma vie, salon entre amis) ----------
 // On monte sur sa moto ou dans sa voiture et on roule où l'on veut, mais sur les routes : la chaussée et
@@ -52,7 +51,7 @@ const LONGUEURS = { voiture: 4.4, moto: 2, taxi: 4.3 };
 const DEMI_TOUR = { voiture: true, moto: true, taxi: false }; // le redressement aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu (phare devant)
 const SELLES = { moto: [.86, -.27] }; // selle du modèle Tripo, mesurée : dessus à 0,78 m, 0,2 à 0,3 m derrière le centre (avec [1,02 ; −0,08] du zém, on s'asseyait sur le réservoir)
 export function chargerVehicules() {
-  const ch = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const ch = chargeurGLB();
   for (const [type, id] of [['voiture', 'voiture-perso'], ['moto', 'moto-perso'], ['taxi', 'voiture']]) { // taxi : celui de Zém Run
     if (!TRIPO.info[id]) continue;
     plusTard(() => ch.loadAsync(urlTripo(id))).then(g => { MODELES[type] = gabaritDe(g.scene, { largeur: LONGUEURS[type] }); }).catch(e => console.warn(`modèle ${id}`, e.message));

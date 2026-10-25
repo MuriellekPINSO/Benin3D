@@ -1,12 +1,11 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { $ } from './base.js';
 import { son } from './audio.js';
 import { JEU, fmtF, sauver } from './jeu.js';
 import { chargerTenue, personnage3d } from './personnages.js';
 import { echecCertain, paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
+import { chargeurGLB } from './textures.js';
 
 // ---------- Boutique de mode (version de test) ----------
 // « Joue, trouve ton style, porte-le pour de vrai. » On essaie les tenues sur son personnage dans une
@@ -92,7 +91,7 @@ function pagneObjet(motif) {
 const OBJ = {};
 function chargerObjet(id) {
   const info = MD.objets?.[id]; if (!info) return Promise.resolve(null);
-  OBJ[id] ??= new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`${import.meta.env.BASE_URL}modeles/mode/objets/${id}.glb?v=${info.octets}`)
+  OBJ[id] ??= chargeurGLB().loadAsync(`${import.meta.env.BASE_URL}modeles/mode/objets/${id}.glb?v=${info.octets}`)
     .then(g => { const s = g.scene, b = new THREE.Box3().setFromObject(s), t = b.getSize(new THREE.Vector3()), e = .36 / Math.max(t.x, t.y, t.z); s.scale.setScalar(e); s.position.set(-(b.min.x + b.max.x) / 2 * e, -b.min.y * e + .09, -(b.min.z + b.max.z) / 2 * e); return s; })
     .catch(e => { delete OBJ[id]; console.warn('objet', id, e.message); return null; });
   return OBJ[id].then(s => { if (!s) return null; const g = new THREE.Group(); g.add(s.clone()); return g; });

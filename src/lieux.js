@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { LITE, hash, toXZ, u8c } from './base.js';
 import { scene } from './scene.js';
 import { parCarres } from './carres.js';
@@ -10,6 +8,7 @@ import { ROAD_W, TABLIERS, roadLines } from './ville.js';
 import { GRANDES_AFFICHES, matAffiche } from './publicites.js';
 import { poserSol } from './sols.js';
 import { photoPlusTard } from './telechargements.js';
+import { chargeurGLB, reduireImage } from './textures.js';
 
 // ---------- Lieux détaillés ----------
 // Matières et primitives reprises du projet « 3D monde » (src/entities/Batisseur.ts),
@@ -720,7 +719,7 @@ export function toileTerrain() {
   c.strokeRect(10, 10, 1030, 660); c.beginPath(); c.moveTo(525, 10); c.lineTo(525, 670); c.stroke();
   c.beginPath(); c.arc(525, 340, 91, 0, Math.PI * 2); c.stroke();
   for (const x of [10, 875]) { c.strokeRect(x, 138, 165, 403); c.strokeRect(x === 10 ? 10 : 985, 248, 55, 183); }
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+  const t = new THREE.CanvasTexture(reduireImage(cv)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
 
 // ---------- Port autonome : portiques, grues mobiles, navires à quai ----------
@@ -1243,7 +1242,7 @@ export function terrasses(centre) {
 
 // Téléchargée dès que les données de la ville sont arrivées (main.js), pendant la construction des bâtiments.
 let amazoneEnRoute = null;
-export const prechargerAmazone = () => amazoneEnRoute ??= new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(import.meta.env.BASE_URL + 'modeles/amazone.glb');
+export const prechargerAmazone = () => amazoneEnRoute ??= chargeurGLB().loadAsync(import.meta.env.BASE_URL + 'modeles/amazone.glb');
 
 // ---------- Assemblage ----------
 export async function construireLieux(data) {

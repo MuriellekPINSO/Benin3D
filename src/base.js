@@ -8,7 +8,18 @@ export const small = matchMedia('(max-width: 720px)').matches;
 // Version allégée (moins d'ombres, de détails, de gens) : d'office sur téléphone ; sinon au choix (menu Plus,
 // voir leger.js), gardé d'une visite à l'autre : '1' léger, '0' complet.
 const choixLeger = (() => { try { return localStorage.getItem('cotonou-leger'); } catch { return null; } })();
-export const LITE = choixLeger === '1' || (choixLeger !== '0' && (coarse || small));
+// Mode de secours : deux démarrages de suite qui n'arrivent pas au bout. Un onglet que Safari coupe faute de
+// mémoire se recharge tout seul, échoue encore, et finit sur « Un problème récurrent est survenu » — le jeu ne
+// démarre plus du tout (iPhone 13 d'un testeur, 25/10). À la troisième tentative on repart en version allégée,
+// avec des textures deux fois plus petites encore (textures.js), plutôt que de ne rien afficher. « Mode complet »
+// dans le menu Plus passe outre.
+const CLE_DEMARRAGES = 'cotonou3d.demarrages';
+const essais = (() => { try { return +localStorage.getItem(CLE_DEMARRAGES) || 0; } catch { return 0; } })();
+export const SECOURS = essais >= 2 && choixLeger !== '0';
+try { localStorage.setItem(CLE_DEMARRAGES, String(Math.min(9, essais + 1))); } catch { /* navigation privée */ }
+/** Appelé quand la ville est affichée : le compteur de tentatives repart de zéro. */
+export const demarrageReussi = () => { try { localStorage.setItem(CLE_DEMARRAGES, '0'); } catch { /* navigation privée */ } };
+export const LITE = SECOURS || choixLeger === '1' || (choixLeger !== '0' && (coarse || small));
 
 // Projection locale (mètres) autour de 6,37° N / 2,415° E : x vers l'est, z vers le sud
 export const LAT0 = 6.37, LON0 = 2.415, KX = 111320 * Math.cos(LAT0 * Math.PI / 180), KZ = 110574;

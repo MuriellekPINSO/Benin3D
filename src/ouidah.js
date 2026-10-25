@@ -4,6 +4,7 @@ import { LITE } from './base.js';
 import { fouleCorps, fouleTete, fouleTissus, groupeLieu } from './lieux.js';
 import { photoPlusTard } from './telechargements.js';
 import { chargerMasques, creerEgungun, creerZangbeto, masque } from './egungun.js';
+import { reduireImage } from './textures.js';
 
 // Ouidah : la Porte du Non-Retour, au bout de la Route des Esclaves, et l'Arène de
 // Ouidah voisine (celle des Vodun Days). L'arène reprend la maquette de l'artifact
@@ -16,7 +17,7 @@ let s0 = 11; const rnd = (a = 0, b = 1) => a + ((s0 = (s0 * 1103515245 + 12345) 
 const polar = (r, th, y = 0) => { const t = th * D2R; return new V3(r * Math.sin(t), y, r * Math.cos(t)); };
 function tex(w, h, draw, rx = 1, ry = 1) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; return t;
+  const t = new THREE.CanvasTexture(reduireImage(c)); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8; return t;
 }
 const speckle = (base, cols, n, size) => (g, w, h) => {
   g.fillStyle = base; g.fillRect(0, 0, w, h);

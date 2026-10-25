@@ -1,10 +1,9 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { clone as clonerSquelette } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { LITE, hash } from './base.js';
 import { camera } from './scene.js';
 import { plusTard } from './telechargements.js';
+import { chargeurGLB } from './textures.js';
 
 // ---------- Personnages béninois réalistes et animés ----------
 // scripts/personnages.mjs fabrique public/modeles/personnages/<id>.glb avec Tripo : un modèle
@@ -29,7 +28,7 @@ async function chargerTous() {
   let idx = {};
   try { const r = await fetch(import.meta.env.BASE_URL + 'modeles/personnages/index.json'); if (r.ok && /json/.test(r.headers.get('content-type') || '')) idx = await r.json(); } catch { }
   P.index = idx;
-  const chargeur = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const chargeur = chargeurGLB();
   await Promise.all(Object.entries(idx).map(async ([id, info]) => {
     try {
       const g = await plusTard(() => chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/personnages/${id}.glb?v=${info.octets}`), true); // avant les monuments : on les voit de près
@@ -73,7 +72,7 @@ export function chargerTenue(id, info) {
   if (P.modeles[id]) return Promise.resolve(true);
   TENUES[id] ??= (async () => {
     info ??= (await indexMode())[id] || {};
-    const [g] = await Promise.all([new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`${import.meta.env.BASE_URL}modeles/mode/${id}.glb?v=${info.octets || 0}`), personnagesCharges()]);
+    const [g] = await Promise.all([chargeurGLB().loadAsync(`${import.meta.env.BASE_URL}modeles/mode/${id}.glb?v=${info.octets || 0}`), personnagesCharges()]);
     emprunterAnimations(g, P.modeles[info.femme ? 'etudiante' : 'jeune'] || Object.values(P.modeles).find(M => !M.mode && M.femme === !!info.femme));
     P.modeles[id] = Object.assign(preparer(id, g, info), { mode: true }); return true;
   })().catch(e => { delete TENUES[id]; console.warn('tenue', id, e.message); return false; });
@@ -97,7 +96,7 @@ function emprunterAnimations(g, base) {
 /** Les danses du concert (danse1, danse2, acclame), dans des fichiers à part : chargées à la première entrée au concert. */
 export function chargerDanses() {
   if (P.danses) return P.danses;
-  const chargeur = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const chargeur = chargeurGLB();
   P.danses = Promise.all(Object.entries(P.modeles).map(async ([id, M]) => {
     const o = P.index[id]?.danses; if (!o) return;
     try { const g = await chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/personnages/${id}-danses.glb?v=${o}`); for (const c of g.animations) M.clips[c.name] = c; }

@@ -1,4 +1,4 @@
-import { $ } from './base.js';
+import { $, SECOURS } from './base.js';
 // ---------- Chargement ----------
 export const loadTxt = $('#loadTxt'), loadBar = $('#loadBar');
 export const status = (t, p) => { loadTxt.textContent = t; if (p != null) loadBar.style.width = p + '%'; };
@@ -19,6 +19,8 @@ const CONSEILS = [
 let conseilT = 0;
 export function conseils() {
   const el = document.getElementById('loadConseil'); if (!el || conseilT) return;
+  // Mode de secours (base.js) : on le dit, sinon on croirait le jeu moins beau sans savoir pourquoi.
+  if (SECOURS) { el.textContent = 'Le jeu n’a pas réussi à démarrer deux fois de suite : il repart en version simplifiée. « Mode complet » dans le menu Plus pour réessayer.'; return; }
   let i = Math.floor(Math.random() * CONSEILS.length);
   const poser = () => { el.textContent = CONSEILS[i % CONSEILS.length]; i++; };
   poser(); conseilT = setInterval(poser, 4500);

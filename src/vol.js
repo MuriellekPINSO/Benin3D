@@ -1,6 +1,4 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $ } from './base.js';
 import { TRIPO, urlTripo } from './batiments-tripo.js';
@@ -13,6 +11,7 @@ import { scene } from './scene.js';
 import { oceanRing } from './ville.js';
 import { VIE, acheterBillet, billet, composterBillet, premierVol } from './vie.js';
 import { pisteOuidah } from './zones.js';
+import { chargeurGLB } from './textures.js';
 
 // ---------- Vol découverte : Cotonou → Ouidah en petit avion (salon entre amis) ----------
 // On achète son billet à la billetterie du hall de l'aéroport, on passe la porte 2, le minibus de l'aéroport
@@ -147,7 +146,7 @@ function gabaritAvion(obj) {
 }
 function chargerAvion() {
   if (!TRIPO.info['avion-tourisme']) return;
-  plusTard(() => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(urlTripo('avion-tourisme')))
+  plusTard(() => chargeurGLB().loadAsync(urlTripo('avion-tourisme')))
     .then(g => { VOL.gabarit = gabaritAvion(g.scene); for (const A of VOL.attendent) habiller(A); VOL.attendent.length = 0; })
     .catch(e => console.warn('modèle avion-tourisme', e.message));
 }

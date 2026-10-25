@@ -1,7 +1,5 @@
 import * as THREE from 'three';
 import { payerEtRecevoir } from './remise.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { $, LITE, toXZ } from './base.js';
 import { son } from './audio.js';
 import { PLACES } from './donnees-lieux.js';
@@ -9,6 +7,7 @@ import { groupeLieu } from './lieux.js';
 import { personne } from './discussions.js';
 import { JEU, fmtF, sauver } from './jeu.js';
 import { parler, voixDe } from './voix.js';
+import { chargeurGLB } from './textures.js';
 
 // ---------- Marchés artisanaux des sites touristiques ----------
 // Des étals d'objets d'art (modèles 3D fournis, allégés par scripts/masques.mjs) près
@@ -27,7 +26,7 @@ const VENDEUSES = ['Maman Akpénè', 'Tanti Houéfa', 'Maman Sènami', 'Tanti Ab
 const ART = { modeles: null, promesse: null };
 function chargerArt() {
   if (ART.promesse) return ART.promesse;
-  const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const L = chargeurGLB();
   ART.promesse = Promise.all(Object.keys(OBJETS).map(id => L.loadAsync(import.meta.env.BASE_URL + `modeles/${id}.glb`)
     .then(g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = !LITE; o.receiveShadow = true; if (o.material.metalness > .5) o.material.metalness = id === 'statue' ? .55 : .1; } }); return [id, g.scene]; })
     .catch(() => [id, null]))).then(l => (ART.modeles = Object.fromEntries(l)));

@@ -368,6 +368,21 @@ function arretsIntermediaires(L, C, arrets) {
   }
   return out;
 }
+/**
+ * Le bandeau du haut (la ligne à gauche, l'argent à droite) ne fait pas la même hauteur partout : il passe sur
+ * deux ou trois lignes dès que l'écran se resserre. La mini-carte, les icônes, le nom de la rue et le dialogue du
+ * client se calaient sous une hauteur écrite en dur (104, 110, 128, 150, 196, 212 px) et finissaient par-dessus
+ * (capture de Murielle, 25/10). On mesure son bas réel, le reste se place dessous (--jh-haut).
+ */
+let hautVu = false;
+function mesurerHautJeu() {
+  const els = ['.jh-haut', '.jh-ligne', '.jh-stats'].map(s => document.querySelector(s)).filter(Boolean);
+  if (hautVu || !els.length) return;
+  hautVu = true;
+  const poser = () => { let bas = 0; for (const e of els) bas = Math.max(bas, e.getBoundingClientRect().bottom); if (bas) document.documentElement.style.setProperty('--jh-haut', `${Math.round(bas)}px`); };
+  const ro = new ResizeObserver(poser); for (const e of els) ro.observe(e); // la ligne et l'argent grandissent dans leur coin
+  addEventListener('resize', poser); poser();
+}
 export function lancerLigne(L, veh) {
   geosJeu(); chargerMasques(); // les processions d'Egungun prennent les modèles 3D dès qu'ils sont là
   JEU.ligne = L; JEU.veh = veh; JEU.chemin = cheminDe(L.pts); compterUneFois('zemrun'); lieuStats('zemrun');
@@ -991,6 +1006,7 @@ export function initJeu(data) {
   $('#jfCarte').addEventListener('click', quitterJeu);
   $('#jpReprendre').addEventListener('click', () => { JEU.pause = false; $('#jeuPause').hidden = true; });
   $('#jpQuitter').addEventListener('click', () => { $('#jeuPause').hidden = true; if (JEU.etat && !JEU.fini) finJeu(false, true); else quitterJeu(); }); // d'abord le bilan (et la recette versée dans la cagnotte)
+  mesurerHautJeu();
   $('#jhPause').addEventListener('click', () => { if (JEU.fini) return; JEU.pause = true; moteurMaj(0, false); taire(); $('#jeuPause').hidden = false; });
   // Radio en course (touche R ou bouton) : musique du quartier, puis les radios béninoises en direct, puis de nouveau la musique.
   const POSTES = ['quartier', ...STATIONS.filter(s => s.url).map(s => s.id)];

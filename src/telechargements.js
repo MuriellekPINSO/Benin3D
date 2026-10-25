@@ -5,6 +5,7 @@
 // l'écran de chargement attend vraiment (données de la ville, zémidjans) et retardaient l'entrée de 20 à 30 s,
 // davantage sur un téléphone en 4G.
 import * as THREE from 'three';
+import { reduireImage } from './textures.js';
 
 const F = { demarre: false, attente: [], enCours: 0, max: 3 };
 
@@ -27,7 +28,7 @@ export function photoPlusTard(fichier, teinte = '#cbbfa8') {
   const g = cv.getContext('2d'); g.fillStyle = teinte; g.fillRect(0, 0, 1, 1);
   const t = new THREE.Texture(cv); t.needsUpdate = true;
   plusTard(() => new THREE.ImageLoader().loadAsync(import.meta.env.BASE_URL + fichier))
-    .then(img => { t.image = img; t.dispose(); t.needsUpdate = true; })
+    .then(img => { t.image = reduireImage(img); t.dispose(); t.needsUpdate = true; })
     .catch(e => console.warn(`photo ${fichier}`, e.message));
   return t;
 }

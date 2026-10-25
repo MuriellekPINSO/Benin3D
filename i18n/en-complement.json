@@ -8,7 +8,8 @@
   "'Tu as faim ? Commande au food court de la Cité ministérielle, puis assieds-toi pour manger.'": "'Hungry? Order at the Cité ministérielle food court, then sit down to eat.'",
   "'« Travailler », en haut à gauche, te trouve un métier : zémidjan, tokpa-tokpa, vendeuse…'": "'“Work”, top left, finds you a job: zémidjan, tokpa-tokpa, market seller…'",
   "'Tu peux prendre l’avion pour Ouidah depuis l’aéroport Cardinal Bernardin Gantin.'": "'You can fly to Ouidah from Cardinal Bernardin Gantin airport.'",
-  "'La musique et les radios béninoises en direct sont dans le menu Musique.'": "'Music and live Beninese radio stations are in the Music menu.'"
+  "'La musique et les radios béninoises en direct sont dans le menu Musique.'": "'Music and live Beninese radio stations are in the Music menu.'",
+  "'Le jeu n’a pas réussi à démarrer deux fois de suite : il repart en version simplifiée. « Mode complet » dans le menu Plus pour réessayer.'": "'The game failed to start twice in a row, so it is restarting in a simplified version. Use « Full mode » in the More menu to try again.'"
  },
  "src/style.css": {
   "'L’apprenti · '": "'The apprentice · '",
@@ -298,7 +299,10 @@
   "Menus du jeu": "Game menus",
   "Aller quelque part": "Go somewhere",
   "Acheter une voiture": "Buy a car",
-  "Conduite :": "Driving:"
+  "Conduite :": "Driving:",
+  "Changer de radio": "Change radio",
+  "Mettre en pause": "Pause the run",
+  "Couper les sons": "Mute"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",

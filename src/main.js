@@ -5,7 +5,7 @@ import { construireFeux, majFeuxVille } from './feux.js';
 import { construireTerrePleins, initTerrePleins } from './terre-pleins.js';
 import * as THREE from 'three';
 import { applyMood, sunDir } from './ambiances.js';
-import { $, LITE, reduceMotion } from './base.js';
+import { $, LITE, demarrageReussi, reduceMotion } from './base.js';
 import { arreterConseils, conseils, decode, frame, loadTxt, status } from './chargement.js';
 import { surveillerIncidents } from './incidents.js';
 import { preparerGeometries } from './memoire.js';
@@ -183,7 +183,7 @@ async function main() {
   requestAnimationFrame(t => { last = t; loop(t); });
   arreterConseils();
   for (const ms of [8000, 30000, 90000]) setTimeout(() => preparerGeometries(), ms);
-  setTimeout(() => { $('#loader').classList.add('done'); demarrerTelechargements(); }, 150); // les modèles détaillés, une fois la ville affichée
+  setTimeout(() => { $('#loader').classList.add('done'); demarrageReussi(); demarrerTelechargements(); }, 150); // les modèles détaillés, une fois la ville affichée
   setTimeout(demarrerStats, 2500); // présence et compteurs du tableau de bord (statistiques.js)
   setTimeout(synchroniserAuDemarrage, 1500); // avec un compte : la partie jouée sur un autre téléphone (compte.js)
   accueil(); // d'abord la visite en musique, ou la ville tout de suite
