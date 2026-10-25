@@ -854,13 +854,17 @@ button { font: inherit; color: inherit; }
   .sl-haut b { font-size: 14px; }
   .sl-haut small { display: none; }
   .sl-rail { top: calc(var(--sl-bandeau, 182px) + 8px); right: 8px; gap: 6px; }
-  /* Téléphone : écrire prend le haut de l'écran (le clavier monte du bas). Le reste du bandeau s'efface le temps
-     de la discussion — l'argent, la mini-carte et la barre d'icônes reviennent dès qu'on la referme. */
-  .sl-chat.ouvert { left: 8px; right: 8px; width: auto; top: calc(var(--sl-barre, 58px) + 6px); bottom: auto; max-height: 52vh; }
-  .sl-chat.ouvert ol { max-height: 26vh; }
-  #app:has(.sl-chat.ouvert) :is(.vie-hud:not(.ouvert), .mini-carte, .sl-rail, .sl-guide, .chap-hud) { display: none !important; }
+  /* Téléphone : le fil tient dans un petit rectangle au-dessus de sa bulle, en bas à gauche — il prenait tout le
+     haut de l'écran et cachait le jeu (Murielle, 25/10). --clavier : la hauteur que le clavier prend en bas. */
+  .sl-chat.ouvert { left: 8px; right: auto; top: auto; bottom: calc(var(--clavier, 0px) + 70px); width: min(320px, calc(100% - 76px)); max-height: 40vh; padding: 8px; }
+  .sl-chat.ouvert ol { max-height: 20vh; font-size: 12.5px; }
+  .sl-chat.ouvert .sl-phrases { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } /* une seule rangée qui défile : deux rangées mangeaient le fil */
+  .sl-chat.ouvert .sl-phrases button { flex: none; white-space: nowrap; }
+  #app:has(.sl-joy:not([hidden])) .sl-chat.ouvert { bottom: calc(var(--clavier, 0px) + 254px); max-height: 34vh; } /* au doigt : au-dessus du joystick, de « Courir » et de la bulle */
+  #app:has(.sl-chat.ouvert) :is(.sl-guide, .chap-hud) { display: none !important; }
   .sl-actions { right: 8px; width: min(250px, calc(100% - 16px)); }
-  .sl-bulle { left: 20px; bottom: 196px; width: 48px; height: 48px; }
+  .sl-bulle { left: 12px; bottom: 12px; width: 48px; height: 48px; }
+  #app:has(.sl-joy:not([hidden])) .sl-bulle { left: 20px; bottom: 196px; } /* au doigt : au-dessus de « Courir » */
   .sl-joy { left: 18px; bottom: 26px; transform: none; }
   .sl-agir { left: auto; right: 12px; bottom: 26px; transform: none; flex-direction: column; align-items: flex-end; max-width: calc(100% - 160px); }
   .sl-agir .jouer, .sl-agir2 { font-size: 14px; padding: 10px 14px; white-space: normal; line-height: 1.2; }
@@ -915,10 +919,12 @@ button { font: inherit; color: inherit; }
 @media (pointer: coarse) { .vh-boutons .vh-louer { min-height: 36px; padding: 8px 14px; font-size: 13px; } } /* au doigt : 25 px de haut, c'était trop petit */
 @media (max-width: 720px) {
   .vie-hud { top: calc(var(--sl-barre, 56px) + 6px); left: 8px; width: auto; max-width: 62%; padding: 6px 10px; gap: 2px; }
-  .vie-hud:not(.ouvert) { max-width: calc(100% - 140px); padding: 4px; font-size: 11px; } /* la mini-carte occupe les 132 px de droite */
-  .vie-hud:not(.ouvert) :is(.vh-tete, .vh-faim) { padding: 3px 8px 3px 6px; gap: 4px; }
-  .vie-hud:not(.ouvert) .vh-faim i { width: 26px; }
-  .vh-ic { width: 13px; height: 13px; }
+  /* Les trois pastilles tiennent sur une ligne à gauche de la mini-carte (132 px à droite), sinon elles descendent. */
+  .vie-hud:not(.ouvert) { max-width: calc(100% - 134px); padding: 3px; gap: 3px; font-size: 10.5px; flex-wrap: nowrap; }
+  .vie-hud:not(.ouvert) :is(.vh-tete, .vh-faim) { padding: 3px 6px 3px 5px; gap: 3px; }
+  .vie-hud:not(.ouvert) .vh-faim i { width: 20px; }
+  .vie-hud:not(.ouvert) .vh-tete b { font-size: 13px; }
+  .vh-ic { width: 12px; height: 12px; }
   .vie-hud:not(.ouvert) #vhLogement, .vie-hud:not(.ouvert) #vhMetier { display: none; }
   .vie-hud.ouvert { top: 50%; left: 50%; }
   .vh-tete b { font-size: 16px; }
@@ -1204,7 +1210,7 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
 
 /* Au doigt : 44 px de haut partout (recommandation d'Apple et de Google), sinon on vise à côté. */
 @media (pointer: coarse) {
-  .salon-hud :is(.vh-boutons .vh-louer, .sl-courir, .sl-actions button, .sl-phrases button, .sl-chat form button) { min-height: 44px; }
+  .salon-hud :is(.vh-boutons .vh-louer, .sl-courir, .sl-actions button, .sl-phrases button, .sl-chat form button) { min-height: 44px; min-width: 44px; }
   .ch-liste button { min-height: 44px; } /* « Aller » passe par cette liste : au doigt, chaque ligne doit s'attraper */
   .sl-chat-fermer { width: 44px; height: 44px; }
   .salon-hud :is(.sl-ic, .sl-bulle) { min-height: 44px; min-width: 44px; padding: 11px; }

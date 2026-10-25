@@ -577,6 +577,12 @@ function mesurerBandeau() {
   addEventListener('resize', poser); poser();
 }
 let bandeauVu = false;
+/** Le clavier d'un téléphone monte par-dessus le bas de l'écran : la discussion se pose dessus (--clavier). */
+function suivreClavier() {
+  const vv = window.visualViewport; if (!vv) return;
+  const poser = () => document.documentElement.style.setProperty('--clavier', `${Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop))}px`);
+  vv.addEventListener('resize', poser); vv.addEventListener('scroll', poser); poser();
+}
 
 /** L'appel du bouton « Aller · gestes » s'arrête dès qu'on l'a ouvert une fois. */
 function vuGestes() {
@@ -936,6 +942,7 @@ export function initSalon(data) {
   surAnnonce(t => ligne(t)); // argent gagné ou dépensé, faim : dans le fil du salon
   S.dire = dire; initTrajets(data, { S, ligne, dedans, dehors, bulle, retirerBulle });
   initMaison({ S, ligne, geste, guide: () => !!guideSalon?.actif() }); // chez soi : se lever, se doucher, cuisiner (maison.js)
+  suivreClavier();
   guideSalon = creerGuide({ cle: 'cotonou3d.guide', el: $('#slGuide'), titre: 'Prise en main', etapes: etapesSalon() });
   initCommerces({ S, T, ligne, choisir, allerVers }); // devenir patron (commerces.js)
   initChapitres({ ligne, guide: () => !$('#slGuide').hidden }); // la prochaine étape, toujours affichée (chapitres.js)
@@ -980,6 +987,8 @@ export function initSalon(data) {
     f: () => acheterVehicule(V.id).then(ok => { if (ok) { garerSonVehicule(); ligne(`${V.nom} achetée ! Elle t’attend à côté : approche-toi et monte dedans.`); } }),
   }))));
   const app = document.getElementById('app');
+  // Sur un écran étroit, une seule fenêtre à la fois : les gestes et les objectifs s'ouvrent par-dessus la discussion.
+  const etroit = () => matchMedia('(max-width: 720px)').matches;
   // La discussion : une bulle en bas à gauche, le fil s'ouvre au-dessus. Ouverte d'emblée sur un ordinateur (la
   // place est là, et c'est par là que le jeu parle), repliée sur un téléphone. Retenu d'une partie à l'autre.
   const chat = ouvert => {
@@ -997,7 +1006,7 @@ export function initSalon(data) {
   const objectifs = ouvert => {
     app.classList.toggle('obj-ouvert', ouvert); $('#slObjectifs')?.setAttribute('aria-expanded', String(ouvert));
     try { localStorage.setItem('cotonou3d.objectifs', ouvert ? '1' : '0'); } catch { /* navigation privée */ }
-    if (ouvert) { const pt = $('#slObjPoint'); if (pt) pt.hidden = true; $('#slActions').classList.remove('ouvert'); $('#slGestesBtn')?.setAttribute('aria-expanded', 'false'); }
+    if (ouvert) { const pt = $('#slObjPoint'); if (pt) pt.hidden = true; $('#slActions').classList.remove('ouvert'); $('#slGestesBtn')?.setAttribute('aria-expanded', 'false'); etroit() && chat(false); }
     afficherChapitres(); // sans attendre le prochain tour de boucle
   };
   try { objectifs(localStorage.getItem('cotonou3d.objectifs') === '1'); } catch { /* navigation privée */ }
@@ -1008,7 +1017,7 @@ export function initSalon(data) {
   $('#slGestesBtn')?.addEventListener('click', () => {
     const ouvert = !$('#slActions').classList.contains('ouvert');
     $('#slActions').classList.toggle('ouvert', ouvert); $('#slGestesBtn').setAttribute('aria-expanded', String(ouvert));
-    if (ouvert) { vuGestes(); objectifs(false); }
+    if (ouvert) { vuGestes(); objectifs(false); etroit() && chat(false); }
   });
   $('#slForm')?.addEventListener('submit', e => { e.preventDefault(); dire($('#slTexte').value); $('#slTexte').value = ''; });
   const ph = $('#slPhrases'); if (ph) for (const p of PHRASES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = p; b.addEventListener('click', () => dire(p)); ph.append(b); }
