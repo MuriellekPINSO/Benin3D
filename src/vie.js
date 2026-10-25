@@ -23,7 +23,20 @@ export const LOCATION_MOTO = 1500; // F par jour
 // Les loueurs de Cotonou demandent 4 000 F le vélo pour 1 à 2 heures. Dans le jeu c'est 2 000 F : un joueur
 // « Débrouillard » commence avec 2 000 F, et à 4 000 F personne ne voyait jamais la boutique ni les balades.
 export const LOCATION_VELO = 2000, HEURES_VELO = 2;
-const RESERVOIRS = { moto: 3, voiture: 6, taxi: 6, tokpa: 10, velo: 0 }; // litres (échelle du jeu, voir conduite.js) ; le vélo ne boit rien
+const RESERVOIRS = { moto: 3, voiture: 6, taxi: 6, tokpa: 10, velo: 0, citadine: 5, bolide: 9 }; // litres (échelle du jeu, voir conduite.js) ; le vélo ne boit rien
+// S'acheter une voiture : elle reste à soi, contrairement à la moto qu'on loue à la journée. Les prix sont
+// ceux de l'occasion à Cotonou, ramenés à l'échelle du jeu — de quoi devoir travailler plusieurs journées.
+export const A_VENDRE = [
+  { id: 'citadine', nom: 'Citadine', prix: 450000, sous: 'Courte, haute, économe : celle qu’on croise partout' },
+  { id: 'bolide', nom: 'Bolide électrique', prix: 1800000, sous: 'Silencieux et très vif. Une charge qui dure' },
+];
+/** Achète un véhicule : il est à soi pour de bon (pas de vehiculeFin, contrairement à la location). */
+export async function acheterVehicule(id) {
+  const V = A_VENDRE.find(v => v.id === id); if (!V || !VIE.data) return false;
+  if (VIE.data.vehicule) { annonce('Tu as déjà un véhicule : rends-le d’abord.'); return false; }
+  if (!(await depenser(V.prix, `achat d’${V.nom.toLowerCase()}`))) { annonce(`Il te faut ${fmt(V.prix)} pour l’acheter.`); return false; }
+  await ecrire({ vehicule: id, carburant: RESERVOIRS[id], vehiculeFin: 0 }); rendreVie(); return true;
+}
 // Les métiers du transport (étape 2, première vague) : metiers.js. Sans véhicule à soi, on travaille avec celui
 // d'un patron, qu'on lui rembourse par un versement en fin de journée (comme les vrais zémidjans).
 // nomF : au féminin, quand le personnage est une femme (VIE.femme, tenu à jour par le salon).
@@ -301,4 +314,7 @@ export function rendreVie() {
   $('#vhEssenceLigne').hidden = !R;
   if (R) { $('#vhEssence').style.setProperty('--faim', `${Math.round(c / R * 100)}%`); $('#vhEssence').classList.toggle('bas', c / R <= .2); $('#vhEssenceTxt').textContent = `${c.toFixed(1).replace('.', ',')} L / ${R} L`; }
   $('#vhLouer').hidden = !!v.vehicule || !!VIE.travail || !!VIE.service; $('#vhLouer').textContent = `Louer une moto · ${fmt(LOCATION_MOTO)} / jour`;
+  // « Acheter une voiture » ne s'affiche que si l'on a de quoi en payer au moins une : sinon c'est un bouton
+  // qui ne mène qu'à des lignes grisées, et un écran de plus à lire pour rien.
+  const a = $('#vhAcheter'); if (a) a.hidden = !!v.vehicule || !!VIE.travail || !!VIE.service || v.argent < Math.min(...A_VENDRE.map(x => x.prix));
 }

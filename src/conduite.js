@@ -12,7 +12,7 @@ import { dansCirculation } from './trafic.js';
 import { scene } from './scene.js';
 import { plusTard } from './telechargements.js';
 import { TABLIERS, mergeColored, roadLines } from './ville.js';
-import { TOKPA_3D, ZEMS_3D, gabaritDe, matVeh, partsTokpa, partsVelo, partsVoiture, partsZem } from './vehicules.js';
+import { TOKPA_3D, ZEMS_3D, gabaritDe, matVeh, partsBolide, partsCitadine, partsTokpa, partsVelo, partsVoiture, partsZem } from './vehicules.js';
 
 // ---------- Conduire dans la ville (Ma vie, salon entre amis) ----------
 // On monte sur sa moto ou dans sa voiture et on roule où l'on veut, mais sur les routes : la chaussée et
@@ -33,6 +33,13 @@ export const VEHICULES = {
   // Le vélo Caï Caï : lent, nerveux au démarrage, il tourne court. `pedale` : pas d'essence, donc jamais
   // de panne sèche et rien à consommer (trajets.js saute le carburant pour lui).
   velo: { nom: 'vélo', long: 1.8, larg: .6, vmax: 7, accel: 2.8, frein: 7, recul: 1.2, braquage: 2.3, reservoir: 0, kmParLitre: 0, pedale: true, selle: [.95, -.3], arriere: -.5 },
+  // Deux voitures à s'offrir quand on a de quoi. La citadine, celle qu'on croise par milliers à Cotonou :
+  // courte, haute, économe. Le bolide électrique, qui existait déjà dans Zém Run et qu'on peut enfin conduire
+  // en ville : silencieux et vif. Pas de `pedale` sur l'électrique, malgré la tentation de dire qu'elle ne
+  // consomme pas : ce drapeau autorise aussi à rouler sur les trottoirs. On lui donne une grosse réserve et
+  // beaucoup de kilomètres au litre — une charge qui dure.
+  citadine: { nom: 'citadine', long: 3.7, larg: 1.7, vmax: 23, accel: 4.6, frein: 8.2, recul: 3.2, braquage: 1.5, reservoir: 5, kmParLitre: 14, cache: true },
+  bolide: { nom: 'bolide électrique', long: 4.3, larg: 1.9, vmax: 33, accel: 9, frein: 11, recul: 4, braquage: 1.45, reservoir: 9, kmParLitre: 60, cache: true },
 };
 export const PRIX_LITRE = 680; // à la pompe (Zém Run : 680 F à la station, 500 F le kpayo)
 const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote automatique
@@ -58,7 +65,7 @@ export function creerVehicule(type, { couleur } = {}) {
   let m;
   if (type === 'tokpa') { m = TOKPA_3D.geo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(mergeColored(partsTokpa()), matVeh); m.castShadow = true; } // le minibus de Zém Run (Tripo)
   else if (gabarit) m = gabarit.clone();
-  else { m = new THREE.Mesh(mergeColored(type === 'velo' ? partsVelo({}) : type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : couleur || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: couleur, chemise: '#f2c21b' })), matVeh); m.castShadow = true; m.receiveShadow = true; } // le vélo est vide : c'est le personnage du joueur qu'on voit dessus
+  else { m = new THREE.Mesh(mergeColored(type === 'velo' ? partsVelo({}) : type === 'citadine' ? partsCitadine(couleur || '#c9342c') : type === 'bolide' ? partsBolide(couleur || '#eceff2') : type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : couleur || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: couleur, chemise: '#f2c21b' })), matVeh); m.castShadow = true; m.receiveShadow = true; } // le vélo est vide : c'est le personnage du joueur qu'on voit dessus
   m.rotation.y = -Math.PI / 2 + (gabarit && MODELES[type] && DEMI_TOUR[type] ? Math.PI : 0); g.add(m); // avant +x → +z
   scene.add(g);
   // Roues qui tournent, fumée, poussière (roues.js) : elles se posent dans le repère du véhicule, l'avant vers +x,

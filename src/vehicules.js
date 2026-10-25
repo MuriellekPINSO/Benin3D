@@ -125,6 +125,22 @@ export function partsVoiture(couleur) {
   for (const z of [0.6, -0.6]) add(B3(0.05, 0.14, 0.32).translate(2.16, 0.78, z), '#f4efd8');
   return P;
 }
+// La citadine : une petite cinq-portes haute et courte, celles qu'on croise par milliers à Cotonou. Toit
+// bombé, grandes vitres, pare-chocs gris, une barre de toit. Dessinée en boîtes, comme les autres.
+export function partsCitadine(couleur = '#c9342c') {
+  const P = [], add = (g, hex) => P.push([g, hex]);
+  const vitre = '#2b343a', gris = '#8d9196';
+  add(B3(3.55, .62, 1.68).translate(0, .62, 0), couleur);                       // caisse
+  add(B3(2.05, .62, 1.56).translate(-.12, 1.22, 0), vitre);                     // habitacle vitré, haut et court
+  add(B3(1.95, .08, 1.6).translate(-.12, 1.55, 0), couleur);                    // toit
+  for (const z of [.58, -.58]) add(B3(1.1, .05, .07).translate(-.15, 1.62, z), gris); // barres de toit
+  add(B3(.5, .34, 1.66).translate(1.74, .52, 0), gris);                         // pare-chocs avant
+  add(B3(.4, .34, 1.66).translate(-1.72, .52, 0), gris);                        // pare-chocs arrière
+  for (const x of [1.18, -1.18]) for (const z of [.8, -.8]) add(C3(.3, .3, .2, 10).rotateX(Math.PI / 2).translate(x, .3, z), '#1c1c1e');
+  for (const z of [.55, -.55]) add(B3(.05, .15, .3).translate(1.79, .78, z), '#f4efd8'); // phares
+  for (const z of [.6, -.6]) add(B3(.05, .14, .26).translate(-1.78, .92, z), '#b8322a'); // feux arrière
+  return P;
+}
 // Le bolide électrique : un coupé bas en coin, verrière sombre d'un seul tenant, bas de caisse noir et
 // grandes roues — la silhouette des sportives électriques. Dessiné en boîtes, comme les autres véhicules.
 export function partsBolide(couleur = '#eceff2') {

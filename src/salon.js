@@ -20,7 +20,7 @@ import { hauteurSol } from './sols.js';
 import { actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe } from './trajets.js';
 import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
-import { alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
+import { A_VENDRE, acheterVehicule, alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
 import { basculerPause, finirJournee, menuTravail } from './metiers.js';
 import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces } from './commerces.js';
@@ -966,6 +966,12 @@ export function initSalon(data) {
   $('#slHabiller')?.addEventListener('click', () => ouvrirGarderobe(S.modele));
   initGarderobe({ porter, ligne });
   $('#vhLouer')?.addEventListener('click', () => louerMoto().then(ok => { if (ok) { garerSonVehicule(); ligne('Ta moto louée t’attend à côté : approche-toi et « Monter sur ta moto ».'); } }));
+  // S'acheter une voiture : elle reste à soi, contrairement à la moto qu'on loue à la journée.
+  $('#vhAcheter')?.addEventListener('click', () => choisir('Quelle voiture ?', A_VENDRE.map(V => ({
+    texte: `${V.nom} · ${V.prix.toLocaleString('fr-FR')} F`, sous: (VIE.data?.argent ?? 0) < V.prix ? `Il te manque ${(V.prix - (VIE.data?.argent ?? 0)).toLocaleString('fr-FR')} F` : V.sous,
+    desactive: (VIE.data?.argent ?? 0) < V.prix,
+    f: () => acheterVehicule(V.id).then(ok => { if (ok) { garerSonVehicule(); ligne(`${V.nom} achetée ! Elle t’attend à côté : approche-toi et monte dedans.`); } }),
+  }))));
   const bascule = (bouton, panneau, autre) => $(bouton)?.addEventListener('click', () => {
     const ouvert = !$(panneau).classList.contains('ouvert'); $(panneau).classList.toggle('ouvert', ouvert); $(bouton).setAttribute('aria-expanded', String(ouvert));
     if (ouvert) { $(autre[1]).classList.remove('ouvert'); $(autre[0]).setAttribute('aria-expanded', 'false'); }
