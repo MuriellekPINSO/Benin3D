@@ -206,7 +206,7 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
     tete: E.tete, main: E.main, femme: M.femme, graine: i, modele: id, haut: 1.15, jouer, peut: nom => !!(actions[nom] || M.clips[nom]), // peut('course') : seuls les modèles des joueurs savent courir
     maj: dt => { mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); suivre(E); },
     // `phase` tourne avec les pédales (radians) ; null rend le personnage à son animation.
-    velo: phase => { E.velo = phase; },
+    velo: phase => { E.velo = phase; }, // un nombre : la phase du pédalier ; 'moto' : les pieds sur les cale-pieds ; null : rien
     anim: (t, parle, signe) => {
       if (assise) return;
       if (signe) jouer('salut');
@@ -236,17 +236,34 @@ function viser(o, x, y, z) {
   vBut.set(x, y, z).normalize().applyQuaternion(qTmp);
   o.quaternion.setFromUnitVectors(repos, vBut);
 }
+/**
+ * Au guidon. `phase` est l'avancée du pédalier pour un vélo ; 'moto' pour une moto ou un zém, dont le pilote
+ * tient le guidon mais garde les pieds sur les cale-pieds. Avant, le pilote d'une moto jouait simplement
+ * « assis » — la pose d'une chaise, jambes tendues devant lui : « l'animation du personnage qui conduit n'est
+ * pas bien » (Murielle, 25/10).
+ */
 function poserVelo(E, phase) {
   const os = E.osVelo ||= Object.fromEntries(OS_VELO.map(n => [n, E.corps.getObjectByName(n)]));
   E.g.getWorldDirection(vAv); // l'avant du personnage (+z de son groupe) : il regarde où va le vélo
   vCote.crossVectors(vAv, vHaut).normalize();
+  const moto = phase === 'moto';
   for (const c of [1, -1]) { // 1 : la gauche, −1 : la droite
-    const p = c > 0 ? 'L_' : 'R_', t = phase + (c > 0 ? 0 : Math.PI); // une jambe pousse pendant que l'autre remonte
+    const p = c > 0 ? 'L_' : 'R_', t = moto ? 0 : phase + (c > 0 ? 0 : Math.PI); // une jambe pousse pendant que l'autre remonte
     const a = (kAv, kHaut, kCote = 0) => [vAv.x * kAv + vCote.x * kCote, kHaut, vAv.z * kAv + vCote.z * kCote];
-    viser(os[p + 'Upperarm'], ...a(.78, -.58, .10 * c)); // l'épaule part vers le guidon
-    viser(os[p + 'Forearm'], ...a(.74, -.62, .04 * c)); // le coude à peine plié
-    viser(os[p + 'Thigh'], ...a(.50 + .22 * Math.sin(t), -.85, .13 * c)); // la cuisse monte et descend
-    viser(os[p + 'Calf'], ...a(.05 + .45 * Math.sin(t + 1), -.95, .05 * c)); // le mollet suit la pédale
+    // À moto, on ne touche pas aux bras : braqués comme ceux d'un cycliste, ils partaient en l'air sur un
+    // guidon placé autrement (vérifié de profil). L'animation « assis » leur donne une attitude naturelle ;
+    // ce sont les jambes qui étaient fausses, tendues devant comme sur une chaise.
+    if (!moto) {
+      viser(os[p + 'Upperarm'], ...a(.78, -.58, .10 * c)); // l'épaule part vers le guidon
+      viser(os[p + 'Forearm'], ...a(.74, -.62, .04 * c)); // le coude à peine plié
+    }
+    if (moto) { // genou plié, pied posé sur le cale-pied, un peu écarté
+      viser(os[p + 'Thigh'], ...a(.34, -.92, .20 * c));
+      viser(os[p + 'Calf'], ...a(.04, -.99, .07 * c));
+    } else {
+      viser(os[p + 'Thigh'], ...a(.50 + .22 * Math.sin(t), -.85, .13 * c)); // la cuisse monte et descend
+      viser(os[p + 'Calf'], ...a(.05 + .45 * Math.sin(t + 1), -.95, .05 * c)); // le mollet suit la pédale
+    }
   }
 }
 

@@ -394,8 +394,9 @@ export function asseoirSur(p, V, passager) {
   const s = siege(V, passager); p.visible = !!s; if (!s) return;
   v3.set(0, s.y, s.z).applyAxisAngle(THREE.Object3D.DEFAULT_UP, V.cap);
   p.position.set(V.x + v3.x, V.y + v3.y, V.z + v3.z); p.rotation.y = V.cap; p.userData.jouer?.('assis');
-  // Au guidon d'un vélo, « assis » ne suffit pas : bras tendus et jambes qui tournent (personnages.js).
-  p.userData.velo?.(V.D.pedale && !passager ? phaseVelo(V) : null);
+  // Au guidon, « assis » ne suffit pas — c'est la pose d'une chaise : bras au guidon, et les jambes qui
+  // tournent à vélo ou posées sur les cale-pieds à moto (personnages.js). Le passager, lui, reste assis.
+  p.userData.velo?.(passager || V.D.cache ? null : V.D.pedale ? phaseVelo(V) : 'moto');
 }
 /** Pour les amis : leur véhicule sous eux (créé à la demande). */
 export function vehiculeDe(A, type) {
