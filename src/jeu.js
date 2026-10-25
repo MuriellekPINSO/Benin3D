@@ -56,10 +56,12 @@ export const LANE = 2.7, RECUL = 3; // marche arrière : 11 km/h au plus
 export const JEU = { actif: false, pause: false, etat: null, objets: [], decor: null, joueur: null, ligne: null, veh: 'zem', numero: '1234', lignes: [], meilleur: {} };
 JEU.prog = null; JEU.autoGaz = false; // le zém n'avance que si le joueur accélère (↑) ; relâché, il ralentit jusqu'à l'arrêt
 JEU.gaucher = false; // téléphone : boutons Frein, Gaz et E à gauche (option du menu, comme la « left-handed layout » de Danfo Run)
-JEU.glisser = coarse; // au doigt, façon Subway Surfers : le zém avance seul, on glisse pour changer de file, sauter, freiner (option du menu)
-try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; if (typeof s.glisser === 'boolean') JEU.glisser = s.glisser; JEU.gaucher = !!s.gaucher; } catch (e) { }
-const auDoigt = () => coarse && JEU.glisser;
-export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, autoGaz: JEU.autoGaz, glisser: JEU.glisser, gaucher: JEU.gaucher })); } catch (e) { } sauvegarderEnLigne(); }; // avec un compte, aussi en ligne (compte.js)
+// Au téléphone, on conduit au doigt, façon Subway Surfers : le zém avance seul, on glisse pour changer de file,
+// sauter, freiner. Le choix « au doigt ou avec des boutons » a été retiré le 25/10 (« enlève l'option avec des
+// boutons, garde juste au doigt ») : c'était un écran de plus à lire avant de partir, et deux jeux à régler.
+try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; JEU.gaucher = !!s.gaucher; } catch (e) { }
+const auDoigt = () => coarse;
+export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, autoGaz: JEU.autoGaz, gaucher: JEU.gaucher })); } catch (e) { } sauvegarderEnLigne(); }; // avec un compte, aussi en ligne (compte.js)
 export const fmtF = n => `${Math.round(n).toLocaleString('fr-FR')}\u00a0F`; // espace insécable : « 2 000 » et « F » restent sur la même ligne
 
 // Lissage (Chaikin) des virages, mais seulement sur les 7 derniers mètres avant chaque coin et les 7 premiers après :
@@ -434,7 +436,7 @@ export function lancerLigne(L, veh) {
   Object.assign(G, { file: 0, changements: 0, cf: null, carrefours: 0, essence: st0.essence, plein: false });
   if (guideJeu?.actif()) toast(L.arretsJ[0].nom, 2);
   // Au téléphone, une consigne courte (les touches du clavier n'y servent à rien, et le long texte couvrait l'écran).
-  else if (coarse) toast(auDoigt() ? `${L.arretsJ[0].nom} · glisse pour changer de file, vers le haut pour sauter` : `${L.arretsJ[0].nom} · Gaz et Frein en bas, E pour agir`, 2.2);
+  else if (coarse) toast(`${L.arretsJ[0].nom} · glisse pour changer de file, vers le haut pour sauter`, 2.2);
   else toast(`${L.arretsJ[0].nom} · ↑ accélérer (relâche pour ralentir), ↓ freiner (à l’arrêt, appuie encore : marche arrière), U demi-tour, E interagir · arrête-toi au feu rouge`, 3.4);
 }
 // Tout ce qui dépend du trajet : arrêts, bord de route, gens, habillage des rues, végétation, carrefours.
@@ -851,11 +853,11 @@ function etapesJeu() {
   const st = () => JEU.etat, clients = () => avecClients(JEU.veh), prochain = () => JEU.ligne?.arretsJ[st().prochain];
   return [
     { id: 'client', texte: () => coarse ? 'Ton client demande le prix : touche une réponse.' : 'Ton client demande le prix : clique sur une réponse, ou appuie sur [1] [2] [3].', quand: () => clients() && !!DISC.client && !DISC.client.accord && !$('#jhDialogue').hidden, fait: () => !clients() || !!DISC.client?.accord },
-    { id: 'rouler', texte: () => auDoigt() ? 'Ton zém avance tout seul. Glisse le doigt vers le bas et garde-le posé pour freiner.' : coarse ? 'Maintiens « Gaz » pour rouler. Relâche pour ralentir, « Frein » pour freiner.' : 'Maintiens [↑] pour rouler. Relâche pour ralentir, [↓] pour freiner.', quand: () => true, fait: () => st().v > 8 },
-    { id: 'arret', texte: () => `Bientôt l’arrêt ${prochain()?.nom || ''} : ${auDoigt() ? 'glisse à droite, puis vers le bas en gardant le doigt posé' : coarse ? 'mets-toi à droite avec ▶, puis « Frein »' : 'mets-toi à droite [→], puis freine [↓]'} dans la zone jaune. ${clients() ? 'Ton client descend et paie.' : 'L’apprenti encaisse les passagers.'}`, quand: () => { const a = prochain(); return !!a && a.s - st().s < 260 && (!clients() || !!DISC.client); }, fait: () => st().servis >= 1 },
-    { id: 'files', texte: () => auDoigt() ? 'Glisse à gauche ou à droite pour changer de file et éviter les zems, les trous et les chèvres. Glisse vers le haut pour sauter par-dessus un trou.' : coarse ? '◀ ▶ : change de file pour éviter les zems, les trous et les chèvres. « Saut » : sauter par-dessus un trou.' : '[←] [→] : change de file pour éviter les zems, les trous et les chèvres. [Espace] : sauter par-dessus un trou.', quand: () => st().v > 5, fait: () => G.changements >= 1 },
+    { id: 'rouler', texte: () => coarse ? 'Ton zém avance tout seul. Glisse le doigt vers le bas et garde-le posé pour freiner.' : 'Maintiens [↑] pour rouler. Relâche pour ralentir, [↓] pour freiner.', quand: () => true, fait: () => st().v > 8 },
+    { id: 'arret', texte: () => `Bientôt l’arrêt ${prochain()?.nom || ''} : ${coarse ? 'glisse à droite, puis vers le bas en gardant le doigt posé' : 'mets-toi à droite [→], puis freine [↓]'} dans la zone jaune. ${clients() ? 'Ton client descend et paie.' : 'L’apprenti encaisse les passagers.'}`, quand: () => { const a = prochain(); return !!a && a.s - st().s < 260 && (!clients() || !!DISC.client); }, fait: () => st().servis >= 1 },
+    { id: 'files', texte: () => coarse ? 'Glisse à gauche ou à droite pour éviter les zems, les trous et les chèvres. Vers le haut : sauter.' : '[←] [→] : change de file pour éviter les zems, les trous et les chèvres. [Espace] : sauter par-dessus un trou.', quand: () => st().v > 5, fait: () => G.changements >= 1 },
     { id: 'signe', texte: () => `Pas de client à bord : quelqu’un te fait signe au bord de la route. Arrête-toi à sa hauteur, puis ${coarse ? 'le bouton E' : '[E]'}.`, quand: () => clients() && !DISC.client && st().servis >= 1, fait: () => !clients() || (st().servis >= 1 && !!DISC.client) },
-    { id: 'carrefour', texte: () => `Carrefour : sans rien faire, tu suis le GPS. Pour prendre une autre rue, ralentis puis ${auDoigt() ? 'glisse à gauche ou à droite' : coarse ? '◀ ▶' : '[←] [→]'}, ou touche les boutons du panneau.`, quand: () => !$('#jhCarrefour').hidden, fait: () => G.carrefours >= 1 },
+    { id: 'carrefour', texte: () => `Carrefour : sans rien faire, tu suis le GPS. Pour changer de rue, ralentis puis ${coarse ? 'glisse à gauche ou à droite' : 'fais [←] ou [→]'}.`, quand: () => !$('#jhCarrefour').hidden, fait: () => G.carrefours >= 1 },
     { id: 'essence', texte: () => `Ton réservoir baisse : arrête-toi devant un vendeur de kpayo ou une station, puis ${coarse ? 'le bouton E' : '[E]'} pour faire le plein.`, quand: () => st().essence < 1, fait: () => G.plein },
     { id: 'bilan', texte: () => `Bien joué ! ${coarse ? '« Pause », en haut,' : '[Échap]'} met le jeu en pause. Quand tu quittes la course, tu vois ton bilan et ta recette va dans ta cagnotte.`, quand: () => st().servis >= 2, fait: () => false, duree: 8 },
   ];
@@ -875,7 +877,8 @@ export function majHud(st, C, V) {
   const a = JEU.ligne.arretsJ[st.prochain];
   // Trop vite pour s'arrêter dans la zone jaune (freinage à 7 m/s²) : on prévient.
   const reste = a ? a.s - st.s : 0, ralentir = !!a && reste > 0 && st.v > 7.5 && reste < (st.v * st.v - 56) / 14 + 45;
-  $('#jhProchain').textContent = a ? `Prochain arrêt : ${a.nom} · ${Math.max(0, Math.round(reste))} m${ralentir ? ' · Ralentis !' : ''}` : 'Terminus';
+  // Sur un téléphone, « Prochain arrêt : » mangeait la moitié de la ligne et le nom de l'arrêt finissait en « … ».
+  $('#jhProchain').textContent = a ? `${coarse ? '→' : 'Prochain arrêt :'} ${a.nom} · ${Math.max(0, Math.round(reste))} m${ralentir ? ' · Ralentis !' : ''}` : 'Terminus';
   $('#jhProchain').classList.toggle('alerte', ralentir);
   $('#jhPassagers').textContent = JEU.veh === 'tokpa' ? `${st.passagers}/${V.places} passagers` : etiquetteClient();
 }
@@ -1076,32 +1079,6 @@ export function initJeu(data) {
   const maintenu = (id, cle) => { const b = $(id); b.addEventListener('pointerdown', e => { e.preventDefault(); if (st()) st()[cle] = true; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { if (st()) st()[cle] = false; }); };
   maintenu('#jbF', 'frein'); maintenu('#jbA', 'gaz');
   $('#jmVoix').checked = VOIX.on; $('#jmVoix').addEventListener('change', e => voixActives(e.target.checked)); $('#jmVoix').closest('label').hidden = !voixDispo();
-  // Au téléphone, le mode de conduite se choisit en grand dans le menu : au doigt, ou avec les boutons Gaz, Frein,
-  // ◀ ▶, Saut et E (un testeur du 22/10 voulait « des boutons à l'écran comme dans les jeux » sans les trouver).
-  const conduite = $('#jmConduite');
-  if (conduite) {
-    conduite.hidden = !coarse;
-    // Déplié la première fois, replié ensuite : « il y a beaucoup trop d'informations avant le démarrage, ça
-    // t'embrouille et tu t'en lasses » (un testeur, 25/10). Le choix était déjà retenu ; c'était de le reposer
-    // à chaque partie, deux paragraphes en grand, qui lassait. Une ligne suffit, et un mot pour la rouvrir.
-    let vu = false; try { vu = !!localStorage.getItem('zemrun-conduite-vue'); } catch { /* navigation privée */ }
-    const majConduite = () => {
-      $('#jmcDoigt').setAttribute('aria-pressed', String(JEU.glisser));
-      $('#jmcBoutons').setAttribute('aria-pressed', String(!JEU.glisser));
-      $('#jeu').classList.toggle('au-doigt', auDoigt());
-      conduite.classList.toggle('replie', vu);
-      $('#jmConduiteRouvrir').hidden = !vu;
-      $('#jmConduiteQuoi').textContent = JEU.glisser ? 'au doigt' : 'avec des boutons';
-    };
-    const choisir = v => {
-      if (!vu) { vu = true; try { localStorage.setItem('zemrun-conduite-vue', '1'); } catch { /* navigation privée */ } }
-      if (JEU.glisser !== v) { JEU.glisser = v; sauver(); }
-      majConduite();
-    };
-    btn('#jmcDoigt', () => choisir(true)); btn('#jmcBoutons', () => choisir(false));
-    btn('#jmConduiteRouvrir', () => { vu = false; majConduite(); }); // « changer » : on redéplie le temps de choisir
-    majConduite();
-  }
   $('#jeu').classList.toggle('au-doigt', auDoigt());
   const gaucher = $('#jmGaucher'); if (gaucher) { gaucher.closest('label').hidden = !coarse; gaucher.checked = JEU.gaucher; gaucher.addEventListener('change', e => { JEU.gaucher = e.target.checked; sauver(); $('#jeu').classList.toggle('gaucher', JEU.gaucher); }); }
   $('#jeu').classList.toggle('gaucher', JEU.gaucher);

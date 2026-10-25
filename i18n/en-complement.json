@@ -177,7 +177,11 @@
   " · glisse pour changer de file, vers le haut pour sauter": " · swipe to change lanes, up to jump",
   " · Gaz et Frein en bas, E pour agir": " · Gas and Brake below, E to act",
   "'Bolide électrique'": "'Electric sports car'",
-  "'Bolide'": "'Sports car'"
+  "'Bolide'": "'Sports car'",
+  "Carrefour : sans rien faire, tu suis le GPS. Pour changer de rue, ralentis puis ": "Junction: do nothing and you follow the GPS. To take another street, slow down then ",
+  "'Prochain arrêt :'": "'Next stop:'",
+  "'fais [←] ou [→]'": "'press [←] or [→]'",
+  "'Glisse à gauche ou à droite pour éviter les zems, les trous et les chèvres. Vers le haut : sauter.'": "'Swipe left or right to dodge zems, potholes and goats. Swipe up to jump.'"
  },
  "index.html": {
   "Crédits": "Credits",

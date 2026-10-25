@@ -10,6 +10,7 @@ import { accessoire, personnage3d } from './personnages.js';
 import { photoJeu } from './google.js';
 import { campagne, compterVue, matAffiche } from './publicites.js';
 import { matVeh } from './vehicules.js';
+import { MAX_DECOR, reduireImage } from './textures.js';
 
 // Ce qui rend un trajet reconnaissable, à la manière de Danfo Run : les vrais
 // commerces et services (OpenStreetMap) au bord de la route, avec leur enseigne,
@@ -97,7 +98,7 @@ function texEnseigne(type, nom) {
   if (sous) { c.font = '700 26px "Google Sans", system-ui, sans-serif'; c.globalAlpha = .75; c.fillText(sous, x0, y - taille * .85 + 26); c.globalAlpha = 1; y += 34; }
   c.font = `800 ${taille}px "Google Sans", system-ui, sans-serif`;
   for (const l of lg) { c.fillText(l, x0, y); y += taille * 1.05; }
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  const t = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 // Petites pancartes peintes à la main, communes à toutes les lignes.
 const PEINTES = ['COUTURE', 'COIFFURE DAME', 'SOUDURE', 'MENUISERIE', 'VULCANISATEUR', 'VENTE DE GARI', 'CABINE · MOMO', 'ATELIER AUTO', 'BOUTIQUE GRÂCE DIVINE', 'MAQUIS CHEZ TANTI', 'DIEU EST GRAND', 'QUINCAILLERIE'];
@@ -112,7 +113,7 @@ function texPeinte(txt) {
   let taille = 70; c.font = `900 ${taille}px Impact, "Arial Black", system-ui, sans-serif`;
   while (c.measureText(txt).width > 470 && taille > 30) { taille -= 4; c.font = `900 ${taille}px Impact, "Arial Black", system-ui, sans-serif`; }
   c.fillText(txt, 256, 84);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; cacheTex.set(txt, t); return t;
+  const t = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); t.colorSpace = THREE.SRGBColorSpace; cacheTex.set(txt, t); return t;
 }
 /** Panneau d'arrêt : fond jaune, « ARRÊT » et le nom de l'arrêt dessous. */
 function texArret(nom) {
@@ -125,7 +126,7 @@ function texArret(nom) {
   let t = 44; c.font = `800 ${t}px system-ui, sans-serif`;
   while (c.measureText(nom).width > 460 && t > 20) { t -= 3; c.font = `800 ${t}px system-ui, sans-serif`; }
   c.fillText(nom, 256, 146);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; cacheTex.set(cle, tex); return tex;
+  const tex = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); tex.colorSpace = THREE.SRGBColorSpace; cacheTex.set(cle, tex); return tex;
 }
 const matCote = new THREE.MeshStandardMaterial({ color: '#3a3f44', roughness: .6 });
 function panneau(tex, w, h) {

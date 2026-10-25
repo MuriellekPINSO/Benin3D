@@ -3,6 +3,7 @@ import { toXZ } from './base.js';
 import { B3, C3, CAI, matVeh, partsVelo } from './vehicules.js';
 import { groupeLieu } from './lieux.js';
 import { mergeColored } from './ville.js';
+import { MAX_DECOR, reduireImage } from './textures.js';
 
 // ---------- Caï Caï Vélo ----------
 // Le loueur de vélos du jeu. Le nom est inventé (« caï caï », le cri du canard) : on s'inspire des
@@ -44,7 +45,7 @@ function panneau() {
   c.fillStyle = '#1c1c1e'; c.beginPath(); c.arc(68, 40, 4, 0, 7); c.fill();
   c.fillStyle = '#17130c'; c.font = '800 46px "Google Sans", system-ui, sans-serif';
   c.fillText('CAÏ CAÏ', 136, 72); c.fillText('VÉLO', 136, 120);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  const t = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1), new THREE.MeshLambertMaterial({ map: t }));
   m.position.set(0, 3.25, 1.32); return m;
 }

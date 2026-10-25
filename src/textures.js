@@ -11,6 +11,10 @@ import { LITE, SECOURS } from './base.js';
 
 /** Côté maximal d'une image, en pixels. Sur ordinateur on ne touche à rien. */
 export const MAX_TEX = SECOURS ? 256 : LITE ? 512 : Infinity;
+/** Le décor de rue (devantures, plaques, enseignes d'atelier) : vu de loin et en roulant, il supporte plus petit.
+ *  C'est le gros de Zém Run — 205 Mo de textures mesurés sur un écran de 393 × 852, en centaines de petites
+ *  images dessinées une par une, là où la ville n'en a que 135. */
+export const MAX_DECOR = SECOURS ? 128 : LITE ? 192 : Infinity;
 
 /** L'image réduite au format demandé (un canevas), ou l'image telle quelle si elle y tient déjà. */
 export function reduireImage(img, max = MAX_TEX) {

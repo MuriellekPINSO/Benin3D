@@ -318,17 +318,39 @@ button { font: inherit; color: inherit; }
 /* Téléphone : sous le bandeau du haut (mesuré dans jeu.js : --jh-haut), les icônes puis la mini-carte, à droite ;
    le nom de la rue à gauche. Tout était posé à des hauteurs écrites en dur et le dialogue leur passait dessus. */
 @media (pointer: coarse), (max-width: 720px) {
-  /* « Prochain arrêt : … · 854 m » passe d'une ligne à deux au fil du trajet : le bandeau changeait de hauteur
-     plusieurs fois par seconde et tout ce qui se range dessous sautait avec lui. Deux lignes, toujours. */
-  .jh-ligne #jhProchain { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.5em; }
+  /* « Réduis-moi ces textes, ça empêche de voir où on va » (Murielle, 25/10) : sur un téléphone, le bandeau du
+     haut occupait 128 px et le dialogue du client descendait jusqu'au milieu de l'écran. Tout passe en petit, et
+     chaque ligne tient sur une seule ligne — le bandeau garde ainsi toujours la même hauteur. */
+  .jh-ligne { padding: 7px 11px 8px; gap: 1px; }
+  .jh-ligne b { font-size: 13px; }
+  .jh-ligne b, .jh-ligne #jhProchain { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .jh-ligne #jhProchain { font-size: 11px; }
+  .jh-barre { height: 6px; margin-top: 3px; }
+  .jh-barre span i { top: -2px; width: 11px; height: 11px; margin-left: -5.5px; border-width: 2px; }
+  .jh-barre span i.petit { width: 7px; height: 7px; margin-left: -3.5px; border-width: 1.5px; }
+  .jh-stats { padding: 7px 11px 8px; gap: 1px; }
+  .jh-stats b { font-size: 19px; }
+  .jh-stats span { font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+  .jh-stats .jh-carbu small { font-size: 9.5px; }
+  .jh-essence { width: 74px; height: 10px; }
+  .jh-dialogue .qui { font-size: 9.5px; }
+  .jh-dialogue .dit { font-size: 13.5px; margin: 3px 0 6px; }
+  .jh-dialogue .choix button { padding: 6px 10px; font-size: 12.5px; gap: 7px; }
+  .jh-dialogue kbd { min-width: 19px; height: 19px; font-size: 11px; }
+  .jh-guide p { font-size: 13px; line-height: 1.3; }
+  .jh-rue { padding: 5px 12px 6px; left: calc(50% - 58px); max-width: calc(100% - 132px); } .jh-rue b { font-size: 14px; } /* centrée sur ce qui reste à gauche de la mini-carte */
+  .jh-repere { padding: 8px 12px; max-width: min(260px, 52%); } .jh-repere b { font-size: 16px; }
+  .jh-repere .jh-photo { width: 190px; }
+  .jeu-pause button, .jeu-fin button { min-height: 44px; }
+  .jh-toast { font-size: 21px; }
   .jh-coin { bottom: auto; top: calc(var(--jh-haut, 104px) + 8px); }
-  .jh-mini { width: 112px; height: 112px; bottom: auto; top: calc(var(--jh-haut, 104px) + 60px); }
+  .jh-mini { width: 104px; height: 104px; bottom: auto; top: calc(var(--jh-haut, 104px) + 52px); }
   .jh-rue { top: calc(var(--jh-haut, 104px) + 8px); }
-  .jh-mission { top: calc(var(--jh-haut, 104px) + 60px); }
+  .jh-mission { top: calc(var(--jh-haut, 104px) + 52px); }
   .jh-rue b { font-size: 16px; }
-  .jh-repere { top: calc(var(--jh-haut, 104px) + 186px); }
+  .jh-repere { top: calc(var(--jh-haut, 104px) + 170px); }
   .jh-repere b { font-size: 18px; }
-  .jh-carrefour { top: calc(var(--jh-haut, 104px) + 180px); }
+  .jh-carrefour { top: calc(var(--jh-haut, 104px) + 166px); }
   .jh-boutons { display: flex; }
   .jh-boutons button { padding: 13px 12px; }
   .jh-dialogue .choix button, .jh-demi, .jh-carrefour button, .jh-boutons button { min-height: 44px; }
@@ -545,11 +567,11 @@ button { font: inherit; color: inherit; }
   /* Le dialogue se posait à 110 px, mais le bandeau du haut en fait 126 sur un téléphone : il mordait dessus
      (capture de Murielle, 25/10). On réserve la hauteur du bandeau une fois pour toutes, et le dialogue se pose
      juste en dessous — une hauteur fixe plutôt que mesurée, pour qu'il ne saute pas pendant qu'on lit. */
-  .jh-haut { min-height: 128px; }
-  .jh-dialogue { top: 146px; bottom: auto; padding: 8px 12px 10px; }
+  .jh-haut { min-height: 86px; }
+  .jh-dialogue { top: 104px; bottom: auto; padding: 7px 11px 9px; }
   .jh-dialogue .dit { margin: 4px 0 8px; font-size: 15px; }
   .jh-dialogue .choix { gap: 6px; }
-  .jh-dialogue .choix button { flex: 1 1 100%; padding: 8px 10px; font-size: 13.5px; }
+  .jh-dialogue .choix button { flex: 1 1 132px; padding: 8px 10px; font-size: 13.5px; } /* les réponses courtes (« 400 F », « 250 F ») se mettent côte à côte */
 }
 
 /* Marché artisanal : discuter avec la vendeuse, payer */
@@ -617,13 +639,6 @@ button { font: inherit; color: inherit; }
 @media (max-width: 720px) { .au-doigt .jh-boutons { left: auto; right: 12px; justify-content: flex-end; gap: 8px; } .au-doigt .jh-boutons button { flex: 0 0 auto; padding: 14px 18px; min-width: 72px; } }
 .jm-option { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
 /* Téléphone : le choix du mode de conduite, en évidence dans le menu (un testeur voulait « des boutons comme dans les jeux »). */
-.jm-conduite { margin: 12px 0 2px; }
-.jm-conduite > b { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 800; }
-.jm-conduite-choix { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.jm-conduite-choix button { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--chip); color: var(--ink); font: 800 14px/1.2 var(--font-body); text-align: left; cursor: pointer; }
-.jm-conduite-choix button small { font: 600 11.5px/1.35 var(--font-body); color: var(--ink-2); }
-.jm-conduite-choix button[aria-pressed="true"] { background: var(--accent); border-color: transparent; color: #1d1a16; }
-.jm-conduite-choix button[aria-pressed="true"] small { color: #1d1a16; opacity: .78; }
 @media (max-width: 720px) { .jh-action { bottom: 300px; } .jh-plein { bottom: 356px; } }
 .jh-plein { bottom: 284px; background: rgba(140, 90, 10, .9); }
 #jhAction:not([hidden]) ~ .jh-plein { display: none; } /* une seule invite à la fois : ce qui est à côté passe d'abord */
@@ -1276,6 +1291,3 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
 #app.webgl-perdu::after { content: 'La carte graphique a été reprise par le navigateur. Recharge la page.'; position: fixed; inset: auto 0 0; z-index: 90; padding: 14px 16px; background: #b3261e; color: #fff; font: 700 14px/1.4 var(--font-body); text-align: center; }
 
 /* Zém Run, choix de conduite : déplié la première fois, une seule ligne ensuite (retour d'un testeur, 25/10). */
-.jm-conduite.replie .jm-conduite-titre, .jm-conduite.replie .jm-conduite-choix { display: none; }
-.jm-conduite-replie { border: 0; background: var(--chip); color: var(--ink-2); border-radius: 999px; padding: 8px 14px; font: 600 13px/1.2 var(--font-body); cursor: pointer; justify-self: start; }
-.jm-conduite-replie b { color: var(--ink); }

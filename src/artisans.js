@@ -7,7 +7,7 @@ import { groupeLieu } from './lieux.js';
 import { personne } from './discussions.js';
 import { JEU, fmtF, sauver } from './jeu.js';
 import { parler, voixDe } from './voix.js';
-import { chargeurGLB } from './textures.js';
+import { chargeurGLB, MAX_DECOR, reduireImage } from './textures.js';
 
 // ---------- Marchés artisanaux des sites touristiques ----------
 // Des étals d'objets d'art (modèles 3D fournis, allégés par scripts/masques.mjs) près
@@ -45,7 +45,7 @@ function wax() {
   const cv = document.createElement('canvas'); cv.width = cv.height = 256; const c = cv.getContext('2d');
   c.fillStyle = '#c8382f'; c.fillRect(0, 0, 256, 256);
   for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { const cx = x * 64 + 32, cy = y * 64 + 32; c.fillStyle = (x + y) % 2 ? '#f2c21b' : '#1f6f8b'; c.beginPath(); c.arc(cx, cy, 22, 0, 7); c.fill(); c.fillStyle = '#f4efe6'; c.beginPath(); c.arc(cx, cy, 9, 0, 7); c.fill(); }
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 1); return t;
+  const t = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 1); return t;
 }
 const ETALS = [];
 function etal(nom, graine) {
@@ -59,7 +59,7 @@ function etal(nom, graine) {
   // Panneau peint.
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128; const c = cv.getContext('2d');
   c.fillStyle = '#f4efe6'; c.fillRect(0, 0, 512, 128); c.fillStyle = '#7a1f2b'; c.font = '900 50px Impact, "Arial Black", sans-serif'; c.textAlign = 'center'; c.fillText('ART · SOUVENIRS', 256, 72); c.font = '700 26px system-ui, sans-serif'; c.fillStyle = '#1d1a16'; c.fillText(nom.toUpperCase(), 256, 110, 490);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const t = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); t.colorSpace = THREE.SRGBColorSpace;
   const p = add(new THREE.PlaneGeometry(2.4, .6), new THREE.MeshBasicMaterial({ map: t }), 0, 2.25, .82); p.castShadow = false;
   const v = personne(graine, { femme: true }); v.position.set(.4, 0, -.95); g.add(v);
   const e = { g, nom, vendeuse: v, nomVendeuse: VENDEUSES[graine % VENDEUSES.length], places: [], charge: false };

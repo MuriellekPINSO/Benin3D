@@ -9,6 +9,7 @@ import { texteToile } from './lieux.js';
 import { poserObstacles } from './rue.js';
 import { scene } from './scene.js';
 import { VIE, depenser, ecrireEnPlus, gagner, lireEnPlus, rendreVie, signaler } from './vie.js';
+import { MAX_DECOR, reduireImage } from './textures.js';
 
 // ---------- Devenir patron : ses commerces à Cotonou (Vivre à Cotonou) ----------
 // Des boutiques à louer dans plusieurs quartiers (emplacements.js). On y ouvre un commerce : cabine Mobile Money, maquis,
@@ -298,7 +299,7 @@ const TEX = new Map();
 function toile(cle, w, h, dessin) {
   if (TEX.has(cle)) return TEX.get(cle);
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h; dessin(cv.getContext('2d'), w, h);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; TEX.set(cle, t); return t;
+  const t = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; TEX.set(cle, t); return t;
 }
 const rayures = coul => toile('r' + coul, 256, 32, (c, w, h) => { for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#f3ead8' : coul; c.fillRect(i * w / 8, 0, w / 8, h); } });
 const PAGNES = [['#1f5fa8', '#f2c21b', '#d6372b'], ['#d6372b', '#1d1a16', '#f2c21b'], ['#2f8a4a', '#f3ead8', '#d9a521'], ['#8e3c8f', '#f2c21b', '#f3ead8'], ['#e2672a', '#1f5fa8', '#f3ead8'], ['#1d1a16', '#d9a521', '#c8553d']];
@@ -446,7 +447,7 @@ function pop(B, m) {
   if (!B.g.visible) return;
   const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96; const k = cv.getContext('2d');
   k.font = '800 58px "Google Sans", system-ui, sans-serif'; k.textAlign = 'center'; k.textBaseline = 'middle'; k.lineWidth = 10; k.strokeStyle = '#ffffff'; k.strokeText(`+${fmt(m)}`, 128, 48); k.fillStyle = '#1f8a3a'; k.fillText(`+${fmt(m)}`, 128, 48);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const t = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); t.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); s.scale.set(1.9, .71, 1); s.renderOrder = 10;
   const [x, z] = versMonde(B.E, (Math.random() - .5) * 2, .2); s.position.set(x, 3.2, z); scene.add(s);
   const t0 = performance.now(), anim = () => { const k2 = (performance.now() - t0) / 1800; if (k2 >= 1 || !s.parent) { scene.remove(s); t.dispose(); s.material.dispose(); return; } s.position.y = 3.2 + k2 * 1.6; s.material.opacity = 1 - Math.max(0, k2 - .6) / .4; requestAnimationFrame(anim); };

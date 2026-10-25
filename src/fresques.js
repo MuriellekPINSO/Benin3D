@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MAX_DECOR, reduireImage } from './textures.js';
 
 // ---------- Fresques du mur du port (boulevard de la Marina) ----------
 // Évocations dessinées des grandes fresques relevées sur les photos (2022–2026) : la
@@ -14,7 +15,7 @@ function toile(cle, f, w = W, h = H) {
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const c = cv.getContext('2d');
   let s = cle.split('').reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7); const r = () => ((s = (s * 1103515245 + 12345) >>> 0) / 4294967296);
   f(c, w, h, r);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const t = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   const m = new THREE.MeshStandardMaterial({ map: t, roughness: .9 }); cache.set(cle, m); return m;
 }
 const disque = (c, x, y, r, col) => { c.fillStyle = col; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); };

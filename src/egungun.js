@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { LITE } from './base.js';
-import { chargeurGLB } from './textures.js';
+import { chargeurGLB, MAX_DECOR, reduireImage } from './textures.js';
 
 // Egungun, les masques des revenants (culte des ancêtres yoruba, très présents
 // à Porto-Novo et Ouidah). D'après les photos fournies : costumes en étages de
@@ -38,7 +38,7 @@ function tissu(i, etage) {
   c.fillStyle = P.bord; c.fillRect(0, 218, 512, 22);
   c.fillStyle = P.accent; for (let x = 0; x < 512; x += 6) c.fillRect(x, 240, 3, 16);
   c.fillStyle = P.bord; c.fillRect(0, 0, 512, 10);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.anisotropy = 4;
+  const tex = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.anisotropy = 4;
   cacheTex.set(k, tex); return tex;
 }
 function voile(i) {
@@ -46,7 +46,7 @@ function voile(i) {
   const P = PALETTES[i], cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const c = cv.getContext('2d');
   c.fillStyle = '#111'; c.fillRect(0, 0, 256, 128);
   for (let x = 4; x < 256; x += 9) for (let y = 4; y < 128; y += 9) { c.fillStyle = (Math.floor(y / 18) % 3 === 2) ? P.voile[1] : P.voile[0]; c.beginPath(); c.ellipse(x, y, 3.2, 3.8, 0, 0, Math.PI * 2); c.fill(); }
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; cacheTex.set(k, tex); return tex;
+  const tex = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; cacheTex.set(k, tex); return tex;
 }
 const mats = new Map();
 const mat = (cle, f) => mats.get(cle) || (mats.set(cle, f()), mats.get(cle));
@@ -129,7 +129,7 @@ function raphia(i) {
   // Bandes de raphia teint et franges.
   for (const [y, col] of [[96, teintes[1]], [118, teintes[3]], [300, teintes[1]]]) { c.fillStyle = col; c.globalAlpha = .8; c.fillRect(0, y, 512, 14); }
   c.globalAlpha = 1;
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4;
+  const t = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4;
   cacheRaphia.set(i, t); return t;
 }
 export function creerZangbeto(i = 0, h = 2.6) {
