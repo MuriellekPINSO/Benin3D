@@ -14,13 +14,13 @@ import { firebase, joueur } from './firebase.js';
 import { startFlight } from './interface.js';
 import { JEU } from './jeu.js';
 import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personnagesPrets } from './personnages.js';
-import { stationLaPlusProche, surRoute } from './conduite.js';
+import { retirerRuban, stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment, obstaclesPres, profondeurRue } from './rue.js';
 import { hauteurSol } from './sols.js';
 import { actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe } from './trajets.js';
 import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
-import { alerteDuJour, assurerVie, bonjourDuJour, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
+import { alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
 import { basculerPause, finirJournee, menuTravail } from './metiers.js';
 import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces } from './commerces.js';
@@ -343,15 +343,37 @@ function aller(id, proposer = true) {
   if (I && S.lieu === I) return; // on y est déjà
   if (S.lieu) dehors(false);
   const d0 = destination(L), nom0 = id === 'station' ? (stationLaPlusProche(S.x, S.z)?.[2] || L[1]) : L[1];
-  if (d0 && Math.hypot(d0[0] - S.x, d0[1] - S.z) > 12 && gps(d0[0], d0[1], nom0)) {
-    if (proposer && id !== 'station' && id !== 'maison') S.canal?.dire({ n: S.nom, txt: `Je vais ${L[2]}, venez !`, lieu: id });
+  if (d0 && Math.hypot(d0[0] - S.x, d0[1] - S.z) > 12) {
+    // Loin : à pied en suivant les chevrons, ou s'y retrouver tout de suite contre 200 F. C'est l'autre façon
+    // de traverser la ville quand on ne veut pas attendre un zém (demande de Murielle, 25/10).
+    const km = Math.hypot(d0[0] - S.x, d0[1] - S.z) / 1000;
+    const suivre = () => { if (gps(d0[0], d0[1], nom0) && proposer && id !== 'station' && id !== 'maison') S.canal?.dire({ n: S.nom, txt: `Je vais ${L[2]}, venez !`, lieu: id }); };
+    if (km < .25 || id === 'station') { suivre(); return; } // tout près, ou la pompe la plus proche : on y va à pied
+    choisir(`${nom0} · ${km < .95 ? `${Math.round(km * 100) * 10} m` : `${km.toFixed(1).replace('.', ',')} km`}`, [
+      { texte: 'Y aller à pied', sous: 'Le chemin s’allume au sol', f: suivre },
+      { texte: `M’y téléporter · ${TELEPORT.toLocaleString('fr-FR')} F`, sous: (VIE.data?.argent ?? 0) < TELEPORT ? 'Tu n’as pas assez d’argent' : 'Tu y es tout de suite', desactive: (VIE.data?.argent ?? 0) < TELEPORT, f: () => teleporter(id, L, p, I, nom0, proposer) },
+      { texte: 'Prendre un zém', sous: 'Il vient te chercher, tu négocies le prix', f: helerZem },
+    ]);
     return;
   }
+  if (!poser(id, L, p, I)) return;
+  if (proposer && id !== 'station' && id !== 'maison') S.canal?.dire({ n: S.nom, txt: `Je vais ${L[2]}, venez !`, lieu: id });
+}
+/** Pose le joueur à l'arrivée d'un lieu : devant la porte, au bord de la pompe, sur le trottoir. */
+function poser(id, L, p, I) {
   if (id === 'caicai') { const d = destination(L); S.x = d[0] + (Math.random() - .5) * 3; S.z = d[1]; S.cap = d[2]; }
-  else if (id === 'station') { const d = destination(L); if (!d) return; S.x = d[0] + 6; S.z = d[1]; S.cap = -Math.PI / 2; }
+  else if (id === 'station') { const d = destination(L); if (!d) return false; S.x = d[0] + 6; S.z = d[1]; S.cap = -Math.PI / 2; }
   else if (I) { const a = arriveeDehors(I); S.x = a.x + (Math.random() - .5) * 2; S.z = a.z; S.cap = a.cap + Math.PI; } // devant la porte, face à elle
   else { const [x, z] = toXZ(p.lat, p.lon); S.x = x + L[3] + (Math.random() - .5) * 4; S.z = z + L[4] + (Math.random() - .5) * 4; S.cap = L[5]; }
-  S.saut = true; S.geste = 'idle';
+  S.saut = true; S.geste = 'idle'; return true;
+}
+/** Se téléporter à un lieu contre 200 F : on arrive là où « Aller à » déposerait de toute façon. */
+const TELEPORT = 200;
+async function teleporter(id, L, p, I, nom0, proposer) {
+  if (!(await depenser(TELEPORT, `téléportation jusqu’à ${nom0}`))) { ligne(`Il te faut ${TELEPORT} F pour te téléporter.`); return; }
+  retirerRuban(T.gps?.m); T.gps = null;
+  poser(id, L, p, I);
+  ligne(`Te voilà à ${nom0}. −${TELEPORT} F.`);
   if (proposer && id !== 'station' && id !== 'maison') S.canal?.dire({ n: S.nom, txt: `Je vais ${L[2]}, venez !`, lieu: id });
 }
 
