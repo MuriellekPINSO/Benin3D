@@ -46,18 +46,23 @@ export function construireReseau() {
     for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const l = fin.get((cx + i) + ',' + (cz + j)); if (l) for (const n of l) if (Math.hypot(X[n] - x, Z[n] - z) < FUSION) return n; }
     const n = X.length; X.push(x); Z.push(z); adj.push([]); const q = cx + ',' + cz; let l = fin.get(q); if (!l) fin.set(q, l = []); l.push(n); return n;
   };
-  const lier = (a, b, cls) => { if (a === b || adj[a].some(e => e[0] === b)) return; const d = Math.hypot(X[a] - X[b], Z[a] - Z[b]); adj[a].push([b, d, cls]); adj[b].push([a, d, cls]); };
+  // Quatrième champ de l'arête : 0 à double sens, 1 dans le sens autorisé d'une rue à sens unique, −1 à contresens.
+  // On garde l'arête interdite dans le graphe (le réseau reste connexe pour noeudsPres, rueSous et le demi-tour) ;
+  // c'est l'itinéraire qui refuse de l'emprunter. Les rues de Cotonou sont à sens unique dans l'ordre de L.pts.
+  const lier = (a, b, cls, sens) => { if (a === b || adj[a].some(e => e[0] === b)) return; const d = Math.hypot(X[a] - X[b], Z[a] - Z[b]); adj[a].push([b, d, cls, sens ? 1 : 0]); adj[b].push([a, d, cls, sens ? -1 : 0]); };
   let precLigne = -1, prec = -1;
   for (const S of segs) {
-    const [li, , ax, az, bx, bz, coupes] = S, cls = roadLines[li].cls;
+    const [li, , ax, az, bx, bz, coupes] = S, cls = roadLines[li].cls, sens = !!roadLines[li].sens;
     if (li !== precLigne) { precLigne = li; prec = noeud(ax, az); }
-    for (const t of [...new Set(coupes.map(v => Math.round(v * 1000) / 1000))].sort((p, q) => p - q)) { const n = noeud(ax + (bx - ax) * t, az + (bz - az) * t); lier(prec, n, cls); prec = n; }
-    const n = noeud(bx, bz); lier(prec, n, cls); prec = n;
+    for (const t of [...new Set(coupes.map(v => Math.round(v * 1000) / 1000))].sort((p, q) => p - q)) { const n = noeud(ax + (bx - ax) * t, az + (bz - az) * t); lier(prec, n, cls, sens); prec = n; }
+    const n = noeud(bx, bz); lier(prec, n, cls, sens); prec = n;
   }
   const grille = new Map(); for (let n = 0; n < X.length; n++) { const q = cle(X[n], Z[n], CASE); let l = grille.get(q); if (!l) grille.set(q, l = []); l.push(n); }
   // 4. Morceaux de rue reliés à rien (parkings, allées privées : une cinquantaine, 1 % des nœuds). On part et on
   //    arrive par le grand réseau : la rue la plus proche du hall de l'aéroport est un parking, et ni le zém ni le
   //    GPS ne trouvaient d'itinéraire jusque-là.
+  //    Sans tenir compte du sens unique : la question est « cette rue tient-elle au reste de la ville ? », pas
+  //    « peut-on y aller sans faire demi-tour ». Un boulevard à sens unique isolerait sinon tout un quartier.
   const comp = new Int32Array(X.length).fill(-1), tailles = [];
   for (let s = 0; s < X.length; s++) {
     if (comp[s] >= 0) continue;
@@ -83,17 +88,31 @@ const cible = (x, z, r = 80) => noeudRelie(x, z, r) || noeudRelie(x, z, 400);
 /** Le nœud n est-il sur le grand réseau (pas sur un parking isolé) ? */
 export const relie = n => R.comp[n] === R.principal;
 
-// Plus court chemin (pondéré : on préfère les grands axes), en évitant éventuellement un nœud.
-function dijkstra(depart, arrivee, interdit = -1, fac = FACTEUR) {
+/**
+ * Plus court chemin (pondéré : on préfère les grands axes), en évitant éventuellement un nœud. `contresens` à
+ * vrai autorise à remonter une rue à sens unique : c'est le repli quand le bon sens ne mène nulle part (une
+ * cour, un parking dont la seule sortie est mal étiquetée dans OpenStreetMap), plutôt que « pas d'itinéraire ».
+ */
+function dijkstra(depart, arrivee, interdit = -1, fac = FACTEUR, contresens = false) {
   const N = R.n, dist = new Float64Array(N).fill(Infinity), prec = new Int32Array(N).fill(-1), tas = [[0, depart]]; dist[depart] = 0;
   const pousser = e => { tas.push(e); let i = tas.length - 1; while (i) { const p = (i - 1) >> 1; if (tas[p][0] <= tas[i][0]) break; [tas[p], tas[i]] = [tas[i], tas[p]]; i = p; } };
   const tirer = () => { const h = tas[0], d = tas.pop(); if (tas.length) { tas[0] = d; let i = 0; for (;;) { const a = 2 * i + 1, b = a + 1; let m = i; if (a < tas.length && tas[a][0] < tas[m][0]) m = a; if (b < tas.length && tas[b][0] < tas[m][0]) m = b; if (m === i) break; [tas[m], tas[i]] = [tas[i], tas[m]]; i = m; } } return h; };
   while (tas.length) {
     const [d, n] = tirer(); if (d > dist[n]) continue; if (n === arrivee) break;
-    for (const [m, l, c] of R.adj[n]) { if (m === interdit) continue; const nd = d + l * fac[c]; if (nd < dist[m]) { dist[m] = nd; prec[m] = n; pousser([nd, m]); } }
+    for (const [m, l, c, sens] of R.adj[n]) { if (m === interdit || (sens === -1 && !contresens)) continue; const nd = d + l * fac[c]; if (nd < dist[m]) { dist[m] = nd; prec[m] = n; pousser([nd, m]); } }
   }
   if (!isFinite(dist[arrivee])) return null;
   const out = []; for (let n = arrivee; n !== -1; n = prec[n]) out.push(n); return out.reverse();
+}
+
+/**
+ * Le chemin de `de` à `vers`, du plus propre au moins propre : dans le bon sens et sans le nœud `evite`, puis
+ * en acceptant `evite`, puis en remontant une rue à sens unique. Les replis repassent par FACTEUR : `fac` peut
+ * être DIRECT, qui ne cote pas les voies de service, et l'on s'interdirait les cours et les parkings.
+ */
+function chemin(de, vers, evite = -1, fac = FACTEUR) {
+  return dijkstra(de, vers, evite, fac) || dijkstra(de, vers, evite, FACTEUR) || dijkstra(de, vers, -1, FACTEUR)
+    || dijkstra(de, vers, evite, FACTEUR, true) || dijkstra(de, vers, -1, FACTEUR, true);
 }
 
 // Direction d'une branche : on suit la rue depuis le carrefour sur `dist` mètres, au plus droit.
@@ -101,7 +120,7 @@ function suivre(n, m, dist) {
   const chemin = [n, m]; let total = Math.hypot(R.X[m] - R.X[n], R.Z[m] - R.Z[n]), a = n, b = m;
   while (total < dist && chemin.length < 40) {
     const dx = R.X[b] - R.X[a], dz = R.Z[b] - R.Z[a], l = Math.hypot(dx, dz) || 1; let best = -1, bc = -2;
-    for (const [c] of R.adj[b]) { if (c === a) continue; const ex = R.X[c] - R.X[b], ez = R.Z[c] - R.Z[b], el = Math.hypot(ex, ez) || 1, cos = (dx * ex + dz * ez) / (l * el); if (cos > bc) { bc = cos; best = c; } }
+    for (const [c, , , sens] of R.adj[b]) { if (c === a || sens === -1) continue; const ex = R.X[c] - R.X[b], ez = R.Z[c] - R.Z[b], el = Math.hypot(ex, ez) || 1, cos = (dx * ex + dz * ez) / (l * el); if (cos > bc) { bc = cos; best = c; } }
     if (best < 0 || bc < .3) break; total += Math.hypot(R.X[best] - R.X[b], R.Z[best] - R.Z[b]); chemin.push(best); a = b; b = best;
   }
   return chemin;
@@ -118,8 +137,8 @@ export function carrefoursDe(C) {
       const dIn = dir(i - 12, i), dOut = dir(i, i + 12), cotes = {};
       // L'itinéraire tourne-t-il ici ? (plus de 35° entre l'arrivée et la sortie)
       const tourne = dIn[0] * dOut[0] + dIn[1] * dOut[1] < .82, sens = dIn[0] * dOut[1] - dIn[1] * dOut[0] > 0 ? 1 : -1;
-      for (const [m, , cls] of R.adj[n]) {
-        if (cls > 4) continue; // on ne propose pas de tourner dans une allée de parking
+      for (const [m, , cls, sens] of R.adj[n]) {
+        if (cls > 4 || sens === -1) continue; // ni dans une allée de parking, ni à contresens d'une rue à sens unique
         const ch = suivre(n, m, 16), f = ch[ch.length - 1], ex = R.X[f] - R.X[n], ez = R.Z[f] - R.Z[n], el = Math.hypot(ex, ez); if (el < 6) continue;
         const ux = ex / el, uz = ez / el, dot = ux * dIn[0] + uz * dIn[1], croix = dIn[0] * uz - dIn[1] * ux;
         if (ux * dOut[0] + uz * dOut[1] > .82 || -dot > .82) continue; // la route suivie, ou celle d'où l'on vient
@@ -139,7 +158,7 @@ export function itineraire(x, z, n, m, cibles) {
   let cur = debut[debut.length - 1], avant = debut[debut.length - 2];
   for (const [cx, cz] of cibles) {
     const t = cible(cx, cz); if (!t) return null;
-    const ch = dijkstra(cur, t[0], avant) || dijkstra(cur, t[0]); if (!ch) return null;
+    const ch = chemin(cur, t[0], avant); if (!ch) return null;
     for (const k of ch.slice(1)) pts.push([R.X[k], R.Z[k]]);
     if (ch.length > 1) { avant = ch[ch.length - 2]; cur = ch[ch.length - 1]; }
   }
@@ -172,7 +191,7 @@ export function itineraireDemiTour(x, z, rue, cibles, debut = []) {
     let cur = tete[tete.length - 1], avant = prec, premier = -1;
     for (const [cx, cz] of cibles) {
       const t = cible(cx, cz); if (!t) return null;
-      const ch = dijkstra(cur, t[0], avant) || dijkstra(cur, t[0]); if (!ch) return null;
+      const ch = chemin(cur, t[0], avant); if (!ch) return null;
       if (premier < 0 && ch.length > 1) premier = ch[1];
       for (const n of ch.slice(1)) pts.push([R.X[n], R.Z[n]]);
       if (ch.length > 1) { avant = ch[ch.length - 2]; cur = ch[ch.length - 1]; }
@@ -188,7 +207,7 @@ export function itineraireDemiTour(x, z, rue, cibles, debut = []) {
 }
 
 // Raccourci du client pressé : distance pure, petites rues comprises (pas de préférence pour les grands axes).
-const DIRECT = [1, 1, 1, 1, 1];
+const DIRECT = [1, 1, 1, 1, 1, 4]; // six classes : sans le dernier, fac[5] valait undefined et les voies de service devenaient infranchissables
 /** Itinéraire le plus court de (x, z) jusqu'à la première cible, en partant du nœud le plus proche de (xa, za)
  *  (un point un peu devant le zém), puis les cibles suivantes par les grands axes comme d'habitude.
  *  `rayon` : jusqu'où chercher la rue la plus proche d'une cible (une cour, un parking en retrait). */
@@ -199,7 +218,7 @@ export function itineraireCourt(x, z, xa, za, cibles, rayon = 80) {
   let cur = d0[0], avant = -1;
   for (const [k, [cx, cz]] of cibles.entries()) {
     const t = cible(cx, cz, rayon); if (!t) return null;
-    const ch = dijkstra(cur, t[0], avant, k === 0 ? DIRECT : FACTEUR) || dijkstra(cur, t[0]); if (!ch) return null;
+    const ch = chemin(cur, t[0], avant, k === 0 ? DIRECT : FACTEUR); if (!ch) return null;
     for (const n of ch.slice(1)) pts.push([R.X[n], R.Z[n]]);
     if (ch.length > 1) { avant = ch[ch.length - 2]; cur = ch[ch.length - 1]; }
   }

@@ -198,7 +198,11 @@ function vitesseLibre(V, vmax) {
     const meme = Math.cos(W.cap - V.cap); if (meme < -.5 || (meme < .3 && !W.type)) continue;
     const ax = W.px - V.x, az = W.pz - V.z, devant = ax * s + az * c, cote = Math.abs(ax * c - az * s);
     const tr = Math.abs(Math.sin(W.cap - V.cap)), lng = W.hl * (1 - tr) + W.hw * tr, lrg = W.hw * (1 - tr) + W.hl * tr; // W vu de face ou de travers
-    if (devant > 0 && devant < hl + lng + 12 && cote < hw + lrg + .4) v = Math.min(v, Math.max(0, (devant - hl - lng - 1.5) * 1.1));
+    // On visait (écart − 1,5) × 1,1, sans regarder si celui de devant roulait : collé à un camion lancé à 9 m/s,
+    // le zém tombait à 2 m/s et décrochait, puis réaccélérait — « mon zém roule très lentement sans raison ».
+    // On se cale maintenant sur sa vitesse (sa part dans notre axe), plus ce que l'écart permet de gagner.
+    const ecart = devant - hl - lng;
+    if (devant > 0 && ecart < 12 && cote < hw + lrg + .4) v = Math.min(v, ecart < 1.5 ? 0 : Math.max(0, (W.v || 0) * meme) + (ecart - 1.5) * .9);
   }
   return v;
 }
@@ -206,14 +210,28 @@ function vitesseLibre(V, vmax) {
 const FILE_ZEM = 1.1;
 const surSaFile = pts => pts.length > 1 ? decalee(pts, FILE_ZEM) : pts;
 function suivreSansTraverser(V, P, dt, vmax) {
-  if (V.passe > 0) { V.passe -= dt; return suivreChemin(V, P, dt, vmax); } // retenu plus de 4 s (un zém arrêté en travers) : il se faufile
-  const L = (V.D?.long ?? 2) * .45, corps = () => { const s = Math.sin(V.cap), c = Math.cos(V.cap); let p = 0; for (const k of [-L, 0, L]) p = Math.max(p, dansCirculation(V.x + s * k, V.z + c * k, .35)); return p; };
+  const L = (V.D?.long ?? 2) * .45, corpsEn = (x, z, cap) => { const s = Math.sin(cap), c = Math.cos(cap); let p = 0; for (const k of [-L, 0, L]) p = Math.max(p, dansCirculation(x + s * k, z + c * k, .35)); return p; };
+  const corps = () => corpsEn(V.x, V.z, V.cap);
   const x = V.x, z = V.z, cap = V.cap, avant = corps();
-  const libre = vitesseLibre(V, vmax), fini = suivreChemin(V, P, dt, libre);
+  const libre = vitesseLibre(V, vmax), fini = suivreChemin(V, P, dt, V.passe > 0 ? Math.min(vmax, 6) : libre);
   let retenu = libre < .5;
-  if (corps() > avant + .01) { V.x = x; V.z = z; V.cap = cap; V.v = 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; retenu = true; } // ni en avançant, ni en tournant
+  if (corps() > avant + .01) {
+    V.x = x; V.z = z; V.cap = cap; V.v = 0; retenu = true; // ni en avançant, ni en tournant
+    // Retenu plus de 4 s (un camion arrêté en travers) : le zém se faufile. Il passait auparavant à travers la
+    // carrosserie — un testeur s'est vu assis dans un camion jaune (24/10). Il longe maintenant l'obstacle sur
+    // le côté, comme un vrai zém, et reste solide : s'il n'y a pas la place, il attend.
+    if (V.passe > 0) {
+      const d = 1.6 * dt, s = Math.sin(cap + Math.PI / 2), c = Math.cos(cap + Math.PI / 2);
+      for (const cote of V.cote > 0 ? [1, -1] : [-1, 1]) {
+        const nx = x + s * d * cote, nz = z + c * d * cote;
+        if (corpsEn(nx, nz, cap) <= avant + .01) { V.x = nx; V.z = nz; V.cote = cote; break; }
+      }
+    }
+    V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap;
+  }
+  if (V.passe > 0) V.passe -= dt;
   V.retenu = retenu ? (V.retenu || 0) + dt : 0;
-  if (V.retenu > 4) { V.retenu = 0; V.passe = 1.5; }
+  if (V.retenu > 4) { V.retenu = 0; V.passe = 1.5; V.cote = Math.random() < .5 ? 1 : -1; }
   return fini;
 }
 function majZem(dt) {
