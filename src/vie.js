@@ -24,11 +24,17 @@ export const LOCATION_MOTO = 1500; // F par jour
 // « Débrouillard » commence avec 2 000 F, et à 4 000 F personne ne voyait jamais la boutique ni les balades.
 export const LOCATION_VELO = 2000, HEURES_VELO = 2;
 const RESERVOIRS = { moto: 3, voiture: 6, taxi: 6, tokpa: 10, velo: 0, citadine: 5, bolide: 9 }; // litres (échelle du jeu, voir conduite.js) ; le vélo ne boit rien
-// S'acheter une voiture : elle reste à soi, contrairement à la moto qu'on loue à la journée. Les prix sont
-// ceux de l'occasion à Cotonou, ramenés à l'échelle du jeu — de quoi devoir travailler plusieurs journées.
+// S'acheter une voiture : elle reste à soi, contrairement à la moto qu'on loue à la journée.
+//
+// Les prix sont ceux du JEU, pas ceux de la vraie vie. J'avais d'abord mis 450 000 et 1 800 000 F — les prix
+// de l'occasion à Cotonou — et c'était hors d'atteinte : on gagne 150 à 250 F par client servi, on démarre
+// « Débrouillard » avec 2 000 F, et la chambre coûte 500 F par jour. Il aurait fallu des mois. On se cale
+// donc sur ce que le jeu demande déjà : 1 500 F la journée de location de moto, 5 000 F le loyer d'un
+// appartement. La citadine vaut une douzaine de bonnes journées, le bolide reste le but qu'on vise longtemps
+// — et il est au-dessus des 150 000 F du départ « Fils à papa », qui ne peut donc pas l'avoir tout de suite.
 export const A_VENDRE = [
-  { id: 'citadine', nom: 'Citadine', prix: 450000, sous: 'Courte, haute, économe : celle qu’on croise partout' },
-  { id: 'bolide', nom: 'Bolide électrique', prix: 1800000, sous: 'Silencieux et très vif. Une charge qui dure' },
+  { id: 'citadine', nom: 'Citadine', prix: 60000, sous: 'Courte, haute, économe : celle qu’on croise partout' },
+  { id: 'bolide', nom: 'Bolide électrique', prix: 250000, sous: 'Silencieux et très vif. Une charge qui dure' },
 ];
 /** Achète un véhicule : il est à soi pour de bon (pas de vehiculeFin, contrairement à la location). */
 export async function acheterVehicule(id) {
