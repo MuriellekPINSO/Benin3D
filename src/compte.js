@@ -106,13 +106,15 @@ export async function ouvrirCompte() {
     $('#compteMdp').autocomplete = mode === 'connexion' ? 'current-password' : 'new-password';
     if (connecte) {
       $('#compteTitre').textContent = 'Ta partie est sauvegardée';
-      $('#compteTexte').textContent = `Connecté${C.nom ? ` : ${C.nom}` : ''}${C.email ? ` (${C.email})` : ''}. Ton argent, ta maison, tes commerces et ta progression de Zém Run te suivent sur tous tes téléphones.`;
-      $('#compteValider').textContent = 'Me déconnecter de ce téléphone';
+      // « Téléphone » partout : la moitié des joueurs sont sur ordinateur et ne se reconnaissaient pas dans le
+      // bouton (« ceux qui sont sur PC vont pas comprendre » — Murielle, 25/10). « Appareils », et « Me déconnecter ».
+      $('#compteTexte').textContent = `Connecté${C.nom ? ` : ${C.nom}` : ''}${C.email ? ` (${C.email})` : ''}. Ton argent, ta maison, tes commerces et ta progression de Zém Run te suivent sur tous tes appareils.`;
+      $('#compteValider').textContent = 'Me déconnecter';
     } else {
       $('#compteTitre').textContent = mode === 'creer' ? 'Garde ta partie' : 'Retrouve ta partie';
       $('#compteTexte').textContent = mode === 'creer'
-        ? 'Crée ton compte : ton argent, ta maison, tes commerces et ta progression de Zém Run te suivront sur n’importe quel téléphone. Gratuit.'
-        : 'Connecte-toi pour retrouver ta partie sur ce téléphone. Celle qui y est maintenant sera remplacée par celle de ton compte.';
+        ? 'Crée ton compte : ton argent, ta maison, tes commerces et ta progression de Zém Run te suivront sur n’importe quel appareil. Gratuit.'
+        : 'Connecte-toi pour retrouver ta partie sur cet appareil. Celle qui y est maintenant sera remplacée par celle de ton compte.';
       $('#compteValider').textContent = mode === 'creer' ? 'Créer mon compte' : 'Me connecter';
       $('#compteBascule').textContent = mode === 'creer' ? 'J’ai déjà un compte' : 'Créer un compte';
       if (navigateurIntegre()) dire('Ouvert depuis WhatsApp ou Facebook ? Google peut y refuser la connexion : ton e-mail marche partout.');

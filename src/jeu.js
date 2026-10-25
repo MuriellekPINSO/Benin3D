@@ -942,7 +942,12 @@ export function remplirLignes() {
     const km = (L.arrets[L.arrets.length - 1].s / 1000).toFixed(1), court = L === JEU.lignes.reduce((m, l) => l.arrets[l.arrets.length - 1].s < m.arrets[m.arrets.length - 1].s ? l : m, JEU.lignes[0]);
     const P = JEU.prog, choisi = P?.vehicule; // le véhicule débloqué au garage remplace le zém sur ses lignes
     const veh = L.veh === 'zem' && ((choisi === 'voiture' && P.voiture) || (choisi === 'bolide' && P.bolide)) ? choisi : L.veh;
-    b.innerHTML = `<span class="jm-veh ${veh}">${veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : veh === 'bolide' ? 'Bolide' : 'Tokpa'}</span><b>${L.nom}</b>${court ? '<em class="jm-debut">Pour commencer</em>' : ''}<small>${L.arrets.map(a => a.nom).join(' → ')}</small><span class="jm-meta">${km} km · ${Math.max(5, Math.round(km * 2.6))} min environ · ${L.arrets.slice(1).reduce((n, a, k) => n + 1 + nbIntermediaires(a.s - L.arrets[k].s), 0)} arrêts${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
+    // Seulement de quoi choisir : d'où à où, et combien de temps. Le trajet complet, la distance et le nombre
+    // d'arrêts se lisent pendant la course — le bandeau du haut donne le prochain arrêt et sa distance, et la
+    // barre de progression a un point par arrêt. Les remettre ici, c'était dire deux fois la même chose avant
+    // même de partir.
+    const bouts = `${L.arrets[0].nom} → ${L.arrets[L.arrets.length - 1].nom}`;
+    b.innerHTML = `<span class="jm-veh ${veh}">${veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : veh === 'bolide' ? 'Bolide' : 'Tokpa'}</span><b>${L.nom}</b>${court ? '<em class="jm-debut">Pour commencer</em>' : ''}<small>${bouts}</small><span class="jm-meta">${Math.max(5, Math.round(km * 2.6))} min environ${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
     b.addEventListener('click', () => { JEU.numero = ($('#jmNumero').value || '1234').slice(0, 5); sauver(); JEU.fini = false; lancerLigne(L, veh); annoncerDepart(L.id, veh); }); // à deux : l'autre part sur la même ligne
     el.appendChild(b);
   }
@@ -1060,13 +1065,25 @@ export function initJeu(data) {
   const conduite = $('#jmConduite');
   if (conduite) {
     conduite.hidden = !coarse;
+    // Déplié la première fois, replié ensuite : « il y a beaucoup trop d'informations avant le démarrage, ça
+    // t'embrouille et tu t'en lasses » (un testeur, 25/10). Le choix était déjà retenu ; c'était de le reposer
+    // à chaque partie, deux paragraphes en grand, qui lassait. Une ligne suffit, et un mot pour la rouvrir.
+    let vu = false; try { vu = !!localStorage.getItem('zemrun-conduite-vue'); } catch { /* navigation privée */ }
     const majConduite = () => {
       $('#jmcDoigt').setAttribute('aria-pressed', String(JEU.glisser));
       $('#jmcBoutons').setAttribute('aria-pressed', String(!JEU.glisser));
       $('#jeu').classList.toggle('au-doigt', auDoigt());
+      conduite.classList.toggle('replie', vu);
+      $('#jmConduiteRouvrir').hidden = !vu;
+      $('#jmConduiteQuoi').textContent = JEU.glisser ? 'au doigt' : 'avec des boutons';
     };
-    const choisir = v => { if (JEU.glisser === v) return; JEU.glisser = v; sauver(); majConduite(); };
+    const choisir = v => {
+      if (!vu) { vu = true; try { localStorage.setItem('zemrun-conduite-vue', '1'); } catch { /* navigation privée */ } }
+      if (JEU.glisser !== v) { JEU.glisser = v; sauver(); }
+      majConduite();
+    };
     btn('#jmcDoigt', () => choisir(true)); btn('#jmcBoutons', () => choisir(false));
+    btn('#jmConduiteRouvrir', () => { vu = false; majConduite(); }); // « changer » : on redéplie le temps de choisir
     majConduite();
   }
   $('#jeu').classList.toggle('au-doigt', auDoigt());

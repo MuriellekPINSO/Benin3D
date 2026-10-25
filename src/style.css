@@ -1214,3 +1214,8 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
 
 /* Perte du contexte WebGL (le navigateur reprend la carte graphique) : au lieu d'un écran noir muet, on le dit. */
 #app.webgl-perdu::after { content: 'La carte graphique a été reprise par le navigateur. Recharge la page.'; position: fixed; inset: auto 0 0; z-index: 90; padding: 14px 16px; background: #b3261e; color: #fff; font: 700 14px/1.4 var(--font-body); text-align: center; }
+
+/* Zém Run, choix de conduite : déplié la première fois, une seule ligne ensuite (retour d'un testeur, 25/10). */
+.jm-conduite.replie .jm-conduite-titre, .jm-conduite.replie .jm-conduite-choix { display: none; }
+.jm-conduite-replie { border: 0; background: var(--chip); color: var(--ink-2); border-radius: 999px; padding: 8px 14px; font: 600 13px/1.2 var(--font-body); cursor: pointer; justify-self: start; }
+.jm-conduite-replie b { color: var(--ink); }
