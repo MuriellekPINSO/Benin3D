@@ -1883,5 +1883,10 @@
     "'On se range à la station…'": "'Pulling into the station…'",
     "'On se range devant le kpayo…'": "'Pulling up at the kpayo…'",
     "Faire le plein · ": "Fill up · "
+  },
+  "src/interface.js": {
+    "'La ville suit l’heure réelle de Cotonou'": "'The city follows the real time in Cotonou'",
+    "'Tu as choisi le moment toi-même : touche Jour, Soir ou Nuit pour changer'": "'You picked the moment yourself: tap Day, Evening or Night to change it'",
+    "' · moment choisi'": "' · your choice'"
   }
 }

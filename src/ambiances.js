@@ -13,7 +13,28 @@ export const MOODS = {
 export const colorKeys = ['sun', 'sky', 'gnd', 'top', 'hor', 'low'];
 export const toMood = m => { const o = { ...m }; for (const k of colorKeys) o[k] = new THREE.Color(m[k]); return o; };
 export let moodCur = toMood(MOODS.jour), moodTgt = toMood(MOODS.jour);
-export function setMood(name) {
+
+// ---------- L'heure de Cotonou ----------
+// « Si je pars sur le site à 13 h, Kutɔnu Vibes doit être ensoleillé ; si je passe le soir, la simulation doit
+// être le soir » (Murielle, 25/10). On lit l'heure réelle du Bénin (UTC+1), pas celle du navigateur : un
+// visiteur à Paris ou à Montréal doit voir Cotonou telle qu'elle est à ce moment-là, puisque c'est la ville
+// qu'on montre. Dès qu'on touche aux boutons Jour / Soir / Nuit, on reprend la main et l'heure n'y touche plus.
+const H = { choisi: false, dernier: '' };
+/** L'heure de Cotonou, en heures décimales (UTC+1, pas de changement d'heure au Bénin). */
+export const heureCotonou = () => { const d = new Date(Date.now() + 3600e3); return d.getUTCHours() + d.getUTCMinutes() / 60; };
+/** Le moment du jour qui va avec l'heure : nuit avant 6 h et après 19 h 30, soir de 17 h 30 à 19 h 30. */
+export function momentDeLHeure(h = heureCotonou()) { return h < 6 || h >= 19.5 ? 'nuit' : h >= 17.5 ? 'soir' : 'jour'; }
+/** À appeler régulièrement : suit l'heure de Cotonou, tant que le joueur n'a pas choisi lui-même. */
+export function suivreLHeure() {
+  if (H.choisi) return;
+  const m = momentDeLHeure(); if (m === H.dernier) return;
+  H.dernier = m; setMood(m, true);
+}
+/** Le joueur reprend-il la main ? (pour l'étiquette « à l'heure de Cotonou » de l'interface) */
+export const heureAutomatique = () => !H.choisi;
+
+export function setMood(name, parLHeure = false) {
+  if (!parLHeure) H.choisi = true; // un clic sur Jour / Soir / Nuit : on cesse de suivre l'horloge
   moodTgt = toMood(MOODS[name]);
   if (reduceMotion) moodCur = toMood(MOODS[name]);
   document.querySelectorAll('[data-mood]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mood === name)));

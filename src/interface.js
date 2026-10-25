@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setMood } from './ambiances.js';
+import { heureAutomatique, setMood, suivreLHeure } from './ambiances.js';
 import { $, fmtLL, reduceMotion, small, toXZ } from './base.js';
 import { KCOL, PLACES, QUARTIERS, WATER_LABELS } from './donnees-lieux.js';
 import { E } from './etat.js';
@@ -100,7 +100,17 @@ $('#cardMarche').addEventListener('click', () => {
   const c = e.lieu.userData.centre; flyTo(c.x, c.z, [26, 1.18, -e.lieu.rotation.y + Math.PI * .1]);
   setTimeout(() => ouvrirBoutique(e), 1400);
 });
-document.querySelectorAll('[data-mood]').forEach(b => b.addEventListener('click', () => setMood(b.dataset.mood)));
+document.querySelectorAll('[data-mood]').forEach(b => b.addEventListener('click', () => { setMood(b.dataset.mood); majEtiquetteHeure(); }));
+// Au premier affichage, la ville est à l'heure de Cotonou ; ensuite on vérifie chaque minute, au cas où on
+// laisse l'onglet ouvert du jour au soir. Un clic sur Jour / Soir / Nuit arrête de suivre l'horloge.
+suivreLHeure(); setInterval(suivreLHeure, 60000);
+/** L'étiquette de l'horloge dit si la ville suit l'heure réelle, ou si c'est le visiteur qui a choisi. */
+function majEtiquetteHeure() {
+  const el = $('#clock'); if (!el) return;
+  el.classList.toggle('clock-libre', !heureAutomatique());
+  el.title = heureAutomatique() ? 'La ville suit l’heure réelle de Cotonou' : 'Tu as choisi le moment toi-même : touche Jour, Soir ou Nuit pour changer';
+}
+majEtiquetteHeure();
 export const toggle = (id, fn) => { const b = $(id); b.addEventListener('click', () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', String(on)); fn(on); }); };
 toggle('#togZem', on => { E.zemOn = on; });
 const erreurGoogle = msg => { const n = $('#googleErreur'); n.textContent = msg; n.hidden = false; setTimeout(() => { n.hidden = true; }, 7000); };
@@ -161,6 +171,6 @@ export function updateHud(dist, H) {
   scaleBar.style.width = (best / mpp).toFixed(0) + 'px';
   scaleTxt.textContent = best >= 1000 ? `${best / 1000} km` : `${best} m`;
   coordsEl.textContent = fmtLL(controls.target.x, controls.target.z);
-  clockEl.textContent = 'Heure de Cotonou ' + clockFmt.format(new Date());
+  clockEl.textContent = 'Heure de Cotonou ' + clockFmt.format(new Date()) + (heureAutomatique() ? '' : ' · moment choisi');
 }
 
