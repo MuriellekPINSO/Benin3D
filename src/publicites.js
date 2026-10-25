@@ -24,7 +24,10 @@ export const CAMPAGNES = [
   moov('depistage', '#UnPasContreLeCancer', 'Je me dépiste, et toi ?'),
   moov('gaming', 'Moov Gaming League', 'Panel innovation technologique et gaming'),
   moov('vacances', 'Le meilleur des vacances', 'Moov Cash+ et Mia'),
-  { id: 'vodun-days', marque: 'Ouidah', titre: 'VODUN DAYS', sous: '9 et 10 janvier · Ouidah', fond: '#7a1f2b', encre: '#ffffff', accent: '#f2c21b', poids: 2 },
+  // Affiches d'événement : elles ne sortent qu'à l'approche de la date, et alors elles couvrent la ville —
+  // c'est ce qui se passe à Cotonou avant un festival. Hors saison, leur poids tombe à zéro.
+  { id: 'vodun-days', marque: 'Ouidah', titre: 'VODUN DAYS', sous: '9 et 10 janvier · Ouidah', fond: '#7a1f2b', encre: '#ffffff', accent: '#f2c21b', poids: 2, saison: ['11-15', '01-11'], poidsSaison: 14 },
+  { id: 'concert-amazone', marque: 'Esplanade de l’Amazone', titre: 'GRAND CONCERT', sous: 'Le 30 · entrée offerte', fond: '#1d1a16', encre: '#ffffff', accent: '#f2c21b', poids: 0, saison: ['10-20', '10-31'], poidsSaison: 12 },
   { id: 'benin-revele', marque: 'Tourisme', titre: 'LE BÉNIN RÉVÉLÉ', sous: 'Visitez, découvrez, vivez', fond: '#14532d', encre: '#ffffff', accent: '#facc15', poids: 2 },
   { id: 'qualiwo', marque: 'Qualiwo', titre: 'QUALIWO', sous: 'Commandez en un geste', fond: '#c75b39', encre: '#ffffff', accent: '#ffe7a8', poids: 2 },
   { id: 'votre-pub', marque: 'Annonceurs', titre: 'VOTRE PUB ICI', sous: 'Panneaux dans la ville 3D et dans Zém Run', fond: '#1d1a16', encre: '#f2c21b', accent: '#f2c21b', poids: 2, offre: true },
@@ -33,9 +36,23 @@ export const CAMPAGNES = [
 ];
 // Grands panneaux sur mât (place de l'Amazone, siège Moov) : visuels 2:1, deux affiches Moov par face.
 export const GRANDES_AFFICHES = [1, 2, 3, 4, 5, 6].map(n => ({ ...moov(`grand-${n}`, 'Moov Africa', 'Un monde nouveau vous appelle'), poids: 0 }));
-const total = CAMPAGNES.reduce((s, c) => s + c.poids, 0);
-/** Une campagne au hasard (pondérée), à partir d'un nombre entre 0 et 1. */
-export function campagne(r) { let x = r * total; for (const c of CAMPAGNES) { x -= c.poids; if (x <= 0) return c; } return CAMPAGNES[0]; }
+// `saison: ['MM-JJ', 'MM-JJ']` : la fenêtre où l'affiche sort. Elle peut enjamber le Nouvel An (15 novembre →
+// 11 janvier) ; on compare des nombres MMJJ, et dans ce cas la fenêtre est l'union des deux bouts de l'année.
+function enSaison([du, au], d = new Date(Date.now() + 3600e3)) {
+  const n = s => +s.slice(0, 2) * 100 + +s.slice(3, 5);
+  const j = (d.getUTCMonth() + 1) * 100 + d.getUTCDate(), a = n(du), b = n(au);
+  return a <= b ? j >= a && j <= b : j >= a || j <= b;
+}
+/** Le poids d'une campagne aujourd'hui : zéro hors saison, renforcé pendant. */
+export const poidsDe = c => (c.saison ? (enSaison(c.saison) ? c.poidsSaison ?? c.poids : 0) : c.poids);
+/** Une campagne au hasard (pondérée), à partir d'un nombre entre 0 et 1. Le total se refait à chaque tirage :
+ *  quinze additions, et les affiches d'événement entrent et sortent avec la date sans rien recharger. */
+export function campagne(r) {
+  const total = CAMPAGNES.reduce((s, c) => s + poidsDe(c), 0);
+  let x = r * total;
+  for (const c of CAMPAGNES) { x -= poidsDe(c); if (x <= 0) return c; }
+  return CAMPAGNES.find(c => poidsDe(c) > 0) || CAMPAGNES[0];
+}
 
 const cache = new Map();
 /** Texture de l'affiche (dessinée, ou visuel de l'annonceur si `image` est fourni). */

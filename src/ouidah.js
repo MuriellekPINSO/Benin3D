@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { LITE } from './base.js';
-import { groupeLieu } from './lieux.js';
+import { fouleCorps, fouleTete, fouleTissus, groupeLieu } from './lieux.js';
 import { photoPlusTard } from './telechargements.js';
 import { chargerMasques, creerEgungun, creerZangbeto, masque } from './egungun.js';
 
@@ -364,7 +364,7 @@ function porte() {
 // Sur la piste, face à la tribune officielle (-z) : les quatre Egungun accroupis, des
 // Egungun qui dansent en cercle, la paire aux masques sculptés, et les Zangbeto de
 // raphia qui tournoient. Les modèles 3D ne se chargent qu'à l'approche de Ouidah.
-const SP = { arene: null, groupe: null, acteurs: [], charge: false };
+const SP = { arene: null, groupe: null, acteurs: [], charge: false, public: null, tetes: null, places: [] };
 // Les gradins (voir arene()) : deux secteurs ouverts côté mer, 24 rangées de 0,9 m de profondeur et 0,45 m de haut.
 const SECTEURS = [[41, 159], [-158, -27]], RANG_R = i => 33 + i * .9, RANG_Y = i => 1.2 + i * .45;
 /**
@@ -397,6 +397,39 @@ export function siegeGradins(x, z) {
   const [sx, sz] = monde(rs * Math.sin(th), rs * Math.cos(th)), [bx, bz] = monde(31 * Math.sin(th), 31 * Math.cos(th));
   return { x: sx, y: g.position.y + RANG_Y(i), z: sz, cap: Math.atan2(-Math.sin(th), -Math.cos(th)) + g.rotation.y, bas: [bx, bz], rang: i + 1 };
 }
+// ---------- Le public dans les gradins ----------
+// « Je dois voir d'autres personnes sur place dans l'arène en train de voir les Egungun danser, sinon c'est
+// moi » (Murielle, 25/10). On s'asseyait seul dans vingt-quatre rangées vides. Des silhouettes en tissus wax,
+// assises sur les bancs, tournées vers la piste — le même procédé que la foule du concert : deux maillages
+// instanciés, donc deux appels de dessin pour tout le monde. Elles bougent doucement, sans boucle à part :
+// animerOuidah passe déjà à chaque image quand on est près.
+function monterPublic() {
+  if (SP.public) return;
+  const n = LITE ? 550 : 1500; // instanciés : deux appels de dessin, quel que soit le nombre
+  const corps = new THREE.InstancedMesh(fouleCorps, new THREE.MeshLambertMaterial(), n);
+  const tetes = new THREE.InstancedMesh(fouleTete, new THREE.MeshLambertMaterial({ color: '#4a2f22' }), n);
+  for (let i = 0; i < n; i++) {
+    const [a, b] = SECTEURS[i % SECTEURS.length];
+    const th = (a + 3 + Math.random() * (b - a - 6)) * D2R; // pas tout au bord du secteur
+    const rang = Math.floor(Math.random() * 21), r = RANG_R(rang) + .48;
+    // Assis : le corps posé sur le banc, donc un peu plus bas que debout.
+    SP.places.push([Math.sin(th) * r, RANG_Y(rang) - .34, Math.cos(th) * r, Math.atan2(-Math.sin(th), -Math.cos(th)), Math.random() * 6.28]);
+    corps.setColorAt(i, fouleTissus[i % fouleTissus.length]);
+  }
+  corps.frustumCulled = tetes.frustumCulled = false;
+  SP.arene.add(corps, tetes); SP.public = corps; SP.tetes = tetes;
+}
+const m4P = new THREE.Matrix4(), qP = new THREE.Quaternion(), vP = new THREE.Vector3(), sP = new THREE.Vector3(1, 1, 1), YP = new THREE.Vector3(0, 1, 0);
+/** Le public respire et se balance : on n'anime que ce qui se voit, et doucement — ils sont assis. */
+function animerPublic(t) {
+  if (!SP.public) return;
+  SP.places.forEach(([x, y, z, cap, ph], i) => {
+    const b = Math.sin(t * 1.6 + ph) * .035;
+    m4P.compose(vP.set(x, y + b, z), qP.setFromAxisAngle(YP, cap + Math.sin(t * .9 + ph) * .12), sP);
+    SP.public.setMatrixAt(i, m4P); SP.tetes.setMatrixAt(i, m4P);
+  });
+  SP.public.instanceMatrix.needsUpdate = true; SP.tetes.instanceMatrix.needsUpdate = true;
+}
 function monterSpectacle() {
   const G = new THREE.Group(), k = 1.2; // un peu plus grands que nature, pour qu'on les voie depuis les gradins
   const place = (o, x, z, ry, anim) => { if (!o) return; o.position.set(x, .06, z); o.rotation.y = ry; o.scale.multiplyScalar(k); G.add(o); SP.acteurs.push({ o, anim, x, z }); };
@@ -411,6 +444,9 @@ export function animerOuidah(t, cam) {
   if (!SP.arene) return;
   const centre = SP.arene.parent.userData.centre, d = cam.distanceTo(centre);
   if (!SP.charge && d < 4000) { SP.charge = true; chargerMasques().then(monterSpectacle); }
+  // Le public des gradins apparaît quand on approche : il ne coûte rien tant qu'on est ailleurs en ville.
+  if (!SP.public && d < 900 && SP.arene.parent.visible) monterPublic();
+  if (SP.public && d < 900) animerPublic(t);
   if (!SP.groupe || d > 1500 || !SP.arene.parent.visible) return;
   for (const [i, a] of SP.acteurs.entries()) {
     const o = a.o;
