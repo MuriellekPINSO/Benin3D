@@ -2,6 +2,7 @@ import { AUDIO } from './audio.js';
 import { densiteCirculation } from './circulation.js';
 import { fouleProche } from './lieux.js';
 import { chantierProche } from './rue.js';
+import { chansonActive } from './lecteur.js';
 
 // ---------- Les bruits de la ville autour du joueur (« Vivre à Cotonou ») ----------
 // Fabriqués dans le navigateur (Web Audio, aucun fichier) : la rumeur de la circulation et ses klaxons, selon le nombre de
@@ -35,6 +36,10 @@ function creer() {
     circulation: couche(ctx, maitre, 'brun', 'lowpass', 420, .7),
     vent: couche(ctx, maitre, 'rose', 'bandpass', 650, .45),
     foule: couche(ctx, maitre, 'rose', 'bandpass', 950, 1.1),
+    // La radio du lieu : un poste qui grésille au fond d'un maquis ou d'un food court. Bande étroite autour de
+    // 1,2 kHz — ce qu'il reste d'une chanson passée par un petit haut-parleur. On n'y met pas la vraie radio :
+    // elle couperait la musique que le joueur a lancée lui-même, et ce serait un flux de plus à télécharger.
+    radio: couche(ctx, maitre, 'rose', 'bandpass', 1200, 6),
   };
   A.pret = true; return true;
 }
@@ -72,13 +77,19 @@ export function majAmbianceSalon(dt, ou) {
   if (!A.pret && (!ou || !creer())) return;
   const C = A.couches, muet = AUDIO.muet || !ou || AUDIO.ctx.state !== 'running';
   A.t -= dt; if (A.t > 0 && !muet) { evenements(dt, ou); return; } A.t = .25; // les volumes, quatre fois par seconde
-  if (muet) { for (const k of ['circulation', 'vent', 'foule']) vers(C[k].g.gain, 0, .3); return; }
+  if (muet) { for (const k of ['circulation', 'vent', 'foule', 'radio']) vers(C[k].g.gain, 0, .3); return; }
   const dedans = ou.dedans, trafic = dedans ? 0 : densiteCirculation(ou.x, ou.z, 70), mer = Math.min(1, Math.max(0, (ou.z - 2050) / 350)); // la côte, au sud de la ville
   const gens = dedans ? (ou.public ? 14 : 0) : fouleProche(ou.x, ou.z, 30) + (ou.clients || 0) * 3;
   A.trafic = trafic; A.gens = gens; A.chantier = dedans ? Infinity : chantierProche(ou.x, ou.z);
   vers(C.circulation.g.gain, Math.min(.24, trafic * .016) * (dedans ? 0 : 1));
   vers(C.vent.g.gain, dedans ? 0 : .035 + mer * .11); vers(C.vent.f.frequency, 500 + Math.random() * 350, 2);
   vers(C.foule.g.gain, Math.min(.16, gens * .009));
+  // « Quand les gens vont à une place publique, ils écoutent la radio de cette place » (Murielle, 25/10). Dans
+  // un lieu ouvert à tous — food court, maquis, agence — un poste joue au fond. Elle baisse quand le joueur a
+  // mis sa propre musique : chez nous comme à Cotonou, on ne fait pas jouer deux musiques dans la même pièce.
+  const sienne = AUDIO.radio || chansonActive() >= 0;
+  vers(C.radio.g.gain, dedans && ou.public && !sienne ? .055 : 0, 1.2);
+  if (dedans && ou.public && !sienne) vers(C.radio.f.frequency, 950 + Math.random() * 500, 3); // le poste dérive, comme une onde mal calée
   evenements(dt, ou);
 }
 function evenements(dt, ou) {
