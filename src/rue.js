@@ -18,7 +18,7 @@ import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
 
 const CARRE = 400;
 const TROTTOIR = { 0: 4, 1: 3.5, 2: 3, 3: 2.2, 4: 1.3, 5: .9 };
-const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, zonesLibres: [], rectsLibres: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [] };
+const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, segR: null, zonesLibres: [], rectsLibres: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [] };
 
 // ---------- Index spatiaux ----------
 const CB = 50, CR = 40;
@@ -35,17 +35,21 @@ function indexer(data) {
     for (let cx = Math.floor(x0 / CB); cx <= Math.floor(x1 / CB); cx++) for (let cz = Math.floor(z0 / CB); cz <= Math.floor(z1 / CB); cz++) { const k = cx + ',' + cz; if (!g.has(k)) g.set(k, []); g.get(k).push(i); }
   }
   R.B = { B, off, bb }; R.grilleB = g;
-  const gr = new Map();
+  // Le même tronçon est rangé dans chaque case qu'il traverse : on n'y met que son numéro, et ses six nombres
+  // tiennent une seule fois dans R.segR. Une copie du tableau par case coûtait plus de cent octets, un entier en
+  // coûte huit — 12,4 Mo pour ce seul index au profileur de Chrome.
+  const gr = new Map(), segs = [];
   roadLines.forEach((L, li) => {
     if (L.cls > 6 && L.cls !== 9) return;
     const hw = (L.w ?? ROAD_W[L.cls] ?? 4) / 2;
     for (let i = 1; i < L.pts.length; i++) {
-      const a = L.pts[i - 1], b = L.pts[i], s = [li, a[0], a[1], b[0], b[1], hw]; // le même tronçon dans chaque case (une copie par case : 30 Mo)
+      const a = L.pts[i - 1], b = L.pts[i], n = segs.length / 6;
+      segs.push(li, a[0], a[1], b[0], b[1], hw);
       for (let cx = Math.floor((Math.min(a[0], b[0]) - hw) / CR); cx <= Math.floor((Math.max(a[0], b[0]) + hw) / CR); cx++)
-        for (let cz = Math.floor((Math.min(a[1], b[1]) - hw) / CR); cz <= Math.floor((Math.max(a[1], b[1]) + hw) / CR); cz++) { const k = cx + ',' + cz; if (!gr.has(k)) gr.set(k, []); gr.get(k).push(s); }
+        for (let cz = Math.floor((Math.min(a[1], b[1]) - hw) / CR); cz <= Math.floor((Math.max(a[1], b[1]) + hw) / CR); cz++) { const k = cx + ',' + cz; if (!gr.has(k)) gr.set(k, []); gr.get(k).push(n); }
     }
   });
-  R.grilleR = gr;
+  R.grilleR = gr; R.segR = new Float32Array(segs);
   // Grandes places et monuments reconstruits : on n'y pose pas de murs.
   const L = data.L;
   const zone = (x, z, r) => R.zonesLibres.push([x, z, r]);
@@ -104,7 +108,9 @@ export function dansBatiment(x, z) {
 }
 function presAutreRoute(x, z, li, marge) {
   const l = R.grilleR.get(cle(x, z, CR)); if (!l) return false;
-  for (const [lj, ax, az, bx, bz, hw] of l) {
+  const S = R.segR;
+  for (const n of l) {
+    const o = n * 6, lj = S[o], ax = S[o + 1], az = S[o + 2], bx = S[o + 3], bz = S[o + 4], hw = S[o + 5];
     if (lj === li) continue;
     const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
     // Le trajet du jeu garde 10 m de chaque côté pour les commerces et la vie de rue.
@@ -565,8 +571,10 @@ export function ajouterEmprises(T, zone) {
 export function profilRoute(x, z, dx, dz) {
   const l = R.grilleR?.get(cle(x, z, CR)); if (!l) return null;
   let best = null, bd = 9;
-  for (const [li, ax, az, bx, bz, hw] of l) {
-    const L = roadLines[li], ux = bx - ax, uz = bz - az, l2 = ux * ux + uz * uz || 1, ln = Math.sqrt(l2);
+  const S = R.segR;
+  for (const n of l) {
+    const o = n * 6, ax = S[o + 1], az = S[o + 2], bx = S[o + 3], bz = S[o + 4], hw = S[o + 5];
+    const L = roadLines[S[o]], ux = bx - ax, uz = bz - az, l2 = ux * ux + uz * uz || 1, ln = Math.sqrt(l2);
     if (Math.abs((ux * dx + uz * dz) / ln) < .55) continue; // une rue qui croise le trajet : pas celle-là
     const t = Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / l2)), d = Math.hypot(ax + ux * t - x, az + uz * t - z);
     if (d < bd) { bd = d; best = { hw, front: Math.max(hw + (TROTTOIR[L.cls] ?? 1), 9.8), cls: L.cls }; }
@@ -581,7 +589,9 @@ export function pietonOk(x, z, dx = 0, dz = 0) {
   if (!R.grilleR || dansBatiment(x, z) || dansTerrePlein(x, z, .3) || dansObstacleRue(x, z, .25)) return false;
   for (const [ax, az, r0, r1] of R.anneaux) { const d = Math.hypot(x - ax, z - az); if (d > r0 - .3 && d < r1 + .3) return false; }
   const l = R.grilleR.get(cle(x, z, CR)); if (!l) return true;
-  for (const [, ax, az, bx, bz, hw] of l) {
+  const S = R.segR;
+  for (const n of l) {
+    const o = n * 6, ax = S[o + 1], az = S[o + 2], bx = S[o + 3], bz = S[o + 4], hw = S[o + 5];
     const ux = bx - ax, uz = bz - az, l2 = ux * ux + uz * uz || 1, t = Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / l2));
     if ((dx || dz) && Math.abs((ux * dx + uz * dz) / Math.sqrt(l2)) < .55) continue;
     if (Math.hypot(ax + ux * t - x, az + uz * t - z) < hw + .25) return false;
@@ -591,8 +601,10 @@ export function pietonOk(x, z, dx = 0, dz = 0) {
 /** Vrai si (x, z) tombe sur une chaussée ou un trottoir (routes, rues, pistes et sentiers). */
 export function surChaussee(x, z, marge = .8) {
   const l = R.grilleR?.get(cle(x, z, CR)); if (!l) return false;
-  for (const [li, ax, az, bx, bz, hw] of l) {
-    const L = roadLines[li]; if (L.bridge) continue;
+  const S = R.segR;
+  for (const n of l) {
+    const o = n * 6, ax = S[o + 1], az = S[o + 2], bx = S[o + 3], bz = S[o + 4], hw = S[o + 5];
+    const L = roadLines[S[o]]; if (L.bridge) continue;
     const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
     if (Math.hypot(ax + dx * t - x, az + dz * t - z) < hw + (TROTTOIR[L.cls] ?? 0) * .5 + marge) return true;
   }
@@ -623,7 +635,8 @@ export function rueRouteJeu(C, occupees = []) {
   for (let i = 0; i < C.n; i += 4) {
     const x = C.X[i], z = C.Z[i], l = R.grilleR.get(cle(x, z, CR)); if (!l) continue;
     let best = null, bd = 6;
-    for (const [lj, ax, az, bx, bz] of l) { const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)); const d = Math.hypot(ax + dx * t - x, az + dz * t - z); if (d < bd) { bd = d; best = lj; } }
+    const S = R.segR;
+    for (const n of l) { const o = n * 6, lj = S[o], ax = S[o + 1], az = S[o + 2], bx = S[o + 3], bz = S[o + 4]; const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)); const d = Math.hypot(ax + dx * t - x, az + dz * t - z); if (d < bd) { bd = d; best = lj; } }
     if (best !== null) set.add(best);
   }
   R.routeJeu = set;

@@ -76,11 +76,17 @@ export function siege(V, passager = false) {
 }
 
 // ---------- Les routes : où l'on peut rouler ----------
-const G = { cases: null, ponts: null }, CS = 32;
+const G = { cases: null, seg: null, ponts: null }, CS = 32;
 const cle = (x, z) => Math.floor(x / CS) + ',' + Math.floor(z / CS);
+/**
+ * Les tronçons de route rangés par cases de 32 m. Un tronçon traverse souvent plusieurs cases : on n'y range
+ * que son numéro, et ses cinq nombres tiennent une seule fois dans G.seg. Avant, chaque case gardait sa propre
+ * copie du tableau [ax, az, bx, bz, hw] — plus de cent octets chacune, contre huit pour un entier. Mesuré au
+ * profileur de Chrome : 16,7 Mo pour ce seul index, sur les 368 Mo qui font planter l'onglet des téléphones.
+ */
 function indexer() {
   if (G.cases) return;
-  const g = new Map(), p = new Map();
+  const g = new Map(), p = new Map(), seg = [];
   const ranger = (m, ax, az, bx, bz, r, e) => {
     for (let cx = Math.floor((Math.min(ax, bx) - r) / CS); cx <= Math.floor((Math.max(ax, bx) + r) / CS); cx++)
       for (let cz = Math.floor((Math.min(az, bz) - r) / CS); cz <= Math.floor((Math.max(az, bz) + r) / CS); cz++) { const k = cx + ',' + cz; let l = m.get(k); if (!l) m.set(k, l = []); l.push(e); }
@@ -88,17 +94,22 @@ function indexer() {
   roadLines.forEach(L => {
     if (L.cls === 6 || L.cls >= 10) return; // ni les sentiers, ni les pistes de l'aéroport
     const hw = (L.w || 6) / 2 + 1.1; // la chaussée et le bord du trottoir
-    for (let k = 1; k < L.pts.length; k++) { const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k]; ranger(g, ax, az, bx, bz, hw, [ax, az, bx, bz, hw]); }
+    for (let k = 1; k < L.pts.length; k++) {
+      const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k], n = seg.length / 5;
+      seg.push(ax, az, bx, bz, hw); ranger(g, ax, az, bx, bz, hw, n);
+    }
   });
+  // Les ponts sont une poignée de tabliers : ils gardent leurs tableaux, ça ne pèse rien.
   for (const T of TABLIERS) for (let j = 1; j < T.pts.length; j++) { const [ax, az] = T.pts[j - 1], [bx, bz] = T.pts[j]; ranger(p, ax, az, bx, bz, T.w / 2 + 1, [ax, az, bx, bz, T.w / 2 + .6, T.h[j - 1], T.h[j]]); }
-  G.cases = g; G.ponts = p;
+  G.cases = g; G.seg = new Float32Array(seg); G.ponts = p;
 }
 const projeter = (x, z, ax, az, bx, bz) => { const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)); return [Math.hypot(ax + dx * t - x, az + dz * t - z), t]; };
 /** Vrai si l'on peut rouler en (x, z) : sur une route, hors des bâtiments et des terre-pleins. */
 export function surRoute(x, z) {
   indexer();
   const l = G.cases.get(cle(x, z)); if (!l) return false;
-  for (const [ax, az, bx, bz, hw] of l) if (projeter(x, z, ax, az, bx, bz)[0] <= hw) return !dansBatiment(x, z) && !dansTerrePlein(x, z, 0) && !dansObstacleRue(x, z, .2); // ni bâtiment, ni terre-plein central, ni mur de parcelle
+  const S = G.seg;
+  for (const n of l) { const o = n * 5; if (projeter(x, z, S[o], S[o + 1], S[o + 2], S[o + 3])[0] <= S[o + 4]) return !dansBatiment(x, z) && !dansTerrePlein(x, z, 0) && !dansObstacleRue(x, z, .2); } // ni bâtiment, ni terre-plein central, ni mur de parcelle
   return false;
 }
 /** Hauteur sous les roues : le tablier d'un pont si l'on y est monté (par sa rampe), sinon le sol. */

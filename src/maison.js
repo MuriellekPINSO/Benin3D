@@ -301,7 +301,7 @@ export function reveil(I) {
 let rond = null; // gouttes et vapeur : des points ronds et flous, pas des carrés
 const texRonde = () => rond ??= (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d'), g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.45, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); })();
 function particules(n, couleur, taille, opacite) {
-  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3).setUsage(THREE.DynamicDrawUsage)); // réécrite à chaque image : memoire.js ne doit pas la rendre
   const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: couleur, map: texRonde(), size: taille, transparent: true, opacity: opacite, depthWrite: false }));
   p.frustumCulled = false; p.userData.graines = Array.from({ length: n }, () => [Math.random(), Math.random() * 2 - 1, Math.random() * 2 - 1]); scene.add(p); return p;
 }

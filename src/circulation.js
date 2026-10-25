@@ -21,7 +21,7 @@ const TYPES = [ // part de la circulation, vitesse (m/s), demi-longueur et demi-
   { id: 'velo', part: .12, v: [3, 5], hl: .9, hw: .3 },
 ];
 const COULEURS = ['#e8e8e4', '#9da3a6', '#1f2326', '#7b2a2a', '#2c4a6e', '#c9c9c4'];
-const C = { pret: false, meshes: new Map(), vehicules: [], grille: null, bouts: null, actif: false };
+const C = { pret: false, meshes: new Map(), vehicules: [], grille: null, bouts: null, routes: null, actif: false };
 const hasard = (a, b) => a + Math.random() * (b - a);
 
 // ---------- Les modèles (même repère que vehicules.js : l'avant vers +x) ----------
@@ -48,17 +48,20 @@ function maillages() {
 }
 // Les rues (et leurs bouts, pour passer de l'une à l'autre au carrefour), rangées par cases.
 function indexer() {
-  C.grille = new Map(); C.bouts = new Map();
+  C.grille = new Map(); C.bouts = new Map(); C.routes = [];
   const cleBout = (x, z) => Math.round(x / 3) + ',' + Math.round(z / 3);
   roadLines.forEach((L, li) => {
     if (L.bridge || L.cls > 5 || L.pts.length < 2) return;
     const cum = [0]; for (let j = 1; j < L.pts.length; j++) cum.push(cum[j - 1] + Math.hypot(L.pts[j][0] - L.pts[j - 1][0], L.pts[j][1] - L.pts[j - 1][1]));
     const R = { L, li, cum, len: cum[cum.length - 1], hw: (L.w || 6) / 2, sens: !!L.sens }; if (R.len < 15) return; L._circ = R;
+    const iR = C.routes.length; C.routes.push(R);
     for (let j = 0; j < L.pts.length; j += 2) { const k = Math.floor(L.pts[j][0] / CELL) + ',' + Math.floor(L.pts[j][1] / CELL); let l = C.grille.get(k); if (!l) C.grille.set(k, l = new Set()); l.add(R); }
     // Carrefours : on indexe TOUS les points de la rue, pas seulement ses deux bouts. Beaucoup de croisements sont
     // des T, où une rue se termine au milieu d'une autre : le bout de la première ne tombait sur le bout d'aucune
     // autre, le véhicule n'avait nulle part où tourner et filait tout droit (« certains ne savent pas tourner »).
-    for (let j = 0; j < L.pts.length; j++) { const k = cleBout(L.pts[j][0], L.pts[j][1]); let l = C.bouts.get(k); if (!l) C.bouts.set(k, l = []); l.push({ R, s: cum[j] }); }
+    // Un objet { R, s } par point faisait 170 000 objets, 7,6 Mo au profileur : on garde deux nombres dans une
+    // liste à plat (le numéro de la rue dans C.routes, et la distance depuis son début).
+    for (let j = 0; j < L.pts.length; j++) { const k = cleBout(L.pts[j][0], L.pts[j][1]); let l = C.bouts.get(k); if (!l) C.bouts.set(k, l = []); l.push(iR, cum[j]); }
   });
   C.cleBout = cleBout;
 }
@@ -135,7 +138,8 @@ export function majCirculation(dt, J) {
     V.s += V.v * dt * V.dir;
     if (V.s < 0 || V.s > V.R.len) { // au bout de la rue : la suivante (au carrefour), sinon demi-tour
       const bout = V.s < 0 ? 0 : 1, p = bout ? V.R.L.pts[V.R.L.pts.length - 1] : V.R.L.pts[0];
-      const suite = (C.bouts.get(C.cleBout(p[0], p[1])) || []).filter(b => b.R !== V.R && b.s > .5 && b.s < b.R.len - .5);
+      const plat = C.bouts.get(C.cleBout(p[0], p[1])) || [], suite = [];
+      for (let j = 0; j < plat.length; j += 2) { const R = C.routes[plat[j]], s = plat[j + 1]; if (R !== V.R && s > .5 && s < R.len - .5) suite.push({ R, s }); }
       // On rejoint la rue croisée en son milieu : il faut donc vérifier la place, sinon on atterrit sur un autre
       // véhicule et les deux se bloquent (la première version doublait le nombre de véhicules à l'arrêt).
       let pris = null;

@@ -8,6 +8,7 @@ import { applyMood, sunDir } from './ambiances.js';
 import { $, LITE, reduceMotion } from './base.js';
 import { arreterConseils, conseils, decode, frame, loadTxt, status } from './chargement.js';
 import { surveillerIncidents } from './incidents.js';
+import { preparerGeometries } from './memoire.js';
 import { E } from './etat.js';
 import { accueil, initExplorer } from './explorer.js';
 import { TRIPO, chargerIndexTripo, urlTripo } from './batiments-tripo.js';
@@ -175,8 +176,12 @@ async function main() {
   camera.position.setFromSpherical(new THREE.Spherical(reduceMotion ? 12500 : 24000, reduceMotion ? 0.98 : 0.5, 0.42)).add(target);
   camera.lookAt(target);
   if (!reduceMotion) startFlight(target.clone(), 12500, 0.98, 0.42, 6.5);
+  // Avant le tout premier rendu : chaque géométrie rendra sa copie JavaScript dès qu'elle aura été envoyée à la
+  // carte graphique (memoire.js). Puis de nouveau, pour les modèles détaillés qui arrivent après coup.
+  preparerGeometries();
   requestAnimationFrame(t => { last = t; loop(t); });
   arreterConseils();
+  for (const ms of [8000, 30000, 90000]) setTimeout(() => preparerGeometries(), ms);
   setTimeout(() => { $('#loader').classList.add('done'); demarrerTelechargements(); }, 150); // les modèles détaillés, une fois la ville affichée
   setTimeout(demarrerStats, 2500); // présence et compteurs du tableau de bord (statistiques.js)
   setTimeout(synchroniserAuDemarrage, 1500); // avec un compte : la partie jouée sur un autre téléphone (compte.js)

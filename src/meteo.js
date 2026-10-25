@@ -40,7 +40,7 @@ const N_GOUTTES = LITE ? 900 : 2200, BOITE = 70;
 function creerGouttes() {
   const pos = new Float32Array(N_GOUTTES * 6);
   for (let i = 0; i < N_GOUTTES; i++) { const x = (Math.random() - .5) * BOITE * 2, y = Math.random() * BOITE, z = (Math.random() - .5) * BOITE * 2; pos.set([x, y, z, x - .15, y - 1.3, z + .2], i * 6); }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage)); // réécrite à chaque image (majMeteo) : memoire.js ne doit pas la rendre
   const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#c9dde4', transparent: true, opacity: .55, depthWrite: false }));
   l.frustumCulled = false; l.visible = false; l.renderOrder = 31; scene.add(l); return l;
 }

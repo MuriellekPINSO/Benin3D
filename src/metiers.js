@@ -444,26 +444,36 @@ function bout(pts, debut = false) {
 // On roule à droite. La ligne de Zém Run suit une seule chaussée des boulevards à deux chaussées : dans
 // l'autre sens, on passe sur la chaussée d'en face (la chaussée à sens unique parallèle, à droite) ; sur une
 // route à double sens, on se tient dans la voie de droite.
-const VG = { g: null }, CV = 40;
+// Un tronçon traverse plusieurs cases : on n'y range que son numéro, et ses huit nombres tiennent une seule
+// fois dans VG.s. Une copie de l'objet par case coûtait plus de cent octets, un entier en coûte huit — c'était
+// le plus gros poste de mémoire du jeu au profileur de Chrome, 13,1 Mo à lui seul.
+const VG = { g: null, s: null }, CV = 40, PAS = 8;
 function grilleVoies() {
   if (VG.g) return VG.g;
-  const g = new Map();
+  const g = new Map(), seg = [];
   for (const L of roadLines) {
     if (L.cls === 6 || L.cls >= 10) continue;
     for (let k = 1; k < L.pts.length; k++) {
-      const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k], l = Math.hypot(bx - ax, bz - az) || 1, e = { ax, az, bx, bz, dx: (bx - ax) / l, dz: (bz - az) / l, hw: (L.w || 6) / 2, sens: L.sens };
-      for (let cx = Math.floor(Math.min(ax, bx) / CV); cx <= Math.floor(Math.max(ax, bx) / CV); cx++) for (let cz = Math.floor(Math.min(az, bz) / CV); cz <= Math.floor(Math.max(az, bz) / CV); cz++) { const c = cx + ',' + cz; let li = g.get(c); if (!li) g.set(c, li = []); li.push(e); }
+      const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k], l = Math.hypot(bx - ax, bz - az) || 1, n = seg.length / PAS;
+      seg.push(ax, az, bx, bz, (bx - ax) / l, (bz - az) / l, (L.w || 6) / 2, L.sens ? 1 : 0);
+      for (let cx = Math.floor(Math.min(ax, bx) / CV); cx <= Math.floor(Math.max(ax, bx) / CV); cx++) for (let cz = Math.floor(Math.min(az, bz) / CV); cz <= Math.floor(Math.max(az, bz) / CV); cz++) { const c = cx + ',' + cz; let li = g.get(c); if (!li) g.set(c, li = []); li.push(n); }
     }
   }
-  return VG.g = g;
+  VG.s = new Float32Array(seg); return VG.g = g;
 }
+/** Le tronçon n, sous la forme que les appelants attendent (on ne le reconstruit que pour les candidats retenus). */
+const tronconVoie = n => { const S = VG.s, o = n * PAS; return { ax: S[o], az: S[o + 1], bx: S[o + 2], bz: S[o + 3], dx: S[o + 4], dz: S[o + 5], hw: S[o + 6], sens: !!S[o + 7] }; };
 /** Le tronçon de route le plus proche de (x, z) à moins de r m (filtre éventuel), et le point projeté. */
-function routeSous(x, z, r, ok = () => true) {
-  const g = grilleVoies(); let best = null, bd = r;
-  for (let cx = Math.floor((x - r) / CV); cx <= Math.floor((x + r) / CV); cx++) for (let cz = Math.floor((z - r) / CV); cz <= Math.floor((z + r) / CV); cz++) for (const e of g.get(cx + ',' + cz) || []) {
-    if (!ok(e)) continue;
-    const t = Math.max(0, Math.min(1, ((x - e.ax) * (e.bx - e.ax) + (z - e.az) * (e.bz - e.az)) / ((e.bx - e.ax) ** 2 + (e.bz - e.az) ** 2 || 1))), px = e.ax + (e.bx - e.ax) * t, pz = e.az + (e.bz - e.az) * t, d = Math.hypot(px - x, pz - z);
-    if (d < bd) { bd = d; best = { e, x: px, z: pz, d }; }
+function routeSous(x, z, r, ok = null) {
+  const g = grilleVoies(), S = VG.s; let best = null, bd = r;
+  for (let cx = Math.floor((x - r) / CV); cx <= Math.floor((x + r) / CV); cx++) for (let cz = Math.floor((z - r) / CV); cz <= Math.floor((z + r) / CV); cz++) for (const n of g.get(cx + ',' + cz) || []) {
+    const o = n * PAS, ax = S[o], az = S[o + 1], ux = S[o + 2] - ax, uz = S[o + 3] - az;
+    // La distance d'abord : elle ne coûte rien, alors que le filtre demande de reconstruire l'objet. L'ordre ne
+    // change rien au résultat, bd ne bougeant que pour un candidat accepté.
+    const t = Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / (ux * ux + uz * uz || 1))), px = ax + ux * t, pz = az + uz * t, d = Math.hypot(px - x, pz - z);
+    if (d >= bd) continue;
+    const e = tronconVoie(n); if (ok && !ok(e)) continue;
+    bd = d; best = { e, x: px, z: pz, d };
   }
   return best;
 }
