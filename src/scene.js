@@ -4,13 +4,37 @@ import { $, LITE, coarse, reduceMotion, toXZ } from './base.js';
 
 // ---------- Scène ----------
 export const canvas = $('#scene');
+/**
+ * On demandait la carte graphique la plus rapide, avec l'anticrénelage, et rien d'autre : au premier refus, le
+ * jeu s'arrêtait sur « WebGL n'a pas pu démarrer » — ce que voient des joueurs sur des téléphones d'entrée de
+ * gamme (capture d'un testeur, 25/10). Beaucoup de ces appareils acceptent pourtant un contexte plus modeste.
+ * On redescend donc par paliers, et l'on ne renonce qu'après le dernier.
+ *
+ * `failIfMajorPerformanceCaveat: false` est le palier qui compte : par défaut, Chrome refuse un contexte quand
+ * il devrait le rendre par le processeur, ce qui est exactement le cas des machines sans pilote accéléré.
+ */
+const ESSAIS = [
+  { antialias: true, powerPreference: 'high-performance' },
+  { antialias: false, powerPreference: 'high-performance' },
+  { antialias: false, powerPreference: 'default' },
+  { antialias: false, powerPreference: 'low-power', failIfMajorPerformanceCaveat: false },
+];
 export function creerRendu() {
   // Fond transparent possible : en « Vue réelle », la 3D Google s'affiche sous la maquette.
-  try { return new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' }); }
-  catch (e) {
-    document.querySelector('#loadTxt').innerHTML = '<span class="err">WebGL n\'a pas pu démarrer.</span> Activez l\'accélération matérielle du navigateur, puis rechargez la page.';
-    throw e;
+  let dernier = null;
+  for (const [i, opts] of ESSAIS.entries()) {
+    try {
+      const r = new THREE.WebGLRenderer({ canvas, alpha: true, ...opts });
+      if (i) console.info(`WebGL : démarré au palier ${i + 1} (${JSON.stringify(opts)})`);
+      return r;
+    } catch (e) { dernier = e; }
   }
+  // Rien n'a marché : on dit lequel des deux problèmes c'est, le message d'avant accusait toujours le second.
+  const sansWebGL2 = !document.createElement('canvas').getContext('webgl2');
+  document.querySelector('#loadTxt').innerHTML = sansWebGL2
+    ? '<span class="err">Ce navigateur ne gère pas la 3D (WebGL 2).</span> Essaie Chrome ou Firefox à jour, ou un autre téléphone.'
+    : '<span class="err">WebGL n\'a pas pu démarrer.</span> Activez l\'accélération matérielle du navigateur, puis rechargez la page.';
+  throw dernier;
 }
 export const renderer = creerRendu();
 renderer.setPixelRatio(Math.min(devicePixelRatio, LITE ? 1.25 : 2)); // téléphone : moins de mémoire d'image, l'écran est petit
