@@ -323,11 +323,13 @@ export function rendreVie() {
   $('#vhEssenceLigne').hidden = !R;
   if (R) { $('#vhEssence').style.setProperty('--faim', `${Math.round(c / R * 100)}%`); $('#vhEssence').classList.toggle('bas', c / R <= .2); $('#vhEssenceTxt').textContent = `${c.toFixed(1).replace('.', ',')} L / ${R} L`; }
   $('#vhLouer').hidden = !!v.vehicule || !!VIE.travail || !!VIE.service; $('#vhLouer').textContent = `Louer une moto · ${fmt(LOCATION_MOTO)} / jour`;
-  // « Acheter une voiture » ne s'affiche que si l'on a de quoi en payer au moins une : sinon c'est un bouton
-  // qui ne mène qu'à des lignes grisées, et un écran de plus à lire pour rien.
-  const a = $('#vhAcheter'); if (a) a.hidden = !!v.vehicule || !!VIE.travail || !!VIE.service || v.argent < Math.min(...A_VENDRE.map(x => x.prix));
+  // « Acheter une voiture » reste affiché même sans l'argent. Il ne s'affichait qu'une fois qu'on pouvait payer,
+  // pour éviter un écran de lignes grisées — mais on ne savait alors même pas que les voitures existaient :
+  // « je ne vois pas » (Murielle, 25/10, avec 100 F en poche). La fenêtre dit ce qu'il manque, c'est un but.
+  const a = $('#vhAcheter'); if (a) a.hidden = !!v.vehicule || !!VIE.travail || !!VIE.service;
   // « Comment j'achète tout ça, où je prends ça ? » (Murielle, 25/10) : le bouton est dans le menu, et rien ne
   // le disait. La première fois qu'on a de quoi, on le dit dans le fil — une seule fois par partie.
-  if (a && !a.hidden && !ditVoiture) { ditVoiture = true; annonce(`Tu as de quoi t’acheter une voiture : Menu, puis « Acheter une voiture ». La moins chère est à ${fmt(Math.min(...A_VENDRE.map(x => x.prix)))}.`); }
+  const moinsCher = Math.min(...A_VENDRE.map(x => x.prix));
+  if (a && !a.hidden && !ditVoiture && v.argent >= moinsCher) { ditVoiture = true; annonce(`Tu as de quoi t’acheter une voiture : Menu, puis « Acheter une voiture ». La moins chère est à ${fmt(moinsCher)}.`); }
 }
 let ditVoiture = false;
