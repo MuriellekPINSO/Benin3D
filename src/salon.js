@@ -25,7 +25,7 @@ const ecrireModele = modele => ecrireVie({ modele });
 import { basculerPause, finirJournee, menuTravail } from './metiers.js';
 import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces } from './commerces.js';
 import { majAmbianceSalon } from './ambiance-salon.js';
-import { entrerChapitres, initChapitres, majChapitres, quitterChapitres } from './chapitres.js';
+import { afficherChapitres, entrerChapitres, initChapitres, majChapitres, quitterChapitres } from './chapitres.js';
 import { basculerCarte, initCarteSalon, majCarteSalon, quitterCarteSalon } from './carte-salon.js';
 import { TENUES, choixGenre, estFemme, grilleTenues, initGarderobe, modeleActuel, ouvrirGarderobe } from './garderobe.js';
 import { AUDIO, audioCtx, moteurMaj, son } from './audio.js';
@@ -193,17 +193,21 @@ function majListe() {
   el.textContent = n === 1 ? 'Tu es seul pour l’instant' : S.public ? `${n} personnes : ${gens}` : `${n} amis : ${gens}`;
 }
 
-/** En ville, le menu « Aller à » dit combien de gens sont déjà sur place : on va là où il y a du monde.
- *  « Chez moi » et « Station-service » sont propres à chacun, on ne les compte pas. */
-function majLieuxMonde() {
-  const al = $('#slAller'); if (!al || !S.actif || !S.public) return;
-  const gens = [...S.autres.values()].map(A => A.etat).filter(e => e && typeof e.x === 'number');
+/** « Aller » (barre d'icônes) : le zém qu'on hèle, les lieux et ses commerces. Chaque lieu dit combien de gens
+ *  sont déjà sur place — on va là où il y a du monde. « Chez moi » et « Station-service » sont propres à chacun,
+ *  on ne les compte pas. */
+function menuAller() {
+  const gens = S.public ? [...S.autres.values()].map(A => A.etat).filter(e => e && typeof e.x === 'number') : [];
+  const options = [];
+  // « Héler un zém » : pas quand on roule déjà, ni à l'intérieur, ni quand on est soi-même zémidjan ou taximan en service.
+  if (T.mode === 'pied' && !S.lieu && VIE.service !== 'zem' && VIE.service !== 'taxi') options.push({ texte: 'Héler un zém', sous: 'Il vient te chercher, tu négocies le prix', f: helerZem });
   for (const L of LIEUX) {
-    const o = [...al.options].find(o => o.value === L[0]); if (!o || L[0] === 'maison' || L[0] === 'station') continue;
-    const d = destination(L);
+    const d = L[0] === 'maison' || L[0] === 'station' ? null : destination(L);
     const n = d ? gens.filter(e => Math.hypot(e.x - d[0], e.z - d[1]) < 70).length : 0;
-    o.textContent = n ? `${L[1]} · ${n === 1 ? '1 personne' : `${n} personnes`}` : L[1];
+    options.push({ texte: L[1], sous: n === 0 ? '' : n === 1 ? '1 personne sur place' : `${n} personnes sur place`, f: () => aller(L[0]) });
   }
+  for (const c of lieuxCommerces()) options.push({ texte: c.nom, sous: 'Mon commerce', f: () => aller(c.id) });
+  choisir('Aller…', options);
 }
 
 // ---------- Chat ----------
@@ -214,7 +218,7 @@ function ligne(texte, { nom = '', lieu = null, moi = false } = {}) {
   li.append(texte);
   if (lieu && !moi) { const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = 'Y aller'; bt.addEventListener('click', () => aller(lieu, false)); li.append(' ', bt); }
   ol.append(li); while (ol.children.length > 40) ol.firstChild.remove();
-  if (nom && !moi && (matchMedia('(max-width: 720px)').matches ? !$('#slChat').classList.contains('ouvert') : document.getElementById('app').classList.contains('chat-ferme'))) { S.nonLus++; const n = $('#slNonLus'); n.textContent = S.nonLus; n.hidden = false; }
+  if (nom && !moi && !$('#slChat').classList.contains('ouvert')) { S.nonLus++; const n = $('#slNonLus'); n.textContent = S.nonLus; n.hidden = false; }
   ol.scrollTop = ol.scrollHeight;
 }
 function surMessage(m) {
@@ -551,20 +555,25 @@ function majGuideSalon(dt) {
  * Le bandeau du haut — la barre du salon, l'argent, la mini-carte — ne fait pas la même hauteur partout : la
  * barre passe sur deux lignes dès que l'écran se resserre. Le guide, le chapitre et la carte se calaient sous une
  * hauteur écrite en dur (50, 56, 58, 84 px selon les endroits) et se retrouvaient dessus : sur un téléphone tout
- * se chevauchait, en portrait comme à l'horizontale (retours des testeurs du 24/10). On mesure le bas réel du
- * bandeau, et le reste se place dessous (--sl-bandeau).
+ * se chevauchait, en portrait comme à l'horizontale (retours des testeurs du 24/10). On mesure donc deux hauteurs,
+ * en deux temps pour qu'aucune ne se mesure à travers elle-même : --sl-barre, le bas de la seule barre du salon
+ * (l'argent et la mini-carte s'y rangent dessous), puis --sl-bandeau, le bas de tout l'ensemble (le guide, la
+ * barre d'icônes et ses fenêtres s'y rangent dessous).
  */
 function mesurerBandeau() {
   if (bandeauVu) return;
   const els = ['.sl-haut', '.vie-hud:not(.ouvert)', '.mini-carte'].map(s => $(s)).filter(Boolean);
   if (!els.length) return;
   bandeauVu = true;
+  const bas = liste => { let b = 0; for (const e of liste) { if (e.hidden || !e.offsetParent) continue; const r = e.getBoundingClientRect(); if (r.top < innerHeight * .35) b = Math.max(b, r.bottom); } return Math.round(b); };
   const poser = () => {
-    let bas = 0;
-    for (const e of els) { if (e.hidden || !e.offsetParent) continue; const r = e.getBoundingClientRect(); if (r.top < innerHeight * .35) bas = Math.max(bas, r.bottom); }
-    document.documentElement.style.setProperty('--sl-bandeau', `${Math.round(bas)}px`);
+    const racine = document.documentElement, barre = $('.sl-haut');
+    racine.style.setProperty('--sl-barre', `${barre ? bas([barre]) : 0}px`); // la barre du salon : elle ne dépend de rien
+    racine.style.setProperty('--sl-bandeau', `${bas(els)}px`); // puis l'argent et la mini-carte, une fois rangés dessous
+    const r = $('.sl-rail')?.getBoundingClientRect(); // les fenêtres de la barre d'icônes (objectifs, gestes) s'ouvrent sous elle
+    if (r?.height) racine.style.setProperty('--sl-pop', `${Math.round(r.bottom + 8)}px`);
   };
-  const ro = new ResizeObserver(poser); for (const e of els) ro.observe(e);
+  const ro = new ResizeObserver(poser); for (const e of [...els, $('.sl-rail')].filter(Boolean)) ro.observe(e); // la barre d'icônes ne compte pas dans le bandeau, mais sa hauteur fixe --sl-pop
   addEventListener('resize', poser); poser();
 }
 let bandeauVu = false;
@@ -680,7 +689,6 @@ export function majSalon(dt) {
   if (haut !== !!camera.view?.enabled) { if (haut) camera.setViewOffset(camera.aspect, 1, 0, .12, camera.aspect, 1); else camera.clearViewOffset(); }
   majAmbianceSalon(dt, { x: P.x, z: P.z, dedans: !!S.lieu, public: !!S.lieu && !S.lieu.prive, clients: S.lieu ? 0 : genteCommerces(S.x, S.z) }); // les bruits de la ville (ambiance-salon.js)
   // Où il y a du monde, dans le menu « Aller à » : toutes les deux secondes, c'est bien assez.
-  S.lieuxT = (S.lieuxT || 0) - dt; if (S.lieuxT <= 0) { S.lieuxT = 2; majLieuxMonde(); }
   // Sa position aux autres, cinq fois par seconde (et au moins toutes les 2,5 s pour rester « présent »).
   S.envoi -= dt; S.depuis += dt;
   if (S.envoi <= 0 && S.canal) {
@@ -729,9 +737,6 @@ export function majSalon(dt) {
     const b = $(sel), a = S.actions[k], txt = a ? `${a.texte}${touches ? ` (${touches[k]})` : ''}` : '';
     if (b && b.textContent !== txt) { b.textContent = txt; b.hidden = !txt; }
   });
-  // « Prendre un zém » : pas quand on roule déjà, ni quand on est soi-même zémidjan ou taximan en service.
-  const zem = $('#slZem'), sansZem = T.mode !== 'pied' || VIE.service === 'zem' || VIE.service === 'taxi';
-  if (zem && zem.hidden !== sansZem) zem.hidden = sansZem;
 }
 
 // Dans une petite pièce, reculer derrière soi collait la caméra au dos (au réveil, on ne voyait que la couverture) :
@@ -775,7 +780,7 @@ function angleDedans(P, dist, inc) {
 // l'essence et la vitesse en conduisant, la mission, « Travailler » et « Menu » (le reste : CSS .vie-hud:not(.ouvert)).
 function menu(ouvrir) {
   const el = $('#vieHud'); if (!el || (ouvrir && el.hidden)) return;
-  el.classList.toggle('ouvert', ouvrir); $('#vhVoile').hidden = !ouvrir; $('#vhMenu')?.setAttribute('aria-expanded', String(ouvrir));
+  el.classList.toggle('ouvert', ouvrir); $('#vhVoile').hidden = !ouvrir; $('#slMenuBtn')?.setAttribute('aria-expanded', String(ouvrir));
   S.menu = ouvrir; if (ouvrir) { S.touches.clear(); majSon(); }
 }
 // Son : le même interrupteur que le bouton Son de Zém Run (AUDIO.muet). La ville, les pièces et les voix s'y plient.
@@ -873,7 +878,7 @@ function changerVue() {
   if (S.lieu) { ligne('À l’intérieur, la caméra reste près de toi : la vue de haut revient dehors.'); return; }
   S.vue = (S.vue + 1) % VUES.length; const [, d, t] = VUES[S.vue];
   S.dist = S.lieu ? Math.min(d, 6) : d; S.tangage = t;
-  const b = $('#slVue'); if (b) b.textContent = `Voir ${VUES[(S.vue + 1) % VUES.length][0].toLowerCase()}`; // ce que fera le prochain clic
+  const b = $('#slVue2'); if (b) b.title = `Voir ${VUES[(S.vue + 1) % VUES.length][0].toLowerCase()} (V)`; // ce que fera le prochain clic
 }
 
 // ---------- Manette : boutons ----------
@@ -938,10 +943,9 @@ export function initSalon(data) {
     ...LIEUX.filter(L => L[0] !== 'station').map(L => { const d = destination(L); return d && { id: L[0], nom: L[1], x: d[0], z: d[1], type: L[0] === 'maison' ? 'maison' : 'lieu' }; }).filter(Boolean),
     ...lieuxCommerces().map(c => ({ id: c.id, nom: c.nom, x: c.x, z: c.z, type: 'commerce' })),
   ] });
-  if (import.meta.env.DEV) window.__salon = { S, T, VIE, LIEUX, surRoute, profondeurRue, dansBatiment, profondeurInterieur, obstaclesPres, porter, destination, majLieuxMonde }; // pour les tests (console, scripts)
+  if (import.meta.env.DEV) window.__salon = { S, T, VIE, LIEUX, surRoute, profondeurRue, dansBatiment, profondeurInterieur, obstaclesPres, porter, destination, menuAller }; // pour les tests (console, scripts)
   S.local = new URLSearchParams(location.search).has('salon-local');
   $('#btnSalon')?.addEventListener('click', ouvrir); $('#btnVivre')?.addEventListener('click', ouvrir);
-  $('#slGestesTog')?.addEventListener('click', e => { const o = !$('#slActions').classList.contains('gestes'); $('#slActions').classList.toggle('gestes', o); e.currentTarget.setAttribute('aria-expanded', String(o)); });
   $('#slFermer')?.addEventListener('click', () => { $('#salon').hidden = true; });
   $('#slCreer')?.addEventListener('click', entrerVille);
   $('#slPrive')?.addEventListener('click', () => entrer(codeAleatoire()));
@@ -953,13 +957,14 @@ export function initSalon(data) {
   $('#slInviter')?.addEventListener('click', inviter);
   $('#slCopier')?.addEventListener('click', copier);
   $('#slQuitter')?.addEventListener('click', () => choisir('Quitter la partie ?', [{ texte: 'Quitter', sous: 'Ton argent, ton logement et ta journée de travail sont gardés.', f: quitter }], { annuler: 'Rester' }));
-  $('#slVue')?.addEventListener('click', changerVue); $('#slVue2')?.addEventListener('click', changerVue);
+  $('#slVue2')?.addEventListener('click', changerVue);
+  $('#slAllerBtn')?.addEventListener('click', menuAller);
+  $('#slMenuBtn')?.addEventListener('click', () => menu(true));
   $('#slEntrer')?.addEventListener('click', () => porte());
   $('#slAction2')?.addEventListener('click', () => S.actions?.[1]?.f());
   $('#slAction3')?.addEventListener('click', () => S.actions?.[2]?.f());
-  $('#slZem')?.addEventListener('click', helerZem);
-  $('#vhTravail')?.addEventListener('click', menuTravail);
-  $('#vhMenu')?.addEventListener('click', () => menu(true)); $('#vhReprendre')?.addEventListener('click', () => menu(false)); $('#vhVoile')?.addEventListener('click', () => menu(false));
+  $('#vhTravail')?.addEventListener('click', menuTravail); $('#slTravail')?.addEventListener('click', menuTravail);
+  $('#vhReprendre')?.addEventListener('click', () => menu(false)); $('#vhVoile')?.addEventListener('click', () => menu(false));
   $('#vhSon')?.addEventListener('click', () => { AUDIO.muet = !AUDIO.muet; if (AUDIO.muet) { taire(); moteurMaj(0, false); } else audioCtx(); majSon(); });
   $('#vhInviter')?.addEventListener('click', () => { menu(false); $('#slInviter')?.click(); }); $('#vhQuitter')?.addEventListener('click', () => { menu(false); $('#slQuitter')?.click(); });
   $('#vieHud')?.addEventListener('click', e => { if (S.menu && e.target.closest('.vh-boutons button:not(.vh-menu)')) menu(false); }); // Commerces, Louer, Pause… : la fenêtre qui s'ouvre passe devant
@@ -974,32 +979,40 @@ export function initSalon(data) {
     desactive: (VIE.data?.argent ?? 0) < V.prix,
     f: () => acheterVehicule(V.id).then(ok => { if (ok) { garerSonVehicule(); ligne(`${V.nom} achetée ! Elle t’attend à côté : approche-toi et monte dedans.`); } }),
   }))));
-  const bascule = (bouton, panneau, autre) => $(bouton)?.addEventListener('click', () => {
-    const ouvert = !$(panneau).classList.contains('ouvert'); $(panneau).classList.toggle('ouvert', ouvert); $(bouton).setAttribute('aria-expanded', String(ouvert));
-    if (ouvert) { $(autre[1]).classList.remove('ouvert'); $(autre[0]).setAttribute('aria-expanded', 'false'); }
-    if (panneau === '#slChat' && ouvert) { S.nonLus = 0; $('#slNonLus').hidden = true; $('#slMessages').scrollTop = 1e6; }
-    if (panneau === '#slActions' && ouvert) vuGestes();
-  });
-  // « La discussion et l'icône des gestes sont fermées par défaut : tu pourrais faire clignoter l'icône » (un
-  // testeur, 24/10) : le bouton « Aller · gestes » bat doucement tant qu'on ne l'a pas ouvert une fois. C'est
-  // derrière lui que se trouvent « M'habiller », « Prendre un zém » et « Aller à » — tout ce qu'on cherche au
-  // début sans le trouver. Retenu d'une partie à l'autre.
+  const app = document.getElementById('app');
+  // La discussion : une bulle en bas à gauche, le fil s'ouvre au-dessus. Ouverte d'emblée sur un ordinateur (la
+  // place est là, et c'est par là que le jeu parle), repliée sur un téléphone. Retenu d'une partie à l'autre.
+  const chat = ouvert => {
+    $('#slChat').classList.toggle('ouvert', ouvert); $('#slChatBtn')?.setAttribute('aria-expanded', String(ouvert));
+    try { localStorage.setItem('cotonou3d.chat', ouvert ? '1' : '0'); } catch { /* navigation privée */ }
+    if (ouvert) { $('#slActions').classList.remove('ouvert'); $('#slGestesBtn')?.setAttribute('aria-expanded', 'false'); S.nonLus = 0; $('#slNonLus').hidden = true; $('#slMessages').scrollTop = 1e6; }
+  };
+  S.ouvrirChat = () => chat(true);
+  let chatVoulu = !coarse; // au doigt, l'écran est trop petit pour laisser le fil ouvert : il reste derrière sa bulle
+  try { const m = localStorage.getItem('cotonou3d.chat'); if (m !== null) chatVoulu = m === '1'; } catch { /* navigation privée */ }
+  chat(chatVoulu);
+  $('#slChatBtn')?.addEventListener('click', () => chat(!$('#slChat').classList.contains('ouvert')));
+  $('#slChatFermer')?.addEventListener('click', () => chat(false));
+  // Les objectifs : la fenêtre des chapitres s'ouvre depuis son icône, et la pastille s'allume à chaque nouvelle étape.
+  const objectifs = ouvert => {
+    app.classList.toggle('obj-ouvert', ouvert); $('#slObjectifs')?.setAttribute('aria-expanded', String(ouvert));
+    try { localStorage.setItem('cotonou3d.objectifs', ouvert ? '1' : '0'); } catch { /* navigation privée */ }
+    if (ouvert) { const pt = $('#slObjPoint'); if (pt) pt.hidden = true; $('#slActions').classList.remove('ouvert'); $('#slGestesBtn')?.setAttribute('aria-expanded', 'false'); }
+    afficherChapitres(); // sans attendre le prochain tour de boucle
+  };
+  try { objectifs(localStorage.getItem('cotonou3d.objectifs') === '1'); } catch { /* navigation privée */ }
+  $('#slObjectifs')?.addEventListener('click', () => objectifs(!app.classList.contains('obj-ouvert')));
+  // Les gestes, derrière leur icône. « Tu pourrais faire clignoter l'icône » (un testeur, 24/10) : elle bat
+  // doucement tant qu'on ne l'a pas ouverte une fois.
   try { if (!localStorage.getItem('cotonou3d.vuGestes')) $('#slGestesBtn')?.classList.add('appel'); } catch { /* navigation privée */ }
-  bascule('#slChatBtn', '#slChat', ['#slGestesBtn', '#slActions']); bascule('#slGestesBtn', '#slActions', ['#slChatBtn', '#slChat']);
-  // Fermer la discussion (×) : sur ordinateur, elle laisse place à un bouton « Discussion » ; sur téléphone, elle se replie. Retenu.
-  const app = document.getElementById('app'), chatFerme = on => { app.classList.toggle('chat-ferme', on); try { localStorage.setItem('cotonou3d.chatFerme', on ? '1' : ''); } catch { /* navigation privée */ } if (!on) { S.nonLus = 0; $('#slNonLus').hidden = true; } };
-  try { if (localStorage.getItem('cotonou3d.chatFerme')) app.classList.add('chat-ferme'); } catch { /* rien */ }
-  $('#slChatFermer')?.addEventListener('click', () => { if (matchMedia('(max-width: 720px)').matches) $('#slChatBtn').click(); else chatFerme(true); });
-  $('#slChatBtn')?.addEventListener('click', () => { if (!matchMedia('(max-width: 720px)').matches) { chatFerme(false); $('#slTexte').focus(); } });
+  $('#slGestesBtn')?.addEventListener('click', () => {
+    const ouvert = !$('#slActions').classList.contains('ouvert');
+    $('#slActions').classList.toggle('ouvert', ouvert); $('#slGestesBtn').setAttribute('aria-expanded', String(ouvert));
+    if (ouvert) { vuGestes(); objectifs(false); }
+  });
   $('#slForm')?.addEventListener('submit', e => { e.preventDefault(); dire($('#slTexte').value); $('#slTexte').value = ''; });
   const ph = $('#slPhrases'); if (ph) for (const p of PHRASES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = p; b.addEventListener('click', () => dire(p)); ph.append(b); }
   const ge = $('#slGestes'); if (ge) for (const [i, [id, nom]] of GESTES.entries()) { const b = document.createElement('button'); b.type = 'button'; b.textContent = coarse ? nom : `${i + 1} · ${nom}`; b.addEventListener('click', () => geste(id)); ge.append(b); } // au clavier, le chiffre du geste est écrit sur le bouton
-  const al = $('#slAller');
-  if (al) {
-    al.append(new Option('Aller à…', '')); for (const [id, nom] of LIEUX) al.append(new Option(nom, id)); al.addEventListener('change', () => { if (al.value) aller(al.value); al.value = ''; al.blur(); });
-    const mes = document.createElement('optgroup'); mes.label = 'Mes commerces'; // ses commerces, dès qu'on en a (commerces.js prévient à chaque changement)
-    document.addEventListener('commerces', () => { mes.replaceChildren(...lieuxCommerces().map(c => new Option(c.nom, c.id))); if (mes.children.length) al.append(mes); else mes.remove(); });
-  }
   // Clavier : capté avant les raccourcis de l'exploration (qui écoutent window), sauf quand on écrit.
   window.addEventListener('keydown', e => {
     if (!S.actif) return;
@@ -1010,7 +1023,7 @@ export function initSalon(data) {
       if (S.menu) menu(false); else if (['#choix', '#carteGrande', '#vieFiche', '#boutique'].some(s => $(s) && !$(s).hidden)) return; else menu(true);
       e.preventDefault(); e.stopPropagation(); return;
     }
-    if (e.key === 'Enter') { if (document.pointerLockElement) document.exitPointerLock(); $('#slTexte').focus(); e.preventDefault(); e.stopPropagation(); return; }
+    if (e.key === 'Enter') { if (document.pointerLockElement) document.exitPointerLock(); S.ouvrirChat?.(); $('#slTexte').focus(); e.preventDefault(); e.stopPropagation(); return; }
     const g = /^(Digit|Numpad)([1-5])$/.exec(e.code); // 1 à 5 : les gestes, comme les boutons (touches physiques : pareil en AZERTY)
     if (g) { if (!e.repeat) geste(GESTES[+g[2] - 1][0]); e.preventDefault(); e.stopPropagation(); return; }
     const k = CLAVIER[e.code]; if (k === 'carte') { if (!e.repeat) basculerCarte(); e.preventDefault(); e.stopPropagation(); return; }

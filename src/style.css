@@ -182,7 +182,7 @@ button { font: inherit; color: inherit; }
 .lecteur-boutons button:first-child { background: var(--accent); color: var(--accent-ink); }
 .mode-salon .lecteur { top: calc(var(--gutter) + 206px); } /* sous la mini-carte du salon */
 .dock:has(.radio-menu:not([hidden])) { z-index: 8; } /* le menu Musique passe devant le lecteur */
-@media (max-width: 720px) { .lecteur { top: 124px; right: 8px; } .mode-salon .lecteur { top: calc(var(--sl-bandeau, 58px) + 66px); } }
+@media (max-width: 720px) { .lecteur { top: 124px; right: 8px; } .mode-salon .lecteur { top: calc(var(--sl-barre, 58px) + 66px); } }
 /* Carte du salon (carte-salon.js) : mini-carte ronde en haut à droite, grande carte par-dessus le jeu */
 .mini-carte { position: absolute; top: var(--gutter); right: var(--gutter); z-index: 4; width: 190px; height: 190px; border-radius: 50%; box-shadow: var(--shadow); cursor: pointer; }
 .mini-carte[hidden] { display: none; }
@@ -195,7 +195,7 @@ button { font: inherit; color: inherit; }
 .cg-tete button { min-width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-solid); color: var(--ink); font: 800 16px/1 var(--font-body); padding: 0 12px; cursor: pointer; }
 .cg-tete .cg-fermer { font-size: 22px; background: var(--chip); border: 0; }
 #carteGrandeCanvas { width: 100%; height: 100%; border-radius: 14px; touch-action: none; cursor: grab; }
-@media (max-width: 720px) { .mini-carte { top: calc(var(--sl-bandeau, 58px) + 6px); right: 8px; width: 112px; height: 112px; } .carte-grande { inset: 8px; } .cg-tete small { display: none; } }
+@media (max-width: 720px) { .mini-carte { top: calc(var(--sl-barre, 58px) + 6px); right: 8px; width: 112px; height: 112px; } .carte-grande { inset: 8px; } .cg-tete small { display: none; } }
 .radio-menu { max-height: max(220px, min(calc(100vh - 270px), 520px)); overflow-y: auto; } /* sans passer sous les boutons du haut */
 /* Radio : liste des stations, au-dessus de la barre du bas */
 .radio-menu { position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%); z-index: 6; width: min(320px, calc(100vw - 2 * var(--gutter))); padding: 10px; display: grid; gap: 4px; }
@@ -638,7 +638,7 @@ button { font: inherit; color: inherit; }
 /* Prise en main (guide.js) : une consigne à la fois */
 .jh-guide, .sl-guide { display: grid; gap: 6px; padding: 12px 14px; border-radius: 16px; z-index: 6; }
 .jh-guide[hidden], .sl-guide[hidden] { display: none; }
-#app:has(.sl-actions.ouvert) .sl-guide { display: none; } /* le panneau Gestes ouvert passe devant le guide */
+#app:has(.sl-actions.ouvert) .sl-guide, #app.obj-ouvert .sl-guide { display: none; } /* les fenêtres de la barre d'icônes passent devant le guide */
 .jh-guide { position: absolute; left: var(--gutter); top: 128px; width: min(360px, calc(100% - 2 * var(--gutter))); }
 .sl-guide { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); width: min(460px, calc(100% - 2 * var(--gutter))); }
 .jh-guide small, .sl-guide small { font: 700 11px/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
@@ -652,7 +652,7 @@ button { font: inherit; color: inherit; }
   .jh-guide { top: auto; bottom: 150px; left: 12px; right: 12px; width: auto; }
   .jh-dialogue:not([hidden]) ~ .jh-guide { display: none; } /* le dialogue dit déjà quoi faire ; empilés, ils cachaient la route */
   .jh-carrefour { left: 8px; transform: none; max-width: calc(100% - 140px); } /* à gauche de la mini-carte */
-  .sl-guide { bottom: 182px; left: 12px; right: 12px; width: auto; transform: none; padding: 10px 12px; gap: 4px; } /* au-dessus du joystick et des boutons */
+  .sl-guide { top: calc(var(--sl-bandeau, 58px) + 8px); bottom: auto; left: 12px; right: 128px; width: auto; transform: none; padding: 10px 12px; gap: 4px; } /* sur le ciel : le bas de l’écran est au joystick et aux actions */
   .sl-guide p { font-size: 14px; line-height: 1.35; }
   .jh-carbu small { display: none; } .jh-essence { width: 64px; } /* la jauge ne doit pas écraser le panneau de la ligne */
 }
@@ -769,9 +769,6 @@ button { font: inherit; color: inherit; }
 .sl-agir { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; max-width: calc(100% - 2 * var(--gutter)); }
 .sl-agir .jouer { font-size: 15px; padding: 12px 22px; }
 .sl-agir2 { border: 0; border-radius: 999px; padding: 11px 18px; font-weight: 800; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); cursor: pointer; }
-.sl-zem { border: 0; border-radius: 999px; padding: 10px 14px; font-weight: 600; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
-.sl-zem.sl-habiller { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); }
-.sl-actions select { background: var(--panel-solid) !important; color: var(--ink) !important; box-shadow: inset 0 0 0 1.5px var(--line); }
 .vh-gps { color: #2e8fd6 !important; font-weight: 700; }
 .fondu { position: fixed; inset: 0; z-index: 60; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s ease; }
 .fondu.noir { opacity: 1; }
@@ -797,25 +794,38 @@ button { font: inherit; color: inherit; }
 .sl-aide { display: block; margin-top: 8px; font-size: 13px; line-height: 1.45; opacity: .72; }
 .sl-rejoindre { display: flex; gap: 8px; margin: 12px 0 8px; }
 .sl-rejoindre input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: .08em; }
-.salon .ev-actions button:not(.jouer), .sl-rejoindre button, .sl-haut button:not(.jouer), .sl-chat form button { border: 1px solid var(--line); background: var(--panel-solid); border-radius: 999px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
+.salon .ev-actions button:not(.jouer), .sl-rejoindre button, .sl-chat form button { border: 1px solid var(--line); background: var(--panel-solid); border-radius: 999px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
 .salon-hud { position: absolute; inset: 0; pointer-events: none; z-index: 15; }
 .salon-hud > * { pointer-events: auto; }
+/* La barre d'icônes, sous la mini-carte (25/10). « Prends exemple sur cette interface : ce n'est pas surchargé,
+   juste des icônes » — un rond par rubrique au lieu des boutons écrits « Discussion », « Aller · gestes », « Vue »,
+   « Gestes », « M'habiller », « Prendre un zém », « Voir de haut », qui occupaient les deux bas de l'écran. Le nom
+   s'écrit à côté quand la fenêtre est large, et au survol sinon. */
+.sl-rail { position: absolute; right: var(--gutter); top: calc(var(--gutter) + 204px); z-index: 6; display: grid; gap: 7px; justify-items: end; }
+.sl-ic { position: relative; display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 999px; padding: 9px; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); cursor: pointer; font: 700 13px/1 var(--font-body); }
+.sl-ic svg { width: 21px; height: 21px; flex: none; }
+.sl-ic .t-long { display: none; padding-right: 5px; }
+.sl-ic:hover .t-long, .sl-ic:focus-visible .t-long { display: inline; }
+.sl-ic[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
+.sl-ic-vert { background: var(--accent); color: var(--accent-ink); }
+.sl-point { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #d64536; color: #fff; font: 700 11px/18px var(--font-body); text-align: center; }
+.sl-point[hidden] { display: none; }
+@media (min-width: 1180px) { .sl-ic .t-long { display: inline; } } /* la place est là : on écrit le nom, personne ne devine une icône */
+/* La discussion : une bulle en bas à gauche, comme dans les jeux ; le fil s'ouvre au-dessus. */
+.sl-bulle { position: absolute; left: var(--gutter); bottom: var(--gutter); z-index: 6; width: 52px; height: 52px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); cursor: pointer; }
+.sl-bulle svg { width: 24px; height: 24px; }
+.sl-bulle[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
+.sl-bulle b { position: absolute; top: -2px; right: -2px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #d64536; color: #fff; font: 700 12px/20px var(--font-body); text-align: center; }
+.sl-bulle b[hidden] { display: none; }
 .sl-haut { position: absolute; top: var(--gutter); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; border-radius: 999px; max-width: calc(100% - 2 * var(--gutter)); flex-wrap: wrap; justify-content: center; }
 .sl-haut div { display: grid; line-height: 1.2; margin-right: 4px; }
 .sl-haut b { font: 800 15px/1.2 var(--font-display); }
 .sl-haut small { color: var(--ink-2); font-size: 12px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sl-chat { position: absolute; left: var(--gutter); bottom: var(--gutter); width: min(340px, calc(100% - 2 * var(--gutter))); padding: 10px; border-radius: var(--r-lg); display: grid; gap: 8px; }
+.sl-chat { position: absolute; left: var(--gutter); bottom: calc(var(--gutter) + 62px); width: min(340px, calc(100% - 2 * var(--gutter))); padding: 10px; border-radius: var(--r-lg); display: none; gap: 8px; }
+.sl-chat.ouvert { display: grid; }
 .sl-chat ol { list-style: none; margin: 0; padding: 0 2px; max-height: 190px; overflow-y: auto; display: grid; gap: 4px; font-size: 13px; }
 .sl-chat-fermer { position: absolute; top: 6px; right: 6px; z-index: 1; width: 28px; height: 28px; border: 0; border-radius: 50%; background: var(--chip); color: var(--ink); font-size: 18px; line-height: 1; cursor: pointer; }
 .sl-chat ol { padding-right: 30px; }
-/* Discussion fermée (ordinateur) : un bouton « Discussion » à sa place, avec les messages non lus */
-@media (min-width: 721px) {
-  #app.chat-ferme .sl-chat { display: none; }
-  #app.chat-ferme .sl-boutons { display: flex; position: absolute; left: var(--gutter); bottom: var(--gutter); }
-  #app.chat-ferme .sl-boutons > :not(#slChatBtn) { display: none; }
-  .sl-boutons button { position: relative; border: 0; border-radius: 999px; padding: 11px 16px; font-weight: 800; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); cursor: pointer; }
-  .sl-boutons b { position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; border-radius: 10px; background: #d64536; color: #fff; font-size: 12px; line-height: 20px; text-align: center; padding: 0 5px; }
-}
 .sl-chat li b { color: var(--sea); }
 .sl-chat li.moi b { color: #b07d00; }
 .sl-chat li.systeme { color: var(--ink-2); font-style: italic; }
@@ -824,44 +834,38 @@ button { font: inherit; color: inherit; }
 .sl-phrases button, .sl-gestes button { border: 1px solid var(--line); background: var(--chip); border-radius: 999px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
 .sl-chat form { display: flex; gap: 6px; }
 .sl-chat form input { flex: 1; min-width: 0; font: inherit; color: inherit; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; }
-.sl-actions { position: absolute; right: var(--gutter); bottom: var(--gutter); width: min(260px, calc(100% - 2 * var(--gutter))); padding: 10px; border-radius: var(--r-lg); display: grid; gap: 8px; }
+.sl-actions { position: absolute; right: var(--gutter); top: var(--sl-pop, 300px); width: min(260px, calc(100% - 2 * var(--gutter))); padding: 10px; border-radius: var(--r-lg); display: none; gap: 8px; }
+.sl-actions.ouvert { display: grid; }
 .sl-gestes button { font-size: 13px; padding: 6px 12px; font-weight: 600; }
-/* Moins de boutons à l'écran : gestes derrière « Gestes », phrases rapides quand on écrit, pas de zém ni de moto à l'intérieur */
-.sl-gestes-tog { justify-self: start; border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 13px; cursor: pointer; }
-.sl-gestes-tog[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
-.sl-actions .sl-gestes { display: none; }
-.sl-actions.gestes .sl-gestes { display: flex; }
 .sl-chat:not(:focus-within) .sl-phrases { display: none; }
-#slCopier { display: none; }
-.mode-salon.dedans #slZem, .mode-salon.dedans #vhLouer { display: none !important; }
-.sl-actions select { font: inherit; font-weight: 700; color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 999px; padding: 8px 12px; cursor: pointer; }
-.sl-aide { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); margin: 0; font-size: 12px; color: var(--ink-2); background: var(--panel); padding: 3px 10px; border-radius: 999px; white-space: nowrap; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
+.mode-salon.dedans #vhLouer { display: none !important; }
+.sl-aide { animation: sl-aide-part .8s ease 24s forwards; position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); margin: 0; font-size: 12px; color: var(--ink-2); background: var(--panel); padding: 3px 10px; border-radius: 999px; white-space: nowrap; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
+@keyframes sl-aide-part { to { opacity: 0; visibility: hidden; } }
 .sl-joy { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); width: 110px; height: 110px; border-radius: 50%; background: var(--panel); border: 2px solid var(--line); touch-action: none; }
 .sl-courir { position: absolute; left: 28px; bottom: 146px; border: 0; border-radius: 999px; padding: 9px 16px; font-weight: 800; font-size: 14px; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); touch-action: manipulation; }
 .sl-courir[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 .sl-courir[hidden] { display: none; }
 .sl-haut button:disabled { opacity: .45; cursor: default; }
 .sl-joy i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: var(--accent); transform: translate(var(--jx, 0px), var(--jy, 0px)); }
-.sl-boutons { display: none; }
 @media (max-width: 720px) {
-  /* Téléphone : barre compacte, joystick à gauche, discussion et gestes ouverts à la demande. */
+  /* Téléphone : rien d'écrit en bas. À gauche le joystick, « Courir » et la bulle de discussion empilés ; à droite
+     les actions du moment ; en haut à droite la mini-carte et la barre d'icônes. */
   .sl-haut { top: 8px; padding: 4px 4px 4px 12px; gap: 4px; flex-wrap: nowrap; }
   .sl-haut b { font-size: 14px; }
-  .sl-haut small, #slCopier, #slVue { display: none; }
-  .sl-haut button { padding: 7px 11px !important; font-size: 13px; }
-  .sl-chat, .sl-actions { display: none; }
-  .sl-chat.ouvert { display: grid; left: 8px; right: 8px; width: auto; top: 58px; bottom: auto; max-height: 52vh; }
+  .sl-haut small { display: none; }
+  .sl-rail { top: calc(var(--sl-bandeau, 182px) + 8px); right: 8px; gap: 6px; }
+  /* Téléphone : écrire prend le haut de l'écran (le clavier monte du bas). Le reste du bandeau s'efface le temps
+     de la discussion — l'argent, la mini-carte et la barre d'icônes reviennent dès qu'on la referme. */
+  .sl-chat.ouvert { left: 8px; right: 8px; width: auto; top: calc(var(--sl-barre, 58px) + 6px); bottom: auto; max-height: 52vh; }
   .sl-chat.ouvert ol { max-height: 26vh; }
-  .sl-actions.ouvert { display: grid; right: 8px; bottom: 132px; width: min(250px, calc(100% - 16px)); }
-  .sl-boutons { display: flex; flex-direction: column; gap: 8px; position: absolute; right: 12px; bottom: 26px; }
-  .sl-boutons button { position: relative; border: 0; border-radius: 999px; padding: 11px 16px; font-weight: 800; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); }
-  .sl-boutons button[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
-  .sl-boutons b { position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; border-radius: 10px; background: #d64536; color: #fff; font-size: 12px; line-height: 20px; text-align: center; padding: 0 5px; }
+  #app:has(.sl-chat.ouvert) :is(.vie-hud:not(.ouvert), .mini-carte, .sl-rail, .sl-guide, .chap-hud) { display: none !important; }
+  .sl-actions { right: 8px; width: min(250px, calc(100% - 16px)); }
+  .sl-bulle { left: 20px; bottom: 196px; width: 48px; height: 48px; }
   .sl-joy { left: 18px; bottom: 26px; transform: none; }
-  .sl-agir { bottom: 26px; flex-direction: column; max-width: calc(100% - 290px); }
+  .sl-agir { left: auto; right: 12px; bottom: 26px; transform: none; flex-direction: column; align-items: flex-end; max-width: calc(100% - 160px); }
   .sl-agir .jouer, .sl-agir2 { font-size: 14px; padding: 10px 14px; white-space: normal; line-height: 1.2; }
   .sl-aide { display: none; }
-  .sl-gestes-tog { display: none; } .sl-actions.ouvert .sl-gestes, .sl-chat.ouvert .sl-phrases { display: flex; }
+  .sl-chat.ouvert .sl-phrases { display: flex; }
 }
 
 /* ---------- Ma vie : tirage du départ et panneau ---------- */
@@ -890,7 +894,16 @@ button { font: inherit; color: inherit; }
 .vh-louer.vh-louer2 { background: var(--chip); color: var(--ink); }
 /* Menu (demande du 21/10 : moins de choses à l'écran). Replié, le panneau garde l'argent, la faim, l'essence et la vitesse
    en conduisant, la mission, « Travailler » et « Menu » ; le reste s'affiche quand on ouvre le menu (bouton ou Échap). */
-.vie-hud:not(.ouvert) :is(#vhLogement, #vhMetier, #vhDette, #vhPause, #vhFinir, #vhLouer, #vhCommerces, .vh-menu-plus, .vh-titre-menu) { display: none !important; }
+.vie-hud:not(.ouvert) :is(#vhLogement, #vhMetier, #vhDette, #vhPause, #vhFinir, #vhLouer, #vhCommerces, #vhDepart, .vh-boutons, .vh-menu, .vh-menu-plus, .vh-titre-menu) { display: none !important; }
+/* Replié : trois pastilles (l'argent, la faim, l'essence) et « Travailler ». Le reste tient dans le menu, derrière
+   l'icône de la barre de droite — l'écran du jeu n'a plus de panneau posé dessus. */
+.vie-hud:not(.ouvert) { width: auto; max-width: min(430px, calc(100% - 2 * var(--gutter))); padding: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.vie-hud:not(.ouvert) :is(.vh-tete, .vh-faim, .vh-vitesse, .vh-gps) { display: flex; align-items: center; gap: 6px; background: var(--chip); border-radius: 999px; padding: 4px 10px 4px 8px; }
+.vie-hud:not(.ouvert) .vh-faim span { display: none; }
+.vie-hud:not(.ouvert) .vh-faim i { width: 34px; }
+.vie-hud:not(.ouvert) .vh-mission { flex: 1 0 100%; }
+.vh-ic { width: 15px; height: 15px; flex: none; color: var(--ink-2); }
+.vie-hud.ouvert .vh-ic { display: none; }
 .vh-menu-plus, .vh-titre-menu { display: none; }
 .vie-hud.ouvert { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(380px, calc(100vw - 32px)); max-width: none; padding: 18px 20px; gap: 8px; font-size: 14px; z-index: 40; box-shadow: 0 24px 60px rgba(0, 0, 0, .35); }
 .vie-hud.ouvert .vh-titre-menu { display: block; font: 700 11px/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase; }
@@ -901,7 +914,11 @@ button { font: inherit; color: inherit; }
 .vh-voile { position: fixed; inset: 0; background: rgba(10, 14, 12, .45); z-index: 39; }
 @media (pointer: coarse) { .vh-boutons .vh-louer { min-height: 36px; padding: 8px 14px; font-size: 13px; } } /* au doigt : 25 px de haut, c'était trop petit */
 @media (max-width: 720px) {
-  .vie-hud { top: calc(var(--sl-bandeau, 56px) + 6px); left: 8px; width: auto; max-width: 62%; padding: 6px 10px; gap: 2px; }
+  .vie-hud { top: calc(var(--sl-barre, 56px) + 6px); left: 8px; width: auto; max-width: 62%; padding: 6px 10px; gap: 2px; }
+  .vie-hud:not(.ouvert) { max-width: calc(100% - 140px); padding: 4px; font-size: 11px; } /* la mini-carte occupe les 132 px de droite */
+  .vie-hud:not(.ouvert) :is(.vh-tete, .vh-faim) { padding: 3px 8px 3px 6px; gap: 4px; }
+  .vie-hud:not(.ouvert) .vh-faim i { width: 26px; }
+  .vh-ic { width: 13px; height: 13px; }
   .vie-hud:not(.ouvert) #vhLogement, .vie-hud:not(.ouvert) #vhMetier { display: none; }
   .vie-hud.ouvert { top: 50%; left: 50%; }
   .vh-tete b { font-size: 16px; }
@@ -911,7 +928,7 @@ button { font: inherit; color: inherit; }
 
 /* ---------- Fenêtre de choix (zém, menu du comptoir) ---------- */
 .choix[role="dialog"] { position: absolute; inset: 0; z-index: 35; display: grid; place-items: center; background: rgba(10, 12, 16, .45); padding: var(--gutter); }
-.ch-boite { width: min(420px, 100%); max-height: 80vh; overflow: auto; padding: 18px; border-radius: var(--r-lg); display: grid; gap: 10px; }
+.ch-boite { box-sizing: border-box; width: min(420px, 100%); max-height: 80vh; overflow: auto; padding: 18px; border-radius: var(--r-lg); display: grid; gap: 10px; } /* sans border-box, les 18 px de marge débordaient de l'écran d'un téléphone */
 .ch-boite h3 { margin: 0; font: 800 20px/1.25 var(--font-display); }
 .ch-liste { display: grid; gap: 8px; }
 .ch-liste button { display: grid; gap: 2px; text-align: left; border: 1px solid var(--line); background: var(--chip); border-radius: var(--r-md); padding: 10px 14px; cursor: pointer; }
@@ -922,29 +939,21 @@ button { font: inherit; color: inherit; }
 .ch-annuler { justify-self: end; border: 0; background: transparent; color: var(--ink-2); font-weight: 700; cursor: pointer; padding: 6px 10px; }
 
 /* ---------- Ma vie : la prochaine étape (chapitres.js) ---------- */
-.chap-hud { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); z-index: 5; width: min(440px, calc(100% - 2 * var(--gutter))); display: grid; gap: 6px; padding: 10px 14px 11px; border-radius: 16px; text-align: left; color: var(--ink); font: inherit; transition: background .25s, color .25s; }
-.chap-hud[hidden] { display: none; }
-.chap-corps { all: unset; display: grid; gap: inherit; cursor: pointer; padding-right: 30px; }
+.chap-hud { position: absolute; right: var(--gutter); top: var(--sl-pop, 300px); z-index: 5; width: min(340px, calc(100% - 2 * var(--gutter))); display: none; gap: 6px; padding: 10px 14px 11px; border-radius: 16px; text-align: left; color: var(--ink); font: inherit; transition: background .25s, color .25s; }
+.chap-hud[hidden] { display: none !important; }
+#app.obj-ouvert .chap-hud, .chap-hud.reussi { display: grid; } /* ouverte depuis l'icône « Objectifs » ; une étape réussie se montre toujours */
+.chap-corps { all: unset; display: grid; gap: inherit; cursor: pointer; }
 .chap-corps:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
-/* Replier : le chapitre et la barre seulement. */
-.chap-replier { position: absolute; top: 4px; right: 6px; width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent; color: var(--ink-2); font: 700 16px/30px var(--font-body); cursor: pointer; transition: transform .2s; }
-.chap-replier:hover { background: var(--line); }
-.chap-hud.reussi .chap-replier { color: #fff; }
-.chap-hud.replie .chap-etape, .chap-hud.replie .chap-prime { display: none; }
-.chap-hud.replie .chap-replier { transform: rotate(180deg); }
-/* Ordinateur : le guide, l'étape du chapitre et les boutons d'action restent entre la discussion (à gauche) et le panneau
-   de droite ; sur un écran de portable, ils passaient sous la discussion et recouvraient « Envoyer ». */
+/* Ordinateur : le guide et les boutons d'action restent au milieu, entre la bulle de discussion (à gauche) et la
+   barre d'icônes (à droite) — 90 px suffisent de chaque côté depuis qu'il n'y a plus de panneau posé en bas. */
 @media (min-width: 721px) {
-  .sl-agir { left: calc(2 * var(--gutter) + 340px); right: calc(2 * var(--gutter) + 260px); width: fit-content; max-width: none; transform: none; margin-inline: auto; flex-wrap: wrap; justify-content: center; }
-  .sl-guide, .chap-hud { left: calc(2 * var(--gutter) + 340px); right: calc(2 * var(--gutter) + 260px); width: auto; max-width: 460px; transform: none; margin-inline: auto; }
-}
-@media (min-width: 721px) and (max-width: 1180px) { /* trop serré entre les deux : en haut, sous la barre du salon */
-  .sl-guide, .chap-hud { top: calc(var(--sl-bandeau, 84px) + 8px); bottom: auto; left: 310px; right: 210px; }
+  .sl-agir, .sl-guide { left: calc(2 * var(--gutter) + 90px); right: calc(2 * var(--gutter) + 90px); width: fit-content; max-width: 460px; transform: none; margin-inline: auto; flex-wrap: wrap; justify-content: center; }
+  #app:has(.sl-chat.ouvert) :is(.sl-agir, .sl-guide) { left: calc(2 * var(--gutter) + 352px); } /* le fil de discussion déplié prend ses 340 px à gauche */
 }
 /* Fenêtre étroite (tablette en portrait, navigateur à moitié d'écran) : la barre du salon tient toute la largeur et
    l'argent se glissait dessous. On le range à gauche sous la barre, comme sur un téléphone. */
 @media (min-width: 721px) and (max-width: 1100px) {
-  .vie-hud:not(.ouvert) { top: calc(var(--sl-bandeau, 56px) + 8px); }
+  .vie-hud:not(.ouvert) { top: calc(var(--sl-barre, 56px) + 8px); }
 }
 /* « Ton départ » s'affichait par-dessus le formulaire « Vivre à Cotonou », encore visible dessous : une fenêtre à la fois. */
 #app:has(#vieTirage:not([hidden])) #salon { visibility: hidden; }
@@ -960,7 +969,7 @@ button { font: inherit; color: inherit; }
 .chap-hud.reussi small, .chap-hud.reussi .chap-prime { color: #fff; }
 .chap-hud.reussi .chap-prime { font-size: 15px; }
 @media (max-width: 720px) {
-  .chap-hud { bottom: 182px; left: 12px; right: 12px; width: auto; transform: none; padding: 8px 12px 9px; gap: 4px; }
+  .chap-hud { right: 8px; width: min(300px, calc(100vw - 72px)); padding: 8px 12px 9px; gap: 4px; }
   .chap-etape { font-size: 13.5px; }
 }
 /* L'argent qui arrive des commerces, à côté du portefeuille */
@@ -1078,33 +1087,36 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 540px) {
   .sl-haut { top: 6px; padding: 3px 3px 3px 10px; gap: 4px; flex-wrap: nowrap; }
   .sl-haut b { font-size: 13px; }
-  .sl-haut small, #slCopier, #slVue { display: none; }
-  .sl-haut button { padding: 6px 10px !important; font-size: 12px; }
+  .sl-haut small { display: none; }
   .vie-hud { top: 6px; left: 8px; width: auto; max-width: 30%; padding: 5px 9px; gap: 2px; font-size: 11px; }
+  .vie-hud:not(.ouvert) { top: 6px; max-width: 46%; flex-wrap: nowrap; padding: 4px; } /* les trois pastilles sur une seule ligne, tout en haut : sinon elles descendent sur la discussion */
+  .vie-hud:not(.ouvert) :is(.vh-tete, .vh-faim) { padding: 3px 8px 3px 6px; gap: 4px; }
+  .vie-hud:not(.ouvert) .vh-faim i { width: 26px; }
   .vie-hud:not(.ouvert) #vhLogement, .vie-hud:not(.ouvert) #vhMetier { display: none; }
   .vh-tete b { font-size: 15px; }
   .vie-hud .vh-boutons .vh-louer { min-height: 30px; padding: 5px 10px; font-size: 12px; }
   .vie-hud.ouvert { max-width: none; max-height: calc(100vh - 24px); overflow-y: auto; }
   .mini-carte { top: 6px; right: 8px; width: 92px; height: 92px; }
-  .sl-chat, .sl-actions { display: none; }
-  .sl-chat.ouvert { display: grid; left: 8px; right: auto; top: 54px; bottom: 8px; width: min(340px, 44vw); max-height: none; }
+  .sl-chat.ouvert { left: 118px; right: auto; top: 62px; bottom: 8px; width: min(330px, 40vw); max-height: none; } /* à droite de la colonne joystick / courir / bulle */
+  #app:has(.sl-chat.ouvert) :is(.sl-guide, .chap-hud) { display: none !important; } /* on ne lit pas le guide et la discussion en même temps sur 390 px de haut */
   .sl-chat.ouvert ol { max-height: none; min-height: 0; }
-  .sl-actions.ouvert { display: grid; right: 150px; bottom: 8px; width: min(250px, 34vw); max-height: calc(100vh - 64px); overflow-y: auto; }
-  .sl-boutons { display: flex; flex-direction: column; gap: 6px; position: absolute; right: 10px; bottom: 10px; }
-  .sl-boutons button { position: relative; border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 13px; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); }
-  .sl-boutons button[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
-  .sl-boutons b { position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: #d64536; color: #fff; font-size: 11px; line-height: 18px; text-align: center; padding: 0 4px; }
-  .sl-joy { left: 16px; bottom: 12px; transform: none; width: 96px; height: 96px; }
-  .sl-agir { left: 130px; right: 150px; bottom: 10px; width: fit-content; max-width: none; transform: none; margin-inline: auto; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  /* L'écran ne fait que 390 px de haut : la barre d'icônes passe sur deux colonnes à côté de la mini-carte. */
+  .sl-rail { top: 6px; right: 108px; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .sl-actions { right: 10px; top: auto; bottom: 8px; width: min(250px, 34vw); max-height: calc(100vh - 64px); overflow-y: auto; }
+  .sl-bulle { left: 14px; bottom: 112px; width: 44px; height: 44px; }
+  .sl-bulle svg { width: 21px; height: 21px; }
+  .sl-joy { left: 12px; bottom: 10px; transform: none; width: 92px; height: 92px; }
+  .sl-agir { left: auto; right: 10px; bottom: 10px; width: fit-content; max-width: 38vw; transform: none; margin: 0; flex-direction: column; align-items: flex-end; }
   .sl-agir .jouer, .sl-agir2 { font-size: 13px; padding: 9px 13px; white-space: normal; line-height: 1.2; }
-  .sl-guide, .chap-hud { top: calc(var(--sl-bandeau, 50px) + 6px); bottom: auto; left: 50%; right: auto; transform: translateX(-50%); width: min(420px, calc(100vw - 380px)); max-width: none; margin: 0; padding: 7px 11px; gap: 3px; } /* 190 px réservés de chaque côté : l’argent à gauche, la mini-carte à droite */
+  .sl-guide { top: calc(var(--sl-bandeau, 50px) + 6px); bottom: auto; left: 50%; right: auto; transform: translateX(-50%); width: min(420px, calc(100vw - 380px)); max-width: none; margin: 0; padding: 7px 11px; gap: 3px; } /* 190 px réservés de chaque côté : l’argent à gauche, la mini-carte à droite */
+  .chap-hud { top: auto; bottom: 8px; right: 164px; width: min(280px, 36vw); padding: 7px 11px; gap: 3px; }
   .sl-guide p { font-size: 13px; line-height: 1.3; }
-  .sl-aide, .sl-gestes-tog { display: none; }
-  .sl-actions.ouvert .sl-gestes, .sl-chat.ouvert .sl-phrases { display: flex; }
+  .sl-aide { display: none; }
+  .sl-chat.ouvert .sl-phrases { display: flex; }
   /* fenêtres plus hautes que l'écran (création du personnage, « Ton départ ») : elles défilent au lieu de sortir par le haut */
   .evenement { top: 8px; bottom: 8px; transform: translateX(-50%); max-height: calc(100vh - 16px); overflow-y: auto; padding: 14px 18px 12px; }
   .vt-boite { max-height: calc(100vh - 24px); overflow-y: auto; padding: 14px; }
-  .sl-courir { left: 22px; bottom: 116px; padding: 7px 13px; font-size: 13px; }
+  .sl-courir { left: 14px; bottom: 164px; padding: 7px 13px; font-size: 13px; }
   /* accueil : la carte des deux façons de jouer tient sur 390 px de haut */
   .ac-barre { top: 6px; padding: 4px 12px 4px 5px; } .ac-marque { font-size: 16px; } .ac-marque .logo { width: 28px; height: 28px; }
   .ac-puces { top: 48px; } .ac-puce { padding: 6px 12px; font-size: 13px; }
@@ -1192,25 +1204,25 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
 
 /* Au doigt : 44 px de haut partout (recommandation d'Apple et de Google), sinon on vise à côté. */
 @media (pointer: coarse) {
-  .salon-hud :is(.vh-boutons .vh-louer, .sl-haut button, .sl-courir, .sl-actions button, .sl-actions select, .sl-boutons button) { min-height: 44px; }
-  .salon-hud .sl-haut button { padding: 10px 16px; }
+  .salon-hud :is(.vh-boutons .vh-louer, .sl-courir, .sl-actions button, .sl-phrases button, .sl-chat form button) { min-height: 44px; }
+  .ch-liste button { min-height: 44px; } /* « Aller » passe par cette liste : au doigt, chaque ligne doit s'attraper */
+  .sl-chat-fermer { width: 44px; height: 44px; }
+  .salon-hud :is(.sl-ic, .sl-bulle) { min-height: 44px; min-width: 44px; padding: 11px; }
   .vh-boutons .vh-louer { padding: 10px 16px; }
   .sl-courir { padding: 11px 18px; }
 }
 @media (pointer: coarse) and (max-width: 720px) {
   .sl-haut { padding: 6px 6px 6px 12px; gap: 6px; }
   .sl-haut b { font-size: 14px; }
-  /* Au-dessus de « Courir » (bas 146 px, haut ~190) : le guide prend toute la largeur sur un téléphone,
-     donc rien ne peut se mettre à côté — il doit passer par-dessus, pas devant. */
-  .sl-guide { bottom: 200px; padding: 10px 14px; font-size: 13px; }
+  .sl-guide { padding: 10px 14px; font-size: 13px; }
   .sl-guide .ev-sur { font-size: 10px; }
 }
 
 /* Le bouton « Aller · gestes » bat tant qu'on ne l'a pas ouvert une fois : c'est derrière lui que se trouvent
    « M'habiller », « Prendre un zém » et « Aller à », et il est fermé par défaut (retour d'un testeur, 24/10). */
 @keyframes sl-appel { 0%, 100% { box-shadow: var(--shadow), 0 0 0 0 rgba(242, 183, 5, .55); } 50% { box-shadow: var(--shadow), 0 0 0 9px rgba(242, 183, 5, 0); } }
-.sl-boutons button.appel, #slGestesBtn.appel { animation: sl-appel 1.7s ease-out infinite; outline: 2px solid var(--accent); outline-offset: 1px; }
-@media (prefers-reduced-motion: reduce) { .sl-boutons button.appel, #slGestesBtn.appel { animation: none; } }
+#slGestesBtn.appel { animation: sl-appel 1.7s ease-out infinite; outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { #slGestesBtn.appel { animation: none; } }
 
 /* Perte du contexte WebGL (le navigateur reprend la carte graphique) : au lieu d'un écran noir muet, on le dit. */
 #app.webgl-perdu::after { content: 'La carte graphique a été reprise par le navigateur. Recharge la page.'; position: fixed; inset: auto 0 0; z-index: 90; padding: 14px 16px; background: #b3261e; color: #fff; font: 700 14px/1.4 var(--font-body); text-align: center; }

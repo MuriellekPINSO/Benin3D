@@ -314,7 +314,9 @@ export function rendreVie() {
   $('#vhDette').hidden = !v.dette && !(v.versement > 0);
   $('#vhDette').textContent = [v.dette ? `Dette : ${fmt(v.dette)}` : '', v.versement > 0 ? `Versement au patron : ${fmt(v.versement)}` : ''].filter(Boolean).join(' · ');
   $('#vhMission').hidden = !VIE.mission; $('#vhMission').textContent = VIE.mission;
-  $('#vhTravail').textContent = VIE.service ? 'Mon travail' : 'Travailler';
+  const travail = VIE.service ? 'Mon travail' : 'Travailler';
+  $('#vhTravail').textContent = travail;
+  const bt = $('#slTravail'); if (bt) { bt.title = travail; bt.querySelector('.t-long').textContent = travail; } // le même bouton dans la barre d'icônes
   $('#vhPause').hidden = $('#vhFinir').hidden = !VIE.service; $('#vhPause').textContent = VIE.pause ? 'Reprendre le travail' : 'Pause'; // en service : la pause et la fin de journée en vue
   const R = reservoir(), c = carburant();
   $('#vhEssenceLigne').hidden = !R;

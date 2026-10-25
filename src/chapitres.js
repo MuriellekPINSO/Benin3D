@@ -47,16 +47,11 @@ export function initChapitres({ ligne, guide }) {
   CH.ligne = ligne; CH.guide = guide;
   surSignal((evt, n) => { const e = etape(); if (CH.charge && e?.compte === evt) { CH.n += n; if (CH.n < e.but) sauver(); afficher(); } });
   $('#chapOuvrir')?.addEventListener('click', montrerChapitres);
-  // Replié, il ne reste que le chapitre et la barre : sur téléphone, le panneau entier cachait le jeu (testeur, 22/10).
-  let replie = false; try { replie = localStorage.getItem('kutonu.chap.replie') === '1'; } catch { /* navigation privée */ }
-  const plier = r => { replie = r; $('#chapHud')?.classList.toggle('replie', r); const b = $('#chapReplier'); if (b) { b.setAttribute('aria-expanded', String(!r)); b.setAttribute('aria-label', r ? 'Déplier l’étape' : 'Replier l’étape'); } };
-  plier(replie);
-  $('#chapReplier')?.addEventListener('click', () => { plier(!replie); try { localStorage.setItem('kutonu.chap.replie', replie ? '1' : '0'); } catch { /* */ } });
   if (import.meta.env.DEV) window.__chapitres = { CH, ETAPES, reussir: () => reussir() }; // pour les tests
 }
 /** À l'entrée dans le salon : la progression enregistrée. */
 export function entrerChapitres() {
-  const d = lireEnPlus('chapitres'); CH.i = Math.min(ETAPES.length, d?.i || 0); CH.n = d?.n || 0; CH.charge = true; CH.fete = 0; afficher();
+  const d = lireEnPlus('chapitres'); CH.i = Math.min(ETAPES.length, d?.i || 0); CH.n = d?.n || 0; CH.charge = true; CH.fete = 0; signaler(); afficher();
 }
 export function quitterChapitres() { if (CH.charge) sauver(); CH.charge = false; const el = $('#chapHud'); if (el) el.hidden = true; }
 function sauver() { ecrireEnPlus('chapitres', { i: CH.i, n: Math.round(CH.n) }); }
@@ -71,7 +66,7 @@ export function majChapitres(dt) {
 }
 function reussir() {
   const e = etape(); if (!e) return;
-  CH.i++; CH.n = 0; sauver(); son('piece');
+  CH.i++; CH.n = 0; sauver(); son('piece'); signaler();
   if (e.prime) gagner(e.prime, 'étape réussie', { source: 'prime' });
   const finChapitre = e.k === CHAPITRES[e.c].etapes.length - 1, el = $('#chapHud');
   if (el && !CH.guide()) {
@@ -97,11 +92,20 @@ function afficherPaliers() {
   $('#chapEtape').textContent = suivant ? `Prochain titre : « ${titre(atteint + 1)} » à ${fmt(suivant[0])} (tu as ${fmt(argent)}). Tes commerces travaillent pour toi : ${nbCommerces()} ouvert${nbCommerces() > 1 ? 's' : ''}.` : `Tu es au sommet de Cotonou avec ${fmt(argent)}.`;
   $('#chapPrime').textContent = '';
 }
-function masquerSiGuide() { const el = $('#chapHud'); if (el && CH.guide() && !el.hidden) el.hidden = true; }
+/** Une nouvelle étape à lire : la pastille rouge de l'icône « Objectifs » s'allume, tant qu'on n'a pas ouvert la fenêtre. */
+function signaler() {
+  const pt = $('#slObjPoint'); if (!pt) return;
+  pt.hidden = chapitreFini() || document.getElementById('app')?.classList.contains('obj-ouvert');
+  pt.textContent = '!';
+}
+// La prise en main occupe déjà l'écran : l'étape en cours attend son tour — sauf si on a ouvert « Objectifs » exprès.
+const demande = () => document.getElementById('app')?.classList.contains('obj-ouvert');
+function masquerSiGuide() { const el = $('#chapHud'); if (el && CH.guide() && !demande() && !el.hidden) el.hidden = true; }
+export function afficherChapitres() { afficher(); }
 function afficher() {
   const el = $('#chapHud'); if (!el) return;
   el.classList.remove('reussi');
-  if (!CH.charge || CH.guide()) { el.hidden = true; return; }
+  if (!CH.charge || (CH.guide() && !demande())) { el.hidden = true; return; }
   const e = etape(); el.hidden = false;
   if (!e) return afficherPaliers();
   const C = CHAPITRES[e.c];
