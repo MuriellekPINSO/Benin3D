@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { $, coarse, toXZ } from './base.js';
+import { $, LITE, coarse, toXZ } from './base.js';
 import { PLACES } from './donnees-lieux.js';
 import { creerGuide } from './guide.js';
 import { BALADES, DEVANT_CAI, POSE_VELO, PRES_DE_CAI } from './caicai.js';
@@ -41,7 +41,11 @@ import { camera, canvas, controls, scene } from './scene.js';
 // database.rules.json. Avec ?salon-local dans l'adresse, les onglets du même navigateur se relient sans
 // serveur (BroadcastChannel) : c'est le mode de test.
 
-const MAX = 8, ENVOI = .2, LETTRES = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', CLE = 'cotonou3d.salon';
+// Huit par ville : on n'y croisait presque jamais personne, alors que c'est tout l'intérêt (« 30 personnes pour
+// la même map », « même sans inviter d'amis, il faut que je voie d'autres personnes : il faut remplir le jeu »).
+// Trente, donc, avec deux garde-fous plus bas : on n'envoie pas sa position plus souvent parce qu'on est plus
+// nombreux, et on ne dessine que ceux qui sont assez près pour être autre chose qu'un point.
+const MAX = 30, ENVOI = .2, VU = LITE ? 90 : 160, LETTRES = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', CLE = 'cotonou3d.salon';
 // La ville publique : on y entre sans invitation, au lieu d'un code que l'on s'envoie entre amis. Ces codes-là
 // sont connus d'avance et les mêmes pour tout le monde. On remplit la première ville qui a de la place, dans
 // l'ordre : mieux vaut huit personnes dans une ville que une personne dans huit villes. Douze villes de 8 font
@@ -505,7 +509,7 @@ const GS = { vuCouche: false, marche: 0, px: null, pz: 0, activite: false, dehor
 let guideSalon = null;
 const etapesSalon = () => [
   { id: 'lever', texte: () => coarse ? 'Tu te réveilles chez toi. Touche « Se lever ».' : 'Tu te réveilles chez toi. [E] pour te lever.', quand: () => !!S.couche, fait: () => GS.vuCouche && !S.couche },
-  { id: 'marcher', texte: () => coarse ? 'Le joystick pour marcher, « Courir » pour courir.' : 'Flèches ou [Z] [Q] [S] [D] pour marcher. Clique dans la ville pour tourner la caméra, [Échap] pour la libérer.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
+  { id: 'marcher', texte: () => coarse ? 'Le joystick pour marcher, « Courir » pour courir.' : 'Flèches ou [Z] [Q] [S] [D] pour marcher. Glisse dans la ville pour tourner la caméra.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
   { id: 'maison', texte: 'Approche-toi de la douche, du fourneau ou de la table : le bouton vert fait le reste.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.activite || GS.dehorsT > 0 },
   { id: 'rue', texte: () => coarse ? '« Aller · gestes », en bas à droite : choisis où aller, le chemin s’allume au sol. « Travailler », en haut à gauche, te trouve un métier.' : '« Aller à », en bas à droite : choisis où aller, le chemin s’allume au sol. « Travailler », en haut à gauche, te trouve un métier.', quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier },
   { id: 'vie', texte: 'En haut à gauche : ton argent et ta faim. Mange quand elle baisse — maquis, food court, ou chez toi.', quand: () => GS.dehorsT > 16 && !!VIE.data?.metier, fait: () => !!VIE.service, duree: 40 }, // se ferme quand on commence à travailler
@@ -540,6 +544,12 @@ function mesurerBandeau() {
   addEventListener('resize', poser); poser();
 }
 let bandeauVu = false;
+
+/** L'appel du bouton « Aller · gestes » s'arrête dès qu'on l'a ouvert une fois. */
+function vuGestes() {
+  $('#slGestesBtn')?.classList.remove('appel');
+  try { localStorage.setItem('cotonou3d.vuGestes', '1'); } catch { /* navigation privée */ }
+}
 
 export function majSalon(dt) {
   if (!S.actif) { E.joueur = null; majAmbianceSalon(dt, null); return; }
@@ -640,7 +650,7 @@ export function majSalon(dt) {
   // Sa position aux autres, cinq fois par seconde (et au moins toutes les 2,5 s pour rester « présent »).
   S.envoi -= dt; S.depuis += dt;
   if (S.envoi <= 0 && S.canal) {
-    S.envoi = ENVOI;
+    S.envoi = ENVOI * (1 + S.autres.size / 30); // à trente en ville, 0,4 s : l'interpolation (kk) comble le reste
     const vh = T.mode === 'conduit' ? T.veh.type : T.mode === 'passager' ? 'zem' : T.mode === 'avion' ? 'avion' : T.mode === 'apprenti' ? 'tokpa' : ''; // le véhicule sous soi, pour les amis
     const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}) }, k = JSON.stringify(e);
     if (k !== S.dernier || S.depuis > 2.5) { S.dernier = k; S.depuis = 0; S.canal.envoyer(e); }
@@ -654,7 +664,8 @@ export function majSalon(dt) {
     const dx = e.x - A.x, dz = e.z - A.z; A.x += dx * kk; A.z += dz * kk; A.y = (A.y ?? ey) + (ey - (A.y ?? ey)) * kk;
     A.vitesse = Math.hypot(dx * kk, dz * kk) / Math.max(dt, .001); // à l'arrêt, la position lissée rattrape la dernière reçue et la vitesse tombe à 0
     let da = (e.h || 0) - A.cap; da = Math.atan2(Math.sin(da), Math.cos(da)); A.cap += da * kk;
-    if (A.g) A.g.visible = (e.i || '') === (S.lieu?.id || '') && !enAvion; // seulement ceux qui sont dans la même pièce (ou dehors) ; en avion, on voit l'avion
+    const pres = (A.x - S.x) ** 2 + (A.z - S.z) ** 2 < VU * VU;
+    if (A.g) A.g.visible = pres && (e.i || '') === (S.lieu?.id || '') && !enAvion; // dans la même pièce (ou dehors) et assez près ; en avion, on voit l'avion
     if (enAvion) { A.avion ??= creerAvion(); poserAvion(A.avion, A.x, A.y, A.z, A.cap, e.ta || 0, e.ro || 0); A.avion.helice.visible = true; }
     else if (A.avion) { retirerAvion(A.avion); A.avion = null; }
     const V = vehiculeDe(A, ['moto', 'voiture', 'zem', 'taxi', 'tokpa'].includes(e.vh) && !(e.i || S.lieu) ? e.vh : null);
@@ -927,7 +938,13 @@ export function initSalon(data) {
     const ouvert = !$(panneau).classList.contains('ouvert'); $(panneau).classList.toggle('ouvert', ouvert); $(bouton).setAttribute('aria-expanded', String(ouvert));
     if (ouvert) { $(autre[1]).classList.remove('ouvert'); $(autre[0]).setAttribute('aria-expanded', 'false'); }
     if (panneau === '#slChat' && ouvert) { S.nonLus = 0; $('#slNonLus').hidden = true; $('#slMessages').scrollTop = 1e6; }
+    if (panneau === '#slActions' && ouvert) vuGestes();
   });
+  // « La discussion et l'icône des gestes sont fermées par défaut : tu pourrais faire clignoter l'icône » (un
+  // testeur, 24/10) : le bouton « Aller · gestes » bat doucement tant qu'on ne l'a pas ouvert une fois. C'est
+  // derrière lui que se trouvent « M'habiller », « Prendre un zém » et « Aller à » — tout ce qu'on cherche au
+  // début sans le trouver. Retenu d'une partie à l'autre.
+  try { if (!localStorage.getItem('cotonou3d.vuGestes')) $('#slGestesBtn')?.classList.add('appel'); } catch { /* navigation privée */ }
   bascule('#slChatBtn', '#slChat', ['#slGestesBtn', '#slActions']); bascule('#slGestesBtn', '#slActions', ['#slChatBtn', '#slChat']);
   // Fermer la discussion (×) : sur ordinateur, elle laisse place à un bouton « Discussion » ; sur téléphone, elle se replie. Retenu.
   const app = document.getElementById('app'), chatFerme = on => { app.classList.toggle('chat-ferme', on); try { localStorage.setItem('cotonou3d.chatFerme', on ? '1' : ''); } catch { /* navigation privée */ } if (!on) { S.nonLus = 0; $('#slNonLus').hidden = true; } };
@@ -936,7 +953,7 @@ export function initSalon(data) {
   $('#slChatBtn')?.addEventListener('click', () => { if (!matchMedia('(max-width: 720px)').matches) { chatFerme(false); $('#slTexte').focus(); } });
   $('#slForm')?.addEventListener('submit', e => { e.preventDefault(); dire($('#slTexte').value); $('#slTexte').value = ''; });
   const ph = $('#slPhrases'); if (ph) for (const p of PHRASES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = p; b.addEventListener('click', () => dire(p)); ph.append(b); }
-  const ge = $('#slGestes'); if (ge) for (const [i, [id, nom]] of GESTES.entries()) { const b = document.createElement('button'); b.type = 'button'; b.textContent = coarse ? nom : `${i + 1} · ${nom}`; b.title = `Touche ${i + 1}`; b.addEventListener('click', () => geste(id)); ge.append(b); } // au clavier, le chiffre du geste est écrit sur le bouton
+  const ge = $('#slGestes'); if (ge) for (const [i, [id, nom]] of GESTES.entries()) { const b = document.createElement('button'); b.type = 'button'; b.textContent = coarse ? nom : `${i + 1} · ${nom}`; b.addEventListener('click', () => geste(id)); ge.append(b); } // au clavier, le chiffre du geste est écrit sur le bouton
   const al = $('#slAller');
   if (al) {
     al.append(new Option('Aller à…', '')); for (const [id, nom] of LIEUX) al.append(new Option(nom, id)); al.addEventListener('change', () => { if (al.value) aller(al.value); al.value = ''; al.blur(); });
@@ -966,9 +983,12 @@ export function initSalon(data) {
   canvas.addEventListener('pointerdown', e => { if (S.actif) S.glisse = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
   window.addEventListener('pointermove', e => { if (S.glisse && e.pointerId === S.glisse.id) { S.orbite -= (e.clientX - S.glisse.x) * .006; S.orbiteT = performance.now(); S.tangage = THREE.MathUtils.clamp(S.tangage + (e.clientY - S.glisse.y) * .005, -.15, 1.48); S.glisse.x = e.clientX; S.glisse.y = e.clientY; } }); // vers le bas : on prend de la hauteur
   window.addEventListener('pointerup', e => { if (S.glisse?.id === e.pointerId) S.glisse = null; });
-  // Ordinateur : un clic dans la ville et la souris dirige la caméra, sans tenir de bouton (verrouillage du pointeur,
-  // comme dans les jeux) ; Échap la libère. Avant, il fallait cliquer et garder le bouton enfoncé pour tourner.
-  canvas.addEventListener('click', e => { if (S.actif && !coarse && e.pointerType !== 'touch' && !document.pointerLockElement && !S.menu) canvas.requestPointerLock?.()?.catch?.(() => { }); });
+  // Un clic dans la ville verrouillait le pointeur : la souris dirigeait la caméra sans tenir de bouton, comme
+  // dans un jeu installé. Mais le curseur disparaissait au premier clic, le navigateur affichait son bandeau
+  // « pour afficher le curseur, appuyez sur Échap », et l'on ne savait plus cliquer sur les boutons —
+  // « la souris disparaît lorsque tu bouges », « le dispositif pour bouger la caméra est à revoir » (deux
+  // testeurs, 24/10). On garde le glisser, juste au-dessus : on tient le bouton pour tourner, et le curseur
+  // reste là. Le code du pointeur verrouillé reste, au cas où le navigateur le prenne autrement.
   document.addEventListener('mousemove', e => {
     if (!S.actif || document.pointerLockElement !== canvas) return;
     S.orbite -= e.movementX * .0032; S.tangage = THREE.MathUtils.clamp(S.tangage + e.movementY * .0028, -.15, 1.48); S.orbiteT = performance.now();

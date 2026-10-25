@@ -251,7 +251,6 @@
     "Reprendre": "Resume",
     "Quitter la partie": "Leave the game",
     "Aller · gestes": "Go · gestures",
-    "Clic dans la ville : la souris dirige la caméra · Échap : libérer la souris · Flèches ou ZQSD : marcher · Maj : courir · E, R, F : actions · V : vue · M : carte · Entrée : écrire": "Click in the city: the mouse steers the camera · Esc: free the mouse · Arrows or WASD: walk · Shift: run · E, R, F: actions · V: view · M: map · Enter: type",
     "Courir": "Run",
     "Ta vie en ville : un logement, un métier, ton maquis, tes amis": "Your life in the city: a home, a job, your maquis, your friends",
     "Ta vie en ville : un logement, un métier, ton maquis, tes amis.": "Your life in the city: a home, a job, your maquis, your friends.",
@@ -279,7 +278,8 @@
     "Gaz, Frein, ◀ ▶, Saut et E à l'écran, comme sur une manette.": "Gas, Brake, ◀ ▶, Jump and E on screen, like a gamepad.",
     "Entrer en ville": "Enter the city",
     "Entre amis seulement": "Friends only",
-    "En ville, tu croises des gens que tu ne connais pas. Entre amis, personne d’autre que ceux à qui tu envoies le lien.": "In the city you run into people you don’t know. Among friends, nobody but the people you send the link to."
+    "En ville, tu croises des gens que tu ne connais pas. Entre amis, personne d’autre que ceux à qui tu envoies le lien.": "In the city you run into people you don’t know. Among friends, nobody but the people you send the link to.",
+    "Glisse dans la ville pour tourner la caméra · Flèches ou ZQSD : marcher · Maj : courir · E, R, F : actions · V : vue · M : carte · Entrée : écrire": "Drag in the city to turn the camera · Arrows or WASD: walk · Shift: run · E, R, F: actions · V: view · M: map · Enter: type"
   },
   "src/evenement.js": {
     "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -544,7 +544,6 @@
     ", emmène-moi": ", take me",
     "'Te voilà dans la rue. Le bouton « Aller · gestes », en bas à droite, ouvre « Aller à » (pour aller vers un lieu) et « Prendre un zém ». En haut à gauche, « Travailler » te trouve un métier pour gagner de l’argent.'": "'You are in the street. The “Go · gestures” button, bottom right, opens “Go to” (to head to a place) and “Take a zém”. Top left, “Work” finds you a job to earn money.'",
     "'Du bas'": "'From below'",
-    "'Marche avec les flèches ou [Z] [Q] [S] [D]. Clique dans la ville : la souris dirige la caméra ([Échap] la libère). Les boutons verts en bas changent selon ce qui est près de toi.'": "'Walk with the arrows or [W] [A] [S] [D]. Click in the city: the mouse steers the camera ([Esc] frees it). The green buttons at the bottom change depending on what is near you.'",
     "'La vue change une fois dehors'": "'The view changes once you are outside'",
     "'Changer de vue (V)'": "'Change view (V)'",
     "'Marche avec le joystick, et touche « Courir » pour courir. Les boutons verts en bas changent selon ce qui est près de toi.'": "'Walk with the joystick, and tap “Run” to run. The green buttons at the bottom change depending on what is near you.'",
@@ -592,12 +591,12 @@
     "'Tu te réveilles chez toi. Touche « Se lever ».'": "'You wake up at home. Tap “Get up”.'",
     "'Tu te réveilles chez toi. [E] pour te lever.'": "'You wake up at home. [E] to get up.'",
     "'Le joystick pour marcher, « Courir » pour courir.'": "'Joystick to walk, “Run” to run.'",
-    "'Flèches ou [Z] [Q] [S] [D] pour marcher. Clique dans la ville pour tourner la caméra, [Échap] pour la libérer.'": "'Arrows or [W] [A] [S] [D] to walk. Click in the city to steer the camera, [Esc] to release it.'",
     "'Approche-toi de la douche, du fourneau ou de la table : le bouton vert fait le reste.'": "'Walk up to the shower, the stove or the table: the green button does the rest.'",
     "'« Aller · gestes », en bas à droite : choisis où aller, le chemin s’allume au sol. « Travailler », en haut à gauche, te trouve un métier.'": "'“Go · gestures”, bottom right: pick where to go, the way lights up on the ground. “Work”, top left, finds you a job.'",
     "'« Aller à », en bas à droite : choisis où aller, le chemin s’allume au sol. « Travailler », en haut à gauche, te trouve un métier.'": "'“Go to”, bottom right: pick where to go, the way lights up on the ground. “Work”, top left, finds you a job.'",
     "'En haut à gauche : ton argent et ta faim. Mange quand elle baisse — maquis, food court, ou chez toi.'": "'Top left: your money and your hunger. Eat when it drops — a maquis, the food court, or at home.'",
-    " · ta destination": " · where you’re going"
+    " · ta destination": " · where you’re going",
+    "'Flèches ou [Z] [Q] [S] [D] pour marcher. Glisse dans la ville pour tourner la caméra.'": "'Arrows or [W] [A] [S] [D] to walk. Drag in the city to turn the camera.'"
   },
   "src/interieurs.js": {
     "'Chez Tantie Rose'": "'Chez Tantie Rose'",
