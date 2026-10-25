@@ -101,6 +101,31 @@ function retenir(z, x, zz, dx, dz) {
   z.px = x; z.pz = zz; z.fx = dx; z.fz = dz; z.cap = Math.atan2(dx, dz);
   const J = E.joueur; if (J && (x - J.x) ** 2 + (zz - J.z) ** 2 < 1600) E.circulation.push(z);
 }
+/**
+ * Le joueur pousse et n'avance pas : on dégage les zéms et les tokpas qui le serrent.
+ *
+ * Capture d'un testeur : sa voiture arrêtée, deux zéms à cheval sur la carrosserie, impossible de repartir.
+ * Ils s'étaient arrêtés à cause d'elle (cede), elle ne pouvait plus bouger à cause d'eux (dansCirculation),
+ * et personne ne cédait. Le même garde-fou existait déjà pour la circulation dense (circulation.js) mais pas
+ * pour ces zéms-là, qui sont d'un autre système.
+ *
+ * On les fait avancer de quarante mètres sur leur propre rue : ils repartent devant, la voie se libère, et à
+ * cette distance le saut ne se voit pas — ce sont des silhouettes d'un mètre.
+ */
+export function degagerAutourDuJoueur(J) {
+  const Jr = Math.max(J.hl ?? .3, J.hw ?? .3) + 2.5;
+  let n = 0;
+  for (const liste of [E.zemState, E.tokpaState]) {
+    for (const z of liste || []) {
+      if (z.px === undefined) continue;
+      const dx = z.px - J.x, dz = z.pz - J.z; if (dx * dx + dz * dz > Jr * Jr) continue;
+      z.s += 40 * z.dir; // plus loin sur sa rue ; le demi-tour en bout de chemin est géré par la boucle
+      if (z.s >= z.P.len) { z.s = z.P.len - .01; z.dir = -1; } else if (z.s <= 0) { z.s = .01; z.dir = 1; }
+      n++;
+    }
+  }
+  return n;
+}
 /** De combien un corps de rayon r posé en (x, z) entre dans un zém ou un tokpa de la circulation (0 : il est libre). */
 export function dansCirculation(x, z, r = .3) {
   let p = 0;

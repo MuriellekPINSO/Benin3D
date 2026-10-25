@@ -4,7 +4,7 @@ import { PLACES } from './donnees-lieux.js';
 import { creerGuide } from './guide.js';
 import { BALADES, DEVANT_CAI, POSE_VELO, PRES_DE_CAI } from './caicai.js';
 import { compterUneFois, lieuStats } from './statistiques.js';
-import { obstacleArene, siegeGradins } from './ouidah.js';
+import { obstacleArene, retirerVoisins, siegeGradins, voisinsDeGradin } from './ouidah.js';
 import { dansArbre, dansFoule } from './lieux.js';
 import { personne } from './discussions.js';
 import { INTERIEURS, arriveeDedans, arriveeDehors, cacherInterieurs, limiter, murEntre, ouvrirInterieur, porteProche, profondeurInterieur, siegeProche } from './interieurs.js';
@@ -264,11 +264,13 @@ function assoirGradins() {
   const g = siegeGradins(S.x, S.z); if (!g) return;
   S.x = g.x; S.z = g.z; S.y = g.y; S.cap = g.cap; S.gradin = g; S.saut = true; S.geste = 'assis'; S.gesteFin = 0;
   S.dist = Math.min(S.dist, 4.5); S.tangage = Math.max(S.tangage, .62); // au-dessus de l'épaule, vers la piste (plus bas, on ne verrait que les dossiers)
+  voisinsDeGradin(g); // de vrais spectateurs autour de soi, à la place des silhouettes (ouidah.js)
   ligne(`Tu t’assois dans les gradins (rang ${g.rang}) : regarde les danses des Vodun.`);
 }
 function leverGradins() {
   const g = S.gradin; if (!g) return;
   S.gradin = null; S.x = g.bas[0]; S.z = g.bas[1]; S.y = 0; S.geste = 'idle'; S.saut = true;
+  retirerVoisins();
 }
 // Un téléphone dans la main, quelques secondes.
 function telephoneEnMain() {

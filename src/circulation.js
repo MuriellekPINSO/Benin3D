@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { B3, C3, matVeh, partsVelo, partsVoiture, partsZem } from './vehicules.js';
 import { E } from './etat.js';
+import { degagerAutourDuJoueur } from './trafic.js';
 import { LITE } from './base.js';
 import { mergeColored, roadLines } from './ville.js';
 import { scene } from './scene.js';
@@ -205,6 +206,9 @@ function desserrer(dt, J) {
   const t = J.coince || 0;
   if (t < 3) { depuis = 0; return; }
   depuis += dt; if (depuis < .8) return; depuis = 0;
+  // Les zéms et tokpas de toute la ville (trafic.js) sont un autre système : eux aussi peuvent le coincer, et
+  // même lui monter dessus. On les écarte d'abord, c'est invisible et ça suffit le plus souvent.
+  if (degagerAutourDuJoueur(J)) return;
   const s = Math.sin(J.cap ?? 0), c = Math.cos(J.cap ?? 0);
   let pris = null, score = -1;
   for (const V of C.vehicules) {

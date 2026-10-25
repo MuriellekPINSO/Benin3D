@@ -430,6 +430,20 @@ function animerPublic(t) {
   });
   SP.public.instanceMatrix.needsUpdate = true; SP.tetes.instanceMatrix.needsUpdate = true;
 }
+// Les voisins de rang. Murielle les voulait en vrais personnages : « les vrais personnages doivent être à
+// côté d'elle » (25/10). Essayé, et renoncé, parce que c'est trop cher. Un personnage du jeu est un modèle
+// animé complet — squelette, mixeur, peau. Mesuré dans l'arène, caméra sur les gradins :
+//
+//   silhouettes seules   60 images/s
+//   + 4 vrais voisins     7,9
+//   + 9 vrais voisins     4,2
+//
+// À huit images par seconde le jeu ne se joue plus, et ce serait pire sur un téléphone. On garde donc les
+// silhouettes instanciées, qui tiennent tout le stade pour deux appels de dessin. Si l'on veut de vrais
+// voisins un jour, il faudra des modèles bien plus légers que ceux des joueurs — pas ceux-là.
+export function voisinsDeGradin() { }
+export function retirerVoisins() { }
+
 function monterSpectacle() {
   const G = new THREE.Group(), k = 1.2; // un peu plus grands que nature, pour qu'on les voie depuis les gradins
   const place = (o, x, z, ry, anim) => { if (!o) return; o.position.set(x, .06, z); o.rotation.y = ry; o.scale.multiplyScalar(k); G.add(o); SP.acteurs.push({ o, anim, x, z }); };
