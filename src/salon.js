@@ -461,6 +461,9 @@ async function entrerSalon(code) {
   // et se parler, ce que des phrases toutes faites ne permettent pas.
   $('#slSalonLbl').textContent = S.public ? 'En ville' : `Salon ${code}`;
   $('#slTexte').placeholder = S.public ? 'Écris à tout le monde… (Entrée)' : 'Écris à tes amis… (Entrée)';
+  // « C'est qui Gildas ? La messagerie est publique ? » (Carlos, 25/10) : la ville est un salon ouvert, un salon
+  // privé a son propre fil — on l'écrit en haut de la discussion au lieu de le laisser deviner.
+  $('#slChatSur').textContent = S.public ? 'Discussion de la ville · tout le monde te lit' : `Salon ${code} · seulement tes amis`;
   document.getElementById('app').classList.add('mode-salon');
   // À pied, il faut la ville en 3D autour de soi : la « Vue réelle » (images Google à plat) attendra la sortie.
   S.vueReelle = $('#togGoogle')?.getAttribute('aria-pressed') === 'true'; if (S.vueReelle) $('#togGoogle').click();
@@ -891,7 +894,7 @@ function changerVue() {
 /** Appelé par manette.js à chaque image quand le salon est ouvert et qu'aucune fenêtre n'attend un choix. */
 export function manetteSalon(m) {
   S.pad = m; S.padT = performance.now();
-  if (!S.padVu) { S.padVu = true; const a = $('.sl-aide'); if (a) a.textContent = m.ps ? 'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · L1 vue · R2/L2 gaz et frein · ✕ □ ○ : les actions affichées sur les boutons (○ klaxonne en roulant) · △ gestes, travail, habits · Select aller à · Start phrases' : 'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · LB vue · RT/LT gaz et frein · A X B : les actions affichées sur les boutons (B klaxonne en roulant) · Y gestes, travail, habits · Select aller à · Start phrases'; }
+  if (!S.padVu) { S.padVu = true; const a = $('.sl-touches'); if (a) a.textContent = m.ps ? 'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · L1 vue · R2/L2 gaz et frein · ✕ □ ○ : les actions affichées sur les boutons (○ klaxonne en roulant) · △ gestes, travail, habits · Select aller à · Start phrases' : 'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · LB vue · RT/LT gaz et frein · A X B : les actions affichées sur les boutons (B klaxonne en roulant) · Y gestes, travail, habits · Select aller à · Start phrases'; }
   if (m.lb) changerVue();
   if (m.a) porte();
   if (m.x) S.actions?.[1]?.f();

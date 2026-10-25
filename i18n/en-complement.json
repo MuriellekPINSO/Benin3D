@@ -632,7 +632,9 @@
   " personnes sur place": " people there",
   "'Mon commerce'": "'My business'",
   "'Quelle voiture ?'": "'Which car?'",
-  " achetée ! Elle t’attend à côté : approche-toi et monte dedans.": " bought! It is waiting next to you: walk up and get in."
+  " achetée ! Elle t’attend à côté : approche-toi et monte dedans.": " bought! It is waiting next to you: walk up and get in.",
+  "'Discussion de la ville · tout le monde te lit'": "'City chat · everyone can read you'",
+  " · seulement tes amis": " · only your friends"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",

@@ -286,7 +286,10 @@ buildingMat.onBeforeCompile = s => {
     .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
       if (vAw.x >= 0.0) {
         float cat = floor(vAw.y / 100.0), seed = mod(vAw.y, 100.0), H = vAw.z;
-        vec2 g = vec2(vAw.x / 3.3, vY / 3.15);
+        // aw.x court d'un sommet du contour au suivant ; vu du dehors, ce sens va de la droite vers la gauche
+        // (la normale du mur est (dz, -dx)), et tout le texte peint des enseignes sortait en miroir : « MERCERIE »
+        // se lisait « ƎIЯƎƆЯƎM » (Murielle, 25/10). On lit donc l'atlas dans l'autre sens.
+        vec2 g = vec2(-vAw.x / 3.3, vY / 3.15);
         vec2 f = fract(g), cell = floor(g);
         float nearF = 1.0 - smoothstep(0.35, 0.95, length(fwidth(g)));
         float nLev = max(1.0, floor(H / 3.15 + 0.15));
