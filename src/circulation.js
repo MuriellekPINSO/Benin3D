@@ -164,7 +164,9 @@ export function majCirculation(dt, J) {
       }
       V.attente = gene && V.v < .3 ? (V.attente || 0) + dt : 0; if (V.attente > 4) { V.attente = 0; V.libre = 1.5; }
     } else V.libre -= dt;
-    const ax = J.x - V.px, az = J.z - V.pz, devant = ax * V.fx + az * V.fz, cote = Math.abs(ax * V.fz - az * V.fx);
+    // La Roadster en vol (J.enLair) ne les arrête pas : elles passent dessous. Avant, elles s'arrêtaient sous elle à
+    // 110 m de haut, et quand elle se posait, c'était dans la file arrêtée.
+    const ax = J.enLair ? 1e4 : J.x - V.px, az = J.enLair ? 1e4 : J.z - V.pz, devant = ax * V.fx + az * V.fz, cote = Math.abs(ax * V.fz - az * V.fx);
     if (devant > 0 && devant < V.hl + Jr + 12 && cote < V.hw + Jr + .7) vise = Math.min(vise, Math.max(0, (devant - V.hl - Jr - 2) * 1.1)); // freine à temps : arrêt à 2 m de son pare-chocs
     const R0 = V.R, s0 = V.s; // pour le garde-fou plus bas
     V.v += THREE.MathUtils.clamp(vise - V.v, -9 * dt, 3 * dt);
@@ -195,7 +197,7 @@ export function majCirculation(dt, J) {
     // elle s'arrête net et attend qu'il s'écarte. On revient sur la rue d'avant, pas seulement au point d'avant :
     // au carrefour, celle qui venait de tourner gardait sa nouvelle rue et traversait le joueur (les joueurs l'ont
     // signalé : « elle passe en toi »).
-    if (toucheJoueur(J, x, z, Math.atan2(p.dx, p.dz), V.hl, V.hw, Jr + .2)) {
+    if (!J.enLair && toucheJoueur(J, x, z, Math.atan2(p.dx, p.dz), V.hl, V.hw, Jr + .2)) {
       V.R = R0; V.s = s0; V.v = 0; p = poser(V.R, V.s, V.dir); x = p.x - p.dz * V.lane; z = p.z + p.dx * V.lane;
     }
     // Jamais de bouchon sans fin : un véhicule que le joueur retient longtemps finit par s'en aller et réapparaît

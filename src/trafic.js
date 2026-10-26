@@ -89,7 +89,7 @@ export function updateZems(dt) {
 // Personne ne traverse personne : un zém ou un tokpa qui a le joueur juste devant lui s'arrête (cede), et ceux qui
 // roulent près de lui (retenir → E.circulation) bloquent sa marche et sa conduite (dansCirculation).
 function cede(z, dt) {
-  const J = E.joueur; z.arret = false; if (!J || z.px === undefined) return false;
+  const J = E.joueur; z.arret = false; if (!J || J.enLair || z.px === undefined) return false; // la Roadster en vol : on passe dessous
   const Jr = Math.max(J.hl ?? .3, J.hw ?? .3); // un piéton, ou la voiture qu'il conduit
   const ax = J.x - z.px, az = J.z - z.pz, d2 = ax * ax + az * az;
   if (d2 > PRES2) return false;

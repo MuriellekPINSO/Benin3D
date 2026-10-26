@@ -807,10 +807,12 @@ export function majSalon(dt) {
   if (T.mode === 'ami') suivi = majAmi(); // derrière un ami : c'est lui qui conduit
   // La circulation s'arrête devant lui (trafic.js, circulation.js) ; dedans, elle l'ignore. Elle doit connaître sa taille :
   // au volant, ce n'est plus un piéton mais une voiture de 4,4 m, et les autres s'arrêtaient à son milieu, déjà dans sa carrosserie.
+  if (S.saut && T.mode === 'pied' && !S.lieu) placeLibre(); // on vient d'arriver (sorti de chez soi, téléporté…)
   const J = S.lieu ? null : suivi ?? S;
   if (J) {
     const Vj = T.mode === 'conduit' ? T.veh : T.mode === 'passager' ? T.zem?.V : T.mode === 'ami' ? S.autres.get(S.ami)?.veh : null;
     J.hl = Vj ? (Vj.D?.long ?? 2) / 2 : .3; J.hw = Vj ? (Vj.D?.larg ?? .8) / 2 : .3;
+    J.enLair = (Vj?.alt || 0) > 2.5; // la Roadster en vol : la circulation passe dessous (circulation.js, trafic.js)
     // Depuis combien de temps pousse-t-on sans avancer ? Un testeur s'est retrouvé « coincé entre les voitures,
     // il ne pouvait même pas avancer, il a dû descendre et prendre un zém ». La circulation s'en sert pour
     // desserrer l'embouteillage devant lui (circulation.js).
@@ -1065,6 +1067,18 @@ function corps(x, z) {
   const zem = T.zem?.phase === 'attend' ? T.zem.V : null, garee = T.mode === 'pied' ? T.veh : null;
   for (const V of [zem, garee]) if (V?.g?.visible !== false && V) p = Math.max(p, boite(x, z, V.x, V.z, V.cap, (V.D?.long ?? 2) / 2, (V.D?.larg ?? .8) / 2));
   return p;
+}
+/**
+ * On vient d'arriver quelque part (sorti de chez soi, téléporté, arrivé devant une porte) : si la place est prise — un
+ * autre joueur, la foule, un véhicule —, on se pose juste à côté. Deux joueuses qui louent l'appartement de la Haie
+ * Vive ont la même porte, et elles sortaient l'une dans l'autre (capture du 26/10).
+ */
+function placeLibre() {
+  if (gene(S.x, S.z) <= 0) return;
+  for (const r of [.8, 1.3, 1.9, 2.6]) for (let k = 0; k < 12; k++) {
+    const a = S.cap + Math.PI / 2 + k * Math.PI / 6, x = S.x + Math.sin(a) * r, z = S.z + Math.cos(a) * r;
+    if (gene(x, z) <= 0 && Math.abs(hauteurSol(x, z) - S.y) < .45) { S.x = x; S.z = z; return; }
+  }
 }
 function gene(x, z) {
   if (S.lieu) return profondeurInterieur(S.lieu, x, z);

@@ -155,14 +155,27 @@ export function piloter(V, av, tour, dt, { panne = false } = {}) {
 }
 // Le centre sur la route, et l'avant (l'arrière en marche arrière) avec ses deux coins hors des murs et des
 // bâtiments : avant, seul le centre comptait, et tout le capot rentrait dans la clôture.
-const horsMur = (x, z, vole = false) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && (vole || (!dansCirculation(x, z, .05) && hauteurSol(x, z) < .25)); // ni dans un zém ou un tokpa qui roule, ni sur des marches (sols.js) ; en vol, on passe au-dessus
+const horsMur = (x, z, vole = false) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && (vole || hauteurSol(x, z) < .25); // ni sur des marches (sols.js) ; en vol, on passe au-dessus
+// Les autres véhicules : toute la caisse compte (les quatre coins, le milieu des côtés, les deux bouts), pas seulement
+// l'avant — en tournant, l'arrière et les flancs entraient dans les voitures arrêtées. Et si l'on est déjà dedans
+// (posé sur une voiture, ou serré par elle), on peut toujours s'en écarter : avant, tout mouvement était refusé tant
+// qu'on la touchait, et la Roadster restait coincée entre deux voitures, « ni monter, ni avancer » (26/10).
+const CAISSE = [[1, 1], [1, -1], [-1, 1], [-1, -1], [0, 1], [0, -1], [1, 0], [-1, 0]];
+function dansLeTrafic(V, x, z) {
+  const L = (V.D.long ?? 2) / 2 * .92, W = (V.D.larg ?? .8) / 2 * .9, sx = Math.sin(V.cap), cz = Math.cos(V.cap);
+  let p = 0;
+  for (const [a, b] of CAISSE) p = Math.max(p, dansCirculation(x + sx * a * L + cz * b * W, z + cz * a * L - sx * b * W, .05));
+  return p;
+}
 function passe(V, x, z) {
   // Un vélo n'est pas tenu à la chaussée : il roule partout où l'on marche — l'esplanade, les trottoirs —,
   // comme à Cotonou. Sans ça, celui qu'on loue sur l'esplanade de l'Amazone ne pouvait pas avancer d'un mètre.
   if (!surRoute(x, z) && !(V.D.pedale && pietonOk(x, z))) return false;
   const L = (V.D.long ?? 2) / 2 * .92 * (Math.sign(V.v) || 1), W = (V.D.larg ?? .8) / 2 * .9, sx = Math.sin(V.cap), cz = Math.cos(V.cap), fx = x + sx * L, fz = z + cz * L;
   const vole = (V.alt || 0) > 1.5;
-  return horsMur(fx, fz, vole) && horsMur(fx + cz * W, fz - sx * W, vole) && horsMur(fx - cz * W, fz + sx * W, vole);
+  if (!(horsMur(fx, fz, vole) && horsMur(fx + cz * W, fz - sx * W, vole) && horsMur(fx - cz * W, fz + sx * W, vole))) return false;
+  if (vole) return true; // en vol, on passe au-dessus des zémidjans et des voitures
+  const p = dansLeTrafic(V, x, z); return p === 0 || p < dansLeTrafic(V, V.x, V.z) - 1e-3;
 }
 function avancer(V, dt, contraint) {
   const nx = V.x + Math.sin(V.cap) * V.v * dt, nz = V.z + Math.cos(V.cap) * V.v * dt; let choc = null;
@@ -209,7 +222,7 @@ function voler(V, av, tour, dt) {
     // À la verticale de sa rue : on freine en montant, et tant qu'on monte, la route et les murs nous tiennent.
     V.v *= Math.exp(-dt * 2.5); V.cap += tour * VOL.virage * dt; contraint = true; poussee = 1.3;
     W.alt = Math.min(VOL.croisiere, W.alt + VOL.montee * Math.min(1, .3 + W.alt / 15) * dt);
-    if (W.alt >= VOL.croisiere) W.phase = 'croisiere';
+    if (W.alt >= VOL.croisiere) { W.phase = W.ailleurs ? 'approche' : 'croisiere'; W.cible = W.ailleurs || null; W.ailleurs = null; } // remonté d'une place prise : on file vers la suivante
   } else if (W.phase === 'approche' && (Math.abs(av) > .3 || Math.abs(tour) > .3)) { W.phase = 'croisiere'; W.cible = null; } // on reprend les commandes
   if (W.phase === 'croisiere') {
     if (av > .05) V.v = Math.min(VOL.vmax, V.v + VOL.accel * av * dt);
@@ -229,7 +242,12 @@ function voler(V, av, tour, dt) {
     }
   } else if (W.phase === 'descend') { // à la verticale, en s'alignant sur la rue
     V.v = 0; V.cap += angle(W.cible[2] - V.cap) * (1 - Math.exp(-dt * 2)); poussee = .6;
-    W.alt = Math.max(0, W.alt - Math.min(VOL.descente, 1.5 + W.alt * .8) * dt); // on ralentit en approchant du sol
+    // Pas sur une voiture : à 5 m, on attend en l'air que la place soit libre (la circulation passe dessous). Une
+    // place qui ne se libère pas en 6 s (un embouteillage) : on remonte et l'on va se poser un peu plus loin.
+    const occupe = W.alt <= 5 && dansLeTrafic(V, V.x, V.z) > 0;
+    W.attente = occupe ? (W.attente || 0) + dt : 0;
+    if (!occupe) W.alt = Math.max(0, W.alt - Math.min(VOL.descente, 1.5 + W.alt * .8) * dt); // on ralentit en approchant du sol
+    if (W.attente > 6) { W.attente = 0; W.ailleurs = pointDePose(V, V.x + Math.sin(V.cap) * 40, V.z + Math.cos(V.cap) * 40, 120, [V.x, V.z]); W.phase = 'monte'; }
   }
   W.base *= Math.exp(-dt * 1.5); // décollé d'un pont : on rejoint la hauteur du sol pendant le vol (pointDePose : jamais sur un pont)
   const tourne = W.phase === 'croisiere' ? tour : W.phase === 'approche' ? borne(angle(Math.atan2(W.cible[0] - V.x, W.cible[1] - V.z) - V.cap), 1) : 0;
@@ -248,7 +266,7 @@ function voler(V, av, tour, dt) {
 }
 /** Où poser la Roadster près de (x, z) : sur l'axe d'une route, ni sur un pont ni dessous, avec la place pour la
  *  caisse, et dans le sens de la rue le plus proche de son cap. [x, z, cap], ou null. */
-export function pointDePose(V, x, z, rayon = 220) {
+export function pointDePose(V, x, z, rayon = 220, sauf = null) {
   indexer();
   const S = G.seg, vus = new Set(), cands = [];
   for (let cx = Math.floor((x - rayon) / CS); cx <= Math.floor((x + rayon) / CS); cx++) for (let cz = Math.floor((z - rayon) / CS); cz <= Math.floor((z + rayon) / CS); cz++) for (const n of G.cases.get(cx + ',' + cz) || []) {
@@ -260,7 +278,7 @@ export function pointDePose(V, x, z, rayon = 220) {
     cands.push([d, px, pz, cap]);
   }
   cands.sort((a, b) => a[0] - b[0]);
-  for (const [, px, pz, cap] of cands.slice(0, 80)) if (assezDePlace(V, px, pz, cap)) return [px, pz, cap];
+  for (const [, px, pz, cap] of cands.slice(0, 80)) if ((!sauf || Math.hypot(px - sauf[0], pz - sauf[1]) > 15) && assezDePlace(V, px, pz, cap)) return [px, pz, cap];
   return null;
 }
 function assezDePlace(V, x, z, cap) {
