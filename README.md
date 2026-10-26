@@ -197,7 +197,7 @@ textures qui en relèvent.
 | Contrôles aux flèches (pas d'accélération automatique) | 1 | Fait |
 | Fin de course, paiement affiché, nouveau client qui fait signe | 1 | Fait |
 | Feux tricolores (vrais feux d'OSM) | 1 | Fait |
-| Casques du zém et du client (le sien, prêté ou acheté) | 1 | Fait |
+| Casques du zém et du client (le sien ou prêté ; l'achat au bord de la route est retiré, retour de Carlos du 26/10) | 1 | Fait |
 | Police et amende au feu rouge | 2 | Fait |
 | Accidents : constat de police ou course perdue | 2 | Fait |
 | Discussion et marchandage avec les vendeurs | 2 | Fait |

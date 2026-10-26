@@ -60,6 +60,22 @@ function pas(C, p, q) {
 }
 const retirer = p => { p.m.parent?.remove(p.m); p.m.userData.liberer(); };
 
+/**
+ * Le client du zém descend à l'arrêt : le même personnage (même graine, même genre) se lève à côté de la moto, rejoint
+ * le bas-côté et s'en va à pied comme un passant. Null sans les personnages animés : il disparaît alors simplement.
+ */
+export function clientDescend(st, graine, femme) {
+  const C = PT.C; if (!C || !st || !personnagesPrets()) return null;
+  const m = personnage3d(graine ?? Math.floor(Math.random() * 1e6), { femme: !!femme }); if (!m) return null;
+  const s = st.s - .4, latJ = st.latM ?? st.lat * kFiles(C, st.s);
+  const bord = latTrottoir(C, s, 1, 1) ?? demiChaussee(C, s) + .6; // les arrêts sont à droite
+  // Il part de la droite de la moto (hors de sa carrosserie, pour ne pas compter comme un piéton renversé) et marche vers l'arrière.
+  const p = { m, s, cote: 1, recul: 1, lat: latJ + .95, cible: Math.max(bord, latJ + .95), sens: -1, v: 1.15, case: Math.round(s) };
+  m.userData.jouer('marche', 0); JEU.decor.add(m);
+  const q = pose(C, s, p.lat, tmp); m.position.set(q.x, q.y, q.z); regarder(m, -q.dx, -q.dz);
+  PT.marcheurs.push(p); return m;
+}
+
 /** Au départ d'une course (ou après un virage) : nouveaux passants le long du nouveau trajet. */
 export function preparerPietons(C) { viderPietons(); PT.C = C; }
 export function viderPietons() { for (const p of [...PT.marcheurs, ...PT.traversees]) retirer(p); PT.marcheurs = []; PT.traversees = []; PT.C = null; }

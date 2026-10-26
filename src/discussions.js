@@ -6,6 +6,7 @@ import { camera } from './scene.js';
 import { son } from './audio.js';
 import { C3, matVeh } from './vehicules.js';
 import { personnage3d } from './personnages.js';
+import { clientDescend } from './pietons.js';
 import { mergeColored } from './ville.js';
 import { PLACES } from './donnees-lieux.js';
 import { BORD } from './bordure.js';
@@ -295,26 +296,30 @@ function demanderCasque(st, c) {
     dit('Oui, j’ai mon casque ! Voilà, c’est attaché.'); mettreCasque(c.siege); humeur(.05); // une seule réponse possible : pas de carte qui arrête le départ
     return;
   }
-  dit('Ah non… je n’ai pas de casque.');
-  dialogue(`${c.nom} · le casque`, '« Tu as ton casque ? » — « Non, je n’en ai pas… »', [
+  // « Retirer l'option de l'achat de casque par les clients et la remplacer par “Oui, j'ai mon casque avec moi” »
+  // (Carlos, 26/10) : plus d'arrêt pour qu'il en achète un au vendeur du bord de la route. Il a le sien, ou le zém lui prête.
+  dialogue(`${c.nom} · le casque`, 'Tu lui demandes : « Tu as ton casque ? »', [
+    ['Oui, j’ai mon casque avec moi', () => { mettreCasque(c.siege); humeur(.05); dit('Voilà, il est attaché. On peut y aller !'); }],
     ['Je te prête le mien', () => { mettreCasque(c.siege); humeur(.12); dit('Merci zém, tu es gentil !'); }],
-    ['Achète-en un au vendeur, là · 2\u202f000\u00a0F', () => {
-      st.service = Math.max(st.service, 3.4); toast('Le client achète un casque au vendeur du bord de la route…', 2.2);
-      const p = pose(JEU.chemin, st.s + 3, latTrottoir(JEU.chemin, st.s + 3, 1, .9) ?? demiChaussee(JEU.chemin, st.s + 3) + .5, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(JEU.chemin, st.s + 3, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
-      const vend = personne(4500 + Math.floor(Math.random() * 400), { femme: false }); vend.position.set(p.x, p.y, p.z); vend.lookAt(q.x, p.y, q.z); JEU.decor.add(vend); bulle(vend, 'Casque ! Casque neuf !', { duree: 2.4 });
-      remettre(c.siege, vend, 'billet', { hautDe: .55, garder: .3 });
-      remettre(vend, c.siege, 'casque', { delai: .8, hautVers: .6, garder: .2, apres: () => { if (DISC.client === c) { mettreCasque(c.siege); humeur(-.04); dit('Bon, au moins il est neuf !'); } setTimeout(() => vend.parent?.remove(vend), 4000); } });
-    }],
   ], { defaut: 0, duree: 10, bloquant: true });
 }
 /** Le client descend à l'arrêt : il paie le prix convenu, plus ou moins selon son humeur. Renvoie le gain. */
 export function deposerClient() {
   const c = DISC.client; if (!c) return 0;
   let gain = c.accord ? c.tarif : Math.round(c.juste * .8 / 25) * 25; const base = gain, supplement = c.supplement || 0; gain += supplement;
-  if (c.humeur >= .75) { const pb = c.humeur >= .9 ? 100 : 50; gain += pb; dit(`Merci zém, que Dieu te garde ! Garde ${pb} F.`, { duree: 3 }); progres('ravis', 1); }
-  else if (c.humeur < .3) { gain = Math.max(0, gain - 50); dit('Tu as failli me tuer ! Je retiens 50 F.', { ton: 'fort', duree: 3 }); }
-  else dit(choisir(['Merci, bonne route !', 'Merci zém !', 'Que Dieu te bénisse !']));
   DISC.dernierPaiement = { nom: c.nom, femme: c.femme, base, supplement, total: gain, casque: !!c.siege?.userData.casque };
+  // « Quand on dépose un client à un arrêt, ce dernier ne disparaît pas de la moto et reste dessus jusqu'au prochain
+  // client » (Carlos, 26/10) : le siège arrière se vide tout de suite, et le client s'en va à pied sur le trottoir (pietons.js),
+  // d'où il dit merci. Sans personnages animés, il disparaît simplement.
+  if (c.siege) c.siege.visible = false;
+  if (JEU.etat) JEU.etat.passagers = 0; // la caméra redescend, le bandeau dit « À vide »
+  const pieton = clientDescend(JEU.etat, c.siege?.userData.graine, c.femme);
+  const parle = (t, o) => (pieton ? bulle(pieton, t, o) : dit(t, o));
+  if (pieton) pieton.userData.voix = c.siege?.userData.voix; // sa voix, pas celle d'un inconnu
+  if (c.humeur >= .75) { const pb = c.humeur >= .9 ? 100 : 50; gain += pb; parle(`Merci zém, que Dieu te garde ! Garde ${pb} F.`, { duree: 3 }); progres('ravis', 1); }
+  else if (c.humeur < .3) { gain = Math.max(0, gain - 50); parle('Tu as failli me tuer ! Je retiens 50 F.', { ton: 'fort', duree: 3 }); }
+  else parle(choisir(['Merci, bonne route !', 'Merci zém !', 'Que Dieu te bénisse !']));
+  DISC.dernierPaiement.total = gain;
   DISC.client = null;
   return gain;
 }

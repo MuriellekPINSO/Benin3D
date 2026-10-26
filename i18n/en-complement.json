@@ -86,7 +86,10 @@
   "Trop vite : ": "Too fast: ",
   "'ta cliente a peur'": "'your passenger is scared'",
   "'ton client a peur'": "'your passenger is scared'",
-  ", le pourboire baisse": ", the tip goes down"
+  ", le pourboire baisse": ", the tip goes down",
+  "'Tu lui demandes : « Tu as ton casque ? »'": "'You ask: “Do you have your helmet?”'",
+  "'Oui, j’ai mon casque avec moi'": "'Yes, I have my helmet with me'",
+  "'Voilà, il est attaché. On peut y aller !'": "'There, it’s fastened. Let’s go!'"
  },
  "src/jeu.js": {
   "'Course à deux'": "'Two-player race'",
