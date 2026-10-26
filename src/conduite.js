@@ -142,6 +142,7 @@ export function pontPres(x, z, r = 20) {
  * Renvoie 'choc' si l'on vient de buter contre un mur ou un trottoir haut, sinon null.
  */
 export function piloter(V, av, tour, dt, { panne = false } = {}) {
+  if (V.vol) return voler(V, av, tour, dt);
   const D = V.D, vmax = panne ? 1.2 : D.vmax;
   if (av > .05) V.v = V.v < -.2 ? Math.min(0, V.v + D.frein * dt) : Math.min(vmax, V.v + D.accel * av * dt * Math.max(.15, 1 - V.v / (vmax * 1.05)));
   else if (av < -.05) V.v = V.v > .2 ? Math.max(0, V.v - D.frein * -av * dt) : Math.max(-D.recul, V.v - D.accel * .6 * -av * dt);
@@ -167,27 +168,106 @@ function avancer(V, dt, contraint) {
   const nx = V.x + Math.sin(V.cap) * V.v * dt, nz = V.z + Math.cos(V.cap) * V.v * dt; let choc = null;
   if (!contraint || passe(V, nx, nz)) { V.km += Math.hypot(nx - V.x, nz - V.z) / 1000; V.x = nx; V.z = nz; }
   else { if (Math.abs(V.v) > 3) choc = 'choc'; V.v *= Math.abs(V.v) > .3 ? -.2 : 0; }
-  V.sol = hauteur(V.x, V.z, V.sol ?? V.y); V.alt = altitude(V, dt); V.y = V.sol + V.alt; // le pont, et le vol de la Roadster
+  if (V.vol) { V.sol = V.vol.base; V.alt = V.vol.alt; } // en vol, la hauteur vient des propulseurs (voler)
+  else { V.sol = hauteur(V.x, V.z, V.sol ?? V.y); V.alt = 0; } // le tablier d'un pont, sinon le sol
+  V.y = V.sol + V.alt;
   V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap;
   if (V.anim) { const a = (V.v - (V.vAvant ?? V.v)) / Math.max(dt, .001); V.vAvant = V.v; V.anim.maj(V.v, dt, a > .5); }
   return choc;
 }
 // ---------- Les propulseurs de la Roadster ----------
-// « Est-ce que ma Tesla Roadster peut monter en haut comme la vraie ? » (Murielle, 26/10) : la vraie est annoncée avec
-// un « pack SpaceX », des propulseurs à gaz froid pour de petits bonds. Ici, « Décoller » la soulève à 4,5 m en 1,2 s ;
-// elle plane 4,5 s au-dessus des zémidjans et des voitures, puis se repose. Les bâtiments et la chaussée la tiennent
-// toujours : c'est un bond, pas un avion. Les propulseurs se rechargent en 12 s.
-const VOL = { monte: 1.2, plane: 4.5, descend: 1.6, haut: 4.5, recharge: 12 };
+// « Est-ce que ma Tesla Roadster peut monter en haut comme la vraie ? » (Murielle, 26/10) : d'abord un bond de 4,5 m,
+// le « pack SpaceX » annoncé pour la vraie. Puis : « je dois aller plus haut que ça, c'est comme un avion, je peux
+// voler en haut pour aller à ma destination ». Elle décolle donc à la verticale au-dessus de sa rue, monte à 110 m
+// — plus haut que tout ce qui est bâti à Cotonou (80 m au plus) —, vole où l'on veut, et se pose à la verticale sur
+// une route, alignée sur la rue : elle ne passe jamais au travers d'un mur. En vol, pas de marche arrière, mais on
+// peut faire du sur-place. Phases : monte → croisiere → approche (vers le point de pose) → descend.
+const VOL = { croisiere: 110, montee: 22, descente: 18, vmax: 70, accel: 14, frein: 18, virage: 1, recharge: 3 };
 export const peutDecoller = V => !!V?.D.propulseurs && !V.vol && performance.now() > (V.rechargeT || 0);
-export function decoller(V) { if (!peutDecoller(V)) return false; V.vol = { t: 0 }; flammes(V).visible = true; return true; }
-function altitude(V, dt) {
-  if (!V.vol) return 0;
-  const t = V.vol.t += dt, fin = VOL.monte + VOL.plane + VOL.descend, e = x => x * x * (3 - 2 * x);
-  if (t >= fin) { V.vol = null; V.rechargeT = performance.now() + VOL.recharge * 1000; flammes(V).visible = false; return 0; }
-  const a = t < VOL.monte ? VOL.haut * e(t / VOL.monte) : t < VOL.monte + VOL.plane ? VOL.haut + Math.sin((t - VOL.monte) * 2.6) * .15 : VOL.haut * (1 - e((t - VOL.monte - VOL.plane) / VOL.descend));
-  const k = t < VOL.monte ? 1.25 : t < VOL.monte + VOL.plane ? .75 : .55; // pleine poussée au décollage, de quoi planer ensuite
-  for (const f of flammes(V).children) f.scale.set(1, k * (.8 + Math.random() * .4), 1);
-  return a;
+export function decoller(V) { if (!peutDecoller(V)) return false; V.vol = { phase: 'monte', alt: 0, base: V.sol || 0, t: 0, roulis: 0, cible: null }; flammes(V).visible = true; return true; }
+/** En vol et libre de ses mouvements (ni en train de monter ni de se poser) : on peut choisir où atterrir. */
+export const enCroisiere = V => V?.vol?.phase === 'croisiere' || V?.vol?.phase === 'approche';
+/** Va se poser sur la route la plus proche de (x, z) — par défaut, sous soi. Faux s'il n'y a nulle part où se poser. */
+export function atterrir(V, x = V.x, z = V.z, rayon = 220) {
+  if (!enCroisiere(V)) return false;
+  const p = pointDePose(V, x, z, rayon); if (!p) return false;
+  V.vol.phase = 'approche'; V.vol.cible = p; return true;
+}
+let BORNES = null; // le rectangle des routes, à 400 m près : on ne s'envole pas au-dessus de l'océan sans fin
+function bornes() {
+  if (BORNES) return BORNES;
+  const b = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const L of roadLines) for (const [x, z] of L.pts) { if (x < b[0]) b[0] = x; if (z < b[1]) b[1] = z; if (x > b[2]) b[2] = x; if (z > b[3]) b[3] = z; }
+  return (BORNES = [b[0] - 400, b[1] - 400, b[2] + 400, b[3] + 400]);
+}
+const angle = a => Math.atan2(Math.sin(a), Math.cos(a));
+function voler(V, av, tour, dt) {
+  const W = V.vol, borne = (v, a) => Math.max(-a, Math.min(a, v));
+  W.t += dt;
+  let contraint = false, poussee = .8;
+  if (W.phase === 'monte') {
+    // À la verticale de sa rue : on freine en montant, et tant qu'on monte, la route et les murs nous tiennent.
+    V.v *= Math.exp(-dt * 2.5); V.cap += tour * VOL.virage * dt; contraint = true; poussee = 1.3;
+    W.alt = Math.min(VOL.croisiere, W.alt + VOL.montee * Math.min(1, .3 + W.alt / 15) * dt);
+    if (W.alt >= VOL.croisiere) W.phase = 'croisiere';
+  } else if (W.phase === 'approche' && (Math.abs(av) > .3 || Math.abs(tour) > .3)) { W.phase = 'croisiere'; W.cible = null; } // on reprend les commandes
+  if (W.phase === 'croisiere') {
+    if (av > .05) V.v = Math.min(VOL.vmax, V.v + VOL.accel * av * dt);
+    else if (av < -.05) V.v = Math.max(0, V.v - VOL.frein * -av * dt);
+    else V.v = Math.max(0, V.v - 2 * dt);
+    V.cap += tour * VOL.virage * dt;
+  } else if (W.phase === 'approche') { // pilote automatique jusqu'au-dessus du point de pose
+    const [cx, cz] = W.cible, d = Math.hypot(cx - V.x, cz - V.z), e = angle(Math.atan2(cx - V.x, cz - V.z) - V.cap);
+    if (d > 40) { // de loin : on vire vers le point (plus vite si on lui tourne le dos) et l'on file droit dessus
+      V.cap += borne(e, (Math.abs(e) > 1 ? 2 : 1.2) * dt);
+      const voulue = Math.min(VOL.vmax, d * .6) * Math.max(.15, Math.cos(e));
+      V.v += borne(voulue - V.v, (voulue > V.v ? VOL.accel : VOL.frein) * dt);
+    } else { // les 40 derniers mètres : on glisse droit au-dessus du point, quel que soit le cap (elle tournait en rond à 7 km/h)
+      W.glisse = Math.max(4, Math.min(W.glisse ?? V.v, d * 1.2));
+      const pas = Math.min(d, W.glisse * dt); V.x += (cx - V.x) / (d || 1) * pas; V.z += (cz - V.z) / (d || 1) * pas; V.v = 0;
+      if (d - pas < .05) { V.x = cx; V.z = cz; W.phase = 'descend'; W.glisse = null; }
+    }
+  } else if (W.phase === 'descend') { // à la verticale, en s'alignant sur la rue
+    V.v = 0; V.cap += angle(W.cible[2] - V.cap) * (1 - Math.exp(-dt * 2)); poussee = .6;
+    W.alt = Math.max(0, W.alt - Math.min(VOL.descente, 1.5 + W.alt * .8) * dt); // on ralentit en approchant du sol
+  }
+  W.base *= Math.exp(-dt * 1.5); // décollé d'un pont : on rejoint la hauteur du sol pendant le vol (pointDePose : jamais sur un pont)
+  const tourne = W.phase === 'croisiere' ? tour : W.phase === 'approche' ? borne(angle(Math.atan2(W.cible[0] - V.x, W.cible[1] - V.z) - V.cap), 1) : 0;
+  W.roulis += (-tourne * Math.min(1, V.v / 20) * .35 - W.roulis) * (1 - Math.exp(-dt * 3)); // elle s'incline dans les virages
+  for (const f of flammes(V).children) f.scale.set(1, poussee * (.8 + Math.random() * .4), 1);
+  let choc = null;
+  if (W.phase === 'descend' && W.alt <= 0) { // posée
+    V.vol = null; V.rechargeT = performance.now() + VOL.recharge * 1000; flammes(V).visible = false; V.g.rotation.z = 0;
+  } else {
+    W.alt += W.phase === 'croisiere' ? Math.sin(W.t * 1.7) * .25 * dt : 0;
+    choc = avancer(V, dt, contraint);
+    if (!contraint) { const b = bornes(); V.x = Math.max(b[0], Math.min(b[2], V.x)); V.z = Math.max(b[1], Math.min(b[3], V.z)); }
+    V.g.rotation.z = W.roulis; return choc;
+  }
+  return avancer(V, 0, false);
+}
+/** Où poser la Roadster près de (x, z) : sur l'axe d'une route, ni sur un pont ni dessous, avec la place pour la
+ *  caisse, et dans le sens de la rue le plus proche de son cap. [x, z, cap], ou null. */
+export function pointDePose(V, x, z, rayon = 220) {
+  indexer();
+  const S = G.seg, vus = new Set(), cands = [];
+  for (let cx = Math.floor((x - rayon) / CS); cx <= Math.floor((x + rayon) / CS); cx++) for (let cz = Math.floor((z - rayon) / CS); cz <= Math.floor((z + rayon) / CS); cz++) for (const n of G.cases.get(cx + ',' + cz) || []) {
+    if (vus.has(n)) continue; vus.add(n);
+    const o = n * 5, ax = S[o], az = S[o + 1], dx = S[o + 2] - ax, dz = S[o + 3] - az, l2 = dx * dx + dz * dz || 1;
+    const t = Math.max(.1, Math.min(.9, ((x - ax) * dx + (z - az) * dz) / l2)), px = ax + dx * t, pz = az + dz * t, d = Math.hypot(px - x, pz - z);
+    if (d > rayon) continue;
+    let cap = Math.atan2(dx, dz); if (Math.cos(cap - V.cap) < 0) cap += Math.PI;
+    cands.push([d, px, pz, cap]);
+  }
+  cands.sort((a, b) => a[0] - b[0]);
+  for (const [, px, pz, cap] of cands.slice(0, 80)) if (assezDePlace(V, px, pz, cap)) return [px, pz, cap];
+  return null;
+}
+function assezDePlace(V, x, z, cap) {
+  if (hauteur(x, z, 0) > 0 || pontPres(x, z, 3)) return false;
+  const L = V.D.long / 2 + .3, W = V.D.larg / 2 + .3, sx = Math.sin(cap), cz = Math.cos(cap);
+  for (const [a, b] of [[0, 0], [L, W], [L, -W], [-L, W], [-L, -W]]) { const px = x + sx * a + cz * b, pz = z + cz * a - sx * b; if (!surRoute(px, pz) || hauteurSol(px, pz) >= .25) return false; }
+  return true;
 }
 // Quatre jets bleus sous la caisse, créés au premier vol.
 const FLAMME = { geo: null, mat: null };

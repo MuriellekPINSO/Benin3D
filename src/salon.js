@@ -8,7 +8,7 @@ import { obstacleArene, retirerVoisins, siegeGradins, voisinsDeGradin } from './
 import { dansArbre, dansFoule } from './lieux.js';
 import { personne } from './discussions.js';
 import { INTERIEURS, arriveeDedans, arriveeDehors, cacherInterieurs, limiter, murEntre, ouvrirInterieur, porteProche, profondeurInterieur, siegeProche } from './interieurs.js';
-import { actionsMaison, initMaison, maisonActuelle, majMaison, occupe, quitterMaison, reveil } from './maison.js';
+import { A_LOUER, actionsMaison, initMaison, logement, maisonActuelle, majMaison, occupe, quitterMaison, reveil } from './maison.js';
 import { E } from './etat.js';
 import { firebase, joueur } from './firebase.js';
 import { compte } from './compte.js';
@@ -21,7 +21,7 @@ import { hauteurSol } from './sols.js';
 import { actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe } from './trajets.js';
 import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
-import { A_VENDRE, acheterVehicule, ouvertAu, vehiculeLoue, alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
+import { A_VENDRE, LOGEMENTS, acheterVehicule, ouvertAu, vehiculeLoue, alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
 import { basculerPause, finirJournee, menuTravail } from './metiers.js';
 import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces, sauverCommerces } from './commerces.js';
@@ -414,9 +414,13 @@ function telephoneEnMain(duree = 0) {
 function rangerTelephone() { clearTimeout(S.telFin); S.telFin = 0; S.tel?.parent?.remove(S.tel); S.tel = null; }
 /** Point d'arrivée d'un lieu de rendez-vous : [x, z, regard] (devant la porte pour un lieu où l'on entre). */
 // Ses commerces (commerces.js) s'ajoutent aux lieux : « Aller à », GPS et zém y mènent comme ailleurs.
-const tousLieux = () => [...LIEUX, ...lieuxCommerces().map(c => [c.id, c.nom, c.dit, 0, 0, 0])];
+// Le logement qu'on est allé visiter (menu « Louer un logement ») : une destination de plus, le temps de la visite.
+const lieuLogement = id => [`lg:${id}`, `${LOGEMENTS[id].nom} · à louer`, '', 0, 0, 0];
+const tousLieux = () => [...LIEUX, ...lieuxCommerces().map(c => [c.id, c.nom, c.dit, 0, 0, 0]), ...(S.visite && S.visite !== VIE.data?.logement ? [lieuLogement(S.visite)] : [])];
+const sansAnnonce = id => id === 'station' || id === 'maison' || id.startsWith('lg:'); // chez soi, ou un logement à visiter : on ne l'annonce pas aux autres
 function destination(L) {
   if (L[0].startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === L[0]); return c && [c.x, c.z, c.cap]; }
+  if (L[0].startsWith('lg:')) { const I = logement(L[0].slice(3)); if (!I) return null; const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; } // devant sa porte
   if (L[0] === 'station') { const st = stationLaPlusProche(S.x, S.z); return st && [st[0], st[1], 0]; }
   if (L[0] === 'caicai') return DEVANT_CAI; // devant le comptoir, face à la boutique
   if (L[0] === 'maison') { const I = maisonActuelle(); if (!I) return null; const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; } // devant sa porte (maison.js)
@@ -471,11 +475,11 @@ function actionsBalade() {
  *  Seuls les lieux qu'aucune route ne relie (Ouidah, à 35 km) gardent l'ancien saut. */
 function aller(id, proposer = true) {
   if (id.startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === id); if (c) allerVers(c.x, c.z, c.cap, c.nom); return; } // chez soi, au travail : on ne l'annonce pas
-  const L = LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || ((id === 'station' || id === 'maison' || id === 'caicai') && {}); if (!L || !p) return;
+  const L = id.startsWith('lg:') ? LOGEMENTS[id.slice(3)] && lieuLogement(id.slice(3)) : LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || ((id === 'station' || id === 'maison' || id === 'caicai' || id.startsWith('lg:')) && {}); if (!L || !p) return;
   if (T.mode === 'conduit') { const d = destination(L); if (d) gps(d[0], d[1], id === 'station' ? (stationLaPlusProche(S.x, S.z)?.[2] || L[1]) : L[1]); return; }
   if (T.mode === 'ami') { const A = S.autres.get(S.ami); S.canal?.dire({ n: S.nom, txt: `${A ? `${A.nom}, emmène-moi` : 'Emmène-moi'} ${L[2]} !`, lieu: id }); return; }
   if (T.mode !== 'pied') return;
-  const I = id === 'maison' ? maisonActuelle() : L[6] && INTERIEURS.get(L[6]);
+  const I = id === 'maison' ? maisonActuelle() : id.startsWith('lg:') ? logement(id.slice(3)) : L[6] && INTERIEURS.get(L[6]);
   if (I && S.lieu === I) return; // on y est déjà
   if (S.lieu) dehors(false);
   const d0 = destination(L), nom0 = id === 'station' ? (stationLaPlusProche(S.x, S.z)?.[2] || L[1]) : L[1];
@@ -483,7 +487,7 @@ function aller(id, proposer = true) {
     // Loin : à pied en suivant les chevrons, ou s'y retrouver tout de suite contre 200 F. C'est l'autre façon
     // de traverser la ville quand on ne veut pas attendre un zém (demande de Murielle, 25/10).
     const km = Math.hypot(d0[0] - S.x, d0[1] - S.z) / 1000;
-    const suivre = () => { if (gps(d0[0], d0[1], nom0) && proposer && id !== 'station' && id !== 'maison') annoncer(`Je vais ${L[2]}, venez !`, id); };
+    const suivre = () => { if (gps(d0[0], d0[1], nom0) && proposer && !sansAnnonce(id)) annoncer(`Je vais ${L[2]}, venez !`, id); };
     if (km < .25 || id === 'station') { suivre(); return; } // tout près, ou la pompe la plus proche : on y va à pied
     choisir(`${nom0} · ${km < .95 ? `${Math.round(km * 100) * 10} m` : `${km.toFixed(1).replace('.', ',')} km`}`, [
       { texte: 'Y aller à pied', sous: 'Le chemin s’allume au sol', f: suivre },
@@ -493,7 +497,7 @@ function aller(id, proposer = true) {
     return;
   }
   if (!poser(id, L, p, I)) return;
-  if (proposer && id !== 'station' && id !== 'maison') annoncer(`Je vais ${L[2]}, venez !`, id);
+  if (proposer && !sansAnnonce(id)) annoncer(`Je vais ${L[2]}, venez !`, id);
 }
 /** Pose le joueur à l'arrivée d'un lieu : devant la porte, au bord de la pompe, sur le trottoir. */
 function poser(id, L, p, I) {
@@ -510,7 +514,7 @@ async function teleporter(id, L, p, I, nom0, proposer) {
   retirerRuban(T.gps?.m); T.gps = null;
   poser(id, L, p, I);
   ligne(`Te voilà à ${nom0}. −${TELEPORT} F.`);
-  if (proposer && id !== 'station' && id !== 'maison') annoncer(`Je vais ${L[2]}, venez !`, id);
+  if (proposer && !sansAnnonce(id)) annoncer(`Je vais ${L[2]}, venez !`, id);
 }
 
 /** Va jusqu'à un point de la ville (une boutique, commerces.js) : le chemin s'allume au sol, à pied comme au volant. */
@@ -1241,6 +1245,17 @@ export function initSalon(data) {
       desactive: V.id === a || !ouvertAu(1) || (VIE.data?.argent ?? 0) < V.prix,
       f: () => acheterVehicule(V.id).then(ok => { if (ok) { if (a) reprendreVehicule(); garerSonVehicule(); ligne(`${V.nom} achetée ! Elle t’attend à côté : approche-toi et monte dedans.`); } }),
     })));
+  });
+  // Louer un logement : on choisit lequel visiter, on y va (à pied, téléporté, en zém ou au volant), on visite, et « Louer »
+  // se fait sur place (maison.js). Le logement qu'on a déjà n'est pas proposé.
+  $('#vhLogements')?.addEventListener('click', () => {
+    const v = VIE.data; if (!v) return;
+    choisir('Quel logement visiter ?', A_LOUER.map(id => ({
+      texte: `${LOGEMENTS[id].nom} · ${LOGEMENTS[id].loyer.toLocaleString('fr-FR')} F par jour`,
+      sous: v.logement === id ? 'C’est déjà chez toi' : 'Tu vas le visiter, puis tu le loues sur place si tu veux',
+      desactive: v.logement === id,
+      f: () => { S.visite = id; aller(`lg:${id}`, false); },
+    })), { annuler: 'Pas maintenant' });
   });
   const app = document.getElementById('app');
   // Sur un écran étroit, une seule fenêtre à la fois : les gestes et les objectifs s'ouvrent par-dessus la discussion.

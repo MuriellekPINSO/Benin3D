@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $ } from './base.js';
 import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js';
-import { PRIX_LITRE, VEHICULES, creerVehicule, decoller, initStations, peutDecoller, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
+import { PRIX_LITRE, VEHICULES, atterrir, creerVehicule, decoller, enCroisiere, initStations, peutDecoller, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
 import { dansBatiment, dansObstacleRue, decalee } from './rue.js';
 import { E } from './etat.js';
 import { dansCirculation } from './trafic.js';
@@ -85,9 +85,17 @@ export function actions() {
       if (D.argent >= prix) out.push({ texte: `Faire le plein · ${manque.toLocaleString('fr-FR')} L · ${fmt(prix)}`, f: () => plein(st, manque, prix) });
       else if (D.argent >= Math.ceil(un * PRIX_LITRE / 25) * 25) out.push({ texte: `Mettre ${un.toLocaleString('fr-FR')} L · ${fmt(Math.ceil(un * PRIX_LITRE / 25) * 25)}`, f: () => plein(st, un, Math.ceil(un * PRIX_LITRE / 25) * 25) });
     }
-    // La Roadster décolle sur ses propulseurs (conduite.js) ; le bouton revient une fois posée et rechargée.
-    if (peutDecoller(V)) out.push({ texte: 'Décoller · propulseurs', f: () => { if (decoller(V)) son('saut'); } });
-    if (Math.abs(V.v) < .8 && !V.vol) out.push({ texte: `Descendre ${nomDe(V)[1]}`, f: descendre });
+    // La Roadster décolle sur ses propulseurs et vole à 110 m (conduite.js) ; on choisit où se poser.
+    if (V.vol) {
+      if (enCroisiere(V)) {
+        const G = T.gps;
+        if (G && !(V.vol.phase === 'approche' && V.vol.vers === G.nom)) out.push({ texte: `Voler jusqu’à ${G.nom}`, f: () => volerVers(G) });
+        out.push({ texte: 'Atterrir ici', f: () => { if (atterrir(V)) { V.vol.vers = null; ligne('Tu descends sur la route la plus proche.'); } else ligne('Pas de route où se poser ici : vole un peu plus loin.'); } });
+      }
+      return out;
+    }
+    if (peutDecoller(V)) out.push({ texte: 'Décoller · propulseurs', f: () => { if (decoller(V)) { son('saut'); ligne(T.gps ? `Tu montes à 110 m. Puis « Voler jusqu’à ${T.gps.nom} », ou pilote toi-même.` : 'Tu montes à 110 m. Pilote comme au sol, puis « Aller » pour choisir où te poser, ou « Atterrir ici ».'); } } });
+    if (Math.abs(V.v) < .8) out.push({ texte: `Descendre ${nomDe(V)[1]}`, f: descendre });
     return out;
   }
   if (T.mode === 'passager') { // on peut toujours descendre : à l'arrivée (prix convenu), ou avant (le bout de chemin fait)
@@ -145,9 +153,18 @@ export function gps(x, z, nom) {
   ligne(`${nom} · ${km < .95 ? `${Math.round(km * 100) * 10} m` : `${km.toFixed(1).replace('.', ',')} km`} · ${T.mode === 'pied' && km > .8 ? 'loin à pied : prends un zém.' : 'suis les chevrons.'}`);
   return true;
 }
-function majGps(dt, x, z, cap) {
+/** La Roadster en vol file vers la destination du GPS et se pose seule sur la route où finit l'itinéraire. */
+function volerVers(G) {
+  const V = T.veh, [fx, fz] = G.pts[G.pts.length - 1];
+  if (atterrir(V, fx, fz, 60) || atterrir(V, G.x, G.z, 200)) { V.vol.vers = G.nom; ligne(`Cap sur ${G.nom} : la Roadster s’y pose seule. Touche les commandes pour reprendre la main.`); }
+  else ligne(`Pas de route où se poser près de ${G.nom}.`);
+}
+const distance = m => m > 950 ? `${(m / 1000).toFixed(1).replace('.', ',')} km` : `${Math.round(m / 10) * 10} m`;
+function majGps(dt, x, z, cap, vol = false) {
   const G = T.gps; if (!G) { $('#vhGps').hidden = true; return; }
   majRuban(dt);
+  // En vol, ni itinéraire à recalculer ni arrivée : la distance à vol d'oiseau ; le GPS reprend une fois posé.
+  if (vol) { $('#vhGps').hidden = false; $('#vhGps').textContent = `→ ${G.nom} · ${distance(Math.hypot(G.x - x, G.z - z))} à vol d’oiseau`; return; }
   const r = reste(G.pts, x, z);
   // À pied on arrive sur le pas de la porte ; au volant, 22 m suffisent (on se gare au bord).
   if (Math.hypot(G.x - x, G.z - z) < (T.mode === 'pied' ? 7 : 22)) { ligne(`Tu es arrivé : ${G.nom}.`); son('arret'); retirerRuban(G.m); T.gps = null; $('#vhGps').hidden = true; return; }
@@ -155,7 +172,7 @@ function majGps(dt, x, z, cap) {
   // L'écart est maintenant mesuré au segment, pas au sommet : on peut redescendre le seuil de 35 m à 12, donc
   // recalculer dès qu'on a pris la mauvaise rue au lieu d'attendre d'être à un demi-pâté de maisons.
   if (r.ecart > 12 && T.gpsT > 1.5) { T.gpsT = 0; const pts = itineraire(x, z, cap, G.x, G.z); if (pts) { retirerRuban(G.m); G.pts = pts; G.m = ruban(pts); } } // on s'est écarté : nouvel itinéraire
-  $('#vhGps').hidden = false; $('#vhGps').textContent = `→ ${G.nom} · ${r.m > 950 ? `${(r.m / 1000).toFixed(1).replace('.', ',')} km` : `${Math.round(r.m / 10) * 10} m`}`;
+  $('#vhGps').hidden = false; $('#vhGps').textContent = `→ ${G.nom} · ${distance(r.m)}`;
 }
 
 // ---------- Héler un zém : on négocie, il vient, on monte derrière, on paie à l'arrivée ----------
@@ -369,14 +386,17 @@ export function majTrajets(dt, av, tour) {
   if (T.mode === 'avion') { const suivi = majVol(dt); if (suivi) return suivi; } // en vol (à l'arrivée : on redescend à pied)
   if (T.mode === 'conduit') {
     const V = T.veh, panne = !V.D.pedale && !(carburant() > 0); // un vélo ne tombe jamais en panne sèche
-    if (panne && !T.panneDite) { T.panneDite = true; ligne('Panne sèche ! Tu avances au pas : « Aller » → « Station-service la plus proche » pour le GPS.'); }
-    const km0 = V.km, choc = piloter(V, av, tour, dt, { panne }); if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
+    if (panne && !T.panneDite) { T.panneDite = true; ligne(V.vol ? 'Panne sèche en plein vol ! La Roadster descend se poser.' : 'Panne sèche ! Tu avances au pas : « Aller » → « Station-service la plus proche » pour le GPS.'); }
+    if (panne && V.vol?.phase === 'croisiere' && performance.now() > (T.poseT || 0)) { T.poseT = performance.now() + 1000; atterrir(V); } // plus d'essence : elle va se poser sur la route la plus proche
+    const vol = V.vol, km0 = V.km, choc = piloter(V, av, tour, dt, { panne }); if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
+    if (vol && !V.vol) { son('bosse'); ligne(vol.vers ? `Posée près de ${vol.vers}.` : 'La Roadster est posée.'); }
     if (!V.D.pedale) { T.conso += (V.km - km0) / V.D.kmParLitre; if (T.conso > .01) { consommer(T.conso); T.conso = 0; } }
     if (!V.D.pedale) moteurMaj(Math.abs(V.v), true);
     S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; S.anim = 'assis';
     asseoirSur(S.moi, V, false); if (V.etiquette) V.etiquette.visible = false;
-    const kmh = Math.round(Math.abs(V.v) * 3.6); $('#vhVitesse').hidden = false; $('#vhVitesse').textContent = `${kmh} km/h${V.v < -.2 ? ' · marche arrière' : ''}`;
-    majGps(dt, V.x, V.z, V.cap);
+    const kmh = Math.round(Math.abs(V.v) * 3.6); $('#vhVitesse').hidden = false; $('#vhVitesse').textContent = `${kmh} km/h${V.vol ? ` · à ${Math.round(V.alt)} m` :V.v < -.2 ? ' · marche arrière' : ''}`;
+    majGps(dt, V.x, V.z, V.cap, !!V.vol);
+    if (V.vol) return { x: V.x, y: V.y, z: V.z, cap: V.cap, dist: 8 + V.alt * .11, haut: 3.2, libre: V.alt > 12 }; // de haut : on recule pour voir la ville sous la voiture
     return { x: V.x, y: V.y, z: V.z, cap: V.cap, dist: V.type === 'tokpa' ? 11 : V.D.cache ? 8 : 6, haut: V.type === 'tokpa' ? 4 : V.D.cache ? 3.2 : 2.6 };
   }
   $('#vhVitesse').hidden = true; for (const E of [T.veh, T.mode === 'passager' ? null : T.zem?.V]) if (E?.etiquette) E.etiquette.visible = !S.lieu && Math.hypot(E.x - S.x, E.z - S.z) > 4.5; // dedans, elle se verrait à travers les murs ; tout près, elle couvrait le nom du joueur et « Chez toi »

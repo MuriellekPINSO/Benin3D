@@ -358,7 +358,8 @@
   "Trou pris": "Pothole hit",
   "Ta meilleure course du jour compte ; en cas d’égalité, le plus rapide gagne. Le défi change chaque soir à 20 h, heure du podium. La semaine additionne tes scores du lundi au dimanche.": "Your best ride of the day counts; in a tie, the fastest wins. The challenge changes every evening at 8 pm, when the podium comes out. The week adds up your scores from Monday to Sunday.",
   "Ton nom ou ton surnom": "Your name or nickname",
-  "Avant": "Previous"
+  "Avant": "Previous",
+  "Louer un logement": "Rent a home"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -787,7 +788,12 @@
   "derrière ": "behind ",
   "'Descends d’abord de ta voiture pour en changer.'": "'Get out of your car first to swap it.'",
   "'Quelle voiture ? Elle remplace la tienne'": "'Which car? It replaces yours'",
-  "'C’est déjà la tienne'": "'It’s already yours'"
+  "'C’est déjà la tienne'": "'It’s already yours'",
+  "'C’est déjà chez toi'": "'It’s already your home'",
+  "'Quel logement visiter ?'": "'Which home do you want to visit?'",
+  "'Tu vas le visiter, puis tu le loues sur place si tu veux'": "'Visit it first, then rent it on the spot if you like'",
+  " · à louer": " · for rent",
+  " F par jour": " F a day"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -954,7 +960,12 @@
   "'Tesla Roadster'": "'Tesla Roadster'",
   "'Le coupé électrique : bas, large, et le plus rapide de Cotonou'": "'The electric coupé: low, wide, and the fastest thing in Cotonou'",
   "Tu as de quoi t’acheter une voiture : Menu, puis « Acheter une voiture ». La moins chère est à ": "You can afford a car now: Menu, then « Buy a car ». The cheapest one costs ",
-  "'Rends d’abord ton véhicule loué.'": "'Return your rented vehicle first.'"
+  "'Rends d’abord ton véhicule loué.'": "'Return your rented vehicle first.'",
+  "' et loyers en retard'": "' and overdue rent'",
+  " : premier jour de loyer": ": first day of rent",
+  " (dont ": " (including ",
+  " de loyers en retard)": " of overdue rent)",
+  " pour emménager": " to move in"
  },
  "src/trajets.js": {
   "'Ta voiture'": "'Your car'",
@@ -1030,7 +1041,22 @@
   "'suis les chevrons.'": "'follow the chevrons.'",
   " : assieds-toi pour manger, à une table ou sur ton tabouret.": ": sit down to eat, at a table or on your stool.",
   "'Panne sèche ! Tu avances au pas : « Aller » → « Station-service la plus proche » pour le GPS.'": "'Out of fuel! You crawl along: “Go” → “Nearest petrol station” for the GPS.'",
-  "'Décoller · propulseurs'": "'Take off · thrusters'"
+  "'Décoller · propulseurs'": "'Take off · thrusters'",
+  "'Atterrir ici'": "'Land here'",
+  "'La Roadster est posée.'": "'The Roadster has landed.'",
+  "'Panne sèche en plein vol ! La Roadster descend se poser.'": "'Out of fuel in mid-air! The Roadster is coming down to land.'",
+  "'Pas de route où se poser ici : vole un peu plus loin.'": "'No road to land on here: fly a little further.'",
+  "'Tu descends sur la route la plus proche.'": "'You’re coming down onto the nearest road.'",
+  "'Tu montes à 110 m. Pilote comme au sol, puis « Aller » pour choisir où te poser, ou « Atterrir ici ».'": "'You climb to 110 m. Fly it like on the ground, then “Go” to choose where to land, or “Land here”.'",
+  " », ou pilote toi-même.": "”, or fly it yourself.",
+  " : la Roadster s’y pose seule. Touche les commandes pour reprendre la main.": ": the Roadster lands there by itself. Touch the controls to take back over.",
+  " à vol d’oiseau": " as the crow flies",
+  "Cap sur ": "Heading for ",
+  "Pas de route où se poser près de ": "No road to land on near ",
+  "Posée près de ": "Landed near ",
+  "Tu montes à 110 m. Puis « Voler jusqu’à ": "You climb to 110 m. Then “Fly to ",
+  "Voler jusqu’à ": "Fly to ",
+  " · à ": " · at "
  },
  "src/conduite.js": {
   "'zém'": "'zém'",
@@ -1604,7 +1630,19 @@
   "' « Se lever » (ou avance) pour commencer ta journée.'": "' “Get up” (or walk) to start your day.'",
   "'Douche'": "'Shower'",
   "'Cuisine'": "'Kitchen'",
-  "'La douche est dans la salle de bains : en sortant de la chambre, la porte suivante sur ta droite (étiquette jaune « Douche »).'": "'The shower is in the bathroom: as you leave the bedroom, the next door on your right (yellow “Shower” label).'"
+  "'La douche est dans la salle de bains : en sortant de la chambre, la porte suivante sur ta droite (étiquette jaune « Douche »).'": "'The shower is in the bathroom: as you leave the bedroom, the next door on your right (yellow “Shower” label).'",
+  "'À louer'": "'For rent'",
+  "'la chambre'": "'the room'",
+  "'la villa'": "'the villa'",
+  "'l’appartement'": "'the flat'",
+  "'Rendre visite à ton ami'": "'Visit your friend'",
+  " ! Bienvenue chez toi : douche, cuisine et lit sont à toi. « Aller » → « Chez moi » te ramène ici.": "! Welcome home: the shower, kitchen and bed are yours. “Go” → “My home” brings you back here.",
+  " par jour, le premier jour d’avance. »": " a day, first day paid in advance.”",
+  " par jour": " a day",
+  "Le propriétaire : « Bonne arrivée ! Fais le tour, prends ton temps. C’est ": "The landlord: “Welcome! Have a look around, take your time. It’s ",
+  "Louer ": "Rent ",
+  "Tu as loué ": "You rented ",
+  "Visiter ": "Visit "
  },
  "src/guide.js": {
   "</p><button type=\"button\" data-masquer>Masquer le guide</button>": "</p><button type=\"button\" data-masquer>Hide the guide</button>"

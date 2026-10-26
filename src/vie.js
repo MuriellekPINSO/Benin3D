@@ -196,6 +196,16 @@ export async function depenser(montant, raison = '') {
   if (ok && raison) annonce(`−${fmt(montant)} · ${raison}`);
   rendreVie(); return ok;
 }
+/**
+ * Emménager dans un logement qu'on vient de visiter (maison.js) : on paie le premier jour d'avance, et les loyers en
+ * retard de l'ancien logement s'il y en a. Le jour suivant se paie seul (payerLoyers), comme avant.
+ */
+export async function louerLogement(id) {
+  const L = LOGEMENTS[id], v = VIE.data; if (!L?.loyer || !v || v.logement === id) return false;
+  const du = L.loyer + (v.dette || 0);
+  if (!(await depenser(du, `${L.nom} : premier jour de loyer${v.dette ? ' et loyers en retard' : ''}`))) { annonce(`Il te faut ${fmt(du)} pour emménager${v.dette ? ` (dont ${fmt(v.dette)} de loyers en retard)` : ''}.`); return false; }
+  await ecrire({ logement: id, dette: 0, loyerT: Date.now() - 5000 }); rendreVie(); return true; // la base refuse un loyerT dans le futur : 5 s de marge pour l'horloge du téléphone
+}
 /** Un loyer par jour depuis le dernier payé ; sans argent, il s'ajoute à la dette ; trois jours de dette : on dort chez un ami. */
 function payerLoyers() {
   const v = VIE.data, L = LOGEMENTS[v.logement] || LOGEMENTS.ami, jours = Math.floor((Date.now() - (v.loyerT || Date.now())) / JOUR);

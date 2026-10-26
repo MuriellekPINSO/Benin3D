@@ -8,7 +8,7 @@ import { K, groupeLieu, panneauTexte } from './lieux.js';
 import { dansBatiment, surChaussee } from './rue.js';
 import { scene } from './scene.js';
 import { T, choisir, tenirPlat } from './trajets.js';
-import { VIE, depenser } from './vie.js';
+import { LOGEMENTS, VIE, depenser, louerLogement } from './vie.js';
 import { ROAD_W, roadLines } from './ville.js';
 
 // ---------- Chez soi : la journée commence au lit ----------
@@ -19,12 +19,15 @@ import { ROAD_W, roadLines } from './ville.js';
 // table, puis on sort : la porte donne sur une vraie rue du quartier, où une étiquette « Chez toi » permet
 // de revenir. Le logement est une pièce comme les autres (interieurs.js), mais privée : les amis du salon ne
 // la voient pas, et personne d'autre ne peut y entrer.
+// visite : ce qu'on visite avant de le louer (menu « Louer un logement », salon.js) ; le loyer est dans vie.js (LOGEMENTS).
 const LOGIS = {
-  chambre: { quartier: 'Akpakpa', plan: 'cour', nom: 'ta chambre', entrer: 'Rentrer dans ta chambre', titre: 'dans ta chambre, au fond d’une cour commune d’Akpakpa' },
+  chambre: { quartier: 'Akpakpa', plan: 'cour', nom: 'ta chambre', entrer: 'Rentrer dans ta chambre', titre: 'dans ta chambre, au fond d’une cour commune d’Akpakpa', visite: 'la chambre' },
   ami: { quartier: 'Gbégamey', plan: 'cour', ami: true, nom: 'chez ton ami', entrer: 'Rentrer chez ton ami', titre: 'chez ton ami, à Gbégamey, sur une natte' },
-  appartement: { lieu: 'haievive', plan: 'appart', nom: 'ton appartement', entrer: 'Rentrer dans ton appartement', titre: 'dans ton appartement de la Haie Vive' },
-  villa: { quartier: 'Fidjrossè', plan: 'appart', nom: 'ta villa', entrer: 'Rentrer dans ta villa', titre: 'dans ta villa de Fidjrossè' },
+  appartement: { lieu: 'haievive', plan: 'appart', nom: 'ton appartement', entrer: 'Rentrer dans ton appartement', titre: 'dans ton appartement de la Haie Vive', visite: 'l’appartement' },
+  villa: { quartier: 'Fidjrossè', plan: 'villa', nom: 'ta villa', entrer: 'Rentrer dans ta villa', titre: 'dans ta villa de Fidjrossè', visite: 'la villa' },
 };
+/** Les logements qu'on peut louer, du moins cher au plus cher. */
+export const A_LOUER = ['chambre', 'appartement', 'villa'];
 // Ce qu'on cuisine chez soi : [plat, prix des ingrédients (F), faim rendue]. Moins cher qu'au maquis, mais il faut le temps de le préparer.
 const RECETTES = {
   cour: [['Bouillie de maïs et beignets', 150, 15], ['Haricots, gari et huile rouge', 250, 25], ['Riz sauce tomate', 300, 28], ['Pâte de maïs, sauce gombo', 400, 35]],
@@ -93,15 +96,19 @@ function declarer(logement) {
   const dehors = Math.atan2(-P.nx, -P.nz), g = groupeLieu(`porte-${id}`, P.x, P.z); g.rotation.y = dehors;
   K.into(g, () => (P.facade ? entreeImmeuble : portail)(P));
   const etq = etiquette('Chez toi'); etq.position.set(0, 3.6, .4); etq.visible = false; g.add(etq);
+  const louer = etiquette('À louer'); louer.position.set(0, 3.6, .4); louer.visible = false; g.add(louer);
   declarerInterieur(id, {
-    nom: D.nom, entrer: D.entrer, titre: D.titre, logis: D, prive: true, plafond: 2.7, etiquette: etq,
+    nom: D.nom, entrer: D.entrer, titre: D.titre, logis: D, logement, prive: true, plafond: 2.7, etiquette: etq, aLouer: louer,
     porte: [P.x - P.nx * 1.4, P.z - P.nz * 1.4], dehors, centre: [P.x, 7400], // en mer, plus loin que les autres pièces
-    ...(appart ? { w: 12, d: 9, entree: [1, -3.7, 0], construire: I => { appartement(I); reperes(I); } } : { w: 12, d: 10, entree: [1.5, -4.2, 0], construire: I => { cour(I); reperes(I); } }),
+    ...(D.plan === 'villa' ? { w: 12 - 2 * DX_VILLA, d: 9, entree: [1 + DX_VILLA, -3.7, 0], construire: I => { villa(I); reperes(I); } } // derrière un portail, comme une vraie villa
+      : appart ? { w: 12, d: 9, entree: [1, -3.7, 0], construire: I => { appartement(I); reperes(I); } } : { w: 12, d: 10, entree: [1.5, -4.2, 0], construire: I => { cour(I); reperes(I); } }),
   });
   return INTERIEURS.get(id);
 }
 /** Le logement du joueur (déclaré à la première demande), ou null sans « Ma vie ». */
 export const maisonActuelle = () => (VIE.data ? declarer(VIE.data.logement || 'ami') : null);
+/** Un logement à visiter (déclaré à la première demande) : sa porte, puis sa pièce. */
+export const logement = id => (LOGIS[id] ? declarer(id) : null);
 
 // ---------- Matières ----------
 K.motif('pagneWax', (c, t) => { // tissu wax : grands ronds concentriques sur fond orange
@@ -219,15 +226,20 @@ function cour(I) {
   if (ami) I.sieges.find(s => s.x === 1.65).occupe = true;
 }
 
-// ---------- Appartement (Haie Vive ; villa de Fidjrossè) ----------
+// ---------- Appartement (Haie Vive) ----------
 // Séjour avec canapé et télévision, table à manger, cuisine équipée (cuisinière, réfrigérateur), chambre
-// avec grand lit et climatiseur, salle de bains avec douche.
-function appartement(I) {
-  const W = I.w, D = I.d, Hm = 2.8;
+// avec grand lit et climatiseur, salle de bains avec douche. `baie` : la villa ouvre son séjour sur le jardin.
+function appartement(I, { w = I.w, d = I.d, baie = false } = {}) {
+  const W = w, D = d, Hm = 2.8;
   const blanc = K.mat('#f2eee6', { rugosite: .9 }), bois = K.mat('#6b4a2f', { rugosite: .6 }), jour = K.mat('#cfe3ee', { emissif: '#9fb9c4' });
   sansOmbre(K.boite(W, .2, D, K.tex('carrelageClair', W / 2, D / 2), 0, -.1, 0));
   sansOmbre(K.boite(W, .1, D, '#f7f5f0', 0, 2.8, 0));
-  for (const [w, d, x, z] of [[W, .25, 0, -D / 2], [W, .25, 0, D / 2], [.25, D, -W / 2, 0], [.25, D, W / 2, 0]]) sansOmbre(K.boite(w, Hm, d, blanc, x, Hm / 2, z));
+  for (const [w, d, x, z] of [[W, .25, 0, -D / 2], [W, .25, 0, D / 2], [.25, D, -W / 2, 0], ...(baie ? [] : [[.25, D, W / 2, 0]])]) sansOmbre(K.boite(w, Hm, d, blanc, x, Hm / 2, z));
+  if (baie) { // le mur est du séjour, percé d'une baie vitrée ouverte de 2,5 m entre la télévision et le réfrigérateur
+    cloison(I, .25, 3.3, W / 2, -D / 2 + 1.65, Hm, blanc); cloison(I, .25, 3.2, W / 2, D / 2 - 1.6, Hm, blanc);
+    sansOmbre(K.boite(.25, .5, 2.5, blanc, W / 2, 2.55, .05));
+    K.boite(.04, 2.3, 1.2, K.mat('#bfe0ea', { transparent: .35, rugosite: .05 }), W / 2 + .16, 1.15, -1.85).castShadow = false; // le vantail repoussé contre le mur
+  }
   const led = K.mat('#ffffff', { emissif: '#fff4e0' });
   for (const [x, z] of [[-4, -1.6], [1.5, -2.2], [1, 2.6], [4.3, 3], [-4, 2.9]]) sansOmbre(K.cyl(.22, .22, .03, 18, led, x, 2.73, z));
   K.boite(1, 2.15, .06, bois, 1, 1.07, -D / 2 + .16); // porte d'entrée
@@ -269,6 +281,51 @@ function appartement(I) {
   K.boite(2.4, 1.3, .02, jour, 3.6, 1.6, -D / 2 + .14).castShadow = false;
 }
 
+// ---------- Villa (Fidjrossè) ----------
+// La maison de l'appartement en plus grand train : la même distribution, décalée vers l'ouest, et à l'est, par la baie
+// vitrée du séjour, le jardin à ciel ouvert : pelouse, piscine et sa plage carrelée, deux chiliennes, un parasol, des
+// cocotiers et le mur de clôture. Le jardin fait 6 m sur 9.
+const DX_VILLA = -3;
+function villa(I) {
+  const n = { o: I.obstacles.length, s: I.sieges.length }, g = new THREE.Group(); g.position.x = DX_VILLA; K.racine.add(g);
+  K.into(g, () => appartement(I, { w: 12, d: 9, baie: true }));
+  // La maison est construite dans son propre repère : on décale d'autant ce qu'elle a déclaré (murs, meubles, sièges, lit…).
+  for (const o of I.obstacles.slice(n.o)) o[0] += DX_VILLA;
+  for (const c of I.sieges.slice(n.s)) c.x += DX_VILLA;
+  I.douche.x += DX_VILLA; I.fourneau.x += DX_VILLA; I.fourneau.marmite = [I.fourneau.marmite[0] + DX_VILLA, I.fourneau.marmite[1], I.fourneau.marmite[2]];
+  I.lit.x += DX_VILLA; I.lit.leve = [I.lit.leve[0] + DX_VILLA, I.lit.leve[1], I.lit.leve[2]];
+  // Le jardin : de x = 3 (la baie) à x = 9 (la clôture).
+  const x0 = 6 + DX_VILLA, x1 = I.w / 2, D = I.d, cx = (x0 + x1) / 2, Lj = x1 - x0;
+  const enduit = K.mat('#efe6d6', { rugosite: .95 }), herbe = K.mat('#5f8f3e', { rugosite: 1 }), dalle = K.tex('carrelageClair', 2, 3);
+  sansOmbre(K.boite(Lj, .2, D, herbe, cx, -.1, 0));
+  for (const [w, d, x, z] of [[Lj, .25, cx, -D / 2], [Lj, .25, cx, D / 2], [.25, D, x1, 0]]) sansOmbre(K.boite(w, 2.4, d, enduit, x, 1.2, z));
+  for (const [w, d, x, z] of [[Lj, .3, cx, -D / 2 + .02], [Lj, .3, cx, D / 2 - .02], [.3, D, x1 - .02, 0]]) sansOmbre(K.boite(w, .08, d, '#d9c7a4', x, 2.44, z)); // chaperon du mur
+  // La piscine, dans sa plage de carreaux : on n'y tombe pas (un obstacle bas tout autour de l'eau).
+  const px = 6.8, pz = 1.2, pw = 2.6, pd = 4.4;
+  sansOmbre(K.boite(pw + 1.2, .04, pd + 1.2, dalle, px, .02, pz));
+  sansOmbre(K.boite(pw, .03, pd, '#1b5f78', px, .03, pz)); // le fond, vu à travers l'eau
+  sansOmbre(K.boite(pw - .1, .02, pd - .1, K.mat('#3fb6d8', { transparent: .7, rugosite: .05, emissif: '#1d6f8c' }), px, .06, pz));
+  for (const [w, d, x, z] of [[pw + .2, .1, px, pz - pd / 2 - .05], [pw + .2, .1, px, pz + pd / 2 + .05], [.1, pd, px - pw / 2 - .05, pz], [.1, pd, px + pw / 2 + .05, pz]]) sansOmbre(K.boite(w, .08, d, '#f4f2ec', x, .07, z)); // margelle
+  meuble(I, pw + .2, pd + .2, px, pz, .1);
+  K.cyl(.02, .02, .9, 6, '#c9cdd0', px - pw / 2 + .25, .45, pz - pd / 2 + .02); K.cyl(.02, .02, .9, 6, '#c9cdd0', px - pw / 2 + .55, .45, pz - pd / 2 + .02); // l'échelle
+  // Deux chiliennes face à l'eau, et le parasol entre elles.
+  const toile = K.mat('#e9b23a', { rugosite: .8 }), cadre = K.mat('#f4f2ec', { rugosite: .5 });
+  for (const x of [5.2, 7.6]) {
+    const c = new THREE.Group(); c.position.set(x, 0, -2.9); K.racine.add(c);
+    K.boite(.7, .08, 1.7, cadre, 0, .32, 0, c); K.boite(.62, .04, 1.1, toile, 0, .38, .25, c);
+    const dos = K.boite(.62, .04, .7, toile, 0, .58, -.55, c); dos.rotation.x = -.7;
+    for (const [a, b] of [[-.3, -.75], [.3, -.75], [-.3, .75], [.3, .75]]) K.boite(.05, .3, .05, cadre, a, .15, b, c);
+    meuble(I, .7, 1.7, x, -2.9, .45); I.sieges.push({ x, z: -2.6, cap: 0 }); // le dossier au nord : on regarde la piscine
+  }
+  K.cyl(.03, .03, 2.2, 8, '#f4f2ec', 6.4, 1.1, -3.4); meuble(I, .2, .2, 6.4, -3.4, 2.2); const para = K.cyl(.02, 1.3, .45, 12, K.mat('#c0392b', { rugosite: .8 }), 6.4, 2.25, -3.4); para.castShadow = false;
+  // Cocotiers dans les angles, et des massifs le long de la clôture.
+  for (const [x, z, h] of [[8.4, -3.8, 4.6], [3.9, 3.8, 4.2]]) {
+    const tronc = K.cyl(.12, .17, h, 8, '#8a6a4a', x, h / 2, z); tronc.rotation.z = x > 6 ? -.08 : .08; meuble(I, .4, .4, x, z, h);
+    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2, f = sansOmbre(K.boite(.35, .04, 1.8, K.mat('#3f7a34', { rugosite: .9 }), x + Math.sin(a) * .8, h - .1, z + Math.cos(a) * .8)); f.rotation.y = a; f.rotation.x = .35; }
+  }
+  for (const z of [-1.2, 3.9]) { K.sphere(.45, K.mat('#4f7a3c', { rugosite: .9 }), x1 - .5, .35, z).scale.set(1, .8, 1.6); meuble(I, .8, 1.4, x1 - .5, z, .7); }
+}
+
 // ---------- Couché, debout, sous la douche, aux fourneaux ----------
 /** Se coucher dans son lit (au réveil : sans message). */
 export function coucher(I) {
@@ -289,7 +346,7 @@ function lever() {
     const faim = VIE.data?.faim ?? 100;
     if (!H.guide?.()) H.ligne(`Bonjour ! Ici, tu peux te doucher, cuisiner et manger à table. Quand tu es prêt, « Sortir » pour aller en ville.${faim < 60 ? ' Tu as faim : prépare quelque chose avant de sortir.' : ''}`); // sinon le guide le dit
     else if (faim < 60) H.ligne('Tu as faim : prépare quelque chose avant de sortir.');
-    if (I.logis?.plan === 'appart') H.ligne('La douche est dans la salle de bains : en sortant de la chambre, la porte suivante sur ta droite (étiquette jaune « Douche »).');
+    if (I.logis?.plan !== 'cour') H.ligne('La douche est dans la salle de bains : en sortant de la chambre, la porte suivante sur ta droite (étiquette jaune « Douche »).');
     I.pnj?.userData.jouer?.('salut');
   }
 }
@@ -355,6 +412,7 @@ export const occupe = () => !!(H.S?.couche || H.S?.activite);
 // ---------- Actions de la maison (boutons du salon) ----------
 export function actionsMaison() {
   const S = H.S, I = S.lieu; if (!I?.prive || T.mode !== 'pied') return [];
+  if (I !== maisonActuelle()) return I.logis.visite ? [{ texte: `Louer ${I.logis.visite} · ${fmt(LOGEMENTS[I.logement].loyer)} par jour`, f: () => louer(I) }] : [];
   if (S.couche) return [{ texte: 'Se lever', f: lever }];
   if (S.activite) return [{ texte: S.activite.type === 'cuisine' ? 'Arrêter la cuisson' : 'Sortir de la douche', f: arreter }];
   const pres = (p, r) => p && Math.hypot(S.x - (I.centre[0] + p.x), S.z - (I.centre[1] + p.z)) < r, out = [];
@@ -366,11 +424,40 @@ export function actionsMaison() {
   return out;
 }
 
+// ---------- Visiter un logement, puis le louer ----------
+// « J'ai la possibilité de louer maison ou maquis, donc la possibilité de visiter la maison » (26/10). Le menu « Louer
+// un logement » (salon.js) mène devant la porte, marquée « À louer » ; on visite la pièce, le propriétaire attend près
+// de l'entrée, et « Louer » paie le premier jour : le logement devient le sien, « Chez moi » y ramène.
+function accueillir(I) {
+  if (!I.proprio) { // le propriétaire, près de l'entrée, tourné vers qui arrive
+    const [ex, ez, r] = I.entree, p = personne(5150 + I.logement.length, { femme: false });
+    p.position.set(ex + Math.sin(r) * 1.7 + Math.cos(r) * .7, 0, ez + Math.cos(r) * 1.7 - Math.sin(r) * .7); p.rotation.y = r + Math.PI;
+    I.g.add(p); I.proprio = p; I.obstacleProprio = [p.position.x, p.position.z, .22, .22];
+  }
+  if (!I.obstacles.includes(I.obstacleProprio)) I.obstacles.push(I.obstacleProprio);
+  I.proprio.visible = true; I.proprio.userData.jouer?.('salut');
+  const L = LOGEMENTS[I.logement];
+  H.ligne(`Le propriétaire : « Bonne arrivée ! Fais le tour, prends ton temps. C’est ${fmt(L.loyer)} par jour, le premier jour d’avance. »`);
+}
+async function louer(I) {
+  if (!(await louerLogement(I.logement))) return;
+  H.ligne(`Tu as loué ${I.logis.visite} ! Bienvenue chez toi : douche, cuisine et lit sont à toi. « Aller » → « Chez moi » te ramène ici.`);
+  I.proprio?.userData.jouer?.('salut');
+}
+
 // ---------- À chaque image ----------
 /** Renvoie true quand la maison place elle-même le personnage (couché, douche, cuisine) ; false : on marche. */
 export function majMaison(dt, av, tour) {
   const S = H.S; if (!S) return false;
-  for (const I of INTERIEURS.values()) if (I.prive) I.etiquette.visible = S.actif && !S.lieu && Math.hypot(I.porte[0] - S.x, I.porte[1] - S.z) > 6; // « Chez toi », vu de la rue (devant la porte, le bouton « Rentrer » suffit)
+  const mien = maisonActuelle();
+  for (const I of INTERIEURS.values()) if (I.prive) {
+    const loin = S.actif && !S.lieu && Math.hypot(I.porte[0] - S.x, I.porte[1] - S.z) > 6; // vu de la rue (devant la porte, le bouton suffit)
+    I.etiquette.visible = loin && I === mien; // « Chez toi » : seulement chez soi, pas sur l'ancien logement
+    I.aLouer.visible = loin && I !== mien && !!I.logis.visite;
+    I.entrer = I === mien ? I.logis.entrer : I.logis.visite ? `Visiter ${I.logis.visite}` : 'Rendre visite à ton ami';
+    if (I.proprio && I === mien && I.proprio.visible) { I.proprio.visible = false; I.obstacles.splice(I.obstacles.indexOf(I.obstacleProprio), 1); } // loué : il s'en va
+  }
+  if (S.lieu !== H.lieu) { H.lieu = S.lieu; if (S.lieu?.prive && S.lieu !== mien && S.lieu.logis.visite) accueillir(S.lieu); }
   const bouge = Math.abs(av) > .3 || Math.abs(tour) > .3;
   if (S.couche) {
     if (bouge) { lever(); return false; }
