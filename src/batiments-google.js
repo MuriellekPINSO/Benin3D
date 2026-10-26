@@ -1,6 +1,7 @@
 import { LITE, hash } from './base.js';
 import { scene } from './scene.js';
-import { maillageLot, roadLines } from './ville.js';
+import { maillageLot } from './ville.js';
+import { surLaChaussee } from './chaussee.js';
 import { ajouterEmprises } from './rue.js';
 import { lireJsonGz } from './chargement.js';
 import { rectSansConstruction } from './zones.js';
@@ -13,40 +14,7 @@ import { rectSansConstruction } from './zones.js';
 
 const BG = { index: null, taille: 1000, tuiles: new Map(), emprises: new Set(), t: 0, enCours: 0, visible: true, retires: 0, lus: 0, parClasse: {} };
 
-// ---------- Pas de maison sur la chaussée ----------
-// Google détecte aussi des « bâtiments » sur les routes (camions, auvents, gares routières) et ses emprises
-// sont parfois décalées par rapport aux rues d'OpenStreetMap : une maison au milieu de la voie bloque la
-// conduite et le tokpa-tokpa la traverse. On retire, au chargement, celles qui chevauchent une chaussée :
-// l'axe de la rue passe dedans, ou un de leurs coins entre de plus de 1,5 m dans la chaussée.
-const CR = 40, ROUTES = { grille: null };
-function grilleRoutes() {
-  if (ROUTES.grille) return ROUTES.grille;
-  const g = new Map();
-  for (const L of roadLines) {
-    if (L.bridge || L.cls === 6 || L.cls >= 10) continue; // ni ponts, ni sentiers, ni pistes de l'aéroport
-    const hw = (L.w || 6) / 2;
-    for (let k = 1; k < L.pts.length; k++) {
-      const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k], s = [ax, az, bx, bz, hw, L.cls];
-      for (let cx = Math.floor(Math.min(ax, bx) / CR); cx <= Math.floor(Math.max(ax, bx) / CR); cx++) for (let cz = Math.floor(Math.min(az, bz) / CR); cz <= Math.floor(Math.max(az, bz) / CR); cz++) { const c = cx + ',' + cz; let l = g.get(c); if (!l) g.set(c, l = []); l.push(s); }
-    }
-  }
-  return ROUTES.grille = g;
-}
-const distSeg = (x, z, ax, az, bx, bz) => { const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)); return Math.hypot(ax + dx * t - x, az + dz * t - z); };
-const croise = (ax, az, bx, bz, cx, cz, dx, dz) => { const d1 = (bx - ax) * (cz - az) - (bz - az) * (cx - ax), d2 = (bx - ax) * (dz - az) - (bz - az) * (dx - ax), d3 = (dx - cx) * (az - cz) - (dz - cz) * (ax - cx), d4 = (dx - cx) * (bz - cz) - (dz - cz) * (bx - cx); return d1 * d2 < 0 && d3 * d4 < 0; };
-function dedans(x, z, r) { let c = false; for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) if ((r[i + 1] > z) !== (r[j + 1] > z) && x < (r[j] - r[i]) * (z - r[i + 1]) / (r[j + 1] - r[i + 1]) + r[i]) c = !c; return c; }
-function surLaChaussee(r, bb) { // renvoie la classe de la route en cause, ou 0
-  const g = grilleRoutes(), vus = new Set();
-  for (let cx = Math.floor((bb[0] - 12) / CR); cx <= Math.floor((bb[2] + 12) / CR); cx++) for (let cz = Math.floor((bb[1] - 12) / CR); cz <= Math.floor((bb[3] + 12) / CR); cz++) for (const s of g.get(cx + ',' + cz) || []) {
-    if (vus.has(s)) continue; vus.add(s);
-    const [ax, az, bx, bz, hw, cls] = s, oui = cls + 1;
-    if (Math.max(ax, bx) < bb[0] - hw || Math.min(ax, bx) > bb[2] + hw || Math.max(az, bz) < bb[1] - hw || Math.min(az, bz) > bb[3] + hw) continue;
-    for (let i = 0; i < r.length; i += 2) if (distSeg(r[i], r[i + 1], ax, az, bx, bz) < hw - 1.5) return oui; // un coin bien dans la chaussée
-    if (dedans(ax, az, r) || dedans(bx, bz, r)) return oui; // l'axe de la rue passe dans l'emprise
-    for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) if (croise(ax, az, bx, bz, r[j], r[j + 1], r[i], r[i + 1])) return oui;
-  }
-  return 0;
-}
+// Pas de maison sur la chaussée : les emprises qui mordent sur une rue sont retirées au chargement (chaussee.js).
 /** Le lot sans les emprises posées sur une chaussée, et le numéro d'origine de celles qu'on garde. */
 function horsChaussee(T) {
   const out = { n: [], h: [], c: [], x: [], z: [], p: [] }, ids = []; let o = 0, retires = 0;

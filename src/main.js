@@ -9,6 +9,7 @@ import { $, LITE, reduceMotion } from './base.js';
 import { arreterConseils, conseils, decode, frame, loadTxt, status } from './chargement.js';
 import { surveillerIncidents } from './incidents.js';
 import { envoyerParCarres, preparerGeometries } from './memoire.js';
+import { marquerSurRoute } from './chaussee.js';
 import { E } from './etat.js';
 import { accueil, initExplorer } from './explorer.js';
 import { TRIPO, chargerIndexTripo, urlTripo } from './batiments-tripo.js';
@@ -146,6 +147,8 @@ async function main() {
   initTerrePleins(data.L.terrePleins); construireTerrePleins(); // terre-plein central des boulevards (gazon, haies, lampadaires)
   construireFeux(data.L.feux, data.L.passages); // feux tricolores et passages piétons réels (OSM)
   initZones(data.L); // zones où rien ne se construit (piste de Ouidah)
+  const surRoute = marquerSurRoute(data.B); // les bâtiments OSM posés sur une rue où l'on roule : ni dessinés, ni obstacles (chaussee.js)
+  if (import.meta.env.DEV) console.info(`bâtiments OSM sur une chaussée, retirés : ${surRoute}`);
   await buildBuildings(data.B);
   initRue(data);
   const nGoogle = await initBatimentsGoogle();

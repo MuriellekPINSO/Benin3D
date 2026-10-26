@@ -310,7 +310,9 @@ function marcheGanhi() {
   const cx = 2440, cz = 1693, ang = Math.atan2(-76.2, 98.1), L = 110, W = 46;
   const g = groupeLieu('marche-ganhi', cx, cz, ang);
   K.into(g, () => {
-    K.sol(L + 18, W + 18, K.tex('paves', 14, 7, '#bfbab0'), 0, 0, .04);
+    // Le parvis s'arrête à 4 m des longs côtés : la route de la ligne du centre passe à 33 m de l'axe du hall, et les
+    // lampadaires plantés à 10 m de la façade étaient au milieu de la chaussée (le zém les traversait, relevé du 26/10).
+    K.sol(L + 18, W + 8, K.tex('paves', 14, 7, '#bfbab0'), 0, 0, .04);
     const brique = K.tex('briquesAjourees', L / 8, 1), acier = K.mat('#6f7378', { rugosite: .5, metal: .35 }), blanc = K.mat('#f1f0ec', { rugosite: .8 });
     K.boite(L, 4.6, W, brique, 0, 2.3, 0);
     K.boite(L - 1.6, 2.2, W - 1.6, K.tex('claustra', L / 4, 1, '#9aa0a4'), 0, 5.7, 0); // bandeau de persiennes grises
@@ -339,8 +341,8 @@ function marcheGanhi() {
     }
     // Motos garées en rangs devant les deux façades.
     const cols = ['#1f2326', '#c8382f', '#2f6fb0', '#e6e3dc', '#3c7a4f'];
-    for (const s of [-1, 1]) for (let x = -L * .42; x <= L * .42; x += 1.25) if (K.alea() < .8) { const m = K.boite(.5, .95, 1.9, cols[Math.floor(K.alea() * 5)], x, .5, s * (W / 2 + 5.5)); m.rotation.y = (K.alea() - .5) * .3; }
-    for (const s of [-1, 1]) for (let x = -L / 2; x <= L / 2; x += 18) K.lampadaireSimple(x, s * (W / 2 + 10), s);
+    for (const s of [-1, 1]) for (let x = -L * .42; x <= L * .42; x += 1.25) if (K.alea() < .8) { const m = K.boite(.5, .95, 1.9, cols[Math.floor(K.alea() * 5)], x, .5, s * (W / 2 + 2.2)); m.rotation.y = (K.alea() - .5) * .3; }
+    for (const s of [-1, 1]) for (let x = -L / 2; x <= L / 2; x += 18) K.lampadaireSimple(x, s * (W / 2 + 3.6), s);
   });
   bake(g);
 }

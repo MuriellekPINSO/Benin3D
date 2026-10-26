@@ -32,7 +32,7 @@ function indexer(data) {
     let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
     for (let j = 0; j < B.n[i]; j++) { const x = (B.x[i] + B.p[off[i] + 2 * j]) / 10, z = (B.z[i] + B.p[off[i] + 2 * j + 1]) / 10; x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
     bb.set([x0, z0, x1, z1], i * 4);
-    const bx = B.x[i] / 10, bz = B.z[i] / 10; if (rectSansConstruction(bx - 3, bz - 3, bx + 3, bz + 3)) continue; // retiré de la ville (ville.js, zones.js) : pas d'obstacle non plus
+    const bx = B.x[i] / 10, bz = B.z[i] / 10; if (B.surRoute?.[i] || rectSansConstruction(bx - 3, bz - 3, bx + 3, bz + 3)) continue; // retiré de la ville (ville.js, chaussee.js, zones.js) : pas d'obstacle non plus
     for (let cx = Math.floor(x0 / CB); cx <= Math.floor(x1 / CB); cx++) for (let cz = Math.floor(z0 / CB); cz <= Math.floor(z1 / CB); cz++) { const k = cx + ',' + cz; if (!g.has(k)) g.set(k, []); g.get(k).push(i); }
   }
   R.B = { B, off, bb }; R.grilleB = g;

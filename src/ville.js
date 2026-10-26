@@ -398,7 +398,7 @@ export async function buildBuildings(B) {
   const CELL = 1600, L = preparerLot(B, i => i), N = L.N, cellOf = new Int32Array(N), exclu = new Uint8Array(N);
   const cellKeys = new Map(), cells = [];
   for (let i = 0; i < N; i++) {
-    const bx = B.x[i] / 10, bz = B.z[i] / 10; if (rectSansConstruction(bx - 3, bz - 3, bx + 3, bz + 3)) { exclu[i] = 1; continue; } // piste de Ouidah (zones.js)
+    const bx = B.x[i] / 10, bz = B.z[i] / 10; if (B.surRoute?.[i] || rectSansConstruction(bx - 3, bz - 3, bx + 3, bz + 3)) { exclu[i] = 1; continue; } // posé sur une rue (chaussee.js), piste de Ouidah (zones.js)
     const key = Math.floor(B.x[i] / 10 / CELL) + ',' + Math.floor(B.z[i] / 10 / CELL);
     let c = cellKeys.get(key); if (c === undefined) { c = cells.length; cellKeys.set(key, c); cells.push({ v: 0, ix: 0 }); }
     cellOf[i] = c; const [v, ix] = tailleBatiment(B, L, i); cells[c].v += v; cells[c].ix += ix;

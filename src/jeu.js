@@ -30,6 +30,7 @@ import { vibrer } from './manette.js';
 import { carrefoursDe, construireReseau, itineraire, itineraireCourt, itineraireDemiTour, rueSous } from './carrefours.js';
 import { ouvrirOffre } from './publicites.js';
 import { dansBatiment, pietonOk, profilRoute, profondeurRue, rueRouteJeu } from './rue.js';
+import { dansTerrePlein } from './terre-pleins.js';
 import { creerGuide } from './guide.js';
 import { compterUneFois, lieuStats } from './statistiques.js';
 import { suspendreChanson } from './lecteur.js';
@@ -141,7 +142,9 @@ function libre1(C, i, cote) {
   if (t[k] >= 0) return t[k];
   const i0 = Math.max(0, i - 2), i1 = Math.min(C.n - 1, i + 2); let dx = C.X[i1] - C.X[i0], dz = C.Z[i1] - C.Z[i0]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
   let r = LIBRE_MAX;
-  try { for (let q = .25; q < LIBRE_MAX; q += .25) if (dansBatiment(C.X[i] - dz * cote * q, C.Z[i] + dx * cote * q)) { r = q - .25; break; } } catch { /* bâtiments pas encore chargés */ }
+  // Le terre-plein central compte aussi : après un virage sur un boulevard, les files de gauche menaient le zém sur la
+  // haie et les lampadaires du milieu (relevé du 26/10).
+  try { for (let q = .25; q < LIBRE_MAX; q += .25) { const x = C.X[i] - dz * cote * q, z = C.Z[i] + dx * cote * q; if (dansBatiment(x, z) || dansTerrePlein(x, z)) { r = q - .25; break; } } } catch { /* bâtiments pas encore chargés */ }
   return (t[k] = r);
 }
 // Sur toute la longueur de la moto (±1,5 m), puis en pente douce (0,5 m de côté par mètre) : le zém glisse le long d'un

@@ -5,6 +5,7 @@ import { LITE, hash, toXZ, u8c } from './base.js';
 import { scene } from './scene.js';
 import { parCarres } from './carres.js';
 import { ROAD_W, TABLIERS, roadLines } from './ville.js';
+import { surChaussee } from './chaussee.js';
 import { GRANDES_AFFICHES, matAffiche } from './publicites.js';
 import { poserSol } from './sols.js';
 import { photoPlusTard } from './telechargements.js';
@@ -68,6 +69,8 @@ export const K = (() => {
   const tailles = {};
   const geos = new Map(), mats = new Map(), toiles = new Map();
   let cible = null;
+  // Un lampadaire de décor ne se plante pas dans une chaussée où l'on roule (chaussee.js) : il n'est pas ajouté.
+  const ou = new THREE.Vector3(), dansLaRue = (x, z) => { cible.updateWorldMatrix(true, false); cible.localToWorld(ou.set(x, 0, z)); return surChaussee(ou.x, ou.z); };
   const K = {
     alea,
     motif(nom, f, w = 256, h = 256) { D[nom] = f; tailles[nom] = [w, h]; },
@@ -157,14 +160,14 @@ export const K = (() => {
       return g;
     },
     lampadaireDouble(x, z, rot = 0) {
-      const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; cible.add(g);
+      const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; if (dansLaRue(x, z)) return g; cible.add(g);
       K.cyl(.11, .17, 9, 8, '#9aa0a2', 0, 4.5, 0, g); K.cyl(.28, .31, .12, 10, '#737a78', 0, .07, 0, g);
       K.boite(3.4, .12, .12, '#9aa0a2', 0, 8.95, 0, g);
       for (const dx of [-1.5, 1.5]) { K.boite(.75, .16, .34, '#e7e3d6', dx, 8.8, 0, g); K.boite(.55, .035, .24, '#fff4c7', dx, 8.69, 0, g); }
       return g;
     },
     lampadaireSimple(x, z, sens = 1, rot = 0) {
-      const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; cible.add(g);
+      const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; if (dansLaRue(x, z)) return g; cible.add(g);
       K.cyl(.1, .15, 8, 8, '#5d6360', 0, 4, 0, g); K.cyl(.25, .28, .1, 10, '#3f4544', 0, .06, 0, g);
       K.boite(1.8, .12, .12, '#5d6360', sens * .9, 7.95, 0, g);
       K.boite(.8, .16, .3, '#f0ebda', sens * 1.7, 7.82, 0, g); K.boite(.6, .03, .22, '#fff4c7', sens * 1.7, 7.71, 0, g);
@@ -839,7 +842,7 @@ export function dantokpa(B, M) {
   // Enseigne « MARCHÉ DANTOKPA » sur le grand bâtiment du bord de lagune.
   let best = -1, bestA = 0, off = 0; const offs = [];
   for (let i = 0; i < B.n.length; i++) { offs.push(off); off += B.n[i] * 2; }
-  for (let i = 0; i < B.n.length; i++) if (B.c[i] === 10) { let A = 0; const n = B.n[i], o = offs[i]; for (let j = 0; j < n; j++) { const k = (j + 1) % n; A += B.p[o + 2 * j] * B.p[o + 2 * k + 1] - B.p[o + 2 * k] * B.p[o + 2 * j + 1]; } A = Math.abs(A) / 200; if (A > bestA && B.x[i] / 10 > 1800) { bestA = A; best = i; } }
+  for (let i = 0; i < B.n.length; i++) if (B.c[i] === 10 && !B.surRoute?.[i]) { let A = 0; const n = B.n[i], o = offs[i]; for (let j = 0; j < n; j++) { const k = (j + 1) % n; A += B.p[o + 2 * j] * B.p[o + 2 * k + 1] - B.p[o + 2 * k] * B.p[o + 2 * j + 1]; } A = Math.abs(A) / 200; if (A > bestA && B.x[i] / 10 > 1800) { bestA = A; best = i; } }
   if (best >= 0 && !tripoDispo('dantokpa')) { // sinon, le modèle Tripo du bâtiment (lieux-videos.js) porte déjà l'enseigne
     const n = B.n[best], o = offs[best], ring = []; for (let j = 0; j < n; j++) ring.push([(B.x[best] + B.p[o + 2 * j]) / 10, (B.z[best] + B.p[o + 2 * j + 1]) / 10]);
     const ob = obb(ring), h = B.h[best] / 4;
