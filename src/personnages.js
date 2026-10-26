@@ -119,6 +119,37 @@ function surPlace(clips) {
     }
   }
 }
+// « La maman est encore coincée dans la chaise » (Carlos, 26/10) : on posait le BASSIN des personnes assises à
+// la hauteur de l'assise, alors que les fesses sont 14 à 21 cm plus bas (mesuré sur les dix modèles) — la chaise
+// leur passait à travers les cuisses. On mesure donc, dans la pose assise, sur la peau elle-même : la profondeur des
+// fesses et des pieds sous le bassin, et jusqu'où le dos recule derrière lui (pour ne pas entrer dans un dossier).
+// Repère du personnage : regard vers +z, en unités du modèle (personnage3d les met à l'échelle).
+function mesurerAssis(scene, b, rot, hauteur) {
+  const k = hauteur / 1.7, p = new THREE.Vector3(), cos = Math.cos(rot), sin = Math.sin(rot);
+  let fesses = 0, pieds = 0, dos = 0;
+  scene.traverse(o => {
+    if (!o.isSkinnedMesh) return;
+    const n = o.geometry.attributes.position.count;
+    for (let i = 0; i < n; i += 2) {
+      o.getVertexPosition(i, p).applyMatrix4(o.matrixWorld).sub(b);
+      const x = p.x * cos + p.z * sin, z = -p.x * sin + p.z * cos, y = p.y; // tourné comme corps.rotation.y = rot
+      pieds = Math.max(pieds, -y);
+      if (Math.abs(x) < .16 * k && z < .03 * k) fesses = Math.max(fesses, -y); // sous le bassin, pas sous les cuisses
+      if (y > -.15 * k && y < .55 * k && Math.abs(x) < .22 * k) dos = Math.max(dos, -z);
+    }
+  });
+  return { fesses, pieds, dos };
+}
+/**
+ * Pose un personnage assis (créé avec `assise`) sur un siège dont le dessus est à `y` : les fesses sur l'assise, et,
+ * s'il y a un dossier à `dossier` mètres derrière le centre du siège, assez en avant pour que le dos ne le traverse pas.
+ * Les personnages dessinés en code (sans mesures) restent posés comme avant, le bassin au ras de l'assise.
+ */
+export function poserAssis(p, x, y, z, cap, dossier = 0) {
+  const A = p.userData.assise, recul = A && dossier ? Math.max(0, A.dos + .01 - dossier) : 0;
+  p.position.set(x + Math.sin(cap) * recul, A ? y + A.fesses : y - .005, z + Math.cos(cap) * recul); p.rotation.y = cap;
+}
+
 // Mesures faites une fois par modèle : hauteur en position d'attente, sens du regard (des pieds
 // vers les orteils), hauteur du bassin assis.
 function preparer(id, g, info) {
@@ -148,7 +179,7 @@ function preparer(id, g, info) {
     let tMin = 0, yMin = Infinity;
     for (let k = 0; k <= 40; k++) { const t = clips.assis.duration * k / 40; poser(clips.assis, t); const y = os('Pelvis').getWorldPosition(v).y; if (y < yMin - 1e-4) { yMin = y; tMin = t; } }
     poser(clips.assis, tMin); const b = os('Pelvis').getWorldPosition(new THREE.Vector3());
-    assis = { t: tMin, bassin: b };
+    assis = { t: tMin, bassin: b, ...mesurerAssis(scene, b, rot, hauteur) };
   }
   mixer.stopAllAction(); mixer.uncacheRoot(scene);
   return { id, scene, clips, hauteur, sol, rot, assis, crane, hipRepos, femme: !!info.femme, enfant: !!info.enfant };
@@ -165,7 +196,7 @@ function choisirId(i, femme, role, enfant = false) {
  * Un personnage animé (face à +z, pieds au sol) ou null si les modèles ne sont pas là.
  * Même contrat que personne() : userData.tete (bulles), userData.anim(t, parle, signe), userData.liberer().
  * En plus : userData.main (objets remis de main en main), userData.coiffer(objet) (casque sur la tête),
- * userData.jouer(nom) (idle, marche, salut, parle, telephone, assis, rire).
+ * userData.jouer(nom) (idle, marche, salut, parle, telephone, assis, rire ; « dort » : la pose d'attente figée).
  */
 export function personnage3d(i, { assise = false, femme = null, role = null, enfant = false, manuel = false } = {}) {
   if (!P.pret && !(role && P.modeles[role])) return null;
@@ -186,13 +217,23 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
   g.add(E.tete); E.main.position.set(0, 1.1, .25); g.add(E.main);
   E.tete.position.set(0, taille + .08, 0);
   const jouer = (nom, fondu = .35) => {
+    // Assis, on le reste : un salut ou un rire (animations debout) relevait la voisine à travers sa chaise au lever du
+    // joueur (maison.js), et le client du food court qui appelle le serveur (« coincée dans la chaise », Carlos, 26/10).
+    if (assise && nom !== 'assis' && nom !== 'telephone') return;
+    // « dort » : couché dans son lit (maison.js), la pose d'attente figée, d'un coup — on ne se balance pas en dormant,
+    // et le pagne est drapé sur cette pose-là (« le pagne est un pavé », Carlos, 26/10).
+    if (nom === 'dort') {
+      if (E.courante === 'dort' || !actions.idle) return;
+      mixer.stopAllAction(); const a = actions.idle; a.reset(); a.enabled = true; a.setEffectiveWeight(1); a.play(); a.paused = true; E.courante = 'dort'; return;
+    }
     if (!actions[nom] && M.clips[nom]) actions[nom] = mixer.clipAction(M.clips[nom]); // danse chargée après coup
     if (!actions[nom]) nom = 'idle'; if (E.courante === nom || !actions[nom]) return;
     const a = actions[nom]; a.reset(); a.enabled = true; a.setEffectiveWeight(1);
     if (nom === 'assis') { a.time = M.assis?.t ?? a.getClip().duration; a.paused = true; } // on garde la pose assise
     else if (fondu === 0) a.time = (E.ph * 7.3) % a.getClip().duration; // chacun à son rythme, pas tous en même temps
     a.play();
-    const prec = E.courante && actions[E.courante]; if (prec && fondu > 0) a.crossFadeFrom(prec, fondu, false); else if (prec) prec.stop();
+    const prec = E.courante && actions[E.courante === 'dort' ? 'idle' : E.courante]; // au lever, « idle » reprend l'action figée elle-même
+    if (prec && prec !== a && fondu > 0) a.crossFadeFrom(prec, fondu, false); else if (prec && prec !== a) prec.stop();
     E.courante = nom;
   };
   // Chacun ne fait pas la même chose au même moment : début décalé, et certains, assis, téléphonent.
@@ -203,6 +244,7 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
   if (!manuel) P.actifs.add(E); // manuel : animé par son propriétaire (userData.maj), ex. la cabine d'essayage
   g.userData = {
     tete: E.tete, main: E.main, femme: M.femme, graine: i, modele: id, haut: 1.15, jouer, peut: nom => !!(actions[nom] || M.clips[nom]), // peut('course') : seuls les modèles des joueurs savent courir
+    assise: assise && M.assis?.pieds ? { fesses: M.assis.fesses * ech, pieds: M.assis.pieds * ech, dos: M.assis.dos * ech } : null, // sous le bassin, en mètres (poserAssis)
     maj: dt => { mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); suivre(E); },
     // `phase` tourne avec les pédales (radians) ; null rend le personnage à son animation.
     velo: phase => { E.velo = phase; }, // un nombre : la phase du pédalier ; 'moto' : les pieds sur les cale-pieds ; null : rien
