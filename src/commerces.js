@@ -96,6 +96,7 @@ function versLot(E, x, z) { const dx = x - E.x, dz = z - E.z, c = Math.cos(E.cap
 
 // ---------- Enregistrement ----------
 const compact = c => ({ e: c.e, t: c.t, s: c.s, v: c.v, r: c.r, j: c.j, vj: c.vj, rj: c.rj, d: c.d, c: c.c, m: c.m });
+export function sauverCommerces() { sauver(); }
 function sauver() { if (CM.charge) ecrireEnPlus('commerces', { l: CM.liste.map(compact), a: Math.round(CM.attente) }); } // a : ventes encaissées pas encore versées
 
 // ---------- Les ventes ----------

@@ -367,7 +367,7 @@ export function majTrajets(dt, av, tour) {
   if (T.mode === 'avion') { const suivi = majVol(dt); if (suivi) return suivi; } // en vol (à l'arrivée : on redescend à pied)
   if (T.mode === 'conduit') {
     const V = T.veh, panne = !V.D.pedale && !(carburant() > 0); // un vélo ne tombe jamais en panne sèche
-    if (panne && !T.panneDite) { T.panneDite = true; ligne('Panne sèche ! Tu avances au pas : « Aller à » → « Station-service la plus proche » pour le GPS.'); }
+    if (panne && !T.panneDite) { T.panneDite = true; ligne('Panne sèche ! Tu avances au pas : « Aller » → « Station-service la plus proche » pour le GPS.'); }
     const km0 = V.km, choc = piloter(V, av, tour, dt, { panne }); if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
     if (!V.D.pedale) { T.conso += (V.km - km0) / V.D.kmParLitre; if (T.conso > .01) { consommer(T.conso); T.conso = 0; } }
     if (!V.D.pedale) moteurMaj(Math.abs(V.v), true);

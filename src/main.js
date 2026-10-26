@@ -15,6 +15,7 @@ import { TRIPO, chargerIndexTripo, urlTripo } from './batiments-tripo.js';
 import { chargerPersonnages, majPersonnages } from './personnages.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
 import { JEU, initJeu, majJeu } from './jeu.js';
+import { podiumDemande } from './defi.js';
 import { VEGETATION, animerLieux, construireLieux, portailUAC, prechargerAmazone, semeOne, visibiliteLieux } from './lieux.js';
 import { COUCHES_SOL, U, camera, controls, renderer, scene, sky, sun } from './scene.js';
 import { buildLamps, buildZems, zemsDetailles, construireTokpas, majTokpas, updateZems } from './trafic.js';
@@ -97,7 +98,7 @@ function image(now) {
   if (E.frameN % 12 === 0) visibiliteLieux(camera.position);
   animerLieux(U.uTime.value); animerOuidah(U.uTime.value, camera.position); animerEtals(U.uTime.value, camera.position);
   const reelle = vueReelleSeule(); for (const e of extras) e.visible = E.riseDone && !reelle; avionsVisibles(!reelle); // Vue réelle seule : ni palmiers, ni conteneurs, ni bateaux, ni avions
-  E.circulation.length = 0; // refaite par updateZems / majTokpas, vide quand la circulation est cachée
+  E.circulation.length = 0; E.zemsPres.length = 0; // refaites par updateZems / majTokpas, vides quand la circulation est cachée
   if (E.zems) { E.zems.visible = E.zemOn && E.riseDone && dist < 5000 && !JEU.actif && !reelle; if (E.zemsProches) E.zemsProches.visible = E.zems.visible; if (E.zems.visible) updateZems(dt); }
   if (E.tokpas) { E.tokpas.visible = E.zemOn && E.riseDone && dist < 6000 && !JEU.actif && !reelle; if (E.tokpas.visible) majTokpas(dt); }
   majCirculation(dt, E.joueur); // dans « Vivre à Cotonou » : voitures, taxis, camions, vélos autour du joueur (circulation.js)
@@ -187,6 +188,7 @@ async function main() {
   setTimeout(demarrerStats, 2500); // présence et compteurs du tableau de bord (statistiques.js)
   setTimeout(synchroniserAuDemarrage, 1500); // avec un compte : la partie jouée sur un autre téléphone (compte.js)
   accueil(); // d'abord la visite en musique, ou la ville tout de suite
+  podiumDemande(); // ?podium=… (lien du tableau de bord) : le podium du défi de Zém Run, à publier
   // Le temps qu'il faisait la dernière fois.
   try { const m = localStorage.getItem('cotonou3d.meteo'); if (m && m !== 'soleil') changerMeteo(m); } catch { }
   // La Vue réelle (les tuiles 3D de Google) ne s'allume plus toute seule, nulle part : ce qu'on montre d'abord,
@@ -207,7 +209,7 @@ if (!import.meta.env.DEV && 'serviceWorker' in navigator) addEventListener('load
 let invitation = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); invitation = e; const b = $('#acInstaller'); if (b) b.hidden = false; });
 addEventListener('appinstalled', () => { invitation = null; const b = $('#acInstaller'); if (b) b.hidden = true; });
-for (const id of ['#acCompte', '#vhCompte', '#jmCompte']) $(id)?.addEventListener('click', () => ouvrirCompte());
+for (const id of ['#acCompte', '#vhCompte', '#jmCompte', '#vtCompte']) $(id)?.addEventListener('click', () => ouvrirCompte()); // #vtCompte : au tirage du départ, avant de recommencer une vie à zéro sans le savoir
 $('#acInstaller')?.addEventListener('click', async () => { if (!invitation) return; invitation.prompt(); await invitation.userChoice.catch(() => { }); invitation = null; $('#acInstaller').hidden = true; });
 
 main().catch(err => {

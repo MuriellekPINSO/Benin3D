@@ -131,6 +131,14 @@
         <p>Apprends les quartiers au guidon d'un zémidjan ou dans un tokpa-tokpa, sur les vraies rues de Cotonou et de Calavi. Arrête-toi aux arrêts, évite les nids-de-poule, ramasse les pièces.</p>
         <button type="button" class="jouer jm-classement" id="jmClassement">Classement des joueurs</button>
       </div>
+      <div class="jm-defi" id="jmDefi" hidden>
+        <div class="jd-tete"><span class="jd-eyebrow">Défi du jour</span><span class="jd-compte" id="jdCompte"></span></div>
+        <p class="jd-mission" id="jdMission"></p>
+        <p class="jd-moi" id="jdMoi"></p>
+        <form class="jd-nom" id="jdNomForm" hidden><label for="jdNom">Ton nom sur le podium</label><input id="jdNom" maxlength="16" autocomplete="nickname" placeholder="Ton nom ou ton surnom"><small id="jdNomEtat" role="status"></small></form>
+        <div class="jd-actions"><button type="button" class="jouer" id="jdJouer">Jouer le défi</button><button type="button" class="btn-ghost" id="jdVoir">Podium et scores</button></div>
+        <button type="button" class="jd-hier" id="jdHier" hidden></button>
+      </div>
       <div class="jm-lignes" id="jmLignes"></div>
       <div class="jm-prog" id="jmProg"></div>
       <div class="jm-duo"><b>À deux</b><button type="button" class="btn-ghost" id="mjCreer">Créer une partie</button><button type="button" class="btn-ghost jm-inviter" id="mjInviter" hidden>Inviter un ami</button><input id="mjCode" maxlength="4" placeholder="CODE" aria-label="Code de la partie" autocomplete="off"><button type="button" class="btn-ghost" id="mjRejoindre">Rejoindre</button><span id="mjStatut">Jouez à deux sur la même ligne : crée une partie et envoie le lien à ton ami.</span></div>
@@ -140,19 +148,21 @@
         <button type="button" class="btn-ghost" id="jmRetour">Retour à la carte</button>
       </div>
       <p class="jm-aide jm-aide-doigt"><b>Au doigt</b> : le zém avance seul · <b>glisse à gauche ou à droite</b> : changer de file, et tourner au carrefour · <b>glisse vers le haut</b> : sauter · <b>glisse vers le bas et garde le doigt posé</b> : freiner, t’arrêter au feu rouge ou à l’arrêt · bouton <b>E</b> : interagir · <b>Pause</b> en haut à droite.</p>
-      <p class="jm-aide jm-aide-clavier"><b>↑</b> accélérer (le zém n'avance que si tu appuies, il ralentit dès que tu relâches) · <b>↓</b> freiner (à l'arrêt, appuie encore : <b>marche arrière</b>) · <b>U</b> demi-tour · <b>arrête-toi au feu rouge</b>, sinon la police te met une amende · demande au client s'il a son casque · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>R</b> radio · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
+      <p class="jm-aide jm-aide-clavier">Le zém avance tout seul · <b>↑</b> aller plus vite · <b>↓</b> freiner (à l'arrêt, appuie encore : <b>marche arrière</b>) · <b>U</b> demi-tour · <b>arrête-toi au feu rouge</b>, sinon la police te met une amende · demande au client s'il a son casque · <b>← →</b> changer de file, <b>→ →</b> se garer sur le bas-côté ; <b>au carrefour, ralentis puis ← ou →</b> pour tourner, <b>T</b> pour continuer tout droit là où le GPS voulait tourner : c'est toi qui choisis, il recalcule la route · la <b>mini-carte</b> et les noms des lieux à l'écran t'aident à te repérer · <b>E</b> interagir avec ce qui est à côté (plein, vendeuse, MoMo, vulcanisateur, boutiques, gens, client qui fait signe) · <b>espace</b> sauter · <b>H</b> klaxon · <b>R</b> radio · <b>1 2 3</b> répondre · <b>M</b> météo · <b>Échap</b> pause. Garé sans client, attends : un passant viendra te demander une course.<br><b>Manette</b> : RT gaz · LT frein · stick ou croix : files, vers le haut : tout droit · A sauter · B klaxon · X ou Y interagir · pendant un dialogue A, B, X répondent · Start pause · Select météo.</p>
       <label class="jm-option"><input type="checkbox" id="jmVoix"> Voix des personnages (ils parlent à voix haute)</label>
+      <label class="jm-option"><input type="checkbox" id="jmSeul" checked> Le zém avance tout seul : [↓] pour freiner, [↑] pour aller plus vite</label>
       <label class="jm-option" hidden><input type="checkbox" id="jmGaucher"> Je joue de la main gauche : Frein, Gaz et E passent à gauche</label>
       <button type="button" class="jm-guide" id="jmGuide">Revoir la prise en main</button>
       <button type="button" class="jm-guide" id="jmCompte">Mon compte : garder ma partie</button>
     </div>
     <div class="jeu-hud" id="jeuHud" hidden>
       <div class="jh-haut">
-        <div class="jh-ligne panel"><b id="jhNom"></b><span id="jhProchain"></span><div class="jh-barre"><i id="jhProg"></i><span id="jhArrets"></span></div></div>
+        <div class="jh-ligne panel"><b id="jhNom"></b><span id="jhProchain"></span><div class="jh-barre"><i id="jhProg"></i><span id="jhArrets"></span></div><div class="jh-defi" id="jhDefi" hidden></div></div>
         <div class="jh-stats panel"><b id="jhArgent">0 F</b><em class="jh-serie" id="jhSerie" hidden title="Série de clients : recette multipliée"></em><span id="jhVitesse">0 km/h</span><span id="jhPassagers"></span><span class="jh-carbu"><small>Essence</small><span class="jh-essence" id="jhEssence"><i></i></span><b id="jhLitres"></b></span><span class="jh-pop" id="jhPop" aria-hidden="true"></span></div>
       </div>
       <div class="jh-quartier" id="jhQuartier"></div>
       <div class="jh-carrefour" id="jhCarrefour" hidden></div>
+      <div class="jh-virage" id="jhVirage" hidden aria-live="polite"></div>
       <div class="jh-feu" id="jhFeu" hidden></div>
       <div class="jh-duo" id="jhDuo" hidden></div>
       <div class="jh-paiement panel" id="jhPaiement" hidden role="status"></div>
@@ -182,6 +192,7 @@
     <div class="jeu-fin panel" id="jeuFin" hidden>
       <h2></h2><p class="jf-sous"></p>
       <div class="jf-stats"></div>
+      <div class="jf-defi" id="jfDefi" hidden></div>
       <div class="jf-quiz"></div>
       <div class="jf-actions"><button type="button" class="jouer jf-partager" id="jfPartager" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg><span>Partager mon billet</span></button><button type="button" class="jouer" id="jfRejouer">Rejouer</button><button type="button" class="btn-ghost" id="jfClassement">Classement</button><button type="button" class="btn-ghost" id="jfMarche" hidden>Marché artisanal</button><button type="button" class="btn-ghost" id="jfLignes">Autre ligne</button><button type="button" class="btn-ghost" id="jfCarte">Revenir à la carte</button></div>
     </div>
@@ -195,6 +206,21 @@
       <ol class="jc-liste" id="jcListe"></ol>
       <p class="jc-moi" id="jcMoi"></p>
       <p class="jc-aide">Ce qui compte : ton meilleur total au terminus de la ligne, recette et quiz compris.</p>
+    </div>
+    <div class="jeu-classement jeu-defi panel" id="jeuDefi" hidden role="dialog" aria-modal="true" aria-labelledby="jdTitre">
+      <button type="button" class="jm-fermer" id="jdFermer" aria-label="Fermer le podium">×</button>
+      <span class="jm-eyebrow">Zém Run · le jeu du quotidien</span>
+      <h2 id="jdTitre">Défi du jour</h2>
+      <div class="jc-periodes" id="jdVues" role="group" aria-label="Que voir"><button type="button" data-vue="jour">Aujourd’hui</button><button type="button" data-vue="podium">Podium</button><button type="button" data-vue="semaine">Semaine</button></div>
+      <div class="jd-nav" id="jdNav" hidden><button type="button" id="jdAvant" aria-label="Avant">‹</button><b id="jdQuand"></b><button type="button" id="jdApres" aria-label="Après">›</button></div>
+      <p class="jd-texte" id="jdTexte"></p>
+      <figure class="jd-image" id="jdImage" hidden><img id="jdImg" alt=""><figcaption><div class="jc-periodes" id="jdFormats" role="group" aria-label="Format de l’image"><button type="button" data-format="publication">Publication</button><button type="button" data-format="story">Story</button></div><div class="jd-boutons"><button type="button" class="jouer" id="jdPartager">Partager l’image</button><button type="button" class="btn-ghost" id="jdEnregistrer">Enregistrer</button></div></figcaption></figure>
+      <p class="jc-moi" id="jdMoiListe"></p>
+      <ol class="jc-liste" id="jdListe"></ol>
+      <details class="jd-bareme"><summary>Comment on compte les points</summary>
+        <table><tbody><tr><td>Client déposé</td><td>+100</td></tr><tr><td>Pièce récoltée</td><td>+10</td></tr><tr><td>Argent rapporté au patron</td><td>+1 par tranche de 10 F</td></tr><tr><td>Mission du jour réussie</td><td>+500</td></tr><tr><td>Trou pris</td><td>−50</td></tr></tbody></table>
+        <p>Ta meilleure course du jour compte ; en cas d’égalité, le plus rapide gagne. Le défi change chaque soir à 20 h, heure du podium. La semaine additionne tes scores du lundi au dimanche.</p>
+      </details>
     </div>
     <div class="jeu-pause panel" id="jeuPause" hidden><h2>Pause</h2><div class="jf-actions"><button type="button" class="jouer" id="jpReprendre">Reprendre</button><button type="button" class="btn-ghost" id="jpQuitter">Quitter la course</button></div></div>
   </section>
@@ -288,18 +314,32 @@
 
   <div class="evenement panel salon" id="salon" hidden role="dialog" aria-labelledby="slTitre">
     <button type="button" class="sl-fermer" id="slFermer" aria-label="Fermer">×</button>
-    <small class="ev-sur">Nouveau</small>
+    <div class="sl-col1">
+    <div class="sl-invite" id="slInvite" hidden><span class="sl-invite-av" id="slInviteAv" aria-hidden="true"></span><div><b id="slInviteTitre"></b><small id="slInviteSous"></small></div></div>
+    <small class="ev-sur" id="slSur">Nouveau</small>
     <h2 id="slTitre">Vivre à Cotonou</h2>
-    <p>Réveille-toi chez toi, trouve un métier, gagne ta vie, prends un zém ou ta moto, et retrouve tes amis à l’Amazone, à la Haie Vive ou à la plage.</p>
-    <label class="sl-champ">Ton nom <input id="slNom" maxlength="16" autocomplete="nickname" placeholder="Facultatif"></label>
+    <p class="sl-intro">Réveille-toi chez toi, trouve un métier, gagne ta vie et retrouve tes amis à l’Amazone, à la Haie Vive ou à la plage.</p>
+    <label class="sl-champ">Ton prénom <input id="slNom" maxlength="16" autocomplete="nickname" placeholder="Celui que les autres verront"></label>
     <p class="sl-titre">Ton personnage</p>
     <div class="gr-genre" id="slGenre" role="radiogroup" aria-label="Femme ou homme"></div>
+    </div>
+    <div class="sl-col2">
     <div class="gr-tenues sl-tenues" id="slAvatars" role="radiogroup" aria-label="Ta tenue"></div>
-    <div class="ev-actions"><button type="button" class="jouer" id="slCreer">Entrer en ville</button><button type="button" id="slPrive">Entre amis seulement</button></div>
-    <small class="sl-aide">En ville, tu croises des gens que tu ne connais pas. Entre amis, personne d’autre que ceux à qui tu envoies le lien.</small>
-    <p class="sl-titre">Un ami t’a envoyé un code ?</p>
-    <div class="sl-rejoindre"><input id="slCode" maxlength="6" placeholder="Code (6 lettres)" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" id="slRejoindre">Rejoindre mon ami</button></div>
-    <p class="ev-etat" id="slEtat" role="status" aria-live="polite" hidden></p>
+    <div class="sl-avec" id="slAvec">
+      <p class="sl-titre">Avec qui ?</p>
+      <div class="sl-modes" role="radiogroup" aria-label="Avec qui">
+        <button type="button" class="sl-mode" role="radio" aria-checked="true" data-mode="ville"><span class="sl-mode-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V9.5L10 7v14M10 21V4l9 3.5V21M13.5 10.5h2M13.5 14h2M13.5 17.5h2"/></svg></span><b>En ville</b><small>Tu croises d’autres joueurs</small></button>
+        <button type="button" class="sl-mode" role="radio" aria-checked="false" data-mode="amis"><span class="sl-mode-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19.5a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.6"/><path d="M15.6 14.2a5 5 0 0 1 5.9 4.9"/></svg></span><b>Entre amis</b><small>Seuls ceux qui ont ton lien</small></button>
+      </div>
+    </div>
+    <div class="sl-go">
+      <button type="button" class="jouer sl-entrer" id="slCreer"><span id="slCreerTxt">Entrer en ville</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      <small class="sl-aide" id="slAide">Une fois en ville, « Inviter » envoie un lien à tes amis : ils arrivent juste à côté de toi.</small>
+      <p class="ev-etat" id="slEtat" role="status" aria-live="polite" hidden></p>
+    </div>
+    <div class="sl-bas"><button type="button" class="sl-lien" id="slAiCode" aria-expanded="false" aria-controls="slCodeBloc">J’ai un code d’ami</button><button type="button" class="sl-lien" id="slAutre" hidden>Choisir autre chose</button></div>
+    <div class="sl-rejoindre" id="slCodeBloc" hidden><input id="slCode" maxlength="6" placeholder="Code (6 lettres)" autocapitalize="characters" autocomplete="off" aria-label="Code du salon"><button type="button" id="slRejoindre">Rejoindre</button></div>
+    </div>
   </div>
   <div class="choix" id="choix" hidden role="dialog" aria-labelledby="chTitre">
     <div class="ch-boite panel"><h3 id="chTitre"></h3><div class="ch-liste" id="chListe"></div><button type="button" class="ch-annuler" id="chAnnuler">Annuler</button></div>
@@ -327,6 +367,7 @@
       </div>
       <p id="vtTexte" role="status" aria-live="polite"></p>
       <button type="button" class="jouer" id="vtCommencer" hidden>Commencer ma vie</button>
+      <button type="button" class="sl-lien vt-compte" id="vtCompte">Tu as déjà joué sur un autre téléphone ? Retrouve ta partie</button>
     </div>
   </div>
   <div class="salon-hud" id="salonHud" hidden>

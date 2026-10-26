@@ -71,10 +71,10 @@ export function tamponner(nom) {
   return true;
 }
 let annonceT = 0;
-function annonce(titre, sous) {
+export function annonce(titre, sous, duree = 3200) {
   const el = $('#jhMission'); if (!el) return;
   el.querySelector('b').textContent = titre; el.querySelector('small').textContent = sous;
-  el.classList.add('on'); clearTimeout(annonceT); annonceT = setTimeout(() => el.classList.remove('on'), 3200);
+  el.classList.add('on'); clearTimeout(annonceT); annonceT = setTimeout(() => el.classList.remove('on'), duree);
 }
 /** Série de jours de jeu : un bonus dans la cagnotte au premier départ de la journée. */
 export function serieDuJour() {

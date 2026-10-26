@@ -129,6 +129,60 @@
         "$autre": { ".validate": false }
       }
     },
+    "zem_defi_departs": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['t', 'j', 'l'])",
+        "t": { ".validate": "newData.val() === now" },
+        "j": { ".validate": "newData.isString() && newData.val().matches(/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/)" },
+        "l": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24" },
+        "$autre": { ".validate": false }
+      }
+    },
+    "zem_defi": {
+      ".read": "auth != null",
+      "$jour": {
+        ".indexOn": ["s"],
+        ".validate": "$jour.matches(/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/)",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && newData.exists()",
+          ".validate": "newData.hasChildren(['n', 's', 'c', 'p', 'a', 'tr', 'm', 'x', 'ma', 'd', 'km', 'dep', 't', 'l', 'ns', 'mi']) && root.child('zem_defi_departs').child($uid).child('t').val() === newData.child('dep').val() && root.child('zem_defi_departs').child($uid).child('j').val() === $jour && root.child('zem_defi_departs').child($uid).child('l').val() === newData.child('l').val() && newData.child('d').val() * 1000 <= now - newData.child('dep').val() + 5000 && newData.child('s').val() === newData.child('c').val() * 100 + newData.child('p').val() * 10 + newData.child('a').val() / 10 + newData.child('m').val() * 500 - newData.child('tr').val() * 50 && (!data.exists() || newData.child('s').val() > data.child('s').val() || (newData.child('s').val() === data.child('s').val() && newData.child('d').val() < data.child('d').val()))",
+          "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+          "av": { ".validate": "newData.isString() && newData.val().length <= 24" },
+          "z": { ".validate": "newData.isString() && newData.val().length <= 5" },
+          "s": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 100000" },
+          "c": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 30 && newData.val() * 15 <= newData.parent().child('d').val()" },
+          "p": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= newData.parent().child('d').val() * 2" },
+          "a": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 10 === 0 && newData.val() <= newData.parent().child('c').val() * 1500 + newData.parent().child('p').val() * 25 + newData.parent().child('d').val() * 40 + 1000" },
+          "tr": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000" },
+          "m": { ".validate": "newData.val() === 0 || newData.val() === 1" },
+          "x": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000" },
+          "ma": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+          "d": { ".validate": "newData.isNumber() && newData.val() >= 20 && newData.val() <= 7200" },
+          "km": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= newData.parent().child('d').val() * 36" },
+          "dep": { ".validate": "newData.isNumber()" },
+          "t": { ".validate": "newData.val() === now" },
+          "l": { ".validate": "newData.isString() && newData.val().length <= 24" },
+          "ns": { ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 60 && newData.parent().child('c').val() < newData.val()" },
+          "mi": { ".validate": "newData.isString() && newData.val().length <= 60" },
+          "$autre": { ".validate": false }
+        }
+      }
+    },
+    "zem_defi_traces": {
+      ".read": "auth != null",
+      "$jour": {
+        ".validate": "$jour.matches(/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/)",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && newData.exists()",
+          ".validate": "newData.hasChildren(['k', 't']) && newData.parent().parent().parent().child('zem_defi').child($jour).child($uid).child('t').val() === now",
+          "k": { ".validate": "newData.isString() && newData.val().length <= 40000" },
+          "t": { ".validate": "newData.val() === now" },
+          "$autre": { ".validate": false }
+        }
+      }
+    },
     "zem_presence": {
       ".read": "auth != null",
       "$uid": {

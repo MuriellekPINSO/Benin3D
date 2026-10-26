@@ -11,7 +11,8 @@ export const STATIONS = [
   { id: 'jeu', nom: 'Ambiance du jeu', sous: 'Sans connexion', url: null },
 ];
 AUDIO.station = (() => { try { return localStorage.getItem('cotonou3d.radio') || 'cotonou'; } catch { return 'cotonou'; } })();
-/** Allume (avec la station choisie, ou la dernière) ou coupe la radio ; renvoie true si le son part. */
+/** Allume (avec la station choisie, ou la dernière) ou coupe la radio ; renvoie true si le son part, false s'il ne part pas,
+ *  null si un autre choix (radio, chanson, « Arrêter ») l'a remplacée pendant la connexion. */
 export async function radio(on, station) {
   if (station) { AUDIO.station = station; try { localStorage.setItem('cotonou3d.radio', station); } catch { /* navigation privée */ } }
   const ctx = audioCtx(); if (!ctx) return false;
@@ -22,7 +23,10 @@ export async function radio(on, station) {
   const S = STATIONS.find(s => s.id === AUDIO.station) || STATIONS[0];
   if (S.url) { // flux en direct
     const el = new Audio(S.url); el.volume = .55; AUDIO.flux = el;
-    try { await el.play(); return AUDIO.flux === el; } catch (e) { console.warn('radio', S.nom, e.message); if (AUDIO.flux === el) AUDIO.flux = null; return false; }
+    // Le direct met 3 à 4 secondes à partir (davantage sur un réseau mobile). Si l'on choisit autre chose entre-temps, ce
+    // flux est coupé exprès et play() échoue (AbortError) : ce n'est pas une panne de la station, on renvoie null. Avant,
+    // le menu affichait « ne répond pas » à chaque changement, et toutes les radios semblaient en panne (testeur, 26/10).
+    try { await el.play(); return AUDIO.flux === el ? true : null; } catch (e) { if (AUDIO.flux !== el) return null; console.warn('radio', S.nom, e.message); AUDIO.flux = null; return false; }
   }
   try {
     if (!AUDIO.buf) { const res = await fetch(import.meta.env.BASE_URL + 'audio/radio.mp3'); if (!res.ok) return false; AUDIO.buf = await ctx.decodeAudioData(await res.arrayBuffer()); }
@@ -89,18 +93,21 @@ export function son(nom, variante) {
 // ça », un testeur le 24/10). Un onglet caché n'anime plus rien de lui-même — le navigateur suspend
 // requestAnimationFrame — mais la radio, la musique et le contexte audio, eux, continuaient. On les suspend, et
 // l'on ne rallume que ce qui jouait.
-const ENDORMI = { radio: false, flux: false, visite: false };
+const ENDORMI = { radio: false, flux: false, visite: false, dort: false };
 function endormir() {
-  ENDORMI.flux = !!AUDIO.flux && !AUDIO.flux.paused; if (ENDORMI.flux) AUDIO.flux.pause();
-  ENDORMI.visite = !!VISITE.el && !VISITE.el.paused; if (ENDORMI.visite) VISITE.el.pause();
-  ENDORMI.radio = AUDIO.radio;
+  // visibilitychange puis pagehide : le second appel trouvait tout déjà en pause et oubliait que la radio jouait.
+  if (!ENDORMI.dort) {
+    ENDORMI.flux = !!AUDIO.flux && !AUDIO.flux.paused; if (ENDORMI.flux) AUDIO.flux.pause();
+    ENDORMI.visite = !!VISITE.el && !VISITE.el.paused; if (ENDORMI.visite) VISITE.el.pause();
+    ENDORMI.radio = AUDIO.radio; ENDORMI.dort = true;
+  }
   try { AUDIO.ctx?.suspend(); } catch { /* contexte déjà fermé */ }
 }
 function reveiller() {
   try { if (AUDIO.ctx?.state === 'suspended') AUDIO.ctx.resume(); } catch { /* contexte déjà fermé */ }
   if (ENDORMI.flux) AUDIO.flux?.play().catch(() => { /* le navigateur veut un geste : la radio se rallume au doigt */ });
   if (ENDORMI.visite) VISITE.el?.play().catch(() => { });
-  ENDORMI.flux = ENDORMI.visite = false;
+  ENDORMI.flux = ENDORMI.visite = ENDORMI.dort = false;
 }
 document.addEventListener('visibilitychange', () => (document.hidden ? endormir() : reveiller()));
 // Sur iOS, passer à une autre application ne déclenche pas toujours visibilitychange : pagehide, si.

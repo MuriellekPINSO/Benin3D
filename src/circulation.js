@@ -89,8 +89,11 @@ function placer(V, jx, jz, rMin, rMax) {
     const l = C.grille.get(Math.floor(x / CELL) + ',' + Math.floor(z / CELL)); if (!l || !l.size) continue;
     const routes = [...l], tot = routes.reduce((t, r) => t + POIDS(r.L.cls), 0); let u = Math.random() * tot, R = routes[0];
     for (const r of routes) { u -= POIDS(r.L.cls); if (u <= 0) { R = r; break; } }
+    if (V.type.id === 'camion' && R.hw < 3) continue; // un camion ne croise pas une voiture dans une rue de moins de 6 m
     V.R = R; V.dir = R.sens ? 1 : Math.random() < .5 ? 1 : -1; V.s = Math.random() * R.len; V.lane = voie(R, V.type.id);
     const p = poser(R, V.s, V.dir), dj = Math.hypot(p.x - jx, p.z - jz); if (dj < rMin * .7 || dj > rMax * 1.2) continue;
+    // Pas sur un autre : posé dans sa carrosserie, il y restait le temps que l'autre s'éloigne.
+    if (C.vehicules.some(W => W !== V && W.R === R && W.dir === V.dir && Math.abs(W.lane - V.lane) < W.hw + V.hw + .3 && Math.abs(W.s - V.s) < W.hl + V.hl + 4)) continue;
     V.v = hasard(...V.type.v); V.vmax = V.v; return true;
   }
   return false;
@@ -100,9 +103,9 @@ function creer() {
   let k = 0;
   for (const T of TYPES) for (let i = 0; i < Math.round(N * T.part); i++) {
     const ms = C.meshes.get(T.id), mesh = ms[k++ % ms.length];
-    C.vehicules.push({ type: T, mesh, idx: mesh.count++, R: null, s: 0, dir: 1, lane: 0, v: 0, vmax: 0, hl: T.hl, hw: T.hw, px: 0, pz: 0, fx: 0, fz: 1, cap: 0 });
+    C.vehicules.push({ type: T, rang: C.vehicules.length, mesh, idx: mesh.count++, R: null, s: 0, dir: 1, lane: 0, v: 0, vmax: 0, hl: T.hl, hw: T.hw, px: 0, pz: 0, fx: 0, fz: 1, cap: 0 });
   }
-  C.pret = true;
+  C.pret = true; E.denses = C.vehicules; // les zéms de toute la ville s'arrêtent derrière eux (trafic.js)
 }
 // Un véhicule qu'on peut retirer sans que personne ne le voie s'effacer : loin devant, ou dans son dos.
 // `cap` est le regard du joueur (son personnage, ou le capot de son véhicule).
@@ -125,13 +128,42 @@ export function majCirculation(dt, J) {
     // Garder ses distances : celui de devant, sur la même rue et dans le même sens ; et le joueur devant soi.
     let vise = V.vmax;
     for (const W of C.vehicules) {
-      if (W === V || W.R !== V.R || W.dir !== V.dir || Math.abs(W.lane - V.lane) > 1.6) continue;
+      // Côte à côte s'ils ne se touchent pas : la somme de leurs demi-largeurs, et non 1,6 m pour tous. Deux voitures
+      // font 1,8 m, un camion et une voiture 2,1 m : décalées de 1,7 m sur un boulevard, elles ne se voyaient pas et la
+      // plus rapide entrait dans l'autre (« certaines voitures rentrent l'une dans l'autre », un testeur, 26/10 ; 9 sur
+      // 10 des chevauchements mesurés étaient là, sur la même rue et dans le même sens).
+      if (W === V || W.R !== V.R || W.dir !== V.dir || Math.abs(W.lane - V.lane) > V.hw + W.hw + .3) continue;
       // On visait W.v * (ecart / 14) : derrière un vélo à 3 m/s, une voiture plafonnait à 2,8 m/s même à 13 m, et
       // la file entière ralentissait de proche en proche — d'où les véhicules « très lents sans raison ». On vise
       // maintenant la vitesse de celui de devant, plus ce que l'écart permet de gagner.
       const ecart = (W.s - V.s) * V.dir - W.hl - V.hl;
       if ((W.s - V.s) * V.dir > 0 && ecart < 14) vise = Math.min(vise, ecart < 2.5 ? 0 : W.v + (ecart - 2.5) * .9);
     }
+    // Ceux des autres rues : au carrefour, deux voitures de rues différentes ne se voyaient pas et entraient l'une
+    // dans l'autre (« certaines voitures rentrent toujours l'une dans l'autre », un testeur, 26/10). Derrière une
+    // voiture qui va dans notre sens, on la suit ; une qui nous coupe la route, on la laisse passer — sauf si elle
+    // nous cède déjà (le plus petit rang passe), sinon les deux s'attendraient au milieu du carrefour.
+    for (const W of C.vehicules) {
+      if (W === V || !W.R || W.R === V.R) continue;
+      const bx = W.px - V.px, bz = W.pz - V.pz; if (bx * bx + bz * bz > 400) continue;
+      const dv = bx * V.fx + bz * V.fz, cv = Math.abs(bx * V.fz - bz * V.fx), meme = W.fx * V.fx + W.fz * V.fz;
+      const tr = Math.sqrt(Math.max(0, 1 - meme * meme)), lng = W.hl * (1 - tr) + W.hw * tr, lrg = W.hw * (1 - tr) + W.hl * tr; // W vu de face ou de travers
+      if (dv <= 0 || dv > V.hl + lng + 12 || cv > V.hw + lrg + .3) continue;
+      const ecart = dv - V.hl - lng;
+      if (meme < .7 && W.rang > V.rang && ecart > .8) continue; // il nous coupe la route, mais c'est lui qui cède
+      vise = Math.min(vise, ecart < 2.5 ? 0 : Math.max(0, W.v * meme) + (ecart - 2.5) * .9);
+    }
+    // Et derrière les zéms et tokpas de toute la ville (trafic.js), qu'on traversait. Bloqué plus de 4 s par l'un
+    // d'eux (un croisement où chacun attend l'autre), on passe.
+    if (!(V.libre > 0)) {
+      let gene = false;
+      for (const W of E.zemsPres) {
+        const bx = W.px - V.px, bz = W.pz - V.pz, dv = bx * V.fx + bz * V.fz, cv = Math.abs(bx * V.fz - bz * V.fx);
+        if (dv <= 0 || dv > V.hl + W.hl + 14 || cv > V.hw + W.hw + .3) continue;
+        const ecart = dv - V.hl - W.hl; vise = Math.min(vise, ecart < 2.5 ? 0 : (W.arret ? 0 : W.v) + (ecart - 2.5) * .9); gene ||= ecart < 2.5;
+      }
+      V.attente = gene && V.v < .3 ? (V.attente || 0) + dt : 0; if (V.attente > 4) { V.attente = 0; V.libre = 1.5; }
+    } else V.libre -= dt;
     const ax = J.x - V.px, az = J.z - V.pz, devant = ax * V.fx + az * V.fz, cote = Math.abs(ax * V.fz - az * V.fx);
     if (devant > 0 && devant < V.hl + Jr + 12 && cote < V.hw + Jr + .7) vise = Math.min(vise, Math.max(0, (devant - V.hl - Jr - 2) * 1.1)); // freine à temps : arrêt à 2 m de son pare-chocs
     const R0 = V.R, s0 = V.s; // pour le garde-fou plus bas
@@ -140,14 +172,14 @@ export function majCirculation(dt, J) {
     if (V.s < 0 || V.s > V.R.len) { // au bout de la rue : la suivante (au carrefour), sinon demi-tour
       const bout = V.s < 0 ? 0 : 1, p = bout ? V.R.L.pts[V.R.L.pts.length - 1] : V.R.L.pts[0];
       const plat = C.bouts.get(C.cleBout(p[0], p[1])) || [], suite = [];
-      for (let j = 0; j < plat.length; j += 2) { const R = C.routes[plat[j]], s = plat[j + 1]; if (R !== V.R && s > .5 && s < R.len - .5) suite.push({ R, s }); }
+      for (let j = 0; j < plat.length; j += 2) { const R = C.routes[plat[j]], s = plat[j + 1]; if (R !== V.R && s > .5 && s < R.len - .5 && !(V.type.id === 'camion' && R.hw < 3)) suite.push({ R, s }); }
       // On rejoint la rue croisée en son milieu : il faut donc vérifier la place, sinon on atterrit sur un autre
       // véhicule et les deux se bloquent (la première version doublait le nombre de véhicules à l'arrêt).
       let pris = null;
       for (let essai = 0; essai < 4 && suite.length && !pris; essai++) {
         const b = suite.splice(Math.floor(Math.random() * suite.length), 1)[0];
         const dir = b.R.sens ? 1 : b.s < b.R.len / 2 ? 1 : -1, lane = voie(b.R, V.type.id);
-        const occupe = C.vehicules.some(W => W !== V && W.R === b.R && W.dir === dir && Math.abs(W.lane - lane) < 1.6 && Math.abs(W.s - b.s) < W.hl + V.hl + 4);
+        const occupe = C.vehicules.some(W => W !== V && W.R === b.R && W.dir === dir && Math.abs(W.lane - lane) < W.hw + V.hw + .3 && Math.abs(W.s - b.s) < W.hl + V.hl + 4);
         if (!occupe) pris = { R: b.R, dir, s: b.s, lane };
       }
       if (pris) { V.R = pris.R; V.dir = pris.dir; V.s = pris.s; V.lane = pris.lane; }
@@ -179,6 +211,10 @@ export function majCirculation(dt, J) {
       // 20 s on en retire une quand même, c'est le moindre mal.
       if (V.bloque > (horsDeVue(J, x, z) ? 8 : 20)) { V.bloque = 0; V.R = null; continue; }
     } else V.bloque = 0;
+    // Deux voitures qui s'attendent au milieu d'un carrefour (chacune croit l'autre devant elle) : au bout de 12 s,
+    // celle que le joueur ne voit pas s'en va ailleurs.
+    V.arretT = V.v < .3 ? (V.arretT || 0) + dt : 0;
+    if (V.arretT > 12 && !barre && horsDeVue(J, x, z)) { V.arretT = 0; V.R = null; continue; }
     V.px = x; V.pz = z; V.fx = p.dx; V.fz = p.dz; V.cap = Math.atan2(p.dx, p.dz);
     if ((x - J.x) ** 2 + (z - J.z) ** 2 < 1600) E.circulation.push(V); // solide près du joueur (trafic.js, dansCirculation)
   }

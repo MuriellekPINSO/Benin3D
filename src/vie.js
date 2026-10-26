@@ -86,11 +86,21 @@ async function lire() {
 }
 /** Enregistre des changements ; `argent` : la base exige l'heure du serveur avec chaque gain. */
 export async function ecrire(patch) {
+  // Un nombre invalide (NaN) faisait refuser l'écriture par la base, et toutes les suivantes avec : on ne l'envoie pas.
+  for (const [k, x] of Object.entries(patch)) if (typeof x === 'number' && !Number.isFinite(x)) { console.warn('vie : valeur invalide', k); return false; }
   Object.assign(VIE.data, patch); if ('argent' in patch) VIE.tArgent = Date.now();
   if (VIE.local) { try { localStorage.setItem(CLE_LOCALE, JSON.stringify(VIE.data)); } catch { /* navigation privée */ } return true; }
-  const { d } = await firebase();
-  const p = { ...patch }; if ('argent' in p) p.t = d.serverTimestamp();
-  try { await d.update(VIE.ref, p); return true; } catch (e) { console.warn('vie', e.message); return false; }
+  try {
+    const { d } = await firebase();
+    const p = { ...patch }; if ('argent' in p) p.t = d.serverTimestamp();
+    await d.update(VIE.ref, p); return true;
+  } catch (e) { console.warn('vie', e.message); await relire(Object.keys(patch)); return false; }
+}
+/** Refusé par la base, ou perdu en route : l'écran montrait de l'argent que le serveur n'a jamais reçu. On reprend
+ *  ces champs-là tels que le serveur les a. */
+async function relire(cles) {
+  try { const { d } = await firebase(), v = (await d.get(VIE.ref)).val(); if (!v || !VIE.data) return; for (const k of cles) if (k in v) VIE.data[k] = v[k]; rendreVie(); }
+  catch { /* hors ligne : on garde l'affichage, le prochain enregistrement réessaiera */ }
 }
 
 // ---------- Créer sa vie : le tirage du départ ----------
@@ -121,12 +131,15 @@ export function prechargerVie(local) {
 export async function assurerVie(local, { nom, modele }) {
   const avance = avanceFraiche(local) ? AVANCE.p : null; AVANCE.p = null;
   VIE.local = local;
-  let v = null;
-  try { v = await (avance || lire()); }
-  catch (e) { // base pas encore prête (règles), ou hors ligne : la vie est gardée dans ce navigateur, le salon reste utilisable
-    console.warn('vie', e.message); VIE.local = true; VIE.alerte = 'Ta vie est enregistrée sur cet appareil pour l’instant (serveur indisponible).';
-    try { v = await lire(); } catch { v = null; }
+  // Le serveur ne répond pas (réseau faible) : on réessaie, puis on refuse d'entrer. Avant, le jeu tirait alors une
+  // NOUVELLE vie, gardée sur l'appareil seulement : le joueur croyait sa partie perdue, et ce qu'il faisait ensuite
+  // n'arrivait jamais sur le serveur (« sa sauvegarde n'était plus là », un joueur, 26/10).
+  let v = null, lu = false;
+  for (let essai = 0; essai < 3 && !lu; essai++) {
+    try { v = await (essai === 0 && avance || lire()); lu = true; }
+    catch (e) { console.warn('vie', e.message); if (essai < 2) await new Promise(r => setTimeout(r, 1500 * (essai + 1))); }
   }
+  if (!lu) return null;
   if (!v) {
     const depart = Math.random() < DEPARTS.fils.chance ? 'fils' : 'debrouillard', D = DEPARTS[depart];
     const carburant = RESERVOIRS[D.vehicule] || 0;
@@ -164,14 +177,16 @@ export async function gagner(montant, raison = '', { source = 'travail', silenci
   VIE.prochainGain = quand + 3200;
   if (quand > Date.now()) await new Promise(r => setTimeout(r, quand - Date.now()));
   if (Date.now() - VIE.tArgent < 3100) await new Promise(r => setTimeout(r, 3200 - (Date.now() - VIE.tArgent))); // une dépense entre-temps
-  const m = Math.min(5000, montant), ok = await ecrire({ argent: VIE.data.argent + m });
+  const m = Math.min(5000, montant);
+  let ok = await ecrire({ argent: VIE.data.argent + m });
+  if (!ok && !VIE.local) { await new Promise(r => setTimeout(r, 3500)); ok = await ecrire({ argent: VIE.data.argent + m }); } // la base l'a trouvé trop près du précédent : il repasse
   if (ok && !silencieux) annonce(`+${fmt(m)}${raison ? ` · ${raison}` : ''}`);
   if (ok) signaler(source, m); // chapitres.js : 'travail', 'commerce'…
   rendreVie(); return ok;
 }
 /** Dépense de l'argent ; false s'il n'y en a pas assez. */
 export async function depenser(montant, raison = '') {
-  if (!VIE.data || VIE.data.argent < montant) return false;
+  if (!VIE.data || !(montant > 0) || !Number.isFinite(montant) || VIE.data.argent < montant) return false;
   const ok = await ecrire({ argent: VIE.data.argent - montant });
   if (ok && raison) annonce(`−${fmt(montant)} · ${raison}`);
   rendreVie(); return ok;
@@ -259,11 +274,13 @@ export function signaler(evt, n = 1) { for (const f of ecouteurs) f(evt, n); }
 // ---------- Données en plus : chapitres, commerces ----------
 // Gardées dans ce navigateur, et dans Firebase quand les règles de la base les acceptent (champs `chapitres`,
 // `commerces` de database.rules.json) : la copie la plus récente l'emporte au chargement.
-const cleEnPlus = c => `cotonou3d.${c}${VIE.local ? '.local' : ''}`;
+// Rangées par joueur : sans son identifiant dans la clé, les commerces d'un ancien compte anonyme de ce téléphone
+// pouvaient remplacer ceux du compte qu'on venait de retrouver (« J'ai déjà un compte »).
+const cleEnPlus = c => `cotonou3d.${c}${VIE.local ? '.local' : VIE.ref?.key ? `.${VIE.ref.key}` : ''}`;
 const refuses = new Set();
 /** Lit un texte JSON enregistré (`c` : 'chapitres' ou 'commerces'), le plus récent des deux endroits. */
 export function lireEnPlus(c) {
-  let l = null; try { l = JSON.parse(localStorage.getItem(cleEnPlus(c)) || 'null'); } catch { /* navigation privée */ }
+  let l = null; try { l = JSON.parse(localStorage.getItem(cleEnPlus(c)) ?? (VIE.local ? null : localStorage.getItem(`cotonou3d.${c}`)) ?? 'null'); } catch { /* navigation privée */ } // l'ancienne clé, sans identifiant : celle des parties d'avant le 26/10
   let f = null; try { f = JSON.parse(VIE.data?.[c] || 'null'); } catch { /* rien */ }
   return !f ? l : !l ? f : (f.maj || 0) >= (l.maj || 0) ? f : l;
 }
@@ -330,6 +347,8 @@ export function rendreVie() {
   // « Comment j'achète tout ça, où je prends ça ? » (Murielle, 25/10) : le bouton est dans le menu, et rien ne
   // le disait. La première fois qu'on a de quoi, on le dit dans le fil — une seule fois par partie.
   const moinsCher = Math.min(...A_VENDRE.map(x => x.prix));
-  if (a && !a.hidden && !ditVoiture && v.argent >= moinsCher) { ditVoiture = true; annonce(`Tu as de quoi t’acheter une voiture : Menu, puis « Acheter une voiture ». La moins chère est à ${fmt(moinsCher)}.`); }
+  // Les voitures s'ouvrent au chapitre 2 : avec les 2 100 F du premier jour, le jeu proposait déjà d'en acheter
+  // une, et l'envie d'avancer disparaissait (un testeur, 26/10).
+  if (a && !a.hidden && !ditVoiture && VIE.chapitre >= 1 && v.argent >= moinsCher) { ditVoiture = true; annonce(`Tu as de quoi t’acheter une voiture : Menu, puis « Acheter une voiture ». La moins chère est à ${fmt(moinsCher)}.`); }
 }
 let ditVoiture = false;

@@ -57,6 +57,9 @@ export function creerPartie() {
 }
 /** Envoie le lien d'invitation (partage du téléphone : WhatsApp, SMS…), ou le copie. */
 async function inviter() {
+  // Au doigt, le toucher qui ouvre le menu de Zém Run retombait parfois sur « Inviter un ami » (resté affiché
+  // d'une partie créée plus tôt) : le lien partait dans le presse-papiers sans qu'on l'ait demandé (un testeur, 26/10).
+  if (performance.now() - (JEU.menuT || 0) < 700) return;
   const url = lienInvitation(), texte = `On joue à Zém Run ensemble ? Clique sur le lien (code ${MJ.code}) :`;
   try { if (navigator.share) { await navigator.share({ title: 'Zém Run à deux', text: texte, url }); return; } } catch (e) { if (e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(`${texte} ${url}`); statut(`Lien copié ! Colle-le dans WhatsApp pour ton ami. (Code ${MJ.code})`); }

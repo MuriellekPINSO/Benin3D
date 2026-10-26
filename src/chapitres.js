@@ -14,26 +14,26 @@ const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 export const CHAPITRES = [
   { titre: 'Se débrouiller', etapes: [
-    { texte: 'Trouve un travail : touche « Travailler », en haut à gauche.', prime: 500, fait: () => !!VIE.data?.metier },
+    { texte: 'Trouve un travail : touche la mallette « Travailler », dans les ronds à droite.', prime: 500, fait: () => !!VIE.data?.metier },
     { texte: 'Gagne 2 000 F en travaillant.', prime: 500, compte: 'travail', but: 2000, F: true },
     { texte: 'Mange un bon plat : au maquis, au food court de la Cité, ou chez toi.', prime: 300, compte: 'mange', but: 1 },
     { texte: 'Gagne 10 000 F en travaillant.', prime: 1000, compte: 'travail', but: 10000, F: true },
   ] },
   { titre: 'Avoir sa moto', etapes: [
-    { texte: 'Aie ton propre véhicule : « Menu », en haut à gauche, puis « Louer une moto ».', prime: 500, fait: () => !!VIE.data?.vehicule },
-    { texte: 'Fais le plein dans une station-service (« Aller à » : la station la plus proche).', prime: 300, compte: 'plein', but: 1 },
+    { texte: 'Aie ton propre véhicule : « Menu » (le dernier rond à droite), puis « Louer une moto ».', prime: 500, fait: () => !!VIE.data?.vehicule },
+    { texte: 'Fais le plein dans une station-service (« Aller » : la station la plus proche).', prime: 300, compte: 'plein', but: 1 },
     { texte: 'Fais 3 courses de zém ou de taxi : « Travailler », puis Zémidjan ou Chauffeur de taxi.', prime: 1500, compte: 'course', but: 3 }, // 5, c'était trop : un testeur a abandonné là (22/10)
     { texte: 'Mets 10 000 F de côté pour ouvrir ton commerce.', prime: 0, fait: () => (VIE.data?.argent || 0) >= 10000 },
   ] },
   { titre: 'Ouvrir son commerce', etapes: [
-    { texte: 'Va voir une boutique à louer : « Menu », en haut à gauche, puis « Commerces ».', prime: 200, compte: 'voirLot', but: 1 },
+    { texte: 'Va voir une boutique à louer : « Menu » (le dernier rond à droite), puis « Commerces ».', prime: 200, compte: 'voirLot', but: 1 },
     { texte: 'Ouvre ton premier commerce : choisis ce que tu vends, ton équipe s’installe.', prime: 1000, fait: () => nbCommerces() >= 1 },
     { texte: 'Ton commerce travaille pour toi : encaisse 5 000 F de ventes.', prime: 1000, compte: 'commerce', but: 5000, F: true },
     { texte: 'Réapprovisionne ton commerce avant que son stock soit vide.', prime: 500, compte: 'reappro', but: 1 },
   ] },
   { titre: 'Devenir quelqu’un', etapes: [
     { texte: 'Ouvre un deuxième commerce, dans un autre quartier.', prime: 2000, fait: () => nbCommerces() >= 2 },
-    { texte: 'Prends l’avion pour Ouidah (« Aller à » : l’aéroport).', prime: 1000, fait: () => (VIE.data?.vols || 0) >= 1 },
+    { texte: 'Prends l’avion pour Ouidah (« Aller » : l’aéroport).', prime: 1000, fait: () => (VIE.data?.vols || 0) >= 1 },
     { texte: 'Encaisse 50 000 F de ventes dans tes commerces.', prime: 3000, compte: 'commerce', but: 50000, F: true },
     { texte: 'Ouvre trois commerces : te voilà patron à Cotonou !', prime: 5000, fait: () => nbCommerces() >= 3 },
   ] },
@@ -45,6 +45,9 @@ export const chapitreFini = () => CH.i >= ETAPES.length;
 
 export function initChapitres({ ligne, guide }) {
   CH.ligne = ligne; CH.guide = guide;
+  // Le chapitre en cours (0 : le premier), pour ce qui s'ouvre en avançant : le taxi, les entreprises, les voitures
+  // (metiers.js, salon.js, vie.js). Avant le chargement de la partie : 0.
+  Object.defineProperty(VIE, 'chapitre', { get: () => (CH.charge ? etape()?.c ?? CHAPITRES.length : 0), configurable: true });
   surSignal((evt, n) => { const e = etape(); if (CH.charge && e?.compte === evt) { CH.n += n; if (CH.n < e.but) sauver(); afficher(); } });
   $('#chapOuvrir')?.addEventListener('click', montrerChapitres);
   if (import.meta.env.DEV) window.__chapitres = { CH, ETAPES, reussir: () => reussir() }; // pour les tests

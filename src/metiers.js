@@ -50,10 +50,15 @@ export function menuTravail() {
     ], { annuler: 'Fermer' });
     return;
   }
+  // Tout n'est pas ouvert d'emblée : le taxi, le volant du tokpa-tokpa et les entreprises s'ouvrent au chapitre 2.
+  // « Si tout est ouvert dès le début, l'envie d'évoluer disparaît » (un testeur, 26/10). Un métier déjà commencé
+  // reste ouvert.
+  const ferme = id => VIE.chapitre < (CHAPITRE_DE[id] || 0) && v.metier !== id && !carriere(id);
   const reprise = id => v.metier === id && v.journeeFin > Date.now() && v.versement > 0;
   const doit = v.versement > 0 && !(v.journeeFin > Date.now());
   const option = (id, sous) => {
     const M = METIERS[id], propre = M.propre && v.vehicule === M.propre, bloque = !propre && M.versement && doit;
+    if (ferme(id)) return { texte: M.nom, desactive: true, sous: `S’ouvre au chapitre ${CHAPITRE_DE[id] + 1}` };
     return { texte: M.nom, desactive: bloque, sous: bloque ? `Rends d’abord ${fmt(v.versement)} à ton patron` : reprise(id) ? `Reprendre ta journée (versement convenu : ${fmt(v.versement)})` : propre ? `Avec ${M.propre === 'moto' ? 'ta moto' : 'ta voiture'} : toute la recette est pour toi` : sous, f: () => commencer(id) };
   };
   const nom = id => nomMetier(METIERS[id]);
@@ -71,7 +76,7 @@ export function menuTravail() {
       { texte: nom('serveur'), sous: 'Prends les commandes à table et sers le bon plat · 150 F par table et pourboires', f: () => commencer('serveur') },
       { texte: nom('cuisinier'), sous: 'Prépare les plats béninois avec les bons ingrédients · 250 F par plat', f: () => commencer('cuisinier') },
     ], { annuler: 'Retour' })],
-    ['Entreprises', `MTN, Moov, Cité ministérielle · carrière jusqu’à DG`, () => X.choisir('Travailler · en entreprise', ['mtn', 'moov', 'cite'].map(id => ({ texte: nom(id), sous: poste(id), f: () => commencer(id) })), { annuler: 'Retour' })],
+    ['Entreprises', `MTN, Moov, Cité ministérielle · carrière jusqu’à DG`, () => X.choisir('Travailler · en entreprise', ['mtn', 'moov', 'cite'].map(id => ({ texte: nom(id), sous: ferme(id) ? `S’ouvre au chapitre ${CHAPITRE_DE[id] + 1}` : poste(id), desactive: ferme(id), f: () => commencer(id) })), { annuler: 'Retour' })],
   ];
   X.choisir('Travailler à Cotonou', familles.map(([texte, sous, f]) => ({ texte, sous, f })));
 }
@@ -102,25 +107,30 @@ function expliquerMetier(id) {
   el.querySelector('button').onclick = fermer; el.onclick = e => { if (e.target === el) fermer(); };
   el.hidden = false; el.querySelector('button').focus();
 }
+const CHAPITRE_DE = { taxi: 1, chauffeur: 1, mtn: 1, moov: 1, cite: 1 }; // le chapitre (0 : le premier) qui ouvre ce métier
+/** Un refus se voit : au-dessus de son personnage, pas seulement dans la discussion (repliée sur téléphone). */
+const refus = t => { X.ligne(t); X.bulle?.(S, t); };
 async function commencer(id) {
   const v = VIE.data, M = METIERS[id];
   if (M.famille !== 'transport') { // commerce, restauration, entreprises : metiers-ville.js
-    if (T.mode !== 'pied') { X.ligne('Gare-toi et descends d’abord.'); return; }
+    if (T.mode !== 'pied') { refus('Gare-toi et descends d’abord.'); return; }
     if (v.metier !== id) await ecrire({ metier: id });
     W.id = id; VIE.service = id; W.patron = false;
     if (!demarrerVille(id)) { W.id = ''; VIE.service = ''; }
     else expliquerMetier(id);
     rendreVie(); return;
   }
-  if (S.lieu) { X.ligne('Sors d’abord du bâtiment pour aller travailler.'); return; }
-  if (T.mode !== 'pied' && T.mode !== 'conduit') { X.ligne('Termine d’abord ton trajet.'); return; }
+  // Depuis sa chambre, « Zémidjan » ne faisait rien : le refus n'était écrit que dans la discussion, repliée sur
+  // téléphone, et le joueur croyait le jeu cassé (un testeur, 26/10). On sort, et la journée commence devant la porte.
+  if (S.lieu) { X.dehors(); X.ligne('Tu sors pour aller travailler.'); }
+  if (T.mode !== 'pied' && T.mode !== 'conduit') { refus('Termine d’abord ton trajet.'); return; }
   const ligneTokpa = id === 'chauffeur' || id === 'apprenti';
-  if (ligneTokpa && !W.ligne) { X.ligne('La ligne Godomey – Calavi n’est pas disponible.'); return; }
-  if (ligneTokpa && T.mode === 'conduit') { X.ligne('Gare-toi et descends d’abord : la gare de Godomey est loin.'); return; }
+  if (ligneTokpa && !W.ligne) { refus('La ligne Godomey – Calavi n’est pas disponible.'); return; }
+  if (ligneTokpa && T.mode === 'conduit') { refus('Gare-toi et descends d’abord : la gare de Godomey est loin.'); return; }
   const propre = !!M.propre && v.vehicule === M.propre, reprise = v.metier === id && v.journeeFin > Date.now() && v.versement > 0;
   W.patron = !propre && M.versement > 0;
   if (W.patron && !reprise) {
-    if (v.versement > 0) { X.ligne(`Ton patron attend encore ${fmt(v.versement)} : paie-le d’abord.`); return; }
+    if (v.versement > 0) { refus(`Ton patron attend encore ${fmt(v.versement)} : paie-le d’abord.`); return; }
     await ecrire({ metier: id, versement: M.versement, journeeFin: Date.now() + JOUR });
   } else if (v.metier !== id) await ecrire({ metier: id });
   W.id = id; VIE.service = id; W.attente = 3;
@@ -128,10 +138,10 @@ async function commencer(id) {
     if (W.patron) {
       if (T.mode === 'conduit') descendreDe(T.veh);
       vehiculeDuPatron(M.veh);
-      X.ligne(`${M.veh === 'moto' ? 'La moto' : 'Le taxi'} du patron t’attend sur la route, à côté de toi (étiquette jaune). ${reprise ? 'Ta journée continue.' : `Ce soir, tu lui dois ${fmt(M.versement)}.`}`);
+      X.ligne(`${M.veh === 'moto' ? 'La moto' : 'Le taxi'} du patron t’attend sur la route, sous la colonne de lumière jaune. ${reprise ? 'Ta journée continue.' : `Ce soir, tu lui dois ${fmt(M.versement)}.`}`);
       // La consigne n'était que dans la discussion, souvent cachée : une bulle au-dessus de soi, et le GPS si le véhicule est loin.
-      const Vp = T.veh; X.bulle?.(S, `${M.veh === 'moto' ? 'La moto' : 'Le taxi'} du patron est là : étiquette jaune !`);
-      if (Vp && Math.hypot(Vp.x - S.x, Vp.z - S.z) > 12) X.gps?.(Vp.x, Vp.z, `${M.veh === 'moto' ? 'la moto' : 'le taxi'} du patron`);
+      const Vp = T.veh; X.bulle?.(S, `${M.veh === 'moto' ? 'La moto' : 'Le taxi'} du patron : suis la lumière jaune !`);
+      if (Vp && Math.hypot(Vp.x - S.x, Vp.z - S.z) > 5) X.gps?.(Vp.x, Vp.z, `${M.veh === 'moto' ? 'la moto' : 'le taxi'} du patron`);
     } else if (!T.veh) X.garerSonVehicule();
     if (id === 'zem') enfilerGilet();
     X.ligne(id === 'zem' ? `Tu es zémidjan, gilet n° ${numero()} sur le dos. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux pour discuter le prix.` : 'Tu fais le taxi. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux.');
@@ -157,7 +167,7 @@ export function pause() {
   if (W.tk?.occ > 0 && W.id === 'chauffeur') { X.ligne('Dépose d’abord tes passagers à un arrêt.'); return; }
   retirerClient(); // celui qui faisait signe trouvera un autre zém
   W.pause = true; VIE.pause = true; rendreVie();
-  X.ligne('C’est la pause ! Va manger : le food court de la Cité (« Aller à »), un maquis, ou chez toi. Puis « Reprendre le travail ».');
+  X.ligne('C’est la pause ! Va manger : le food court de la Cité (« Aller »), un maquis, ou chez toi. Puis « Reprendre le travail ».');
 }
 export function reprendre() {
   if (!W.id || !W.pause) return;
@@ -220,6 +230,10 @@ function vehiculeDuPatron(type) {
   const p = routeProche(S.x + Math.sin(S.cap + Math.PI / 2) * 4, S.z + Math.cos(S.cap + Math.PI / 2) * 4, 0, 150) || [S.x, S.z];
   const V = creerVehicule(type); placer(V, p[0], p[1], capRoute(p[0], p[1])); V.travail = true;
   const e = X.etiquette(type === 'moto' ? 'Moto du patron' : 'Taxi du patron'); e.position.y = type === 'moto' ? 1.7 : 2.2; V.g.add(e); V.etiquette = e;
+  // « Le soir, je n'ai pas trouvé la moto du patron, étiquette jaune » (un testeur, 26/10) : une colonne de
+  // lumière jaune au-dessus d'elle, qu'on voit de loin et de nuit, jusqu'à ce qu'on monte dessus.
+  const b = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 40, 12, 1, true), new THREE.MeshBasicMaterial({ color: '#ffd23a', transparent: true, opacity: .32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+  b.position.y = 20.5; b.renderOrder = 12; V.g.add(b); V.balise = b;
   T.veh = V; VIE.travail = { type, carburant: VEHICULES[type].reservoir }; // le patron le confie avec le plein
 }
 /** On descend du véhicule (fin de service, départ pour la gare). */
@@ -681,6 +695,7 @@ export function actionsMetier() {
 export function majMetiers(dt) {
   if (!W.id) return null;
   majGilet(); majMarcheurs(dt);
+  if (T.veh?.balise) T.veh.balise.visible = T.mode !== 'conduit'; // la colonne de lumière s'éteint quand on est dessus
   if (W.pause) { // rien n'avance au poste
     W.mission = `${METIERS[W.id].entreprise || nomMetier(METIERS[W.id])} · en pause`; // « Moov · en pause » : le titre (superviseure…) reste dans « Ma vie »
     if (W.mission !== VIE.mission) { VIE.mission = W.mission; const el = $('#vhMission'); if (el) { el.hidden = false; el.textContent = W.mission; } }

@@ -26,12 +26,17 @@ export const modeleActuel = m => tenueDe(m) ? m : m in ANCIENS ? TENUES.find(t =
 function achetees() { return new Set([...(VIE.data?.garderobe || '').split(',').filter(Boolean), ...(JEU.prog?.garderobe || [])]); }
 export const possede = t => !t.prix || achetees().has(t.id);
 
+/** Les vignettes des tenues, chargées dès le démarrage : demandées à l'ouverture de « Vivre à Cotonou », elles
+ *  passaient après les modèles 3D encore en route et mettaient huit secondes à paraître (un testeur, 26/10). Vingt
+ *  images de 5 Ko : rien, à côté de la ville. */
+const pretes = new Map();
+export function prechargerVignettes() { for (const t of TENUES) if (!pretes.has(t.id)) { const i = new Image(); i.decoding = 'async'; i.src = vignette(t.id); pretes.set(t.id, i); } }
 /** Grille de tenues (cartes avec vignette). `seulementPossedees` : à l'entrée du salon, avant d'avoir sa vie. */
 export function grilleTenues(el, { femme, choisi, choisir, seulementPossedees = false }) {
   el.replaceChildren();
   for (const t of TENUES.filter(t => t.femme === femme && (!seulementPossedees || possede(t)))) {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'gr-carte'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(t.modele === choisi));
-    const img = new Image(); img.src = vignette(t.id); img.alt = ''; // 5 à 8 Ko : pas de chargement différé (la carte du grand boubou restait vide)
+    const img = new Image(); img.fetchPriority = 'high'; img.src = vignette(t.id); img.alt = ''; // 5 à 8 Ko : pas de chargement différé (la carte du grand boubou restait vide)
     const nom = document.createElement('b'); nom.textContent = t.nom;
     const sous = document.createElement('small'); sous.textContent = t.modele === choisi ? 'Tu la portes' : possede(t) ? (t.prix ? 'Dans ta garde-robe' : 'Offerte') : fmt(t.prix);
     if (!possede(t)) b.classList.add('a-acheter');

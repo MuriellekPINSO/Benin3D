@@ -1,5 +1,6 @@
 import { $ } from './base.js';
 import { firebase, joueur } from './firebase.js';
+import { grossier } from './moderation.js';
 
 // ---------- Classement de Zém Run : son nom, et sa place parmi tous les joueurs ----------
 // Un classement par ligne (elles n'ont pas la même longueur) : le meilleur total de chaque joueur au terminus, recette et
@@ -38,6 +39,8 @@ function depuis(periode) {
 /** Le nom du joueur au classement : le sien, sinon celui du salon (« Vivre à Cotonou »). */
 export function nomJoueur() { return lire(CLE_NOM, '') || nettoyer(lire('cotonou3d.salon', {})?.nom || '') || ''; }
 const nomChoisi = () => !!lire(CLE_NOM, '');
+/** Enregistre son nom (classement et défi du jour) ; '' si le nom est vide ou grossier. */
+export function choisirNom(t) { const n = nettoyer(t); if (!n || grossier(n)) return ''; ecrireLS(CLE_NOM, n); return n; }
 
 // ---------- Le serveur (ou le classement d'essai) ----------
 async function moi() { return LOCAL ? 'moi' : (await joueur()).uid; }
@@ -132,7 +135,8 @@ export function initClassement() {
   $('#jcNomForm')?.addEventListener('submit', async e => {
     e.preventDefault(); const n = nettoyer($('#jcNom').value), etat = $('#jcNomEtat');
     if (!n) { etat.textContent = 'Écris un nom d’au moins une lettre.'; return; }
-    ecrireLS(CLE_NOM, n); $('#jcNom').value = n; etat.textContent = 'Nom enregistré.';
+    if (!choisirNom(n)) { etat.textContent = 'Choisis un autre nom : il sera affiché devant tous les joueurs.'; return; }
+    $('#jcNom').value = n; etat.textContent = 'Nom enregistré.';
     await synchroniser(C.meilleurs); // le nouveau nom sur ses records déjà envoyés
     if (C.ouvert) montrerLigne();
   });

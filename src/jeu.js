@@ -35,6 +35,7 @@ import { compterUneFois, lieuStats } from './statistiques.js';
 import { suspendreChanson } from './lecteur.js';
 import { envoyerScore, initClassement, ouvrirClassement, placeApresCourse } from './classement.js';
 import { animerMoto } from './roues.js';
+import { departDefi, finDefi, initDefi, majCarte, majDefi } from './defi.js';
 
 // ---------- Zém Run : le jeu ----------
 /** Véhicules qui prennent un client à la fois, avec négociation (zém et taxi). */
@@ -54,14 +55,17 @@ export const QUIZ = {
 };
 export const LANE = 2.7, RECUL = 3; // marche arrière : 11 km/h au plus
 export const JEU = { actif: false, pause: false, etat: null, objets: [], decor: null, joueur: null, ligne: null, veh: 'zem', numero: '1234', lignes: [], meilleur: {} };
-JEU.prog = null; JEU.autoGaz = false; // le zém n'avance que si le joueur accélère (↑) ; relâché, il ralentit jusqu'à l'arrêt
+// Au clavier aussi, le zém avance seul (↓ freine, ↑ pousse plus vite), comme au doigt : garder ↑ enfoncé tout le long
+// de la course, en plus des files, des arrêts et des carrefours, c'était trop (« la conduite de l'engin est
+// compliquée », un testeur, 26/10). Une case du menu rend l'ancienne conduite (`seul` dans la sauvegarde).
+JEU.prog = null; JEU.autoGaz = true;
 JEU.gaucher = false; // téléphone : boutons Frein, Gaz et E à gauche (option du menu, comme la « left-handed layout » de Danfo Run)
 // Au téléphone, on conduit au doigt, façon Subway Surfers : le zém avance seul, on glisse pour changer de file,
 // sauter, freiner. Le choix « au doigt ou avec des boutons » a été retiré le 25/10 (« enlève l'option avec des
 // boutons, garde juste au doigt ») : c'était un écran de plus à lire avant de partir, et deux jeux à régler.
-try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; JEU.gaucher = !!s.gaucher; } catch (e) { }
+try { const s = JSON.parse(localStorage.getItem('zemrun') || '{}'); JEU.meilleur = s.meilleur || {}; JEU.numero = s.numero || '1234'; JEU.progSauve = s.prog; JEU.gaucher = !!s.gaucher; JEU.autoGaz = s.seul ?? true; } catch (e) { JEU.autoGaz = true; }
 const auDoigt = () => coarse;
-export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, autoGaz: JEU.autoGaz, gaucher: JEU.gaucher })); } catch (e) { } sauvegarderEnLigne(); }; // avec un compte, aussi en ligne (compte.js)
+export const sauver = () => { try { localStorage.setItem('zemrun', JSON.stringify({ meilleur: JEU.meilleur, numero: JEU.numero, prog: JEU.prog || JEU.progSauve, seul: JEU.autoGaz, gaucher: JEU.gaucher })); } catch (e) { } sauvegarderEnLigne(); }; // avec un compte, aussi en ligne (compte.js)
 export const fmtF = n => `${Math.round(n).toLocaleString('fr-FR')}\u00a0F`; // espace insécable : « 2 000 » et « F » restent sur la même ligne
 
 // Lissage (Chaikin) des virages, mais seulement sur les 7 derniers mètres avant chaque coin et les 7 premiers après :
@@ -385,8 +389,10 @@ function mesurerHautJeu() {
   const ro = new ResizeObserver(poser); for (const e of els) ro.observe(e); // la ligne et l'argent grandissent dans leur coin
   addEventListener('resize', poser); poser();
 }
-export function lancerLigne(L, veh) {
+/** `defi` : la mission du défi du jour (defi.js), pour une course qui compte au podium. */
+export function lancerLigne(L, veh, defi = null) {
   geosJeu(); chargerMasques(); // les processions d'Egungun prennent les modèles 3D dès qu'ils sont là
+  JEU.defi = defi ? departDefi(L) : null; if (!JEU.defi) $('#jhDefi')?.setAttribute('hidden', '');
   JEU.ligne = L; JEU.veh = veh; JEU.chemin = cheminDe(L.pts); compterUneFois('zemrun'); lieuStats('zemrun');
   const C = JEU.chemin; C.H = calerSurPonts(C);
   // Recale les arrêts sur le chemin lissé.
@@ -415,7 +421,7 @@ export function lancerLigne(L, veh) {
   const faisceau = new THREE.Mesh(GJ.phares.geo, GJ.phares.mat); faisceau.renderOrder = 12; faisceau.visible = false; grp.add(faisceau); grp.userData.phares = faisceau;
   JEU.decor.add(grp); JEU.joueur = grp;
   JEU.anim?.liberer(); JEU.anim = veh === 'zem' ? animerMoto(grp, { parent: JEU.decor }) : null; // roues qui tournent, fumée, poussière (roues.js)
-  JEU.etat = { s: 4, v: 0, file: 0, lat: 0, y: 0, vy: 0, accidents: 0, argent: 0, froleSuite: 0, passagers: veh === 'tokpa' ? 6 : 0, prochain: 1, servis: 0, manques: 0, frolements: 0, pieces: 0, invul: 0, service: 0, secousse: 0, frein: false, spawn: 40, quartier: '', temps: 0, carte: 0, casque: 0, superSaut: false, parcouru: 0, voyageurs: 0, doux: !!L.express || !Object.keys(JEU.meilleur).length };
+  JEU.etat = { s: 4, v: 0, file: 0, lat: 0, y: 0, vy: 0, accidents: 0, argent: 0, froleSuite: 0, passagers: veh === 'tokpa' ? 6 : 0, prochain: 1, servis: 0, manques: 0, frolements: 0, pieces: 0, trous: 0, invul: 0, service: 0, secousse: 0, frein: false, spawn: 40, quartier: '', temps: 0, carte: 0, casque: 0, superSaut: false, parcouru: 0, voyageurs: 0, doux: !!L.express || !Object.keys(JEU.meilleur).length };
   // Bonus achetés au garage, série de jours, le collecteur, et le premier client.
   const P = JEU.prog, st0 = JEU.etat; essenceDepart(st0);
   if (P.bonus.casque > 0) { P.bonus.casque--; st0.casque = 1; }
@@ -636,7 +642,7 @@ export function majJeu(dt) {
     else if (st.gaz || st.gazM || JEU.autoGaz || auDoigt()) {
       // Au doigt, le zém roule seul : avec un client, il garde 65 km/h (au-delà de 70, le client proteste et le pourboire
       // baisse ; sans cette limite, on ne pouvait pas rouler moins vite).
-      const vm = auDoigt() && !st.gaz && !st.gazM && DISC.client?.accord && JEU.veh === 'zem' ? Math.min(vmax, 18) : vmax;
+      const vm = (auDoigt() || JEU.autoGaz) && !st.gaz && !st.gazM && DISC.client?.accord && JEU.veh === 'zem' ? Math.min(vmax, 18) : vmax;
       st.v = st.v > vm ? Math.max(vm, st.v - 8 * dt) : Math.min(vm, st.v + V.accel * dt * (st.v < 6 ? 1.6 : 1));
     }
     else st.v = st.v < 0 ? Math.min(0, st.v + 5 * dt) : Math.max(0, st.v - (st.v > vmax ? 8 : 2.4) * dt);
@@ -716,7 +722,7 @@ export function majJeu(dt) {
     if (Math.abs(ds) < sepL && Math.abs(ecart) < sepT) {
       if (o.type === 'jeton') { st.argent += 25; st.pieces++; son('piece'); vibrer('piece'); retirerObjet(o); if (st.pieces % 5 === 0) progres('pieces', st.pieces); continue; }
       if (o.T.saut && st.y > .55) { /* sauté */ }
-      else if (o.type === 'trou') { if (!o.touche) { o.touche = true; st.v *= st.pneus > 0 ? .8 : .5; st.secousse = .35; if (!(st.pneus > 0)) { st.argent = Math.max(0, st.argent - 50); toast('Nid-de-poule ! −50 F', 1.2, 'mal'); } son('bosse'); evenement('trou'); } }
+      else if (o.type === 'trou') { if (!o.touche) { o.touche = true; st.trous++; st.v *= st.pneus > 0 ? .8 : .5; st.secousse = .35; if (!(st.pneus > 0)) { st.argent = Math.max(0, st.argent - 50); toast('Nid-de-poule ! −50 F', 1.2, 'mal'); } son('bosse'); evenement('trou'); } }
       else if (o.dirLat && st.v < 1.5) { // zém arrêté : la chèvre, la marchande ne le traversent pas
         const loin = Math.sign(ecart) || 1;
         if (Math.abs(ecart) < sepT * .7) o.dirLat = loin * Math.abs(o.dirLat); // déjà contre lui : elle s'écarte
@@ -809,6 +815,7 @@ export function majJeu(dt) {
     } else delete elC.dataset.cle;
   }
   majGuideJeu(st, dt);
+  if (JEU.defi) majDefi(st, JEU.joueur.position.x, JEU.joueur.position.z); // pas `p` : pose() rend un objet partagé, réécrit depuis
   majInteractions(st, C, dt);
   if (st.pneus > 0) st.pneus -= dt;
   if (JEU.fini !== true && Math.floor(st.temps * 20) !== Math.floor((st.temps - dt) * 20)) majMiniCarte(st, C);
@@ -853,7 +860,7 @@ function etapesJeu() {
   const st = () => JEU.etat, clients = () => avecClients(JEU.veh), prochain = () => JEU.ligne?.arretsJ[st().prochain];
   return [
     { id: 'client', texte: () => coarse ? 'Ton client demande le prix : touche une réponse.' : 'Ton client demande le prix : clique sur une réponse, ou appuie sur [1] [2] [3].', quand: () => clients() && !!DISC.client && !DISC.client.accord && !$('#jhDialogue').hidden, fait: () => !clients() || !!DISC.client?.accord },
-    { id: 'rouler', texte: () => coarse ? 'Ton zém avance tout seul. Glisse le doigt vers le bas et garde-le posé pour freiner.' : 'Maintiens [↑] pour rouler. Relâche pour ralentir, [↓] pour freiner.', quand: () => true, fait: () => st().v > 8 },
+    { id: 'rouler', texte: () => coarse ? 'Ton zém avance tout seul. Glisse le doigt vers le bas et garde-le posé pour freiner.' : JEU.autoGaz ? 'Ton zém avance tout seul. [↓] pour freiner, [↑] pour aller plus vite.' : 'Maintiens [↑] pour rouler. Relâche pour ralentir, [↓] pour freiner.', quand: () => true, fait: () => st().v > 8 },
     { id: 'arret', texte: () => `Bientôt l’arrêt ${prochain()?.nom || ''} : ${coarse ? 'glisse à droite, puis vers le bas en gardant le doigt posé' : 'mets-toi à droite [→], puis freine [↓]'} dans la zone jaune. ${clients() ? 'Ton client descend et paie.' : 'L’apprenti encaisse les passagers.'}`, quand: () => { const a = prochain(); return !!a && a.s - st().s < 260 && (!clients() || !!DISC.client); }, fait: () => st().servis >= 1 },
     { id: 'files', texte: () => coarse ? 'Glisse à gauche ou à droite pour éviter les zems, les trous et les chèvres. Vers le haut : sauter.' : '[←] [→] : change de file pour éviter les zems, les trous et les chèvres. [Espace] : sauter par-dessus un trou.', quand: () => st().v > 5, fait: () => G.changements >= 1 },
     { id: 'signe', texte: () => `Pas de client à bord : quelqu’un te fait signe au bord de la route. Arrête-toi à sa hauteur, puis ${coarse ? 'le bouton E' : '[E]'}.`, quand: () => clients() && !DISC.client && st().servis >= 1, fait: () => !clients() || (st().servis >= 1 && !!DISC.client) },
@@ -869,6 +876,21 @@ function majGuideJeu(st, dt) {
   if (st.essence > G.essence + .2) G.plein = true; G.essence = st.essence;
   guideJeu.maj(dt);
 }
+/**
+ * Le prochain virage de l'itinéraire, comme un GPS : « ↱ À droite dans 80 m ». On suivait la ligne sans savoir où
+ * elle allait tourner, et l'on découvrait le carrefour au dernier moment (« l'itinéraire du zém est compliqué à
+ * comprendre », un testeur, 26/10). Le trajet a un point par mètre : on cherche, devant soi, le premier endroit où la
+ * route tourne de plus de 30° sur 15 m.
+ */
+const vA = { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }, vB = { ...vA };
+function prochainVirage(C, s) {
+  for (let d = 8; d < 260 && s + d + 15 < C.n; d += 4) {
+    const p = pose(C, s + d, 0, vA), q = pose(C, s + d + 15, 0, vB);
+    let da = Math.atan2(q.dx, q.dz) - Math.atan2(p.dx, p.dz); da = Math.atan2(Math.sin(da), Math.cos(da));
+    if (Math.abs(da) > .52) return { d: d + 7, gauche: da > 0, fort: Math.abs(da) > 1.2 };
+  }
+  return null;
+}
 export function majHud(st, C, V) {
   $('#jhArgent').textContent = fmtF(st.argent);
   $('#jhVitesse').textContent = `${Math.round(Math.abs(st.v) * 3.6)} km/h${st.v < -.2 ? ' · marche arrière' : ''}`;
@@ -881,6 +903,11 @@ export function majHud(st, C, V) {
   $('#jhProchain').textContent = a ? `${coarse ? '→' : 'Prochain arrêt :'} ${a.nom} · ${Math.max(0, Math.round(reste))} m${ralentir ? ' · Ralentis !' : ''}` : 'Terminus';
   $('#jhProchain').classList.toggle('alerte', ralentir);
   $('#jhPassagers').textContent = JEU.veh === 'tokpa' ? `${st.passagers}/${V.places} passagers` : etiquetteClient();
+  const vir = $('#jhVirage'), vg = !st.auto && $('#jhCarrefour')?.hidden !== false ? prochainVirage(C, st.s) : null;
+  if (vir) {
+    const txt = vg ? `<b>${vg.gauche ? '↰' : '↱'}</b>${vg.gauche ? 'À gauche' : 'À droite'}${vg.fort ? '' : ' (léger)'} dans ${Math.round(vg.d / 10) * 10} m` : '';
+    if (vir.dataset.t !== txt) { vir.dataset.t = txt; vir.innerHTML = txt; vir.hidden = !txt; }
+  }
 }
 // Les gens et les étals du bord de la route (vendeuses, groupes qui causent, marcheurs, client qui fait signe) et les
 // poteaux ne se traversent pas : sur le bas-côté (files ±2), on s'arrête devant eux ; trop vite, c'est l'accident.
@@ -920,6 +947,7 @@ export function finJeu(arrive, quitte = false) {
     ['Distance parcourue', `${km.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`], ['Durée', `${Math.floor(duree / 60)} min ${String(duree % 60).padStart(2, '0')} s`], ['Frôlements', st.frolements]];
   const duo = arriveeDuo(arrive); if (duo) stats.push(['Course à deux', duo]); // qui est arrivé le premier au terminus
   el.querySelector('.jf-stats').innerHTML = stats.map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('');
+  finDefi(st); // une course du défi du jour : son score, envoyé au classement du jour
   const qz = el.querySelector('.jf-quiz'), Q = QUIZ[L.id] || []; let i = 0, bonus = 0;
   $('#jfPartager').hidden = true; // il apparaît avec le total, après le quiz
   const finir = () => {
@@ -971,11 +999,11 @@ export function remplirLignes() {
   }
 }
 export function ouvrirJeu() {
-  geosJeu(); audioCtx();
+  geosJeu(); audioCtx(); JEU.menuT = performance.now(); // multijoueur.js : pas de clic fantôme sur « Inviter »
   document.getElementById('app').classList.add('mode-jeu');
   $('#jeu').hidden = false; $('#jeuMenu').hidden = false; $('#jeuHud').hidden = true; $('#jeuFin').hidden = true; $('#jeuPause').hidden = true;
   $('#jmNumero').value = JEU.numero;
-  remplirLignes();
+  remplirLignes(); majCarte();
 }
 /** Ligne express pour débuter : le début de « Sur la Marina », de Haie Vive au carrefour d'Erevan (1,6 km).
  *  Sur cette ligne, et tant qu'on n'a fini aucune course, la police est indulgente (voir `police`). */
@@ -993,7 +1021,7 @@ function ligneExpress(lignes) {
 const totauxGlobaux = () => ({ score: Math.max(0, ...Object.values(JEU.meilleur)), km: Math.round((JEU.prog?.km || 0) * 10), quartiers: Object.keys(JEU.prog?.tampons || {}).length });
 const voirClassement = (ligne = 'score') => ouvrirClassement(JEU.lignes.map(l => ({ id: l.id, nom: l.nom })), ligne, { ...JEU.meilleur, ...totauxGlobaux() });
 export function initJeu(data) {
-  initClassement(); $('#jmClassement')?.addEventListener('click', () => voirClassement()); $('#jfClassement')?.addEventListener('click', () => voirClassement());
+  initClassement(); initDefi(); $('#jmClassement')?.addEventListener('click', () => voirClassement()); $('#jfClassement')?.addEventListener('click', () => voirClassement());
   const ex = ligneExpress(data.L.lignes || []);
   JEU.lignes = ex ? [ex, ...data.L.lignes] : data.L.lignes || []; JEU.data = data;
   JEU.prog = Object.assign(progDefaut(), JEU.progSauve || {}); assurerMissions();
@@ -1004,7 +1032,7 @@ export function initJeu(data) {
   $('#jmRetour').addEventListener('click', retourCarte); $('#jmFermer').addEventListener('click', retourCarte); // la croix en haut : le bouton du bas sortait de l'écran
   window.addEventListener('keydown', e => { if (e.key === 'Escape' && !JEU.actif && !$('#jeu').hidden && !$('#jeuMenu').hidden) retourCarte(); });
   $('#jmPub').addEventListener('click', ouvrirOffre);
-  $('#jfRejouer').addEventListener('click', () => { JEU.fini = false; lancerLigne(JEU.ligne, JEU.veh); });
+  $('#jfRejouer').addEventListener('click', () => { JEU.fini = false; lancerLigne(JEU.ligne, JEU.veh, JEU.defi); }); // le défi se rejoue en défi
   $('#jfLignes').addEventListener('click', () => { JEU.actif = false; moteurStop(); nettoyerBordure(); nettoyerDiscussions(); viderPietons(); remettreVegetation(); if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; } ouvrirJeu(); });
   $('#jfCarte').addEventListener('click', quitterJeu);
   $('#jpReprendre').addEventListener('click', () => { JEU.pause = false; $('#jeuPause').hidden = true; });
@@ -1020,7 +1048,7 @@ export function initJeu(data) {
     if (suivant === 'quartier') { radio(false); toast('Musique du quartier', 1.6); majRadio(); return; }
     const S = STATIONS.find(s => s.id === suivant); toast(`${S.nom} · ${S.sous}`, 2.2); majRadio();
     const ok = await radio(true, suivant); majRadio();
-    if (!ok && AUDIO.station === suivant && JEU.actif) toast(`${S.nom} ne répond pas : essaie la suivante`, 2, 'mal');
+    if (ok === false && AUDIO.station === suivant && JEU.actif) toast(`${S.nom} ne répond pas : essaie la suivante`, 2, 'mal');
   };
   $('#jhRadio')?.addEventListener('click', changerRadio);
   $('#jhSon').addEventListener('click', e => { AUDIO.muet = !AUDIO.muet; e.currentTarget.setAttribute('aria-pressed', String(!AUDIO.muet)); if (AUDIO.muet) { moteurMaj(0, false); radio(false); taire(); } });
@@ -1080,6 +1108,7 @@ export function initJeu(data) {
   maintenu('#jbF', 'frein'); maintenu('#jbA', 'gaz');
   $('#jmVoix').checked = VOIX.on; $('#jmVoix').addEventListener('change', e => voixActives(e.target.checked)); $('#jmVoix').closest('label').hidden = !voixDispo();
   $('#jeu').classList.toggle('au-doigt', auDoigt());
+  const seul = $('#jmSeul'); if (seul) { seul.closest('label').hidden = coarse; seul.checked = JEU.autoGaz; seul.addEventListener('change', e => { JEU.autoGaz = e.target.checked; sauver(); }); }
   const gaucher = $('#jmGaucher'); if (gaucher) { gaucher.closest('label').hidden = !coarse; gaucher.checked = JEU.gaucher; gaucher.addEventListener('change', e => { JEU.gaucher = e.target.checked; sauver(); $('#jeu').classList.toggle('gaucher', JEU.gaucher); }); }
   $('#jeu').classList.toggle('gaucher', JEU.gaucher);
 }

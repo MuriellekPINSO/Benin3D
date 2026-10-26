@@ -11,6 +11,7 @@ import { INTERIEURS, arriveeDedans, arriveeDehors, cacherInterieurs, limiter, mu
 import { actionsMaison, initMaison, maisonActuelle, majMaison, occupe, quitterMaison, reveil } from './maison.js';
 import { E } from './etat.js';
 import { firebase, joueur } from './firebase.js';
+import { compte } from './compte.js';
 import { startFlight } from './interface.js';
 import { JEU } from './jeu.js';
 import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personnagesPrets } from './personnages.js';
@@ -23,14 +24,15 @@ import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from '.
 import { A_VENDRE, acheterVehicule, alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
 import { basculerPause, finirJournee, menuTravail } from './metiers.js';
-import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces } from './commerces.js';
+import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces, sauverCommerces } from './commerces.js';
 import { majAmbianceSalon } from './ambiance-salon.js';
 import { afficherChapitres, entrerChapitres, initChapitres, majChapitres, quitterChapitres } from './chapitres.js';
 import { basculerCarte, initCarteSalon, majCarteSalon, quitterCarteSalon } from './carte-salon.js';
-import { TENUES, choixGenre, estFemme, grilleTenues, initGarderobe, modeleActuel, ouvrirGarderobe } from './garderobe.js';
+import { TENUES, choixGenre, estFemme, grilleTenues, initGarderobe, modeleActuel, ouvrirGarderobe, prechargerVignettes } from './garderobe.js';
 import { AUDIO, audioCtx, moteurMaj, son } from './audio.js';
 import { taire } from './voix.js';
 import { camera, canvas, controls, scene } from './scene.js';
+import { filtrer } from './moderation.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
 // Jusqu'à 8 amis dans la même ville : chacun se promène à pied avec son personnage, voit les autres,
@@ -98,6 +100,9 @@ async function canalFirebase(code, R) {
   await d.onDisconnect(moi).remove(); // téléphone éteint, 4G coupée : on disparaît du salon tout seul
   const autre = f => s => { if (s.key !== user.uid) f(s); };
   const off = [
+    // Revenu après une coupure (4G, téléphone en veille) : « me retirer si je pars » ne vaut que pour une connexion, le
+    // serveur l'oublie ensuite. On le redemande à chaque reconnexion, sinon on restait dans la ville après avoir fermé l'appli.
+    d.onValue(d.ref(db, '.info/connected'), s => { if (s.val() === true) d.onDisconnect(moi).remove().catch(() => { }); }),
     d.onChildAdded(joueurs, autre(s => R.etat(s.key, s.val()))),
     d.onChildChanged(joueurs, autre(s => R.etat(s.key, s.val()))),
     d.onChildRemoved(joueurs, s => R.etat(s.key, null)),
@@ -139,10 +144,12 @@ async function creerAvatar(modele, i) {
   g.userData.jouer ??= () => { };
   return g;
 }
-function etiquette(texte, moi = false) {
+// Son nom en jaune, celui d'un ami venu avec soi (son lien, ou le nôtre) en vert : dans une ville de trente,
+// on le repère d'un coup d'œil.
+function etiquette(texte, moi = false, ami = false) {
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const c = cv.getContext('2d');
   c.font = '700 30px system-ui, sans-serif'; const w = Math.min(300, c.measureText(texte).width + 44);
-  c.fillStyle = moi ? '#f2b705' : 'rgba(20, 24, 32, .84)'; c.beginPath(); c.roundRect(160 - w / 2, 8, w, 54, 27); c.fill();
+  c.fillStyle = moi ? '#f2b705' : ami ? '#1a7d52' : 'rgba(20, 24, 32, .84)'; c.beginPath(); c.roundRect(160 - w / 2, 8, w, 54, 27); c.fill();
   c.fillStyle = moi ? '#17130c' : '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(texte, 160, 36);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
   // Taille fixe à l'écran (comme dans les jeux) : lisible de loin, pas envahissant de près ni sur un téléphone en hauteur.
@@ -167,14 +174,37 @@ function retirerBulle(qui) { if (!qui.bulle) return; qui.bulle.parent?.remove(qu
 function retirer(A) { if (A.g) { retirerBulle(A); scene.remove(A.g); A.g.userData.liberer?.(); A.g = null; } retirerAvion(A.avion); A.avion = null; }
 
 // ---------- Les autres joueurs ----------
+// Le personnage d'un autre est une femme ou un homme : les phrases du jeu s'accordent (« arrivée », « la retrouver »).
+// Chaque phrase s'écrit en entier dans les deux genres : la version anglaise traduit des phrases, pas « la » ou « il ».
+const elle = A => estFemme(nettoyer(A?.etat?.m, 40) || A?.modele || 'jeune');
+const accord = (A, f, h) => (elle(A) ? f : h);
+/** Un ami : quelqu'un venu par notre lien, ou dont on a suivi le lien ; dans un salon privé, tout le monde. */
+const estAmi = A => !S.public || !!A.ami;
+function majEtiquette(A) { if (!A.g) return; if (A.etiquette) A.g.userData.tete.remove(A.etiquette); A.etiquette = etiquette(A.nom, false, S.public && A.ami); A.g.userData.tete.add(A.etiquette); }
 function surEtat(id, e) {
   let A = S.autres.get(id);
   if (!e) { if (A) { retirer(A); S.autres.delete(id); majListe(); if (A.nom) ligne(S.public ? `${A.nom} a quitté la ville.` : `${A.nom} a quitté le salon.`); } return; }
   if (typeof e.x !== 'number' || typeof e.z !== 'number') return;
-  if (!A) { A = { id, x: e.x, z: e.z, cap: e.h || 0, nom: '', modele: '', g: null, enCours: false, bulle: null, bulleFin: 0 }; S.autres.set(id, A); }
+  if (!A) { A = { id, x: e.x, z: e.z, cap: e.h || 0, nom: '', modele: '', g: null, enCours: false, bulle: null, bulleFin: 0, ami: id === S.inviteur }; S.autres.set(id, A); }
   const avant = A.etat?.sur; A.etat = e;
-  const nom = nettoyer(e.n, 16) || 'Ami';
-  if (nom !== A.nom) { const nouveau = !A.nom; A.nom = nom; if (A.g) { A.g.userData.tete.remove(A.etiquette); A.etiquette = etiquette(nom); A.g.userData.tete.add(A.etiquette); } majListe(); if (nouveau) ligne(S.public ? `${nom} est arrivé en ville.` : `${nom} est arrivé dans le salon.`); }
+  const nom = filtrer(nettoyer(e.n, 16)) || 'Ami';
+  // Venu par notre lien : on le sait tout de suite, et on sait où il arrive (à côté de nous, voir rejoindre()).
+  const parMonLien = !!e.inv && e.inv === S.R?.id && !A.ami;
+  if (parMonLien) A.ami = true;
+  if (nom !== A.nom || parMonLien) {
+    const nouveau = !A.nom; A.nom = nom; majEtiquette(A); majListe();
+    if (parMonLien) { // il vient d'arriver à côté de nous (ou devant notre porte), sauf si l'on n'a pas pu nous trouver
+      son('piece');
+      const ici = S.lieu?.prive ? arriveeDehors(S.lieu) : S, pres = Math.hypot(e.x - ici.x, e.z - ici.z) < 12;
+      ligne(!pres ? `${nom} a suivi ton lien et arrive en ville. « Aller » → « Retrouver ${nom} ».`
+        : S.lieu?.prive ? `${nom} ${accord(A, 'a suivi ton lien : elle t’attend devant ta porte. Sors la retrouver !', 'a suivi ton lien : il t’attend devant ta porte. Sors le retrouver !')}`
+        : `${nom} ${accord(A, 'a suivi ton lien : la voilà à côté de toi !', 'a suivi ton lien : le voilà à côté de toi !')}`);
+    }
+    else if (nouveau) ligne(S.public ? `${nom} ${accord(A, 'est arrivée en ville.', 'est arrivé en ville.')}` : `${nom} ${accord(A, 'est arrivée dans le salon.', 'est arrivé dans le salon.')}`);
+    // Celui dont on a suivi le lien n'était pas là à notre arrivée (parti envoyer le lien sur WhatsApp, son
+    // navigateur en veille) : dès qu'il revient, on propose de le rejoindre.
+    if (nouveau && id === S.inviteur && S.actif && !S.aRejoint) { S.aRejoint = true; choisir(`${nom} est en ville`, [{ texte: `Rejoindre ${nom}`, sous: 'Tu arrives juste à côté', f: () => retrouver(A) }], { annuler: 'Plus tard' }); }
+  }
   const moi = S.R?.id; if (moi && (e.sur === moi) !== (avant === moi)) ligne(e.sur === moi ? `${nom} monte avec toi : roule, tu l’emmènes.` : `${nom} descend.`);
   if (e.m !== A.modele && !A.enCours) habiller(A);
 }
@@ -184,13 +214,15 @@ async function habiller(A) {
   A.enCours = false;
   if (!S.actif || S.autres.get(A.id) !== A) { g.userData.liberer?.(); return; }
   retirer(A); A.g = g; A.modele = m; g.position.set(A.x, 0, A.z); g.rotation.y = A.cap; scene.add(g);
-  A.etiquette = etiquette(A.nom); g.userData.tete.add(A.etiquette);
+  A.etiquette = null; majEtiquette(A);
   if (A.etat.m !== m) habiller(A); // il a changé de personnage entre-temps
 }
 function majListe() {
   const el = $('#slNb'); if (!el) return;
-  const n = S.autres.size + 1, gens = [S.nom, ...[...S.autres.values()].map(A => A.nom)].filter(Boolean).join(', ');
-  el.textContent = n === 1 ? 'Tu es seul pour l’instant' : S.public ? `${n} personnes : ${gens}` : `${n} amis : ${gens}`;
+  const autres = [...S.autres.values()].filter(A => A.nom), amis = autres.filter(estAmi).map(A => A.nom);
+  if (!S.public) el.textContent = amis.length ? `Avec ${amis.join(', ')}` : 'Personne d’autre pour l’instant : invite tes amis';
+  else if (!autres.length) el.textContent = 'Personne d’autre pour l’instant';
+  else el.textContent = `${amis.length ? `Avec ${amis.join(', ')} · ` : ''}${autres.length + 1} personnes en ville`;
 }
 
 /** « Aller » (barre d'icônes) : le zém qu'on hèle, les lieux et ses commerces. Chaque lieu dit combien de gens
@@ -199,6 +231,13 @@ function majListe() {
 function menuAller() {
   const gens = S.public ? [...S.autres.values()].map(A => A.etat).filter(e => e && typeof e.x === 'number') : [];
   const options = [];
+  // Ses amis d'abord : « Retrouver Aïcha », où qu'elle soit. Pas les inconnus de la ville publique.
+  for (const A of S.autres.values()) {
+    const e = A.etat; if (!estAmi(A) || !e || !A.nom) continue;
+    const m = Math.hypot(e.x - S.x, e.z - S.z), loin = m < 30 ? 'Juste à côté' : m < 950 ? `${Math.round(m / 50) * 50} m d’ici` : `${(m / 1000).toFixed(1).replace('.', ',')} km d’ici`;
+    const ou = e.vh === 'avion' ? accord(A, 'En avion : attends qu’elle atterrisse', 'En avion : attends qu’il atterrisse') : e.i?.includes('~') ? accord(A, 'Chez elle', 'Chez lui') : e.i ? `Dans ${INTERIEURS.get(e.i)?.nom || 'un lieu'}` : S.lieu ? '' : loin;
+    options.push({ texte: `Retrouver ${A.nom}`, sous: ou, desactive: e.vh === 'avion', f: () => retrouver(A) });
+  }
   // « Héler un zém » : pas quand on roule déjà, ni à l'intérieur, ni quand on est soi-même zémidjan ou taximan en service.
   if (T.mode === 'pied' && !S.lieu && VIE.service !== 'zem' && VIE.service !== 'taxi') options.push({ texte: 'Héler un zém', sous: 'Il vient te chercher, tu négocies le prix', f: helerZem });
   for (const L of LIEUX) {
@@ -210,11 +249,71 @@ function menuAller() {
   choisir('Aller…', options);
 }
 
+// ---------- Retrouver un ami ----------
+const VEHICULES = ['moto', 'voiture', 'taxi', 'zem', 'tokpa', 'velo', 'citadine', 'bolide', 'roadster'];
+/** « à côté d'Aïcha », « à côté de Kossi ». */
+const deNom = n => (/^[aeiouyàâäéèêëîïôöùûü]/i.test(n) ? `d’${n}` : `de ${n}`);
+/**
+ * Se place à côté d'un ami, où qu'il soit : dehors à un pas de lui (à côté de son véhicule s'il conduit, pour
+ * monter avec lui), dans la même salle s'il est dans un lieu public, devant sa porte s'il est chez lui. Rend la
+ * phrase à écrire dans le fil, ou null si on ne peut pas le rejoindre (en avion, ou chez lui sans adresse connue).
+ * C'est tout l'intérêt du lien d'invitation : avant, on se réveillait chacun chez soi, à des kilomètres l'un de
+ * l'autre, sans savoir où était l'autre (« entrer en ville et être avec son amie, l'expérience n'y est pas »,
+ * Murielle, 26/10).
+ */
+function rejoindre(A) {
+  const e = A.etat; if (!e || e.vh === 'avion' || T.mode !== 'pied') return null;
+  let texte;
+  if (e.i?.includes('~')) { // chez lui : on l'attend devant sa porte (l'adresse vient avec sa position, voir « po »)
+    if (!Array.isArray(e.po)) return null;
+    if (S.lieu) dehors(false);
+    S.x = e.po[0] + (Math.random() - .5) * 1.5; S.z = e.po[1] + (Math.random() - .5) * 1.5; S.y = 0; S.cap = e.po[2] || 0;
+    texte = `${A.nom} ${accord(A, 'est encore chez elle : tu l’attends devant sa porte.', 'est encore chez lui : tu l’attends devant sa porte.')}`;
+  } else if (e.i) { // dans un lieu public : la même salle, un pas devant lui, du côté de l'entrée
+    const I = INTERIEURS.get(e.i); if (!I) return null;
+    if (S.lieu !== I) { if (S.lieu) dehors(false); dedans(I, false); }
+    const a = arriveeDedans(I), d = Math.hypot(a.x - e.x, a.z - e.z) || 1;
+    [S.x, S.z] = limiter(I, e.x + (a.x - e.x) / d * .9, e.z + (a.z - e.z) / d * .9); S.y = typeof e.y === 'number' ? e.y : a.y;
+    texte = `Te voilà avec ${A.nom}, dans ${I.nom}.`;
+  } else { // dehors : sur le côté (de son véhicule s'il en a un), là où il n'y a pas de mur
+    if (S.lieu) dehors(false);
+    const veh = VEHICULES.includes(e.vh), r = veh ? 2.4 : 1.3, h = e.h || 0;
+    const essais = [Math.PI / 2, -Math.PI / 2, Math.PI, 0, 3 * Math.PI / 4, -3 * Math.PI / 4].map(k => [e.x + Math.sin(h + k) * r, e.z + Math.cos(h + k) * r]);
+    [S.x, S.z] = essais.find(([x, z]) => !dansBatiment(x, z)) || essais[0]; S.y = 0;
+    texte = veh ? `Te voilà à côté ${deNom(A.nom)}. ${accord(A, 'Approche-toi de son véhicule pour monter avec elle.', 'Approche-toi de son véhicule pour monter avec lui.')}` : `Te voilà à côté ${deNom(A.nom)} !`;
+  }
+  if (!e.i?.includes('~')) S.cap = Math.atan2(e.x - S.x, e.z - S.z); // face à lui
+  if (S.gradin) { S.gradin = null; retirerVoisins(); }
+  retirerTabouret(); retirerRuban(T.gps?.m); T.gps = null;
+  S.saut = true; S.geste = 'idle';
+  return texte;
+}
+/** « Aller » → « Retrouver Aïcha » : gratuit, c'est un ami. Au volant, le GPS mène jusqu'à lui. */
+function retrouver(A) {
+  const e = A.etat; if (!e || !S.autres.has(A.id)) return;
+  if (T.mode === 'conduit') { if (!e.i) gps(e.x, e.z, A.nom); else ligne(`${A.nom} ${accord(A, 'est à l’intérieur : gare-toi et descends pour la retrouver.', 'est à l’intérieur : gare-toi et descends pour le retrouver.')}`); return; }
+  if (T.mode !== 'pied') { ligne('Termine d’abord ton trajet.'); return; }
+  if (!e.i && !S.lieu && Math.hypot(e.x - S.x, e.z - S.z) < 6) { ligne(`${A.nom} est juste là.`); return; }
+  const t = rejoindre(A);
+  ligne(t || (e.vh === 'avion' ? `${A.nom} ${accord(A, 'est en avion : attends qu’elle atterrisse.', 'est en avion : attends qu’il atterrisse.')}` : `Impossible de rejoindre ${A.nom} pour l’instant.`));
+}
+/** Attend la position d'un ami (`id`), ou de n'importe qui dans un salon privé (`id` vide), `ms` au plus. */
+async function chercherAmi(id, ms) {
+  for (const fin = performance.now() + ms; performance.now() < fin; await attendre(150)) {
+    const A = id ? S.autres.get(id) : [...S.autres.values()].find(B => B.etat && B.nom);
+    if (A?.etat) return A;
+  }
+  return null;
+}
+
 // ---------- Chat ----------
-function ligne(texte, { nom = '', lieu = null, moi = false } = {}) {
+function ligne(texte, { nom = '', lieu = null, moi = false, u = '' } = {}) {
   const ol = $('#slMessages'); if (!ol) return;
   const li = document.createElement('li'); li.className = nom ? (moi ? 'moi' : '') : 'systeme';
-  if (nom) { const b = document.createElement('b'); b.textContent = nom; li.append(b, ' '); }
+  if (nom) {
+    const b = document.createElement('b'); b.textContent = nom; li.append(b, ' ');
+    if (u && !moi) { b.className = 'sl-qui'; b.tabIndex = 0; b.title = `${nom} : ne plus voir ses messages`; b.addEventListener('click', () => proposerMuet(u, nom)); }
+  }
   li.append(texte);
   if (lieu && !moi) { const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = 'Y aller'; bt.addEventListener('click', () => aller(lieu, false)); li.append(' ', bt); }
   ol.append(li); while (ol.children.length > 40) ol.firstChild.remove();
@@ -223,15 +322,39 @@ function ligne(texte, { nom = '', lieu = null, moi = false } = {}) {
 }
 function surMessage(m) {
   if (!m || S.vus.has(m.cle)) return; S.vus.add(m.cle);
-  const moi = m.u === S.R?.id, texte = nettoyer(m.txt, 140), lieu = LIEUX.some(l => l[0] === m.lieu) ? m.lieu : null;
+  if (MUETS.has(m.u)) return;
+  const moi = m.u === S.R?.id, texte = filtrer(nettoyer(m.txt, 140)), lieu = LIEUX.some(l => l[0] === m.lieu) ? m.lieu : null;
   if (!texte) return;
-  ligne(texte, { nom: nettoyer(m.n, 16) || 'Ami', lieu, moi });
+  ligne(texte, { nom: filtrer(nettoyer(m.n, 16)) || 'Ami', lieu, moi, u: m.u });
   if (typeof m.t === 'number' && Date.now() - m.t > 15000) return; // l'historique ne fait pas de bulles
   if (moi) bulle(S, texte); else { const A = S.autres.get(m.u); if (A) bulle(A, texte); }
 }
 function dire(texte) {
-  texte = nettoyer(texte, 140); if (!texte || !S.canal) return;
+  texte = filtrer(nettoyer(texte, 140)); if (!texte || !S.canal) return;
+  const t = performance.now();
+  if (texte === S.dernierMsg && t - S.dernierMsgT < 30000) return; // le même message, encore et encore
+  if (t - (S.dernierMsgT || 0) < 2000) { ligne('Doucement : un message toutes les deux secondes.'); return; }
+  S.dernierMsg = texte; S.dernierMsgT = t;
   S.canal.dire({ n: S.nom, txt: texte });
+}
+// « Je vais à la Haie Vive, venez ! » partait tout seul à chaque déplacement : dans la ville publique, la
+// discussion en était noyée et les vrais messages des joueurs s'y perdaient (un testeur, 26/10). Il ne part plus
+// qu'entre amis, dans un salon privé ; en ville, les amis ont « Aller » → « Retrouver ».
+const annoncer = (txt, lieu) => { if (!S.public) S.canal?.dire({ n: S.nom, txt, lieu }); };
+
+// ---------- Modération de la discussion ----------
+// La ville est ouverte à tous. Les gros mots sont masqués à l'envoi comme à la réception (un ancien client les
+// enverrait encore), on n'écrit pas plus d'un message toutes les deux secondes, et toucher le nom de quelqu'un
+// permet de ne plus voir ses messages — pour soi seulement, retenu d'une partie à l'autre. Les gros mots : moderation.js.
+const CLE_MUETS = 'cotonou3d.muets';
+const MUETS = new Set((() => { try { return JSON.parse(localStorage.getItem(CLE_MUETS) || '[]'); } catch { return []; } })());
+function proposerMuet(u, nom) {
+  choisir(nom, [{ texte: 'Ne plus voir ses messages', sous: 'Pour toi seulement. Ses bulles disparaissent aussi.', f: () => {
+    MUETS.add(u); try { localStorage.setItem(CLE_MUETS, JSON.stringify([...MUETS].slice(-200))); } catch { /* navigation privée */ }
+    for (const b of document.querySelectorAll('#slMessages b.sl-qui')) if (b.textContent === nom) b.closest('li')?.remove();
+    const A = S.autres.get(u); if (A) retirerBulle(A);
+    ligne(`Tu ne verras plus les messages de ${nom}.`);
+  } }], { annuler: 'Annuler' });
 }
 // Dans la rue, pas de chaise : on pose son tabouret en plastique (comme partout à Cotonou) ; il disparaît quand on se lève.
 function poserTabouret() {
@@ -247,7 +370,7 @@ function geste(nom) {
     const c = S.lieu && siegeProche(S.lieu, S.x, S.z);
     if (c) { S.x = c.x; S.z = c.z; S.cap = c.cap; }
     else if (!S.lieu && T.mode === 'pied') poserTabouret();
-    else { telephoneEnMain(); bulle(S, 'Allô ? Oui, je suis à Cotonou !'); S.geste = 'idle'; S.gesteFin = 0; return; }
+    else { telephoneEnMain(6000); bulle(S, 'Allô ? Oui, je suis à Cotonou !'); S.geste = 'idle'; S.gesteFin = 0; return; }
     telephoneEnMain(); bulle(S, 'Allô ? Oui, je suis à Cotonou !');
   }
   if (nom === 'assis') { // sur la chaise libre la plus proche, dans les gradins de l'arène, ou sur son tabouret dans la rue
@@ -276,12 +399,19 @@ function leverGradins() {
   S.gradin = null; S.x = g.bas[0]; S.z = g.bas[1]; S.y = 0; S.geste = 'idle'; S.saut = true;
   retirerVoisins();
 }
-// Un téléphone dans la main, quelques secondes.
-function telephoneEnMain() {
-  if (!S.moi) return; S.tel?.parent?.remove(S.tel);
-  const t = new THREE.Mesh(new THREE.BoxGeometry(.07, .14, .015), new THREE.MeshLambertMaterial({ color: '#1d2024' })); t.position.set(0, .04, .03);
-  (S.moi.userData.main || S.moi).add(t); S.tel = t; clearTimeout(S.telFin); S.telFin = setTimeout(() => { t.parent?.remove(t); t.geometry.dispose(); }, 6000);
+// Un téléphone dans la main : tant qu'on téléphone (`duree` : quelques secondes seulement, quand on n'a pas pu
+// s'asseoir). « Quand le joueur téléphone, on ne voit pas son appareil » (un testeur, 26/10) : il partait au bout de
+// 6 s alors que la pose restait, et c'était un pavé noir de 7 cm. Un peu plus grand, et l'écran allumé.
+const TEL = { coque: new THREE.BoxGeometry(.09, .17, .02), ecran: new THREE.PlaneGeometry(.076, .145), noir: new THREE.MeshLambertMaterial({ color: '#1d2024' }), lumiere: new THREE.MeshBasicMaterial({ color: '#9fd8ff' }) };
+function telephoneEnMain(duree = 0) {
+  if (!S.moi) return; rangerTelephone();
+  const t = new THREE.Group(), coque = new THREE.Mesh(TEL.coque, TEL.noir);
+  for (const z of [.0105, -.0105]) { const e = new THREE.Mesh(TEL.ecran, TEL.lumiere); e.position.z = z; if (z < 0) e.rotation.y = Math.PI; t.add(e); } // vu de devant comme de derrière
+  t.add(coque); t.position.set(0, .05, .05);
+  (S.moi.userData.main || S.moi).add(t); S.tel = t;
+  S.telFin = duree ? setTimeout(rangerTelephone, duree) : 0;
 }
+function rangerTelephone() { clearTimeout(S.telFin); S.telFin = 0; S.tel?.parent?.remove(S.tel); S.tel = null; }
 /** Point d'arrivée d'un lieu de rendez-vous : [x, z, regard] (devant la porte pour un lieu où l'on entre). */
 // Ses commerces (commerces.js) s'ajoutent aux lieux : « Aller à », GPS et zém y mènent comme ailleurs.
 const tousLieux = () => [...LIEUX, ...lieuxCommerces().map(c => [c.id, c.nom, c.dit, 0, 0, 0])];
@@ -353,7 +483,7 @@ function aller(id, proposer = true) {
     // Loin : à pied en suivant les chevrons, ou s'y retrouver tout de suite contre 200 F. C'est l'autre façon
     // de traverser la ville quand on ne veut pas attendre un zém (demande de Murielle, 25/10).
     const km = Math.hypot(d0[0] - S.x, d0[1] - S.z) / 1000;
-    const suivre = () => { if (gps(d0[0], d0[1], nom0) && proposer && id !== 'station' && id !== 'maison') S.canal?.dire({ n: S.nom, txt: `Je vais ${L[2]}, venez !`, lieu: id }); };
+    const suivre = () => { if (gps(d0[0], d0[1], nom0) && proposer && id !== 'station' && id !== 'maison') annoncer(`Je vais ${L[2]}, venez !`, id); };
     if (km < .25 || id === 'station') { suivre(); return; } // tout près, ou la pompe la plus proche : on y va à pied
     choisir(`${nom0} · ${km < .95 ? `${Math.round(km * 100) * 10} m` : `${km.toFixed(1).replace('.', ',')} km`}`, [
       { texte: 'Y aller à pied', sous: 'Le chemin s’allume au sol', f: suivre },
@@ -363,7 +493,7 @@ function aller(id, proposer = true) {
     return;
   }
   if (!poser(id, L, p, I)) return;
-  if (proposer && id !== 'station' && id !== 'maison') S.canal?.dire({ n: S.nom, txt: `Je vais ${L[2]}, venez !`, lieu: id });
+  if (proposer && id !== 'station' && id !== 'maison') annoncer(`Je vais ${L[2]}, venez !`, id);
 }
 /** Pose le joueur à l'arrivée d'un lieu : devant la porte, au bord de la pompe, sur le trottoir. */
 function poser(id, L, p, I) {
@@ -380,7 +510,7 @@ async function teleporter(id, L, p, I, nom0, proposer) {
   retirerRuban(T.gps?.m); T.gps = null;
   poser(id, L, p, I);
   ligne(`Te voilà à ${nom0}. −${TELEPORT} F.`);
-  if (proposer && id !== 'station' && id !== 'maison') S.canal?.dire({ n: S.nom, txt: `Je vais ${L[2]}, venez !`, lieu: id });
+  if (proposer && id !== 'station' && id !== 'maison') annoncer(`Je vais ${L[2]}, venez !`, id);
 }
 
 /** Va jusqu'à un point de la ville (une boutique, commerces.js) : le chemin s'allume au sol, à pied comme au volant. */
@@ -393,11 +523,11 @@ function allerVers(x, z, cap, nom) {
 }
 
 // ---------- Intérieurs : entrer dans un bâtiment, en sortir ----------
-function dedans(I) {
+function dedans(I, parler = true) {
   ouvrirInterieur(I); const a = arriveeDedans(I);
   S.lieu = I; S.y = a.y; S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; S.geste = 'idle'; S.dist = Math.min(S.dist, I.prive ? 3.6 : 4.5);
   document.getElementById('app').classList.add('dedans');
-  if (!I.prive) S.canal?.dire({ n: S.nom, txt: `Je suis dans ${I.nom}, venez !`, lieu: LIEUX.find(l => l[6] === I.id)?.[0] }); // chez soi : on ne l'annonce pas
+  if (!I.prive && parler) annoncer(`Je suis dans ${I.nom}, venez !`, LIEUX.find(l => l[6] === I.id)?.[0]); // chez soi : on ne l'annonce pas
 }
 function dehors(replacer = true) {
   const I = S.lieu; if (!I) return;
@@ -414,10 +544,18 @@ function porte() { const t = performance.now(); if (t - (S.actionT || 0) < 700) 
 // Un double clic sur « Créer » (ou Entrée puis clic) lançait deux entrées pendant le chargement de la vie, chacune avec
 // son code : deux salons ouverts, deux messages de bienvenue. Une seule entrée à la fois.
 let entreeEnCours = false;
-async function entrer(code) {
+async function entrer(code, options) {
   if (S.actif || entreeEnCours) return;
   entreeEnCours = true;
-  try { await entrerSalon(code); } finally { entreeEnCours = false; }
+  try { return await entrerSalon(code, options); } finally { entreeEnCours = false; }
+}
+/** Le lien d'un ami : son salon, ou sa ville publique ; on arrive à côté de lui. Sa ville est pleine : une autre. */
+async function suivreInvitation(I) {
+  const e = await entrer(I.code, { ami: I.ami });
+  if (e?.code === 'complet' && PUBLICS.includes(I.code)) {
+    await entrerVille();
+    if (S.actif) ligne(`${I.de || 'Ton ami'} était dans une ville pleine : tu es dans une autre. Invitez-vous de nouveau pour être ensemble.`);
+  }
 }
 /** « Entrer en ville » : la ville publique, sans code ni invitation. */
 async function entrerVille() {
@@ -435,26 +573,40 @@ async function entrerVille() {
     statut('Il y a beaucoup de monde en ce moment : toutes les villes sont pleines. Réessaie dans un instant, ou crée un salon entre amis.', 'mal');
   } finally { entreeEnCours = false; }
 }
-/** Entre dans un salon ; rend l'erreur si la connexion a échoué (le message est déjà affiché). */
-async function entrerSalon(code) {
+/**
+ * Entre dans un salon ; rend l'erreur si la connexion a échoué (le message est déjà affiché).
+ * `ami` : l'identifiant de celui dont on suit le lien — on arrive à côté de lui au lieu de se réveiller chez soi.
+ * `nouveau` : un salon privé qu'on vient de créer — on propose aussitôt d'y inviter ses amis.
+ */
+async function entrerSalon(code, { ami = '', nouveau = false } = {}) {
   // Sans nom, on en propose un (il se change dans la fenêtre du salon) : refuser « Commencer » faisait partir des joueurs.
   if (!nettoyer($('#slNom').value, 16)) $('#slNom').value = nomAuHasard(estFemme(S.modele));
   const nom = nettoyer($('#slNom').value, 16);
   S.nom = nom; try { localStorage.setItem(CLE, JSON.stringify({ nom, modele: S.modele })); } catch { /* navigation privée */ }
+  navigator.storage?.persist?.().catch(() => { }); // que le navigateur ne vide pas la partie de lui-même (iPhone : après 7 jours sans visite)
   audioCtx(); // le clic « Entrer » permet le son : les bruits de la ville (ambiance-salon.js), les pièces, les klaxons
   statut('Chargement de ta vie…');
   VIE.femme = estFemme(S.modele); // les métiers au féminin ou au masculin
   S.autres.clear(); S.vus.clear();
+  S.public = PUBLICS.includes(code); S.inviteur = ami; // avant la connexion : les premiers arrivés sont déjà reconnus
   const R = S.R = { etat: surEtat, message: surMessage }; // R.id : mon identifiant, connu avant les premiers messages
   // Le salon se connecte pendant que la vie se charge (et pendant le tirage du départ, la première fois).
   const canal = (S.local ? Promise.resolve().then(() => canalLocal(code, R)) : canalFirebase(code, R)).then(c => ({ c }), e => ({ e }));
   const vie = await assurerVie(S.local, { nom, modele: S.modele }); // la première fois : tirage du départ
-  if (!vie) { (await canal).c?.quitter(); statut('Impossible de charger ta vie : vérifie ta connexion.', 'mal'); return; }
+  if (!vie) { (await canal).c?.quitter(); statut('Le serveur ne répond pas : ta partie est en sécurité. Vérifie ta connexion, puis réessaie.', 'mal'); return; }
   statut('Connexion au salon…');
   const { c, e } = await canal;
   if (e) { console.warn('salon', e); statut(erreur(e), 'mal'); return e; }
   S.canal = c;
-  S.code = code; S.public = PUBLICS.includes(code); S.actif = true; statut(''); compterUneFois('salon'); lieuStats('salon');
+  if (S.inviteur === c.id) S.inviteur = ''; // on a ouvert son propre lien
+  // Avec qui arrive-t-on ? Celui dont on suit le lien ; dans un salon privé, n'importe lequel des amis déjà là.
+  let A = null;
+  if (S.inviteur || (!S.public && !nouveau)) {
+    statut(S.inviteur && S.invitation?.de ? `On retrouve ${S.invitation.de}…` : 'On retrouve tes amis…');
+    A = await chercherAmi(S.inviteur, 6000);
+    if (A) A.ami = true;
+  }
+  S.code = code; S.actif = true; S.entreeT = performance.now(); S.invitation = null; statut(''); compterUneFois('salon'); lieuStats('salon');
   $('#salon').hidden = true; $('#salonHud').hidden = false; $('#slJoy').hidden = !coarse; $('#slCourir').hidden = !coarse;
   mesurerBandeau();
   // En ville, pas de code à montrer. Le chat libre reste ouvert : on vient justement pour se présenter
@@ -469,13 +621,20 @@ async function entrerSalon(code) {
   S.vueReelle = $('#togGoogle')?.getAttribute('aria-pressed') === 'true'; if (S.vueReelle) $('#togGoogle').click();
   E.flight = null; S.minDist = controls.minDistance; controls.minDistance = 1.5; controls.enabled = false; controls.autoRotate = false;
   camera.near = .3; camera.updateProjectionMatrix(); // caméra proche du personnage (comme dans Zém Run)
-  const maison = maisonActuelle(); // la partie commence chez soi, au lit (maison.js)
-  if (maison) { dedans(maison); reveil(maison); } else aller('amazone', false);
+  // La partie commence chez soi, au lit (maison.js) — sauf si l'on vient retrouver quelqu'un : alors à côté de lui.
+  const pres = A && rejoindre(A); S.aRejoint = !!pres;
+  if (!pres) { const maison = maisonActuelle(); if (maison) { dedans(maison); reveil(maison); } else aller('amazone', false); }
   majListe(); rendreVie();
   const test = S.local ? ' (mode test : seuls les onglets de ce navigateur se voient)' : '';
   ligne(S.public
-    ? `Bienvenue en ville${test} ! Ici tu croises des gens que tu ne connais pas. Salue-les, et regarde « Aller à » : il dit où il y a du monde.`
-    : `Bienvenue dans le salon ${code}${test} ! Invite tes amis avec « Inviter ».`);
+    ? `Bienvenue en ville${test} ! Ici tu croises des gens que tu ne connais pas. Salue-les, et regarde « Aller » : il dit où il y a du monde.`
+    : nouveau ? `Bienvenue dans ton salon ${code}${test} ! Personne d’autre que tes amis ne peut y entrer.` : `Bienvenue dans le salon ${code}${test} !`);
+  if (pres) ligne(pres);
+  else if (A) ligne(`Tu ne peux pas rejoindre ${A.nom} tout de suite (en avion, ou à l’intérieur) : tu te réveilles chez toi. Dans un instant, « Aller » → « Retrouver ${A.nom} ».`);
+  else if (S.inviteur) ligne(`${A?.nom || 'Ton ami'} n’est pas en ville pour l’instant : tu te réveilles chez toi. Dès son retour, « Aller » → « Retrouver ».`);
+  else if (!S.public && !nouveau && !A) ligne('Personne n’est encore là : tu te réveilles chez toi.');
+  if (nouveau) setTimeout(() => { if (S.actif && S.code === code && !S.autres.size) proposerInvitation(); }, 900);
+  conseilSauvegarde();
   const alerte = alerteDuJour(); if (alerte) ligne(alerte);
   bonjourDuJour().then(b => { if (b && S.actif) { ligne(b); son('piece'); } }).catch(() => { });
   for (const m of entrerCommerces()) ligne(m); // ce que les commerces ont vendu pendant l'absence (commerces.js)
@@ -519,16 +678,55 @@ function quitter() {
   startFlight(new THREE.Vector3(S.x, 0, S.z), 160, 1.05, S.cap + Math.PI, 1.6);
 }
 /** Inviter : le partage du téléphone, sinon le lien copié (pour le coller où l'on veut) et WhatsApp ouvert. */
-const lienSalon = () => `${location.origin}${location.pathname}${S.public ? '' : `?salon=${S.code}`}`;
+// Le lien mène dans la même ville que soi — la ville publique aussi : avant, il menait à « la première ville
+// libre », pas forcément la sienne — et il dit de qui il vient, pour arriver à côté de lui.
+const lienSalon = () => { const q = new URLSearchParams({ salon: S.code }); if (S.R?.id) q.set('ami', S.R.id); if (S.nom) q.set('de', S.nom); return `${location.origin}${location.pathname}?${q}`; };
 async function inviter() {
-  const url = lienSalon(), texte = S.public ? 'Viens vivre à Cotonou avec moi, on se retrouve en ville :' : `Viens vivre à Cotonou avec moi ! Salon ${S.code} :`;
+  const url = lienSalon(), texte = S.public ? 'Viens me retrouver à Cotonou, on se balade ensemble :' : `Viens dans ma ville à Cotonou, rien qu’entre nous (salon ${S.code}) :`;
   try { if (navigator.share) { await navigator.share({ title: 'Vivre à Cotonou', text: texte, url }); return; } } catch (e) { if (e.name === 'AbortError') return; }
-  try { await navigator.clipboard.writeText(url); ligne('Lien du salon copié : colle-le où tu veux, ou envoie-le sur WhatsApp.'); } catch { ligne(`Envoie ce lien à tes amis : ${url}`); }
+  try { await navigator.clipboard.writeText(url); ligne('Lien copié : tes amis arriveront juste à côté de toi.'); } catch { ligne(`Envoie ce lien à tes amis : ${url}`); }
   window.open(`https://wa.me/?text=${encodeURIComponent(`${texte} ${url}`)}`, '_blank', 'noopener');
 }
 async function copier() {
   const url = lienSalon();
-  try { await navigator.clipboard.writeText(url); ligne('Lien copié : colle-le dans WhatsApp pour tes amis.'); } catch { ligne(`Envoie ce lien à tes amis : ${url}`); }
+  try { await navigator.clipboard.writeText(url); ligne('Lien copié : colle-le dans WhatsApp. Tes amis arriveront juste à côté de toi.'); } catch { ligne(`Envoie ce lien à tes amis : ${url}`); }
+}
+/**
+ * « Garde ta partie » : sans compte, elle ne vit que dans ce navigateur. Ouverte depuis WhatsApp ou Facebook, elle
+ * reste dans leur navigateur à eux, et on ne la retrouve pas en rouvrant le jeu dans Chrome ou Safari — la cause la
+ * plus probable des « ma sauvegarde n'était plus là » (26/10). Une ligne à l'entrée, une fois par jour ; toujours
+ * dans le navigateur d'une appli.
+ */
+async function conseilSauvegarde() {
+  if (S.local) return;
+  let c = null; try { c = await compte(); } catch { return; }
+  if (!c?.anonyme || !S.actif) return;
+  const integre = /\bwv\b|FBAN|FBAV|Instagram|WhatsApp|Line\//i.test(navigator.userAgent);
+  let vu = 0; try { vu = Number(localStorage.getItem('kutonu.conseil.compte')) || 0; } catch { /* navigation privée */ }
+  if (!integre && Date.now() - vu < 864e5) return;
+  try { localStorage.setItem('kutonu.conseil.compte', String(Date.now())); } catch { /* navigation privée */ }
+  ligne(integre
+    ? 'Tu joues dans le navigateur d’une appli (WhatsApp, Facebook…) : ta partie reste dans cette appli. Pour la garder partout, crée ton compte (Menu → « Mon compte »), ou ouvre kotonuvibes.com dans Chrome ou Safari.'
+    : 'Ta partie est gardée dans ce navigateur. Pour la retrouver sur un autre téléphone, ou si tu changes de navigateur : Menu → « Mon compte ».');
+}
+/** Juste après avoir créé son salon : on y est seul, alors on invite tout de suite. */
+function proposerInvitation() {
+  choisir('Ta ville est prête : invite tes amis', [
+    { texte: 'Envoyer le lien', sous: 'WhatsApp, SMS… Ils arriveront juste à côté de toi', f: inviter },
+    { texte: 'Copier le lien', sous: `Ou donne-leur le code ${S.code}`, f: copier },
+  ], { annuler: 'Plus tard' });
+}
+
+/**
+ * Ce que les amis ont besoin de savoir en plus : « inv », la première minute, dit à celui dont on a suivi le lien
+ * que c'est nous (il nous voit en vert et sait qu'on arrive) ; « po », tant qu'on est chez soi, l'endroit devant
+ * sa porte — chez soi on est dans une pièce à part, loin en mer, et sans ça l'ami ne saurait pas où nous attendre.
+ */
+function etatAmis() {
+  const e = {};
+  if (S.inviteur && performance.now() - (S.entreeT || 0) < 60000) e.inv = S.inviteur;
+  if (S.lieu?.prive) { const a = arriveeDehors(S.lieu); e.po = [r2(a.x), r2(a.z), r2(a.cap + Math.PI)]; }
+  return e;
 }
 
 // ---------- À chaque image (avant controls.update, qui fait regarder la caméra vers la cible) ----------
@@ -542,7 +740,7 @@ const etapesSalon = () => [
   { id: 'lever', texte: () => coarse ? 'Tu te réveilles chez toi. Touche « Se lever ».' : 'Tu te réveilles chez toi. [E] pour te lever.', quand: () => !!S.couche, fait: () => GS.vuCouche && !S.couche },
   { id: 'marcher', texte: () => coarse ? 'Le joystick pour marcher, « Courir » pour courir.' : 'Flèches ou [Z] [Q] [S] [D] pour marcher. Glisse dans la ville pour tourner la caméra.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
   { id: 'maison', texte: 'Approche-toi de la douche, du fourneau ou de la table : le bouton vert fait le reste.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.activite || GS.dehorsT > 0 },
-  { id: 'rue', texte: () => coarse ? '« Aller · gestes », en bas à droite : choisis où aller, le chemin s’allume au sol. « Travailler », en haut à gauche, te trouve un métier.' : '« Aller à », en bas à droite : choisis où aller, le chemin s’allume au sol. « Travailler », en haut à gauche, te trouve un métier.', quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier },
+  { id: 'rue', texte: 'Les ronds à droite : l’épingle « Aller » choisit où aller (le chemin s’allume au sol), la mallette « Travailler » te trouve un métier.', quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier },
   { id: 'vie', texte: 'En haut à gauche : ton argent et ta faim. Mange quand elle baisse — maquis, food court, ou chez toi.', quand: () => GS.dehorsT > 16 && !!VIE.data?.metier, fait: () => !!VIE.service, duree: 40 }, // se ferme quand on commence à travailler
 ];
 function majGuideSalon(dt) {
@@ -642,6 +840,7 @@ export function majSalon(dt) {
     if (S.tabouret && (S.lieu || (S.geste !== 'assis' && S.geste !== 'telephone') || Math.hypot(S.x - S.tabouret.x, S.z - S.tabouret.z) > .3)) retirerTabouret();
     else if (S.gesteFin && performance.now() > S.gesteFin) { S.geste = 'idle'; S.gesteFin = 0; }
     S.anim = marche ? (court && S.moi?.userData.peut?.('course') ? 'course' : 'marche') : S.geste;
+    if (S.tel && !S.telFin && S.geste !== 'telephone') rangerTelephone(); // on raccroche en se levant
     if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); }
   }
   // Caméra derrière soi (ou derrière le véhicule), à la distance et l'inclinaison choisies : glisser vers le haut ou
@@ -703,7 +902,7 @@ export function majSalon(dt) {
   if (S.envoi <= 0 && S.canal) {
     S.envoi = ENVOI * (1 + S.autres.size / 30); // à trente en ville, 0,4 s : l'interpolation (kk) comble le reste
     const vh = T.mode === 'conduit' ? T.veh.type : T.mode === 'passager' ? 'zem' : T.mode === 'avion' ? 'avion' : T.mode === 'apprenti' ? 'tokpa' : ''; // le véhicule sous soi, pour les amis
-    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}) }, k = JSON.stringify(e);
+    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...etatAmis() }, k = JSON.stringify(e);
     if (k !== S.dernier || S.depuis > 2.5) { S.dernier = k; S.depuis = 0; S.canal.envoyer(e); }
   }
   // Les autres, lissés entre deux nouvelles.
@@ -719,7 +918,9 @@ export function majSalon(dt) {
     if (A.g) A.g.visible = pres && (e.i || '') === (S.lieu?.id || '') && !enAvion; // dans la même pièce (ou dehors) et assez près ; en avion, on voit l'avion
     if (enAvion) { A.avion ??= creerAvion(); poserAvion(A.avion, A.x, A.y, A.z, A.cap, e.ta || 0, e.ro || 0); A.avion.helice.visible = true; }
     else if (A.avion) { retirerAvion(A.avion); A.avion = null; }
-    const V = vehiculeDe(A, ['moto', 'voiture', 'zem', 'taxi', 'tokpa'].includes(e.vh) && !(e.i || S.lieu) ? e.vh : null);
+    // Tous les véhicules, ceux qu'on achète aussi : un ami au volant de sa citadine ou de son Roadster marchait à vide
+    // au milieu de la route chez les autres.
+    const V = vehiculeDe(A, VEH_AMIS.includes(e.vh) && !(e.i || S.lieu) ? e.vh : null);
     if (enAvion) { /* dans l'avion : on ne le voit pas */ }
     else if (V) { V.x = A.x; V.z = A.z; V.cap = A.cap; V.y = typeof e.y === 'number' ? e.y : 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; asseoirSur(A.g, V, e.vh === 'zem'); }
     else if (e.sur && A.g && !(e.i || S.lieu)) { // passager d'un ami : assis derrière lui (dans la voiture, on ne le voit pas)
@@ -803,7 +1004,8 @@ function majSon() {
 // son véhicule tel que ses messages le placent ; il voit son passager assis derrière lui. « Aller à » lui demande de
 // nous emmener (son message a un bouton « Y aller » qui trace son GPS). Il descend, entre quelque part ou s'en va : on
 // descend aussi.
-const AMI_VEH = ['moto', 'voiture', 'taxi'];
+const AMI_VEH = ['moto', 'voiture', 'taxi', 'citadine', 'bolide', 'roadster']; // ceux où l'on monte avec un ami
+const VEH_AMIS = [...AMI_VEH, 'zem', 'tokpa', 'velo']; // ceux qu'on dessine sous un ami
 function amisAuVolant() {
   if (S.lieu || T.mode !== 'pied' || T.trans) return [];
   const out = [];
@@ -811,7 +1013,7 @@ function amisAuVolant() {
     const e = A.etat, V = A.veh; if (!e || !V || !AMI_VEH.includes(e.vh) || e.i) continue;
     if (Math.hypot(V.x - S.x, V.z - S.z) > (V.D.cache ? 3.6 : 3) || (A.vitesse ?? 0) > 1) continue; // à côté, et arrêté
     const places = V.D.cache ? 3 : 1, pris = [...S.autres.values()].filter(B => B.etat?.sur === A.id).length;
-    if (pris < places) out.push({ texte: V.D.cache ? `Monter dans la voiture de ${A.nom}` : `Monter derrière ${A.nom}`, f: () => monterAmi(A) });
+    if (pris < places) out.push({ texte: V.D.cache ? `Monter dans la voiture ${deNom(A.nom)}` : `Monter derrière ${A.nom}`, f: () => monterAmi(A) });
   }
   return out;
 }
@@ -821,7 +1023,7 @@ function monterAmi(A) {
   T.trans = { t: 0, duree: .8, de: [S.x, S.z], vers: [bx, bz], fin: () => {
     if (!S.autres.has(A.id)) return;
     T.mode = 'ami'; S.ami = A.id; son('bosse');
-    ligne(`Tu montes ${V.D.cache ? 'dans la voiture de' : 'derrière'} ${A.nom}. « Aller à » lui demande de t’emmener ; « Descendre » quand il s’arrête.`);
+    ligne(`Tu montes ${V.D.cache ? `dans la voiture ${deNom(A.nom)}` : `derrière ${A.nom}`}. « Aller » lui demande de t’emmener ; « Descendre » quand il s’arrête.`);
   } };
 }
 function majAmi() {
@@ -925,6 +1127,36 @@ function helerZem() {
 }
 
 // ---------- Interface ----------
+// « Avec qui ? » : la ville publique, ou un salon rien qu'entre amis. Un seul bouton pour entrer, dont le texte
+// dit ce qui va se passer. Avant, trois boutons de même poids (« Entrer en ville », « Entre amis seulement »,
+// « Rejoindre mon ami ») et un champ de code toujours ouvert, pour un cas rare : on ne savait pas lequel prendre.
+let avecQui = 'ville';
+function choisirAvecQui(m) {
+  avecQui = m === 'amis' ? 'amis' : 'ville';
+  try { localStorage.setItem('cotonou3d.avecQui', avecQui); } catch { /* navigation privée */ }
+  for (const b of document.querySelectorAll('#slAvec .sl-mode')) b.setAttribute('aria-checked', String(b.dataset.mode === avecQui));
+  majFenetre();
+}
+function majFenetre() {
+  const I = S.invitation;
+  $('#salon').classList.toggle('invite', !!I);
+  $('#slInvite').hidden = !I; $('#slAutre').hidden = !I; $('#slAiCode').hidden = !!I;
+  if (I) {
+    $('#slCodeBloc').hidden = true;
+    const av = $('#slInviteAv'); av.textContent = (I.de || '?').slice(0, 1).toUpperCase();
+    const pub = PUBLICS.includes(I.code);
+    $('#slInviteTitre').textContent = `${I.de || 'Un ami'} t’invite ${pub ? 'en ville' : 'dans son salon'}`;
+    $('#slInviteSous').textContent = pub ? 'Tu arriveras juste à côté, et vous vous baladez ensemble.' : 'Une ville rien qu’à vous. Tu arriveras juste à côté.';
+  }
+  $('#slCreerTxt').textContent = I ? `Rejoindre ${I.de || 'mon ami'}` : avecQui === 'amis' ? 'Entrer et inviter mes amis' : 'Entrer en ville';
+  const aide = I ? '' : avecQui === 'amis' ? 'Tu entres, puis tu envoies le lien sur WhatsApp. Personne d’autre ne peut entrer.' : 'Une fois en ville, « Inviter » envoie un lien à tes amis : ils arrivent juste à côté de toi.';
+  $('#slAide').textContent = aide; $('#slAide').hidden = !aide;
+}
+/** Le gros bouton : suivre l'invitation, entrer en ville, ou créer son salon. */
+function entrerChoisi() {
+  if (S.invitation) return suivreInvitation(S.invitation);
+  return avecQui === 'amis' ? entrer(codeAleatoire(), { nouveau: true }) : entrerVille();
+}
 function ouvrir() {
   if (JEU.actif) return;
   if (S.actif) { $('#salonHud').hidden = false; return; }
@@ -936,8 +1168,13 @@ function ouvrir() {
   const rendre = () => {
     choixGenre($('#slGenre'), femme, f => { femme = f; if (estFemme(S.modele) !== f) S.modele = TENUES.find(t => t.femme === f && !t.prix).modele; rendre(); });
     grilleTenues($('#slAvatars'), { femme, choisi: S.modele, seulementPossedees: true, choisir: t => { S.modele = t.modele; rendre(); } });
+    // Le personnage (un fichier de 1 Mo) se télécharge pendant qu'on choisit son prénom, plus après « Entrer en
+    // ville » : c'était la plus longue des attentes de l'entrée (« chargement très lent », un testeur, 26/10).
+    if (S.modele.startsWith('t:')) chargerTenue(S.modele.slice(2));
   };
   rendre();
+  let m = 'ville'; try { m = localStorage.getItem('cotonou3d.avecQui') || m; } catch { /* navigation privée */ }
+  choisirAvecQui(m);
   statut(''); $('#salon').hidden = false;
   prechargerVie(S.local); // la connexion à Firebase commence pendant qu'on écrit son nom
 }
@@ -955,14 +1192,25 @@ export function initSalon(data) {
   ] });
   if (import.meta.env.DEV) window.__salon = { S, T, VIE, LIEUX, surRoute, profondeurRue, dansBatiment, profondeurInterieur, obstaclesPres, porter, destination, menuAller }; // pour les tests (console, scripts)
   S.local = new URLSearchParams(location.search).has('salon-local');
+  prechargerVignettes(); // la fenêtre « Vivre à Cotonou » les montre tout de suite
+  // L'appli fermée, le téléphone verrouillé : sur iPhone, rien ne prévient la page qu'on la quitte. On enregistre dès
+  // qu'elle passe en arrière-plan ; la faim, l'essence et les commerces attendaient jusqu'à 30 s.
+  const enArriere = () => { if (S.actif) { sauverVie(); sauverCommerces(); } };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') enArriere(); });
+  window.addEventListener('pagehide', enArriere);
   $('#btnSalon')?.addEventListener('click', ouvrir); $('#btnVivre')?.addEventListener('click', ouvrir);
   $('#slFermer')?.addEventListener('click', () => { $('#salon').hidden = true; });
-  $('#slCreer')?.addEventListener('click', entrerVille);
-  $('#slPrive')?.addEventListener('click', () => entrer(codeAleatoire()));
-  const rejoindre = () => { const c = nettoyer($('#slCode').value, 6).toUpperCase(); if (!/^[A-Z2-9]{6}$/.test(c)) return statut('Le code du salon fait 6 caractères (lettres et chiffres).', 'mal'); entrer(c); };
-  $('#slRejoindre')?.addEventListener('click', rejoindre);
-  $('#slCode')?.addEventListener('keydown', e => { if (e.key === 'Enter') rejoindre(); });
-  $('#slNom')?.addEventListener('keydown', e => { if (e.key === 'Enter') ($('#slCode').value ? rejoindre() : entrerVille()); });
+  $('#slCreer')?.addEventListener('click', entrerChoisi);
+  for (const b of document.querySelectorAll('#slAvec .sl-mode')) b.addEventListener('click', () => choisirAvecQui(b.dataset.mode));
+  $('#slAiCode')?.addEventListener('click', e => {
+    const bloc = $('#slCodeBloc'), ouvert = bloc.hidden; bloc.hidden = !ouvert; e.currentTarget.setAttribute('aria-expanded', String(ouvert));
+    if (ouvert) $('#slCode').focus();
+  });
+  $('#slAutre')?.addEventListener('click', () => { S.invitation = null; statut(''); majFenetre(); });
+  const parCode = () => { const c = nettoyer($('#slCode').value, 6).toUpperCase(); if (!/^[A-Z2-9]{6}$/.test(c)) return statut('Le code du salon fait 6 caractères (lettres et chiffres).', 'mal'); entrer(c); };
+  $('#slRejoindre')?.addEventListener('click', parCode);
+  $('#slCode')?.addEventListener('keydown', e => { if (e.key === 'Enter') parCode(); });
+  $('#slNom')?.addEventListener('keydown', e => { if (e.key === 'Enter') (!$('#slCodeBloc').hidden && $('#slCode').value ? parCode() : entrerChoisi()); });
   $('#slNom')?.addEventListener('input', e => e.target.setCustomValidity(''));
   $('#slInviter')?.addEventListener('click', inviter);
   $('#slCopier')?.addEventListener('click', copier);
@@ -984,9 +1232,10 @@ export function initSalon(data) {
   initGarderobe({ porter, ligne });
   $('#vhLouer')?.addEventListener('click', () => louerMoto().then(ok => { if (ok) { garerSonVehicule(); ligne('Ta moto louée t’attend à côté : approche-toi et « Monter sur ta moto ».'); } }));
   // S'acheter une voiture : elle reste à soi, contrairement à la moto qu'on loue à la journée.
+  // Les voitures s'ouvrent au chapitre 2 (vie.js) : on les voit dès le début, c'est un but.
   $('#vhAcheter')?.addEventListener('click', () => choisir('Quelle voiture ?', A_VENDRE.map(V => ({
-    texte: `${V.nom} · ${V.prix.toLocaleString('fr-FR')} F`, sous: (VIE.data?.argent ?? 0) < V.prix ? `Il te manque ${(V.prix - (VIE.data?.argent ?? 0)).toLocaleString('fr-FR')} F` : V.sous,
-    desactive: (VIE.data?.argent ?? 0) < V.prix,
+    texte: `${V.nom} · ${V.prix.toLocaleString('fr-FR')} F`, sous: VIE.chapitre < 1 ? 'S’ouvre au chapitre 2' : (VIE.data?.argent ?? 0) < V.prix ? `Il te manque ${(V.prix - (VIE.data?.argent ?? 0)).toLocaleString('fr-FR')} F` : V.sous,
+    desactive: VIE.chapitre < 1 || (VIE.data?.argent ?? 0) < V.prix,
     f: () => acheterVehicule(V.id).then(ok => { if (ok) { garerSonVehicule(); ligne(`${V.nom} achetée ! Elle t’attend à côté : approche-toi et monte dedans.`); } }),
   }))));
   const app = document.getElementById('app');
@@ -1074,13 +1323,16 @@ export function initSalon(data) {
     const lacher = () => { S.joy = null; joy.style.setProperty('--jx', '0px'); joy.style.setProperty('--jy', '0px'); };
     joy.addEventListener('pointerup', lacher); joy.addEventListener('pointercancel', lacher);
   }
-  // Lien d'invitation (?salon=CODE) : on ouvre le salon avec le code rempli, une fois la ville prête.
-  const code = new URLSearchParams(location.search).get('salon');
+  // Lien d'invitation (?salon=CODE&ami=…&de=Aïcha) : la fenêtre s'ouvre sur « Aïcha t'invite », une fois la ville
+  // prête ; il ne reste qu'à choisir son personnage. Les anciens liens (le code seul) marchent toujours.
+  const q = new URLSearchParams(location.search), code = q.get('salon');
   if (code && /^[A-Za-z2-9]{6}$/.test(code)) {
+    const ami = q.get('ami') || '';
+    S.invitation = { code: code.toUpperCase(), ami: /^[\w-]{6,64}$/.test(ami) ? ami : '', de: nettoyer(q.get('de'), 16) };
     const t = setInterval(() => {
       if (!document.querySelector('#loader.done')) return;
       if (document.getElementById('app')?.classList.contains('mode-accueil')) document.querySelector('#acPasser')?.click();
-      clearInterval(t); ouvrir(); $('#slCode').value = code.toUpperCase(); statut('Écris ton nom, choisis ton personnage, puis « Rejoindre ».'); $('#slNom').focus();
+      clearInterval(t); ouvrir(); if (!coarse) $('#slNom').focus(); // au doigt, le clavier cacherait l'invitation
     }, 300);
   }
 }

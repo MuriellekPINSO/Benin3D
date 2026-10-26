@@ -20,9 +20,12 @@ export async function compte() { const u = await joueur(); return { anonyme: u.i
 let attente = 0;
 /** À appeler quand la progression change (jeu.js sauver…) : envoyée quelques secondes plus tard, si l'on a un compte. */
 export function sauvegarderEnLigne() { clearTimeout(attente); attente = setTimeout(envoyer, 4000); }
+// L'appli fermée, le téléphone verrouillé : la sauvegarde qui attendait ses quatre secondes part tout de suite.
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && attente) { clearTimeout(attente); attente = 0; envoyer(); } });
 async function envoyer() {
   try {
-    const { d, db, auth } = await firebase(), u = auth.currentUser; if (!u || u.isAnonymous) return;
+    // Aussi sans compte : la progression de Zém Run n'était que dans le navigateur, et se perdait avec lui.
+    const { d, db, auth } = await firebase(), u = auth.currentUser; if (!u) return;
     await d.set(d.ref(db, `zem_progres/${u.uid}`), { d: instantane(), t: d.serverTimestamp() }); ecrire(CLE_T, String(Date.now()));
   } catch (e) { console.warn('compte', e.message); }
 }

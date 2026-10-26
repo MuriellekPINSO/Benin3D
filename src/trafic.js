@@ -57,7 +57,7 @@ export function updateZems(dt) {
   let np = 0, nv = 0;
   for (let i = 0; i < E.zemState.length; i++) {
     const z = E.zemState[i], P = z.P;
-    if (!cede(z)) z.s += z.v * dt * z.dir;
+    if (!cede(z, dt)) z.s += z.v * dt * z.dir;
     if (P.sens) { if (z.s >= P.len) z.s = 0.01; } // sens unique : pas de demi-tour, on repart du début
     else if (z.s >= P.len) { z.s = P.len - 0.01; z.dir = -1; } else if (z.s <= 0) { z.s = 0.01; z.dir = 1; }
     const cum = P.cum; let k = z.seg;
@@ -88,18 +88,45 @@ export function updateZems(dt) {
 // ---------- La circulation et le joueur de « Vivre à Cotonou » ----------
 // Personne ne traverse personne : un zém ou un tokpa qui a le joueur juste devant lui s'arrête (cede), et ceux qui
 // roulent près de lui (retenir → E.circulation) bloquent sa marche et sa conduite (dansCirculation).
-function cede(z) {
-  const J = E.joueur; if (!J || z.px === undefined) return false;
+function cede(z, dt) {
+  const J = E.joueur; z.arret = false; if (!J || z.px === undefined) return false;
   const Jr = Math.max(J.hl ?? .3, J.hw ?? .3); // un piéton, ou la voiture qu'il conduit
-  const ax = J.x - z.px, az = J.z - z.pz; if (ax * ax + az * az > (8 + Jr) ** 2) return false;
-  const devant = ax * z.fx + az * z.fz, cote = Math.abs(ax * z.fz - az * z.fx);
-  // Devant lui, mais aussi à hauteur de sa caisse : sans ça, un joueur à côté de l'arrière du véhicule
-  // le voyait repartir, et la moitié arrière lui passait au travers.
-  return devant > -z.hl - Jr && devant < z.hl + Jr + 3 && cote < z.hw + Jr + .6;
+  const ax = J.x - z.px, az = J.z - z.pz, d2 = ax * ax + az * az;
+  if (d2 > PRES2) return false;
+  if (d2 < (8 + Jr) ** 2) {
+    const devant = ax * z.fx + az * z.fz, cote = Math.abs(ax * z.fz - az * z.fx);
+    // Devant lui, mais aussi à hauteur de sa caisse : sans ça, un joueur à côté de l'arrière du véhicule
+    // le voyait repartir, et la moitié arrière lui passait au travers.
+    if (devant > -z.hl - Jr && devant < z.hl + Jr + 3 && cote < z.hw + Jr + .6) return (z.arret = true);
+  }
+  // Les voitures, taxis et camions de la circulation dense (circulation.js) sont un autre système : un zém qui en
+  // avait un devant lui passait au travers (« les zéms traversent les camions »). Près du joueur — là où on le
+  // voit —, il s'arrête derrière. S'ils s'attendent l'un l'autre (un croisement), il finit par passer : 4 s.
+  if (z.libre > 0) { z.libre -= dt; return false; }
+  for (const W of E.denses) {
+    if (!W.R || !devantLui(z, W)) continue;
+    z.attente = (z.attente || 0) + dt; if (z.attente > 4) { z.attente = 0; z.libre = 1.5; }
+    return (z.arret = true);
+  }
+  z.attente = 0; return false;
+}
+const PRES2 = 150 * 150;
+/** Le véhicule W est-il juste devant z, dans sa trajectoire ? (deux points devant son nez, dans la boîte de W) */
+function devantLui(z, W) {
+  const ax = W.px - z.px, az = W.pz - z.pz; if (ax * ax + az * az > 144 || ax * z.fx + az * z.fz <= 0) return false;
+  const s = Math.sin(W.cap), c = Math.cos(W.cap);
+  for (const k of [z.hl + .5, z.hl + 2]) {
+    const dx = z.px + z.fx * k - W.px, dz = z.pz + z.fz * k - W.pz;
+    if (Math.abs(dx * s + dz * c) < W.hl + z.hw && Math.abs(dx * c - dz * s) < W.hw + z.hw) return true;
+  }
+  return false;
 }
 function retenir(z, x, zz, dx, dz) {
   z.px = x; z.pz = zz; z.fx = dx; z.fz = dz; z.cap = Math.atan2(dx, dz);
-  const J = E.joueur; if (J && (x - J.x) ** 2 + (zz - J.z) ** 2 < 1600) E.circulation.push(z);
+  const J = E.joueur; if (!J) return;
+  const d2 = (x - J.x) ** 2 + (zz - J.z) ** 2;
+  if (d2 < 1600) E.circulation.push(z);
+  if (d2 < PRES2) E.zemsPres.push(z); // la circulation dense freine derrière lui (circulation.js)
 }
 /**
  * Le joueur pousse et n'avance pas : on dégage les zéms et les tokpas qui le serrent.
@@ -188,7 +215,7 @@ export function majTokpas(dt) {
   if (!E.tokpas) return;
   const A = E.tokpas.instanceMatrix.array, cam = camera.position, V2 = majChamp(); let nv = 0;
   for (let i = 0; i < E.tokpaState.length; i++) {
-    const z = E.tokpaState[i], P = z.P; if (!cede(z)) z.s += z.v * dt * z.dir;
+    const z = E.tokpaState[i], P = z.P; if (!cede(z, dt)) z.s += z.v * dt * z.dir;
     if (z.s >= P.len) { z.s = P.len - .01; z.dir = -1; } else if (z.s <= 0) { z.s = .01; z.dir = 1; }
     const cum = P.cum; let k = z.seg; while (k < cum.length - 2 && z.s > cum[k + 1]) k++; while (k > 0 && z.s < cum[k]) k--; z.seg = k;
     const x0 = P.xz[2 * k], z0 = P.xz[2 * k + 1], x1 = P.xz[2 * k + 2], z1 = P.xz[2 * k + 3], sl = cum[k + 1] - cum[k] || 1, t = (z.s - cum[k]) / sl;

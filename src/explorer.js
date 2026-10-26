@@ -111,8 +111,13 @@ export function initExplorer() {
       return;
     }
     arreterChanson();
-    const id = b.dataset.station, ok = id ? await radio(true, id) : (await radio(false), false);
-    marquer(!!ok, `Radio : ${STATIONS.find(st => st.id === id)?.nom}`);
+    const id = b.dataset.station, titre = `Radio : ${STATIONS.find(st => st.id === id)?.nom}`;
+    if (id) marquer(true, `${titre} · connexion…`); // le direct met quelques secondes à partir : le bouton s'allume tout de suite, et dit qu'il attend
+    btnR.classList.toggle('connexion', !!id); // le bouton bat doucement tant que le direct n'a pas commencé
+    const ok = id ? await radio(true, id) : (await radio(false), false);
+    if (ok === null) return; // un autre choix l'a remplacée pendant la connexion : ce n'est pas une panne
+    btnR.classList.remove('connexion');
+    marquer(!!ok, titre);
     if (id && !ok) { remplirMenu('Cette radio ne répond pas pour le moment : essaie-en une autre.'); menuR.hidden = false; btnR.setAttribute('aria-expanded', 'true'); }
   });
   document.addEventListener('musique-arretee', () => marquer(false));
