@@ -9,8 +9,9 @@ import { JEU } from './jeu.js';
 import { texteToile } from './lieux.js';
 import { remettre } from './remise.js';
 import { dansBatiment, pietonOk } from './rue.js';
-import { scene } from './scene.js';
+import { renderer, scene } from './scene.js';
 import { roadLines } from './ville.js';
+import { TOKPA_3D } from './vehicules.js';
 import { GRADES, METIERS, VIE, carriere, ouvertAu, depenser, ecrire, gagner, gradeDe, nomMetier, posteDe, rendreVie, signaler, titreDans } from './vie.js';
 import { actionsVille, arreterVille, demarrerVille, initVille, majVille, missionVille, optionsVille, reprendreVille, suiviVille } from './metiers-ville.js';
 
@@ -508,8 +509,69 @@ function voie(pts) {
 }
 const terminus = k => k === 0 || k === W.ligne.arrets.length - 1;
 const crier = tk => (tk.sens < 0 ? 'Calavi ! Kpota !' : 'Godomey ! Godomey !');
-/** Point de la porte latérale (à droite, un peu en arrière) : là où se tient l'apprenti. */
+/** Devant la porte latérale (à droite, un peu en arrière), sur la chaussée : là où montent et descendent les passagers. */
 function porte(V, ecart = 1.2) { const r = V.cap - Math.PI / 2; return [V.x + Math.sin(r) * ecart - Math.sin(V.cap) * .4, V.z + Math.cos(r) * ecart - Math.cos(V.cap) * .4]; }
+
+// ---------- L'apprenti, dans le minibus ----------
+// « Les aides tokpa-tokpa doivent être dans la voiture » (Carlos, 26/10, capture : le joueur apprenti debout dehors,
+// collé à la porte coulissante, pendant que le minibus roule). La porte latérale est ouverte, comme sur les vrais
+// tokpa-tokpa : on la découpe dans la carrosserie (plans de coupe sur une copie du matériau), on pose derrière un habitacle
+// sombre, ses banquettes et un encadrement de porte, et l'apprenti est assis sur le strapontin juste derrière
+// l'ouverture, tourné vers le trottoir — dedans, sans rien traverser. Pour le joueur, l'apprenti du chauffeur et les
+// amis apprentis (salon.js). Repère du minibus : avant vers +z, la porte à droite (−x).
+// Cotes relevées au rayon sur le modèle Tripo (côté droit à x = −1,00…−1,05, plancher 0,56, toit intérieur 2,40 au bord) et
+// sur le minibus dessiné (vehicules.js, partsTokpa : côté à −0,93, porte de z = −0,05 à 0,95, toit 2,05).
+const HABITACLE = {
+  tripo: { av: .95, ar: -.25, bas: .66, haut: 2.25, cote: -1.06, int: .85, plancher: .62, plafond: 2.28, z0: -.9, z1: 1 },
+  dessin: { av: .95, ar: -.05, bas: .55, haut: 1.85, cote: -.95, int: .8, plancher: .5, plafond: 1.95, z0: -.9, z1: 1 },
+};
+const STRAPONTIN = { x: -.32, z: .25 }; // sous les fesses de l'apprenti, au milieu de l'ouverture
+let habits = null; // matériaux partagés de l'habitacle
+function ouvrirPorte(V) {
+  if (V.porteTk) return V.porteTk;
+  const m = V.g.children[0], D = HABITACLE[m.geometry === TOKPA_3D.geo ? 'tripo' : 'dessin'];
+  // La découpe : on ne dessine plus la carrosserie dans la boîte de la porte (intersection des cinq demi-espaces).
+  const plans = [[0, 0, -1, D.ar], [0, 0, 1, -D.av], [0, -1, 0, D.bas], [0, 1, 0, -D.haut], [1, 0, 0, .8]].map(([x, y, z, c]) => new THREE.Plane(new THREE.Vector3(x, y, z), c));
+  m.material = m.material.clone(); m.material.clippingPlanes = plans.map(P => P.clone()); m.material.clipIntersection = true; m.material.clipShadows = true;
+  renderer.localClippingEnabled = true;
+  habits ??= { fond: new THREE.MeshLambertMaterial({ color: '#2f2a25', side: THREE.BackSide }), siege: new THREE.MeshLambertMaterial({ color: '#4a3b30' }), cadre: new THREE.MeshLambertMaterial({ color: '#d8d2c2' }) };
+  const boite = (w, h, d, mat, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); b.position.set(x, y, z); V.g.add(b); return b; };
+  const L = D.z1 - D.z0, Hh = D.plafond - D.plancher;
+  boite(2 * D.int, Hh, L, habits.fond, 0, D.plancher + Hh / 2, (D.z0 + D.z1) / 2); // l'habitacle, vu de l'intérieur
+  // L'encadrement : il ferme l'entre-deux de la carrosserie et de l'habitacle sur les bords de l'ouverture.
+  const e = -D.cote - D.int, xe = (D.cote - D.int) / 2;
+  for (const z of [D.ar, D.av]) boite(e, D.haut - D.bas, .04, habits.cadre, xe, (D.haut + D.bas) / 2, z);
+  boite(e, .04, D.av - D.ar, habits.cadre, xe, D.haut, (D.av + D.ar) / 2); boite(e, D.bas - D.plancher + .04, D.av - D.ar, habits.cadre, xe, (D.bas + D.plancher) / 2, (D.av + D.ar) / 2);
+  // La banquette du fond, le dos des sièges de devant, et le strapontin (à la mesure de l'apprenti, plus bas).
+  boite(2 * D.int - .1, .42, .45, habits.siege, 0, D.plancher + .21, D.z0 + .3); boite(2 * D.int - .1, .5, .1, habits.siege, 0, D.plancher + .67, D.z0 + .1);
+  boite(2 * D.int - .1, .9, .12, habits.siege, 0, D.plancher + .45, D.z1 - .08);
+  const strapontin = boite(.42, 1, .4, habits.siege, STRAPONTIN.x - .02, D.plancher + .2, STRAPONTIN.z); strapontin.scale.y = .4;
+  return (V.porteTk = { m, plans, D, strapontin });
+}
+// Où sont, dans la pose assise, ses fesses et ses pieds (sous l'origine du personnage) : mesuré une fois sur sa peau.
+function mesureAssis(p) {
+  if (p.userData.mesureAssis !== undefined) return p.userData.mesureAssis;
+  p.userData.velo?.(null); p.userData.jouer?.('assis'); p.userData.maj?.(0); p.updateMatrixWorld(true);
+  const bassin = p.getObjectByName?.('Pelvis'), q = new THREE.Vector3(); let pieds = Infinity, fesses = Infinity;
+  if (bassin) {
+    const b = p.worldToLocal(bassin.getWorldPosition(new THREE.Vector3()));
+    p.traverse(o => { if (!o.isSkinnedMesh) return; const n = o.geometry.attributes.position.count; for (let i = 0; i < n; i += 2) { o.getVertexPosition(i, q).applyMatrix4(o.matrixWorld); p.worldToLocal(q); pieds = Math.min(pieds, q.y); if (Math.abs(q.x - b.x) < .16 && q.z < b.z + .03) fesses = Math.min(fesses, q.y); } });
+  }
+  return (p.userData.mesureAssis = Number.isFinite(fesses) && Number.isFinite(pieds) ? { fesses, pieds } : null);
+}
+const vA = new THREE.Vector3();
+/** Assoit l'apprenti `p` (le joueur, l'apprenti du chauffeur, un ami) dans le minibus V, porte ouverte. */
+export function assoirApprenti(p, V) {
+  if (!p || !V) return;
+  const P = ouvrirPorte(V), D = P.D; V.g.updateMatrixWorld();
+  P.m.material.clippingPlanes.forEach((c, i) => c.copy(P.plans[i]).applyMatrix4(V.g.matrixWorld));
+  const A = mesureAssis(p);
+  if (!A) { p.visible = false; return; } // un personnage dessiné en code ne s'assoit pas : il est dans le minibus, on ne le voit pas
+  p.visible = true; p.userData.velo?.(null); p.userData.jouer?.('assis');
+  const h = A.fesses - A.pieds; P.strapontin.scale.y = h; P.strapontin.position.y = D.plancher + h / 2; // les pieds au plancher, les fesses sur le strapontin
+  vA.set(STRAPONTIN.x, D.plancher - A.pieds, STRAPONTIN.z); V.g.localToWorld(vA);
+  p.position.copy(vA); p.rotation.set(0, V.cap - Math.PI / 2, 0); // tourné vers la porte, et le trottoir
+}
 
 function allerGare(id, reprise) {
   const L = W.ligne, k = L.arrets.length - 1;
@@ -592,7 +654,7 @@ function poserGps(tk) {
 // 200 F par passager ; on peut repartir quand on veut (ceux qui n'ont pas eu le temps de monter restent).
 function majChauffeur(dt, tk) {
   const V = tk.V, A = W.ligne.arrets[tk.phase === 'route' ? tk.cible : tk.k], B = tk.phase === 'route' ? tk.fin : tk.ici, d = Math.hypot(B.x - V.x, B.z - V.z);
-  const [ax, az] = porte(V); tk.aide.position.set(ax, V.y + .25, az); tk.aide.rotation.y = V.cap - Math.PI / 2; // l'apprenti, à la porte
+  assoirApprenti(tk.aide, V); // l'apprenti, sur son strapontin à la porte
   if (tk.aide.bulle && performance.now() > tk.aide.bulleFin) X.retirerBulle(tk.aide);
   if (tk.phase === 'route') {
     if (T.mode === 'conduit' && !T.gps && d > 40) poserGps(tk); // au volant : la ligne bleue jusqu'au prochain arrêt
@@ -603,13 +665,13 @@ function majChauffeur(dt, tk) {
   }
   // À l'arrêt (ou à la gare) : l'apprenti crie et fait monter, un passager par seconde, bus arrêté.
   tk.t += dt;
-  if (tk.t > 1.5 && !tk.crie) { tk.crie = true; dire(tk.aide, crier(tk)); tk.aide.userData.jouer('salut'); }
+  if (tk.t > 1.5 && !tk.crie) { tk.crie = true; dire(tk.aide, crier(tk)); } // il crie de sa place (un salut, animation debout, le relevait à travers le toit)
   if (Math.abs(V.v) < .6 && d < 35 && tk.t > 2 && tk.nAttente > 0 && tk.occ < PLACES_TOKPA) { tk.monte = (tk.monte || 0) + dt; if (tk.monte > 1) { tk.monte = 0; monterPassager(tk, false); } }
   const fini = tk.nAttente <= 0 || tk.occ >= PLACES_TOKPA;
   if ((fini && tk.t > 3) || d > 35) { // tout le monde est monté (ou on est reparti) : on encaisse et on file au suivant
     const gain = tk.montes * PRIX_TOKPA * (1 + .1 * gradeDe(VIE.data.xp || 0));
     if (tk.montes) { gagner(Math.round(gain / 25) * 25, `tokpa-tokpa · ${tk.montes} passager${tk.montes > 1 ? 's' : ''} (arrêt ${A.nom})`); experience(); }
-    dire(tk.aide, tk.occ >= PLACES_TOKPA ? 'On est au complet, on bouge !' : 'Chauffeur, on y va !'); tk.aide.userData.jouer('idle'); tk.crie = false;
+    dire(tk.aide, tk.occ >= PLACES_TOKPA ? 'On est au complet, on bouge !' : 'Chauffeur, on y va !'); tk.crie = false;
     partirArret(tk);
   }
   W.mission = `Arrêt ${A.nom} · ${tk.occ}/${PLACES_TOKPA} passagers${tk.nAttente > 0 && tk.occ < PLACES_TOKPA ? ' · ça monte, reste arrêté' : ''}`;
@@ -626,9 +688,9 @@ function majApprenti(dt, tk) {
     if (tk.t > 2 && tk.nAttente > 0 && tk.occ < PLACES_TOKPA) { tk.monte = (tk.monte || 0) + dt; if (tk.monte > .9) { tk.monte = 0; monterPassager(tk); } } // ceux qui attendaient montent
     if (tk.t > 50) { X.ligne('Le chauffeur : « On ne va pas attendre toute la journée ! » Il démarre.'); depart(tk); }
   }
-  // Le joueur se tient à la marche de la porte, tourné vers le trottoir.
-  const [px, pz] = porte(V); S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; // pour les amis : le minibus
-  if (S.moi) { S.moi.visible = true; S.moi.position.set(px, V.y + .25, pz); S.moi.rotation.y = V.cap - Math.PI / 2; S.moi.userData.jouer(tk.crieT > 0 ? 'salut' : 'idle'); }
+  // Le joueur est assis à la porte ouverte, dedans, tourné vers le trottoir ; il crie de sa place (la bulle suffit).
+  S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; // pour les amis : le minibus
+  assoirApprenti(S.moi, V);
   if (tk.crieT > 0) tk.crieT -= dt;
   const A = W.ligne.arrets[tk.phase === 'route' ? tk.cible : tk.k];
   W.mission = `${VIE.femme ? 'Apprentie' : 'Apprenti'} · ${tk.phase === 'route' ? `vers ${A.nom}` : `arrêt ${A.nom}`} · ${tk.occ}/${PLACES_TOKPA} · ${tk.file} à encaisser · ta part ${fmt(tk.part)}`;

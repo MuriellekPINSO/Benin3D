@@ -4,7 +4,9 @@ import { chargeurGLB } from './textures.js';
 
 // ---------- Véhicules : zémidjan, tokpa-tokpa, voitures, chèvres, marchandes ----------
 // Zém : moto rouge à selle longue, conducteur en chemise jaune numérotée (Cotonou), casque.
-// Tokpa-tokpa : vieux minibus blanc, porte latérale ouverte, apprenti, galerie chargée sous filet.
+// Tokpa-tokpa : vieux minibus blanc, porte latérale ouverte, galerie chargée sous filet. L'apprenti n'est plus dessiné
+// accroché dehors : « les aides tokpa-tokpa doivent être dans la voiture » (Carlos, 26/10) ; dans le salon, c'est un
+// vrai personnage assis à la porte (metiers.js, assoirApprenti). `apprenti: true` remet l'ancien dessin.
 export const B3 = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 export const C3 = (r1, r2, h, s = 10) => new THREE.CylinderGeometry(r1, r2, h, s);
 export function partsZem(c = {}) {
@@ -107,7 +109,7 @@ export function partsTokpa(c = {}) {
   let k = 0; for (let x = -2; x < 1.1; x += 0.62) for (const z of [-0.42, 0.4]) { const h = 0.35 + ((k * 7) % 5) * 0.08; add(B3(0.55, h, 0.7).translate(x, 2.25 + h / 2, z), bag[k++ % bag.length]); }
   add(C3(0.4, 0.3, 0.22, 12).translate(0.6, 2.8, 0), '#d9d2c2');
   add(B3(3.3, 0.04, 1.6).translate(-0.5, 2.92, 0), '#3d7a46');
-  if (c.apprenti !== false) {
+  if (c.apprenti === true) {
     add(B3(0.3, 0.55, 0.3).rotateX(-0.35).translate(0.45, 1.45, 1.12), '#c8382f');
     add(new THREE.SphereGeometry(0.13, 8, 6).translate(0.45, 1.86, 1.25), '#4a2f22');
     add(B3(0.12, 0.6, 0.12).translate(0.4, 0.9, 1.05), '#2d3e5a');
