@@ -68,7 +68,7 @@ function troncons(T) {
     }
     const coupe = q.map((e, i) => { for (let d = -NEZ; d <= NEZ; d++) if (q[i + d]?.[3]) return true; return false; });
     let run = [], s0 = 0, s = 0;
-    const fin = () => { if (run.length > 12) out.push({ nom: b.nom, p: run.map(e => [e[0], e[1], e[2]]), s0 }); run = []; };
+    const fin = () => { if (run.length > 1 && s - s0 >= 12) out.push({ nom: b.nom, p: run.map(e => [e[0], e[1], e[2]]), s0 }); run = []; };
     q.forEach((e, i) => { if (i) s += Math.hypot(e[0] - q[i - 1][0], e[1] - q[i - 1][1]); if (coupe[i]) fin(); else { if (!run.length) s0 = s; run.push(e); } });
     fin();
   }

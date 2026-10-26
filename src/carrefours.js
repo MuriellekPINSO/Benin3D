@@ -246,7 +246,9 @@ export function surLaBonneChaussee(pts) {
   for (let i = 1; i < pts.length; i++) {
     const [ax, az] = pts[i - 1], [bx, bz] = pts[i], l = Math.hypot(bx - ax, bz - az); if (!l) continue;
     const dx = (bx - ax) / l, dz = (bz - az) / l;
-    for (let d = i === 1 ? 0 : 4; d <= l; d += 4) { const x = ax + dx * Math.min(d, l), z = az + dz * Math.min(d, l); ech.push([x, z, sous(x, z, dx, dz)]); }
+    // Tous les 4 m, et le sommet au bout du segment : sans lui, le trajet coupait le coin des virages (jusqu'à 4 m).
+    for (let d = i === 1 ? 0 : 4; d < l; d += 4) { const x = ax + dx * d, z = az + dz * d; ech.push([x, z, sous(x, z, dx, dz)]); }
+    ech.push([bx, bz, sous(bx, bz, dx, dz)]);
   }
   // Pas de bascule de moins de 40 m (10 échantillons) : les étiquettes de sens unique changent d'un tronçon OSM à
   // l'autre, et le trajet sautait d'une chaussée à l'autre en travers du terre-plein, au milieu du pâté de maisons.
@@ -254,7 +256,7 @@ export function surLaBonneChaussee(pts) {
   for (let pass = 0; pass < 2; pass++) for (let i = 0; i < bas.length;) { let j = i; while (j < bas.length && bas[j] === bas[i]) j++; if (j - i < 10 && i > 0 && j < bas.length) for (let k = i; k < j; k++) bas[k] = !bas[k]; i = j; }
   const out = []; let n = 0;
   for (const [i, [x, z, q]] of ech.entries()) { if (bas[i] && q) { n++; out.push([q[0], q[1]]); } else out.push([x, z]); }
-  out.push(pts[pts.length - 1]);
+  if (!out.length) return pts;
   if (import.meta.env.DEV) console.info(`ligne : ${n * 4} m remis sur la bonne chaussée`);
   return out;
 }

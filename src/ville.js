@@ -194,8 +194,8 @@ function rubanUV(pts, w, pos, uv, idx) {
  * Les anneaux des ronds-points. Dans OpenStreetMap, ils n'ont souvent pas d'étiquette de revêtement et sont classés
  * comme des rues de quartier : ils sortaient couleur sable, et le goudron des avenues s'arrêtait net au bord du
  * rond-point (« le goudron ne devrait pas simplement s'arrêter et continuer juste comme ça après », Carlos, 26/10 ;
- * l'aéroport, Bio Guéra…). On les reconnaît à leur forme : un arc de cercle de 5 à 70 m de rayon qui tourne toujours
- * du même côté, où débouche une route goudronnée. Ils prennent alors le goudron de l'avenue, sans marquage.
+ * l'aéroport, Bio Guéra…). On les reconnaît à leur forme : un arc de cercle de 5 à 45 m de rayon (à 12 % près), d'au
+ * moins 70°, qui tourne toujours du même côté, où débouche une route goudronnée. Ils prennent alors le goudron de l'avenue, sans marquage.
  */
 function goudronnerRondsPoints() {
   const CG = 40, g = new Map();
@@ -214,7 +214,7 @@ function goudronnerRondsPoints() {
       const a1 = Math.atan2(P[k - 1][0] - P[k - 2][0], P[k - 1][1] - P[k - 2][1]), a2 = Math.atan2(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1]), d = Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1));
       if (Math.abs(d) < .02) continue; if (signe && Math.sign(d) !== signe) ok = false; signe = Math.sign(d); tour += d;
     }
-    if (!ok || Math.abs(tour) < .9) continue;
+    if (!ok || Math.abs(tour) < 1.2) continue; // au moins 70° : un quart d'anneau entre deux avenues, pas une rue qui s'incurve
     // Cercle des moindres carrés (méthode de Kåsa) : x² + z² + Dx + Ez + F = 0.
     let sx = 0, sz = 0, sxx = 0, szz = 0, sxz = 0, sx3 = 0, sz3 = 0, sxzz = 0, sxxz = 0; const m = P.length, x0 = P[0][0], z0 = P[0][1];
     for (const [px, pz] of P) { const x = px - x0, z = pz - z0; sx += x; sz += z; sxx += x * x; szz += z * z; sxz += x * z; sx3 += x * x * x; sz3 += z * z * z; sxzz += x * z * z; sxxz += x * x * z; }
@@ -223,9 +223,9 @@ function goudronnerRondsPoints() {
     const d0 = det(A); if (Math.abs(d0) < 1e-6) continue;
     const col = c => A.map((r, i) => r.map((v, j) => j === c ? b[i] : v)), D = det(col(0)) / d0, Ez = det(col(1)) / d0, F = det(col(2)) / d0;
     const cx = -D / 2, cz = -Ez / 2, r2 = cx * cx + cz * cz - F; if (r2 <= 0) continue;
-    const r = Math.sqrt(r2); if (r < 5 || r > 70) continue;
+    const r = Math.sqrt(r2); if (r < 5 || r > 45) continue;
     let e = 0; for (const [px, pz] of P) e += (Math.hypot(px - x0 - cx, pz - z0 - cz) - r) ** 2;
-    if (Math.sqrt(e / m) > r * .18 || !P.some(([x, z]) => touche(x, z))) continue;
+    if (Math.sqrt(e / m) > r * .12 || !P.some(([x, z]) => touche(x, z))) continue;
     L.surf = 0; L.rond = true; L.w = Math.max(L.w, 8); n++;
   }
   return n;
