@@ -32,6 +32,7 @@ import { ouvrirOffre } from './publicites.js';
 import { dansBatiment, pietonOk, profilRoute, profondeurRue, rueRouteJeu } from './rue.js';
 import { dansTerrePlein } from './terre-pleins.js';
 import { creerGuide } from './guide.js';
+import { SAISIE, kbd } from './saisie.js';
 import { compterUneFois, lieuStats } from './statistiques.js';
 import { suspendreChanson } from './lecteur.js';
 import { envoyerScore, initClassement, ouvrirClassement, placeApresCourse } from './classement.js';
@@ -816,7 +817,7 @@ export function majJeu(dt) {
       if (elC.dataset.cle !== cle) {
         elC.dataset.cle = cle; elC.className = 'jh-carrefour' + (actif ? ' maintenant' : '');
         const gps = cf.droit ? (cf.sens > 0 ? 'Le GPS tourne à droite' : 'Le GPS tourne à gauche') : 'Le GPS va tout droit';
-        const b = (dir, sym, nom, k, ok) => `<button type="button" data-dir="${dir}"${ok && actif ? '' : ' disabled'} aria-label="${nom}"><i>${sym}</i><kbd>${k}</kbd></button>`;
+        const b = (dir, sym, nom, k, ok) => `<button type="button" data-dir="${dir}"${ok && actif ? '' : ' disabled'} aria-label="${nom}"><i>${sym}</i>${kbd(k, true)}</button>`; // ← T → au clavier, ◀ ▲ ▶ (croix ou stick) à la manette
         elC.innerHTML = `${b(-1, '↰', 'Tourner à gauche', '←', !!cf.gauche)}<span><b>${ici ? (lent ? 'À toi de choisir' : 'Ralentis pour choisir') : 'Carrefour'}<em></em></b><small>${gps}</small></span>${cf.droit ? b(0, '↑', 'Tout droit', 'T', true) : ''}${b(1, '↱', 'Tourner à droite', '→', !!cf.droite)}`;
       }
       const em = elC.querySelector('em'); if (em) em.textContent = ici ? '' : ` · ${d} m`;
@@ -867,7 +868,7 @@ let guideJeu = null;
 function etapesJeu() {
   const st = () => JEU.etat, clients = () => avecClients(JEU.veh), prochain = () => JEU.ligne?.arretsJ[st().prochain];
   return [
-    { id: 'client', texte: () => coarse ? 'Ton client demande le prix : touche une réponse.' : 'Ton client demande le prix : clique sur une réponse, ou appuie sur [1] [2] [3].', quand: () => clients() && !!DISC.client && !DISC.client.accord && !$('#jhDialogue').hidden, fait: () => !clients() || !!DISC.client?.accord },
+    { id: 'client', texte: () => SAISIE.manette ? 'Ton client demande le prix : appuie sur [1], [2] ou [3], le bouton écrit sur la réponse.' : coarse ? 'Ton client demande le prix : touche une réponse.' : 'Ton client demande le prix : clique sur une réponse, ou appuie sur [1] [2] [3].', quand: () => clients() && !!DISC.client && !DISC.client.accord && !$('#jhDialogue').hidden, fait: () => !clients() || !!DISC.client?.accord },
     { id: 'rouler', texte: () => coarse ? 'Ton zém avance tout seul. Glisse le doigt vers le bas et garde-le posé pour freiner.' : JEU.autoGaz ? 'Ton zém avance tout seul. [↓] pour freiner, [↑] pour aller plus vite.' : 'Maintiens [↑] pour rouler. Relâche pour ralentir, [↓] pour freiner.', quand: () => true, fait: () => st().v > 8 },
     { id: 'arret', texte: () => `Bientôt l’arrêt ${prochain()?.nom || ''} : ${coarse ? 'glisse à droite, puis vers le bas en gardant le doigt posé' : 'mets-toi à droite [→], puis freine [↓]'} dans la zone jaune. ${clients() ? 'Ton client descend et paie.' : 'L’apprenti encaisse les passagers.'}`, quand: () => { const a = prochain(); return !!a && a.s - st().s < 260 && (!clients() || !!DISC.client); }, fait: () => st().servis >= 1 },
     { id: 'files', texte: () => coarse ? 'Glisse à gauche ou à droite pour éviter les zems, les trous et les chèvres. Vers le haut : sauter.' : '[←] [→] : change de file pour éviter les zems, les trous et les chèvres. [Espace] : sauter par-dessus un trou.', quand: () => st().v > 5, fait: () => G.changements >= 1 },

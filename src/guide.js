@@ -1,11 +1,13 @@
 // ---------- Prise en main guidée : une consigne à la fois, la première fois ----------
 // Le joueur découvre le salon ou Zém Run sans mode d'emploi : chaque étape s'affiche quand elle devient utile (`quand`)
 // et disparaît dès qu'elle est faite (`fait`). Les étapes faites sont retenues dans le navigateur ; « Masquer » arrête
-// le guide pour de bon. Dans le texte, [E] devient une touche dessinée.
+// le guide pour de bon. Dans le texte, [E] devient une touche dessinée : celle du clavier, ou le bouton de la manette
+// quand on joue avec (saisie.js) — « appuie sur [E] » se lit « appuie sur Y » dans Zém Run, « sur A » à pied.
+import { kbd } from './saisie.js';
 
 const lire = cle => { try { return JSON.parse(localStorage.getItem(cle) || '{}'); } catch { return {}; } };
 const ecrire = (cle, v) => { try { localStorage.setItem(cle, JSON.stringify(v)); } catch { /* navigation privée */ } };
-const touches = t => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]).replace(/\[([^\]]{1,12})\]/g, '<kbd>$1</kbd>');
+const touches = t => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]).replace(/\[([^\]]{1,12})\]/g, (_, k) => kbd(k));
 
 /**
  * `etapes` : [{ id, texte (chaîne ou fonction), quand: () => bool, fait: () => bool, duree? }], dans l'ordre où on les

@@ -15,7 +15,9 @@
   "'Le jeu s’est arrêté sur ce téléphone : il repart en version simplifiée, qui demande moins de mémoire. « Mode complet » dans le menu Plus pour revenir à l’autre.'": "'The game stopped on this phone: it is restarting in a simplified version that needs less memory. Use « Full mode » in the More menu to go back.'",
   "La connexion a coupé : nouvel essai (": "The connection dropped: trying again (",
   " sur ": " of ",
-  ")…": ")…"
+  ")…": ")…",
+  "'« Aller », dans le menu (le rond à droite), mène partout : un lieu, un ami, ou un zém à héler.'": "'“Go”, in the menu (the round button on the right), takes you anywhere: a place, a friend, or a zém to hail.'",
+  "'« Travailler », dans le menu (le rond à droite), te trouve un métier : zémidjan, tokpa-tokpa, vendeuse…'": "'“Work”, in the menu (the round button on the right), finds you a job: zémidjan, tokpa-tokpa, market seller…'"
  },
  "src/style.css": {
   "'L’apprenti · '": "'The apprentice · '",
@@ -86,7 +88,11 @@
   "Trop vite : ": "Too fast: ",
   "'ta cliente a peur'": "'your passenger is scared'",
   "'ton client a peur'": "'your passenger is scared'",
-  ", le pourboire baisse": ", the tip goes down"
+  ", le pourboire baisse": ", the tip goes down",
+  "'Tu lui demandes : « Tu as ton casque ? »'": "'You ask: “Do you have your helmet?”'",
+  "'Oui, j’ai mon casque avec moi'": "'Yes, I have my helmet with me'",
+  "'Voilà, il est attaché. On peut y aller !'": "'There, it’s fastened. Let’s go!'",
+  " : arrête-toi à sa hauteur, puis ": ": stop next to them, then "
  },
  "src/jeu.js": {
   "'Course à deux'": "'Two-player race'",
@@ -192,7 +198,8 @@
   "' (léger)'": "' (slight)'",
   "'À gauche'": "'Left'",
   "'À droite'": "'Right'",
-  " dans ": " in "
+  " dans ": " in ",
+  "'Ton client demande le prix : appuie sur [1], [2] ou [3], le bouton écrit sur la réponse.'": "'Your passenger is asking the fare: press [1], [2] or [3], the button shown on the answer.'"
  },
  "index.html": {
   "Crédits": "Credits",
@@ -359,7 +366,10 @@
   "Ta meilleure course du jour compte ; en cas d’égalité, le plus rapide gagne. Le défi change chaque soir à 20 h, heure du podium. La semaine additionne tes scores du lundi au dimanche.": "Your best ride of the day counts; in a tie, the fastest wins. The challenge changes every evening at 8 pm, when the podium comes out. The week adds up your scores from Monday to Sunday.",
   "Ton nom ou ton surnom": "Your name or nickname",
   "Avant": "Previous",
-  "Louer un logement": "Rent a home"
+  "Louer un logement": "Rent a home",
+  "Que veux-tu faire ?": "What do you want to do?",
+  "Fermer les gestes": "Close gestures",
+  "Menu : objectifs, travailler, aller, gestes, m’habiller, vue": "Menu: goals, work, go, gestures, get dressed, view"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -793,7 +803,15 @@
   "'Quel logement visiter ?'": "'Which home do you want to visit?'",
   "'Tu vas le visiter, puis tu le loues sur place si tu veux'": "'Visit it first, then rent it on the spot if you like'",
   " · à louer": " · for rent",
-  " F par jour": " F a day"
+  " F par jour": " F a day",
+  "'Le stick gauche pour marcher (poussé à fond, tu cours), le stick droit pour tourner la caméra.'": "'Left stick to walk (push it all the way to run), right stick to turn the camera.'",
+  "Le rond à droite ouvre le menu": "The round button on the right opens the menu",
+  "' [Échap]'": "' [Esc]'",
+  " : « Aller » choisit où aller (le chemin s’allume au sol), « Travailler » te trouve un métier.": ": “Go” picks where to go (the way lights up on the ground), “Work” finds you a job.",
+  "'Dire à tes amis…'": "'Say to your friends…'",
+  "'Une phrase toute faite dans la discussion'": "'A ready-made line in the chat'",
+  "'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · LB vue · RT/LT gaz et frein · A X B : les actions affichées sur les boutons (B klaxonne en roulant) · Y gestes et phrases · Select aller à · ☰ menu'": "'Controller: left stick to walk or drive · right stick to turn and rise · LB view · RT/LT throttle and brake · A X B: the actions shown on the buttons (B honks while driving) · Y gestures and phrases · Select go to · ☰ menu'",
+  "'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · L1 vue · R2/L2 gaz et frein · ✕ □ ○ : les actions affichées sur les boutons (○ klaxonne en roulant) · △ gestes et phrases · Create aller à · Options menu'": "'Controller: left stick to walk or drive · right stick to turn and rise · L1 view · R2/L2 throttle and brake · ✕ □ ○: the actions shown on the buttons (○ honks while driving) · △ gestures and phrases · Create go to · Options menu'"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -1768,7 +1786,10 @@
   "'Aie ton propre véhicule : « Menu » (le dernier rond à droite), puis « Louer une moto ».'": "'Get your own vehicle: “Menu” (the last round button on the right), then “Rent a motorbike”.'",
   "'Fais le plein dans une station-service (« Aller » : la station la plus proche).'": "'Fill up at a petrol station (“Go”: the nearest station).'",
   "'Va voir une boutique à louer : « Menu » (le dernier rond à droite), puis « Commerces ».'": "'Go and see a shop for rent: “Menu” (the last round button on the right), then “Businesses”.'",
-  "'Prends l’avion pour Ouidah (« Aller » : l’aéroport).'": "'Fly to Ouidah (“Go”: the airport).'"
+  "'Prends l’avion pour Ouidah (« Aller » : l’aéroport).'": "'Fly to Ouidah (“Go”: the airport).'",
+  "'Trouve un travail : le rond du menu, à droite, puis la mallette « Travailler ».'": "'Find a job: the menu’s round button, on the right, then the “Work” briefcase.'",
+  "'Aie ton propre véhicule : le rond du menu, à droite, puis « Louer une moto ».'": "'Get your own vehicle: the menu’s round button, on the right, then “Rent a motorbike”.'",
+  "'Va voir une boutique à louer : le rond du menu, à droite, puis « Commerces ».'": "'Go and see a shop for rent: the menu’s round button, on the right, then “Businesses”.'"
  },
  "src/commerces.js": {
   "'fr-FR'": "'en-US'",
@@ -2116,7 +2137,9 @@
  "src/essence.js": {
   "'On se range à la station…'": "'Pulling into the station…'",
   "'On se range devant le kpayo…'": "'Pulling up at the kpayo…'",
-  "Faire le plein · ": "Fill up · "
+  "Faire le plein · ": "Fill up · ",
+  " : arrête-toi devant, puis ": ": stop in front of it, then ",
+  " pour le plein": " to fill up"
  },
  "src/interface.js": {
   "'La ville suit l’heure réelle de Cotonou'": "'The city follows the real time in Cotonou'",
@@ -2230,5 +2253,9 @@
   " pièce": " coin",
   "'Joue au défi du jour sur kotonuvibes.com'": "'Play the daily challenge on kotonuvibes.com'",
   "'Nouveau podium chaque soir à 20 h'": "'New podium every evening at 8 pm'"
+ },
+ "src/saisie.js": {
+  "'Échap'": "'Esc'",
+  "'Espace'": "'Space'"
  }
 }
