@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
-import { $, LITE, coarse, reduceMotion, toXZ } from './base.js';
+import { $, LITE, coarse, reduceMotion, toXZ, SECOURS } from './base.js';
 
 // ---------- Scène ----------
 export const canvas = $('#scene');
@@ -23,6 +23,7 @@ export function creerRendu() {
   // Fond transparent possible : en « Vue réelle », la 3D Google s'affiche sous la maquette.
   let dernier = null;
   for (const [i, opts] of ESSAIS.entries()) {
+    if (SECOURS && opts.antialias) continue; // mode de secours : pas d'anticrénelage, ses tampons d'image en plus pèsent sur la mémoire
     try {
       const r = new THREE.WebGLRenderer({ canvas, alpha: true, ...opts });
       if (i) console.info(`WebGL : démarré au palier ${i + 1} (${JSON.stringify(opts)})`);
@@ -41,7 +42,7 @@ export function creerRendu() {
   throw dernier;
 }
 export const renderer = creerRendu();
-renderer.setPixelRatio(Math.min(devicePixelRatio, LITE ? 1.25 : 2)); // téléphone : moins de mémoire d'image, l'écran est petit
+renderer.setPixelRatio(Math.min(devicePixelRatio, SECOURS ? 1 : LITE ? 1.25 : 2)); // téléphone : moins de mémoire d'image, l'écran est petit
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.shadowMap.enabled = !LITE;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;

@@ -36,6 +36,33 @@ export function preparerGeometries(racine = scene) {
   });
   return n;
 }
+/**
+ * Téléphone : la ville part vers la carte graphique carré par carré, une image par carré, au lieu d'un seul bloc à
+ * la première image (la vue d'ensemble montre tout, 3,9 millions de triangles). D'un bloc, toutes les géométries
+ * étaient à la fois dans la carte et encore en double côté JavaScript : 333 Mo de tas au « Lever de la ville »
+ * sur un écran d'iPhone, et Safari coupait l'onglet (iPhone 13, 26/10). Carré par carré, chaque lot rend sa copie
+ * (preparerGeometries) avant que le suivant arrive. On filme le carré d'en haut ; l'écran de chargement le cache.
+ */
+export async function envoyerParCarres(renderer, camera, attendre, cote = 4000) {
+  scene.updateMatrixWorld(true);
+  const carres = new Map(), c = new THREE.Vector3();
+  scene.traverseVisible(o => {
+    const s = o.isInstancedMesh ? (o.boundingSphere || (o.computeBoundingSphere(), o.boundingSphere)) : o.geometry?.boundingSphere; if (!s) return;
+    c.copy(s.center).applyMatrix4(o.matrixWorld);
+    const k = `${Math.floor(c.x / cote)}|${Math.floor(c.z / cote)}`; carres.set(k, (carres.get(k) || 0) + 1);
+  });
+  const vue = new THREE.OrthographicCamera(-cote / 2, cote / 2, cote / 2, -cote / 2, 1, 30000);
+  vue.layers.mask = camera.layers.mask; vue.up.set(0, 0, -1);
+  const cadre = renderer.getViewport(new THREE.Vector4());
+  renderer.setViewport(0, 0, 4, 4); // quatre pixels suffisent : on n'envoie que les données, l'image ne sert à rien
+  for (const k of carres.keys()) {
+    const [i, j] = k.split('|').map(Number), x = (i + .5) * cote, z = (j + .5) * cote;
+    vue.position.set(x, 8000, z); vue.lookAt(x, 0, z); vue.updateMatrixWorld();
+    renderer.render(scene, vue); await attendre();
+  }
+  renderer.setViewport(cadre);
+  return carres.size;
+}
 /** Ce que les géométries de la scène tiennent encore du côté JavaScript, en octets (pour les essais). */
 export function octetsGeometries(racine = scene) {
   const vu = new Set(); let o = 0;

@@ -1,4 +1,4 @@
-import { $, SECOURS } from './base.js';
+import { $, SECOURS, VIENT_DE_PLANTER } from './base.js';
 // ---------- Chargement ----------
 export const loadTxt = $('#loadTxt'), loadBar = $('#loadBar');
 export const status = (t, p) => { loadTxt.textContent = t; if (p != null) loadBar.style.width = p + '%'; };
@@ -20,7 +20,7 @@ let conseilT = 0;
 export function conseils() {
   const el = document.getElementById('loadConseil'); if (!el || conseilT) return;
   // Mode de secours (base.js) : on le dit, sinon on croirait le jeu moins beau sans savoir pourquoi.
-  if (SECOURS) { el.textContent = 'Le jeu n’a pas réussi à démarrer deux fois de suite : il repart en version simplifiée. « Mode complet » dans le menu Plus pour réessayer.'; return; }
+  if (SECOURS && VIENT_DE_PLANTER) { el.textContent = 'Le jeu s’est arrêté sur ce téléphone : il repart en version simplifiée, qui demande moins de mémoire. « Mode complet » dans le menu Plus pour revenir à l’autre.'; return; }
   let i = Math.floor(Math.random() * CONSEILS.length);
   const poser = () => { el.textContent = CONSEILS[i % CONSEILS.length]; i++; };
   poser(); conseilT = setInterval(poser, 4500);
@@ -29,24 +29,34 @@ export function arreterConseils() { clearInterval(conseilT); conseilT = 0; }
 export const frame = () => new Promise(r => requestAnimationFrame(() => r()));
 // Données de la ville : JSON gzippé produit par `npm run donnees`. Certains hébergeurs
 // le décompressent déjà en route ; on ne décompresse que si l'en-tête gzip est là.
-// Sur une connexion mobile faible, une requête coupée tuait tout le chargement : on réessaie deux fois.
-async function fetchTenace(url, essais = 3) {
-  for (let k = 1; ; k++) { try { return await fetch(url); } catch (e) { if (k >= essais) throw e; await new Promise(r => setTimeout(r, 1500 * k)); } }
-}
-/** `progres(lu, total)` : octets reçus et taille annoncée (0 si le serveur ne la donne pas). */
-export async function decode(progres) {
-  const res = await fetchTenace(import.meta.env.BASE_URL + 'donnees/cotonou.json.gz');
-  if (!res.ok) throw new Error(`Données introuvables (${res.status}). Lancez « npm run donnees ».`);
+// Sur une connexion mobile faible, une requête coupée tuait tout le chargement. On réessaie le téléchargement en
+// entier, lecture comprise : sur iPhone en 4G, c'est souvent en cours de route que ça coupe (« Load failed » au
+// tout début de la barre, iPhone 13 d'un testeur, 26/10), et seule la requête était réessayée.
+const ESSAIS = 4;
+async function telecharger(url, progres) {
+  const res = await fetch(url);
+  if (!res.ok) { const e = new Error(`Données introuvables (${res.status}). Lancez « npm run donnees ».`); e.definitif = true; throw e; }
   // On lit le fichier morceau par morceau pour montrer où en est le téléchargement : sur une 4G lente, ses 2,8 Mo
   // prennent dix à vingt secondes, et un écran figé sur « Décompression » faisait partir les joueurs.
   // Décompressé en route par le serveur (Content-Encoding) : on lit des octets décompressés, la taille annoncée ne s'y compare pas.
   const total = res.headers.get('content-encoding') ? 0 : +(res.headers.get('content-length') || 0);
+  if (!res.body || !progres) return new Uint8Array(await res.arrayBuffer());
+  const lecteur = res.body.getReader(), morceaux = []; let lu = 0;
+  for (;;) { const { done, value } = await lecteur.read(); if (done) break; morceaux.push(value); lu += value.length; progres(lu, total); }
+  const buf = new Uint8Array(lu); let o = 0; for (const m of morceaux) { buf.set(m, o); o += m.length; }
+  return buf;
+}
+/** `progres(lu, total)` : octets reçus et taille annoncée (0 si le serveur ne la donne pas). */
+export async function decode(progres) {
   let buf;
-  if (res.body && progres) {
-    const lecteur = res.body.getReader(), morceaux = []; let lu = 0;
-    for (;;) { const { done, value } = await lecteur.read(); if (done) break; morceaux.push(value); lu += value.length; progres(lu, total); }
-    buf = new Uint8Array(lu); let o = 0; for (const m of morceaux) { buf.set(m, o); o += m.length; }
-  } else buf = new Uint8Array(await res.arrayBuffer());
+  for (let k = 1; ; k++) {
+    try { buf = await telecharger(import.meta.env.BASE_URL + 'donnees/cotonou.json.gz', progres); break; }
+    catch (e) {
+      if (e.definitif || k >= ESSAIS) throw e;
+      status(`La connexion a coupé : nouvel essai (${k + 1} sur ${ESSAIS})…`, 2);
+      await new Promise(r => setTimeout(r, 2000 * k));
+    }
+  }
   if (buf[0] === 0x1f && buf[1] === 0x8b) {
     if (!('DecompressionStream' in window)) throw new Error('Ce navigateur ne sait pas décompresser les données (DecompressionStream).');
     const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));

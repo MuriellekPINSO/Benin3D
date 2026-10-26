@@ -8,17 +8,31 @@ export const small = matchMedia('(max-width: 720px)').matches;
 // Version allégée (moins d'ombres, de détails, de gens) : d'office sur téléphone ; sinon au choix (menu Plus,
 // voir leger.js), gardé d'une visite à l'autre : '1' léger, '0' complet.
 const choixLeger = (() => { try { return localStorage.getItem('cotonou-leger'); } catch { return null; } })();
-// Mode de secours : deux démarrages de suite qui n'arrivent pas au bout. Un onglet que Safari coupe faute de
-// mémoire se recharge tout seul, échoue encore, et finit sur « Un problème récurrent est survenu » — le jeu ne
-// démarre plus du tout (iPhone 13 d'un testeur, 25/10). À la troisième tentative on repart en version allégée,
-// avec des textures deux fois plus petites encore (textures.js), plutôt que de ne rien afficher. « Mode complet »
-// dans le menu Plus passe outre.
-const CLE_DEMARRAGES = 'cotonou3d.demarrages';
-const essais = (() => { try { return +localStorage.getItem(CLE_DEMARRAGES) || 0; } catch { return 0; } })();
-export const SECOURS = essais >= 2 && choixLeger !== '0';
-try { localStorage.setItem(CLE_DEMARRAGES, String(Math.min(9, essais + 1))); } catch { /* navigation privée */ }
-/** Appelé quand la ville est affichée : le compteur de tentatives repart de zéro. */
-export const demarrageReussi = () => { try { localStorage.setItem(CLE_DEMARRAGES, '0'); } catch { /* navigation privée */ } };
+// Mode de secours : un iPhone que Safari coupe faute de mémoire recharge la page, échoue encore, et finit sur « Un
+// problème récurrent est survenu » — le jeu ne démarre plus du tout (iPhone 13 de testeurs, 25 et 26/10). On repart
+// alors en version allégée, avec des textures deux fois plus petites encore (textures.js), une image moins fine
+// (scene.js), plutôt que de ne rien afficher. « Mode complet » dans le menu Plus passe outre.
+// Un plantage ne laisse aucune trace : la page meurt sans pagehide ni visibilitychange. On note donc « ouverte »
+// au démarrage et quand elle redevient visible, « fermée » quand on la quitte ou qu'on change d'appli : trouver
+// « ouverte » au démarrage suivant, c'est qu'elle a planté sous les yeux du joueur. Jusqu'au 26/10, seul un
+// plantage pendant le chargement comptait ; ceux qui suivaient l'arrivée en ville (modèles détaillés, salon)
+// passaient inaperçus, et le jeu replantait en boucle. Une fois déclenché, le secours reste : on peut jouer.
+// Fermer la fenêtre de WhatsApp ou de Facebook ne passe pas toujours par pagehide non plus : on ne compte donc que
+// la page rouverte moins d'une minute et demie après son dernier signe de vie — le rechargement de Safari après
+// un plantage, ou le joueur qui réessaie aussitôt. Rouverte plus tard, c'est une nouvelle visite.
+const CLE_SESSION = 'cotonou3d.session', CLE_SECOURS = 'cotonou3d.secours', CLE_VU = 'cotonou3d.vu';
+const lireLS = k => { try { return localStorage.getItem(k); } catch { return null; } };
+const ecrireLS = (k, v) => { try { localStorage.setItem(k, v); } catch { /* navigation privée */ } };
+// L'ancien compteur (démarrages d'affilée qui n'arrivaient pas à la ville) : deux, c'était déjà un plantage.
+const ancien = +lireLS('cotonou3d.demarrages') || 0; try { localStorage.removeItem('cotonou3d.demarrages'); } catch { /* navigation privée */ }
+/** Vrai si la visite d'avant a planté : on le dit sur l'écran de chargement (chargement.js). */
+export const VIENT_DE_PLANTER = (lireLS(CLE_SESSION) === 'ouverte' && Date.now() - (+lireLS(CLE_VU) || 0) < 90e3) || ancien >= 2;
+if (VIENT_DE_PLANTER && choixLeger !== '0') ecrireLS(CLE_SECOURS, '1');
+export const SECOURS = choixLeger !== '0' && lireLS(CLE_SECOURS) === '1';
+ecrireLS(CLE_SESSION, 'ouverte');
+const signe = () => { if (!document.hidden) ecrireLS(CLE_VU, String(Date.now())); }; signe(); setInterval(signe, 3000); // le dernier signe de vie
+addEventListener('pagehide', () => ecrireLS(CLE_SESSION, 'fermee')); // quittée ou rechargée : pas un plantage
+document.addEventListener('visibilitychange', () => ecrireLS(CLE_SESSION, document.hidden ? 'fermee' : 'ouverte')); // mise de côté, puis reprise
 export const LITE = SECOURS || choixLeger === '1' || (choixLeger !== '0' && (coarse || small));
 
 // Projection locale (mètres) autour de 6,37° N / 2,415° E : x vers l'est, z vers le sud

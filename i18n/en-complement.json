@@ -11,7 +11,11 @@
   "'La musique et les radios béninoises en direct sont dans le menu Musique.'": "'Music and live Beninese radio stations are in the Music menu.'",
   "'Le jeu n’a pas réussi à démarrer deux fois de suite : il repart en version simplifiée. « Mode complet » dans le menu Plus pour réessayer.'": "'The game failed to start twice in a row, so it is restarting in a simplified version. Use « Full mode » in the More menu to try again.'",
   "'Le rond « Aller », à droite, mène partout : un lieu, un ami, ou un zém à héler.'": "'The round “Go” button, on the right, takes you anywhere: a place, a friend, or a zém to hail.'",
-  "'La mallette « Travailler », à droite, te trouve un métier : zémidjan, tokpa-tokpa, vendeuse…'": "'The “Work” briefcase, on the right, finds you a job: zémidjan, tokpa-tokpa, market seller…'"
+  "'La mallette « Travailler », à droite, te trouve un métier : zémidjan, tokpa-tokpa, vendeuse…'": "'The “Work” briefcase, on the right, finds you a job: zémidjan, tokpa-tokpa, market seller…'",
+  "'Le jeu s’est arrêté sur ce téléphone : il repart en version simplifiée, qui demande moins de mémoire. « Mode complet » dans le menu Plus pour revenir à l’autre.'": "'The game stopped on this phone: it is restarting in a simplified version that needs less memory. Use « Full mode » in the More menu to go back.'",
+  "La connexion a coupé : nouvel essai (": "The connection dropped: trying again (",
+  " sur ": " of ",
+  ")…": ")…"
  },
  "src/style.css": {
   "'L’apprenti · '": "'The apprentice · '",

@@ -5,10 +5,10 @@ import { construireFeux, majFeuxVille } from './feux.js';
 import { construireTerrePleins, initTerrePleins } from './terre-pleins.js';
 import * as THREE from 'three';
 import { applyMood, sunDir } from './ambiances.js';
-import { $, LITE, demarrageReussi, reduceMotion } from './base.js';
+import { $, LITE, reduceMotion } from './base.js';
 import { arreterConseils, conseils, decode, frame, loadTxt, status } from './chargement.js';
 import { surveillerIncidents } from './incidents.js';
-import { preparerGeometries } from './memoire.js';
+import { envoyerParCarres, preparerGeometries } from './memoire.js';
 import { E } from './etat.js';
 import { accueil, initExplorer } from './explorer.js';
 import { TRIPO, chargerIndexTripo, urlTripo } from './batiments-tripo.js';
@@ -181,10 +181,11 @@ async function main() {
   // Avant le tout premier rendu : chaque géométrie rendra sa copie JavaScript dès qu'elle aura été envoyée à la
   // carte graphique (memoire.js). Puis de nouveau, pour les modèles détaillés qui arrivent après coup.
   preparerGeometries();
+  if (LITE) { const t0 = performance.now(), n = await envoyerParCarres(renderer, camera, frame); if (import.meta.env.DEV) console.info(`ville envoyée en ${n} carrés, ${Math.round(performance.now() - t0)} ms`); } // téléphone : la ville part vers la carte graphique par morceaux (memoire.js)
   requestAnimationFrame(t => { last = t; loop(t); });
   arreterConseils();
   for (const ms of [8000, 30000, 90000]) setTimeout(() => preparerGeometries(), ms);
-  setTimeout(() => { $('#loader').classList.add('done'); demarrageReussi(); demarrerTelechargements(); }, 150); // les modèles détaillés, une fois la ville affichée
+  setTimeout(() => { $('#loader').classList.add('done'); demarrerTelechargements(); }, 150); // les modèles détaillés, une fois la ville affichée
   setTimeout(demarrerStats, 2500); // présence et compteurs du tableau de bord (statistiques.js)
   setTimeout(synchroniserAuDemarrage, 1500); // avec un compte : la partie jouée sur un autre téléphone (compte.js)
   accueil(); // d'abord la visite en musique, ou la ville tout de suite
@@ -214,6 +215,6 @@ $('#acInstaller')?.addEventListener('click', async () => { if (!invitation) retu
 
 main().catch(err => {
   console.error(err);
-  const coupe = /fetch|network|réseau/i.test(err.message || ''); // la connexion a lâché : on propose de recommencer
+  const coupe = /fetch|network|réseau|load failed|connexion/i.test(err.message || ''); // la connexion a lâché (« Load failed » sur iPhone) : on propose de recommencer
   loadTxt.innerHTML = `<span class="err">Impossible d'afficher la ville.</span> ${coupe ? 'La connexion a coupé pendant le chargement.' : err.message || err} <button type="button" class="btn-ghost" onclick="location.reload()">Réessayer</button>`;
 });

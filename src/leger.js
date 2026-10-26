@@ -7,7 +7,8 @@ import { $, LITE } from './base.js';
 const CLE = 'cotonou-leger', PROPOSE = 'cotonou-leger-propose';
 const lire = k => { try { return localStorage.getItem(k); } catch { return null; } };
 const garder = (k, v) => { try { localStorage.setItem(k, v); } catch { /* navigation privée */ } };
-const choisir = leger => { garder(CLE, leger ? '1' : '0'); location.reload(); };
+// « Mode complet » met aussi fin au mode de secours (base.js), qui sinon reste d'une visite à l'autre.
+const choisir = leger => { garder(CLE, leger ? '1' : '0'); if (!leger) try { localStorage.removeItem('cotonou3d.secours'); } catch { /* navigation privée */ } location.reload(); };
 
 export function initLeger() {
   const b = $('#togLeger'); if (!b) return;
