@@ -39,7 +39,7 @@ export const VEHICULES = {
   // beaucoup de kilomètres au litre — une charge qui dure.
   citadine: { nom: 'citadine', long: 3.7, larg: 1.7, vmax: 23, accel: 4.6, frein: 8.2, recul: 3.2, braquage: 1.5, reservoir: 5, kmParLitre: 14, cache: true },
   bolide: { nom: 'bolide électrique', long: 4.3, larg: 1.9, vmax: 33, accel: 9, frein: 11, recul: 4, braquage: 1.45, reservoir: 9, kmParLitre: 60, cache: true },
-  roadster: { nom: 'Roadster', long: 4.4, larg: 2, vmax: 38, accel: 11, frein: 12, recul: 4.2, braquage: 1.4, reservoir: 10, kmParLitre: 70, cache: true },
+  roadster: { nom: 'Roadster', long: 4.4, larg: 2, vmax: 38, accel: 11, frein: 12, recul: 4.2, braquage: 1.4, reservoir: 10, kmParLitre: 70, cache: true, propulseurs: true },
 };
 export const PRIX_LITRE = 680; // à la pompe (Zém Run : 680 F à la station, 500 F le kpayo)
 const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote automatique
@@ -75,7 +75,7 @@ export function creerVehicule(type, { couleur } = {}) {
   return { type, D, g, x: 0, z: 0, y: 0, cap: 0, v: 0, km: 0, anim, selle: (gabarit && MODELES[type] && SELLES[type]) || D.selle };
 }
 export function retirerVehicule(V) { if (V) { scene.remove(V.g); V.anim?.liberer(); } } // les géométries sont partagées entre les copies : on ne les libère pas
-export function placer(V, x, z, cap) { V.x = x; V.z = z; V.cap = cap; V.v = 0; V.y = hauteur(x, z, 0); V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; }
+export function placer(V, x, z, cap) { V.x = x; V.z = z; V.cap = cap; V.v = 0; V.y = V.sol = hauteur(x, z, 0); V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; }
 /** Où asseoir un personnage sur le véhicule (repère du véhicule) : pilote ou passager ; null : dans la voiture, on ne le voit pas. */
 export function siege(V, passager = false) {
   const D = V.D; if (D.cache) return null;
@@ -154,22 +154,50 @@ export function piloter(V, av, tour, dt, { panne = false } = {}) {
 }
 // Le centre sur la route, et l'avant (l'arrière en marche arrière) avec ses deux coins hors des murs et des
 // bâtiments : avant, seul le centre comptait, et tout le capot rentrait dans la clôture.
-const horsMur = (x, z) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && !dansCirculation(x, z, .05) && hauteurSol(x, z) < .25; // ni dans un zém ou un tokpa qui roule, ni sur des marches (sols.js)
+const horsMur = (x, z, vole = false) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && (vole || (!dansCirculation(x, z, .05) && hauteurSol(x, z) < .25)); // ni dans un zém ou un tokpa qui roule, ni sur des marches (sols.js) ; en vol, on passe au-dessus
 function passe(V, x, z) {
   // Un vélo n'est pas tenu à la chaussée : il roule partout où l'on marche — l'esplanade, les trottoirs —,
   // comme à Cotonou. Sans ça, celui qu'on loue sur l'esplanade de l'Amazone ne pouvait pas avancer d'un mètre.
   if (!surRoute(x, z) && !(V.D.pedale && pietonOk(x, z))) return false;
   const L = (V.D.long ?? 2) / 2 * .92 * (Math.sign(V.v) || 1), W = (V.D.larg ?? .8) / 2 * .9, sx = Math.sin(V.cap), cz = Math.cos(V.cap), fx = x + sx * L, fz = z + cz * L;
-  return horsMur(fx, fz) && horsMur(fx + cz * W, fz - sx * W) && horsMur(fx - cz * W, fz + sx * W);
+  const vole = (V.alt || 0) > 1.5;
+  return horsMur(fx, fz, vole) && horsMur(fx + cz * W, fz - sx * W, vole) && horsMur(fx - cz * W, fz + sx * W, vole);
 }
 function avancer(V, dt, contraint) {
   const nx = V.x + Math.sin(V.cap) * V.v * dt, nz = V.z + Math.cos(V.cap) * V.v * dt; let choc = null;
   if (!contraint || passe(V, nx, nz)) { V.km += Math.hypot(nx - V.x, nz - V.z) / 1000; V.x = nx; V.z = nz; }
   else { if (Math.abs(V.v) > 3) choc = 'choc'; V.v *= Math.abs(V.v) > .3 ? -.2 : 0; }
-  V.y = hauteur(V.x, V.z, V.y);
+  V.sol = hauteur(V.x, V.z, V.sol ?? V.y); V.alt = altitude(V, dt); V.y = V.sol + V.alt; // le pont, et le vol de la Roadster
   V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap;
   if (V.anim) { const a = (V.v - (V.vAvant ?? V.v)) / Math.max(dt, .001); V.vAvant = V.v; V.anim.maj(V.v, dt, a > .5); }
   return choc;
+}
+// ---------- Les propulseurs de la Roadster ----------
+// « Est-ce que ma Tesla Roadster peut monter en haut comme la vraie ? » (Murielle, 26/10) : la vraie est annoncée avec
+// un « pack SpaceX », des propulseurs à gaz froid pour de petits bonds. Ici, « Décoller » la soulève à 4,5 m en 1,2 s ;
+// elle plane 4,5 s au-dessus des zémidjans et des voitures, puis se repose. Les bâtiments et la chaussée la tiennent
+// toujours : c'est un bond, pas un avion. Les propulseurs se rechargent en 12 s.
+const VOL = { monte: 1.2, plane: 4.5, descend: 1.6, haut: 4.5, recharge: 12 };
+export const peutDecoller = V => !!V?.D.propulseurs && !V.vol && performance.now() > (V.rechargeT || 0);
+export function decoller(V) { if (!peutDecoller(V)) return false; V.vol = { t: 0 }; flammes(V).visible = true; return true; }
+function altitude(V, dt) {
+  if (!V.vol) return 0;
+  const t = V.vol.t += dt, fin = VOL.monte + VOL.plane + VOL.descend, e = x => x * x * (3 - 2 * x);
+  if (t >= fin) { V.vol = null; V.rechargeT = performance.now() + VOL.recharge * 1000; flammes(V).visible = false; return 0; }
+  const a = t < VOL.monte ? VOL.haut * e(t / VOL.monte) : t < VOL.monte + VOL.plane ? VOL.haut + Math.sin((t - VOL.monte) * 2.6) * .15 : VOL.haut * (1 - e((t - VOL.monte - VOL.plane) / VOL.descend));
+  const k = t < VOL.monte ? 1.25 : t < VOL.monte + VOL.plane ? .75 : .55; // pleine poussée au décollage, de quoi planer ensuite
+  for (const f of flammes(V).children) f.scale.set(1, k * (.8 + Math.random() * .4), 1);
+  return a;
+}
+// Quatre jets bleus sous la caisse, créés au premier vol.
+const FLAMME = { geo: null, mat: null };
+function flammes(V) {
+  if (V.flammes) return V.flammes;
+  FLAMME.geo ??= new THREE.ConeGeometry(.24, 1.5, 10, 1, true).rotateX(Math.PI).translate(0, -.75, 0); // pointe vers le bas
+  FLAMME.mat ??= new THREE.MeshBasicMaterial({ color: '#3fb4ff', transparent: true, opacity: .78, depthWrite: false }); // bleu franc : en mélange additif, en plein jour, les jets sortaient blancs
+  const g = new THREE.Group(), x = V.D.larg / 2 - .35, z = V.D.long / 2 - .7;
+  for (const [a, b] of [[x, z], [-x, z], [x, -z], [-x, -z]]) { const m = new THREE.Mesh(FLAMME.geo, FLAMME.mat); m.position.set(a, .28, b); g.add(m); }
+  g.visible = false; V.g.add(g); return (V.flammes = g);
 }
 /** Point du chemin à `dist` mètres plus loin que (k, t) (segment pts[k-1] → pts[k], fraction t) ; et la distance qui restait jusqu'au bout. */
 function leLong(pts, k, t, dist) {

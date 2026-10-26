@@ -1029,7 +1029,8 @@
   "'loin à pied : prends un zém.'": "'a long walk: take a zém.'",
   "'suis les chevrons.'": "'follow the chevrons.'",
   " : assieds-toi pour manger, à une table ou sur ton tabouret.": ": sit down to eat, at a table or on your stool.",
-  "'Panne sèche ! Tu avances au pas : « Aller » → « Station-service la plus proche » pour le GPS.'": "'Out of fuel! You crawl along: “Go” → “Nearest petrol station” for the GPS.'"
+  "'Panne sèche ! Tu avances au pas : « Aller » → « Station-service la plus proche » pour le GPS.'": "'Out of fuel! You crawl along: “Go” → “Nearest petrol station” for the GPS.'",
+  "'Décoller · propulseurs'": "'Take off · thrusters'"
  },
  "src/conduite.js": {
   "'zém'": "'zém'",

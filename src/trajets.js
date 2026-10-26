@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $ } from './base.js';
 import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js';
-import { PRIX_LITRE, VEHICULES, creerVehicule, initStations, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
+import { PRIX_LITRE, VEHICULES, creerVehicule, decoller, initStations, peutDecoller, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
 import { dansBatiment, dansObstacleRue, decalee } from './rue.js';
 import { E } from './etat.js';
 import { dansCirculation } from './trafic.js';
@@ -85,7 +85,9 @@ export function actions() {
       if (D.argent >= prix) out.push({ texte: `Faire le plein · ${manque.toLocaleString('fr-FR')} L · ${fmt(prix)}`, f: () => plein(st, manque, prix) });
       else if (D.argent >= Math.ceil(un * PRIX_LITRE / 25) * 25) out.push({ texte: `Mettre ${un.toLocaleString('fr-FR')} L · ${fmt(Math.ceil(un * PRIX_LITRE / 25) * 25)}`, f: () => plein(st, un, Math.ceil(un * PRIX_LITRE / 25) * 25) });
     }
-    if (Math.abs(V.v) < .8) out.push({ texte: `Descendre ${nomDe(V)[1]}`, f: descendre });
+    // La Roadster décolle sur ses propulseurs (conduite.js) ; le bouton revient une fois posée et rechargée.
+    if (peutDecoller(V)) out.push({ texte: 'Décoller · propulseurs', f: () => { if (decoller(V)) son('saut'); } });
+    if (Math.abs(V.v) < .8 && !V.vol) out.push({ texte: `Descendre ${nomDe(V)[1]}`, f: descendre });
     return out;
   }
   if (T.mode === 'passager') { // on peut toujours descendre : à l'arrivée (prix convenu), ou avant (le bout de chemin fait)
