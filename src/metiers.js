@@ -11,7 +11,7 @@ import { remettre } from './remise.js';
 import { dansBatiment, pietonOk } from './rue.js';
 import { scene } from './scene.js';
 import { roadLines } from './ville.js';
-import { GRADES, METIERS, VIE, carriere, depenser, ecrire, gagner, gradeDe, nomMetier, posteDe, rendreVie, signaler, titreDans } from './vie.js';
+import { GRADES, METIERS, VIE, carriere, ouvertAu, depenser, ecrire, gagner, gradeDe, nomMetier, posteDe, rendreVie, signaler, titreDans } from './vie.js';
 import { actionsVille, arreterVille, demarrerVille, initVille, majVille, missionVille, optionsVille, reprendreVille, suiviVille } from './metiers-ville.js';
 
 // ---------- Les métiers du transport (Vivre à Cotonou, étape 2, première vague) ----------
@@ -53,7 +53,7 @@ export function menuTravail() {
   // Tout n'est pas ouvert d'emblée : le taxi, le volant du tokpa-tokpa et les entreprises s'ouvrent au chapitre 2.
   // « Si tout est ouvert dès le début, l'envie d'évoluer disparaît » (un testeur, 26/10). Un métier déjà commencé
   // reste ouvert.
-  const ferme = id => VIE.chapitre < (CHAPITRE_DE[id] || 0) && v.metier !== id && !carriere(id);
+  const ferme = id => !ouvertAu(CHAPITRE_DE[id] || 0) && v.metier !== id && !carriere(id);
   const reprise = id => v.metier === id && v.journeeFin > Date.now() && v.versement > 0;
   const doit = v.versement > 0 && !(v.journeeFin > Date.now());
   const option = (id, sous) => {

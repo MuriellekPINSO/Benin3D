@@ -780,7 +780,10 @@
   "de ": "",
   "Monter dans la voiture ": "Get in the car of ",
   "dans la voiture ": "into the car of ",
-  "derrière ": "behind "
+  "derrière ": "behind ",
+  "'Descends d’abord de ta voiture pour en changer.'": "'Get out of your car first to swap it.'",
+  "'Quelle voiture ? Elle remplace la tienne'": "'Which car? It replaces yours'",
+  "'C’est déjà la tienne'": "'It’s already yours'"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -946,7 +949,8 @@
   " pour l’acheter.": " to buy it.",
   "'Tesla Roadster'": "'Tesla Roadster'",
   "'Le coupé électrique : bas, large, et le plus rapide de Cotonou'": "'The electric coupé: low, wide, and the fastest thing in Cotonou'",
-  "Tu as de quoi t’acheter une voiture : Menu, puis « Acheter une voiture ». La moins chère est à ": "You can afford a car now: Menu, then « Buy a car ». The cheapest one costs "
+  "Tu as de quoi t’acheter une voiture : Menu, puis « Acheter une voiture ». La moins chère est à ": "You can afford a car now: Menu, then « Buy a car ». The cheapest one costs ",
+  "'Rends d’abord ton véhicule loué.'": "'Return your rented vehicle first.'"
  },
  "src/trajets.js": {
   "'Ta voiture'": "'Your car'",

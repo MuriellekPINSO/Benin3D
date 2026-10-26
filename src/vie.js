@@ -38,9 +38,11 @@ export const A_VENDRE = [
   { id: 'roadster', nom: 'Tesla Roadster', prix: 5000, sous: 'Le coupé électrique : bas, large, et le plus rapide de Cotonou' },
 ];
 /** Achète un véhicule : il est à soi pour de bon (pas de vehiculeFin, contrairement à la location). */
+/** Une voiture à soi remplace celle qu'on avait (celle du « Fils à papa », ou une achetée) ; un véhicule loué se rend d'abord. */
+export const vehiculeLoue = v => !!v?.vehicule && (v.vehiculeFin || 0) > 0;
 export async function acheterVehicule(id) {
-  const V = A_VENDRE.find(v => v.id === id); if (!V || !VIE.data) return false;
-  if (VIE.data.vehicule) { annonce('Tu as déjà un véhicule : rends-le d’abord.'); return false; }
+  const V = A_VENDRE.find(v => v.id === id); if (!V || !VIE.data || VIE.data.vehicule === id) return false;
+  if (vehiculeLoue(VIE.data)) { annonce('Rends d’abord ton véhicule loué.'); return false; }
   if (!(await depenser(V.prix, `achat d’${V.nom.toLowerCase()}`))) { annonce(`Il te faut ${fmt(V.prix)} pour l’acheter.`); return false; }
   await ecrire({ vehicule: id, carburant: RESERVOIRS[id], vehiculeFin: 0 }); rendreVie(); return true;
 }
@@ -74,6 +76,9 @@ const JOUR = 864e5, CLE_LOCALE = 'cotonou3d.vie';
 // La faim : un point en moins toutes les 60 s de jeu, puis toutes les 40 s sous 40 (à 90 s, elle ne bougeait presque pas
 // en une partie et ne créait aucune envie d'aller manger) : de 100 à 0 en moins d'une heure et demie.
 const FAIM_PAS = () => (VIE.data?.faim ?? 100) > 40 ? 60 : 40;
+/** Ce qui s'ouvre au chapitre `c` (0 : le premier) : voitures, taxi, tokpa-tokpa, entreprises. Le « Fils à papa » a
+ *  tout dès le premier jour : « si j'ai la chance d'être fils à papa, je peux faire tout ce que je veux » (Murielle, 26/10). */
+export const ouvertAu = c => VIE.data?.depart === 'fils' || VIE.chapitre >= c;
 export const VIE = { data: null, local: false, faimT: 0, sauveT: 0, alerte: '', travail: null, mission: '', prochainGain: 0, tArgent: 0 }; // travail : véhicule du patron { type, carburant } (le temps de la partie)
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 
@@ -343,12 +348,14 @@ export function rendreVie() {
   // « Acheter une voiture » reste affiché même sans l'argent. Il ne s'affichait qu'une fois qu'on pouvait payer,
   // pour éviter un écran de lignes grisées — mais on ne savait alors même pas que les voitures existaient :
   // « je ne vois pas » (Murielle, 25/10, avec 100 F en poche). La fenêtre dit ce qu'il manque, c'est un but.
-  const a = $('#vhAcheter'); if (a) a.hidden = !!v.vehicule || !!VIE.travail || !!VIE.service;
+  // Avec une voiture déjà à soi (le « Fils à papa » en a une dès le départ), le bouton restait caché : on ne
+  // pouvait pas passer au Roadster (Murielle, 26/10). La nouvelle remplace l'ancienne ; une location se rend d'abord.
+  const a = $('#vhAcheter'); if (a) a.hidden = vehiculeLoue(v) || !!VIE.travail || !!VIE.service;
   // « Comment j'achète tout ça, où je prends ça ? » (Murielle, 25/10) : le bouton est dans le menu, et rien ne
   // le disait. La première fois qu'on a de quoi, on le dit dans le fil — une seule fois par partie.
   const moinsCher = Math.min(...A_VENDRE.map(x => x.prix));
   // Les voitures s'ouvrent au chapitre 2 : avec les 2 100 F du premier jour, le jeu proposait déjà d'en acheter
   // une, et l'envie d'avancer disparaissait (un testeur, 26/10).
-  if (a && !a.hidden && !ditVoiture && VIE.chapitre >= 1 && v.argent >= moinsCher) { ditVoiture = true; annonce(`Tu as de quoi t’acheter une voiture : Menu, puis « Acheter une voiture ». La moins chère est à ${fmt(moinsCher)}.`); }
+  if (a && !a.hidden && !ditVoiture && ouvertAu(1) && v.argent >= moinsCher) { ditVoiture = true; annonce(`Tu as de quoi t’acheter une voiture : Menu, puis « Acheter une voiture ». La moins chère est à ${fmt(moinsCher)}.`); }
 }
 let ditVoiture = false;
