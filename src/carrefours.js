@@ -206,6 +206,42 @@ export function itineraireDemiTour(x, z, rue, cibles, debut = []) {
   }
 }
 
+/**
+ * Le trajet d'une ligne remis sur la bonne chaussée. Les lignes de scripts/donnees.mjs sont calculées sans tenir compte
+ * des sens uniques : sur les boulevards à deux chaussées, elles prenaient souvent celle d'en face — le zém roulait à
+ * contresens, le trottoir à sa gauche (« c'est pas normal qu'on roule ailleurs que sur la route… on voit clairement
+ * qu'il est à contresens. Normalement, au tournant du carrefour, on doit se retrouver sur la route opposée », Carlos,
+ * 26/10 ; 1 615 m sur les 1 647 de la ligne express). Tous les 4 m, si la rue sous le trajet est à sens unique dans
+ * l'autre sens, le point passe sur la chaussée jumelle qui va dans le bon sens, à 35 m au plus, de l'autre côté du
+ * terre-plein. Le trajet garde sa longueur, ses monuments et ses arrêts ; le passage d'une chaussée à l'autre se fait
+ * là où la ligne arrive sur le boulevard, au carrefour — comme un vrai tourne-à-gauche. Un recalcul par le plus court
+ * chemin dans le bon sens a été essayé : les nœuds du réseau sont trop espacés, il faisait des détours de 50 à 70 %.
+ */
+export function surLaBonneChaussee(pts) {
+  const CG = 40, g = new Map();
+  roadLines.forEach((L, li) => { if (L.cls > 5 || L.bridge) return; for (let k = 1; k < L.pts.length; k++) { const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k]; for (let cx = Math.floor((Math.min(ax, bx) - 35) / CG); cx <= Math.floor((Math.max(ax, bx) + 35) / CG); cx++) for (let cz = Math.floor((Math.min(az, bz) - 35) / CG); cz <= Math.floor((Math.max(az, bz) + 35) / CG); cz++) { const q = cx + ',' + cz; (g.get(q) || g.set(q, []).get(q)).push([li, ax, az, bx, bz]); } } });
+  // Rue sous (x, z) dans l'axe (dx, dz) — à moins de sa demi-largeur — et la plus proche des chaussées qui vont dans ce sens.
+  const sous = (x, z, dx, dz) => {
+    let rue = null, bd = Infinity, bonne = null, bb = 35;
+    for (const [li, ax, az, bx, bz] of g.get(Math.floor(x / CG) + ',' + Math.floor(z / CG)) || []) {
+      const L = roadLines[li], ux = bx - ax, uz = bz - az, l = Math.hypot(ux, uz) || 1, c = (ux * dx + uz * dz) / l; if (Math.abs(c) < .8) continue;
+      const t = Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / (l * l))), px = ax + ux * t, pz = az + uz * t, d = Math.hypot(px - x, pz - z);
+      if (d < L.w / 2 && d < bd) { bd = d; rue = { L, c }; }
+      if (L.sens && c > .8 && d < bb) { bb = d; bonne = [px, pz]; }
+    }
+    return rue && rue.L.sens && rue.c < 0 ? bonne : null;
+  };
+  const out = []; let n = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, az] = pts[i - 1], [bx, bz] = pts[i], l = Math.hypot(bx - ax, bz - az); if (!l) continue;
+    const dx = (bx - ax) / l, dz = (bz - az) / l;
+    for (let d = i === 1 ? 0 : 4; d <= l; d += 4) { const x = ax + dx * Math.min(d, l), z = az + dz * Math.min(d, l), q = sous(x, z, dx, dz); if (q) n++; out.push(q || [x, z]); }
+  }
+  out.push(pts[pts.length - 1]);
+  if (import.meta.env.DEV) console.info(`ligne : ${n * 4} m remis sur la bonne chaussée`);
+  return out;
+}
+
 // Raccourci du client pressé : distance pure, petites rues comprises (pas de préférence pour les grands axes).
 const DIRECT = [1, 1, 1, 1, 1, 4]; // six classes : sans le dernier, fac[5] valait undefined et les voies de service devenaient infranchissables
 /** Itinéraire le plus court de (x, z) jusqu'à la première cible, en partant du nœud le plus proche de (xa, za)
