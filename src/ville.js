@@ -8,6 +8,7 @@ import { parCarres } from './carres.js';
 import { texFacades } from './facades.js';
 import { COUCHES_SOL, U, flatMat, grainSol, scene } from './scene.js';
 import { rectSansConstruction } from './zones.js';
+import { croiseesLe, dansCroisees } from './chaussee.js';
 
 // ---------- Surfaces ----------
 export const KIND_STYLE = [
@@ -160,7 +161,7 @@ function texMarquage(files) {
   if (files >= 2) for (const u of [.045, .955]) c.fillRect(u * 128 - 1.5, 0, 3, 256);
   if (files === 4) { c.fillRect(.485 * 128 - 1.5, 0, 3, 256); c.fillRect(.515 * 128 - 1.5, 0, 3, 256); for (const u of [.275, .725]) c.fillRect(u * 128 - 1.5, 0, 3, 64); }
   else if (files === 2) c.fillRect(64 - 1.5, 0, 3, 96);
-  else c.fillRect(64 - 2, 0, 4, 80);
+  else if (files === 1) c.fillRect(64 - 2, 0, 4, 80); // files = 0 : le bitume seul, au milieu d'un carrefour
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
 }
 // Chaussée à sens unique de `n` voies (moitié d'un boulevard) : lignes de rive continues, voies séparées
@@ -189,6 +190,74 @@ function rubanUV(pts, w, pos, uv, idx) {
     if (i > 0) { const o = base + (i - 1) * 2; idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2); }
   }
 }
+/**
+ * Les anneaux des ronds-points. Dans OpenStreetMap, ils n'ont souvent pas d'étiquette de revêtement et sont classés
+ * comme des rues de quartier : ils sortaient couleur sable, et le goudron des avenues s'arrêtait net au bord du
+ * rond-point (« le goudron ne devrait pas simplement s'arrêter et continuer juste comme ça après », Carlos, 26/10 ;
+ * l'aéroport, Bio Guéra…). On les reconnaît à leur forme : un arc de cercle de 5 à 70 m de rayon qui tourne toujours
+ * du même côté, où débouche une route goudronnée. Ils prennent alors le goudron de l'avenue, sans marquage.
+ */
+function goudronnerRondsPoints() {
+  const CG = 40, g = new Map();
+  for (const L of roadLines) if (L.surf === 0 && L.cls <= 3 && !L.bridge) for (let k = 1; k < L.pts.length; k++) {
+    const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k];
+    for (let cx = Math.floor(Math.min(ax, bx) / CG); cx <= Math.floor(Math.max(ax, bx) / CG); cx++) for (let cz = Math.floor(Math.min(az, bz) / CG); cz <= Math.floor(Math.max(az, bz) / CG); cz++) { const q = cx + ',' + cz; (g.get(q) || g.set(q, []).get(q)).push([ax, az, bx, bz]); }
+  }
+  const touche = (x, z) => { for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const [ax, az, bx, bz] of g.get((Math.floor(x / CG) + i) + ',' + (Math.floor(z / CG) + j)) || []) { const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)); if (Math.hypot(ax + dx * t - x, az + dz * t - z) < 3) return true; } return false; };
+  let n = 0;
+  for (const L of roadLines) {
+    const P = L.pts; if (L.surf === 0 || L.cls > 4 || L.bridge || P.length < 3) continue;
+    let tour = 0, signe = 0, lon = 0, ok = true;
+    for (let k = 1; k < P.length; k++) lon += Math.hypot(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1]);
+    if (lon > 450) continue;
+    for (let k = 2; k < P.length && ok; k++) {
+      const a1 = Math.atan2(P[k - 1][0] - P[k - 2][0], P[k - 1][1] - P[k - 2][1]), a2 = Math.atan2(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1]), d = Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1));
+      if (Math.abs(d) < .02) continue; if (signe && Math.sign(d) !== signe) ok = false; signe = Math.sign(d); tour += d;
+    }
+    if (!ok || Math.abs(tour) < .9) continue;
+    // Cercle des moindres carrés (méthode de Kåsa) : x² + z² + Dx + Ez + F = 0.
+    let sx = 0, sz = 0, sxx = 0, szz = 0, sxz = 0, sx3 = 0, sz3 = 0, sxzz = 0, sxxz = 0; const m = P.length, x0 = P[0][0], z0 = P[0][1];
+    for (const [px, pz] of P) { const x = px - x0, z = pz - z0; sx += x; sz += z; sxx += x * x; szz += z * z; sxz += x * z; sx3 += x * x * x; sz3 += z * z * z; sxzz += x * z * z; sxxz += x * x * z; }
+    const A = [[sxx, sxz, sx], [sxz, szz, sz], [sx, sz, m]], b = [-(sx3 + sxzz), -(sxxz + sz3), -(sxx + szz)];
+    const det = M3 => M3[0][0] * (M3[1][1] * M3[2][2] - M3[1][2] * M3[2][1]) - M3[0][1] * (M3[1][0] * M3[2][2] - M3[1][2] * M3[2][0]) + M3[0][2] * (M3[1][0] * M3[2][1] - M3[1][1] * M3[2][0]);
+    const d0 = det(A); if (Math.abs(d0) < 1e-6) continue;
+    const col = c => A.map((r, i) => r.map((v, j) => j === c ? b[i] : v)), D = det(col(0)) / d0, Ez = det(col(1)) / d0, F = det(col(2)) / d0;
+    const cx = -D / 2, cz = -Ez / 2, r2 = cx * cx + cz * cz - F; if (r2 <= 0) continue;
+    const r = Math.sqrt(r2); if (r < 5 || r > 70) continue;
+    let e = 0; for (const [px, pz] of P) e += (Math.hypot(px - x0 - cx, pz - z0 - cz) - r) ** 2;
+    if (Math.sqrt(e / m) > r * .18 || !P.some(([x, z]) => touche(x, z))) continue;
+    L.surf = 0; L.rond = true; L.w = Math.max(L.w, 8); n++;
+  }
+  return n;
+}
+/**
+ * Une rue découpée en morceaux, coupés ou non au carrefour : là où une rue au moins aussi importante la croise, ses
+ * lignes peintes s'arrêtent au bord de la chaussée croisée — sans quoi les rives et l'axe des deux rues se croisaient
+ * au milieu du carrefour, et l'on ne voyait plus où finissait chaque route (Carlos, 26/10). Un échantillon tous les
+ * 2 m décide ; on ne garde comme sommets que ceux de la rue et les points de coupe.
+ */
+function morceauxAuCarrefour(L, li) {
+  const out = [], P = L.pts, opts = { marge: .3, sauf: li, maxCls: L.cls + 1 };
+  let cur = null, px = 0, pz = 0;
+  for (let k = 1; k < P.length; k++) {
+    const [ax, az] = P[k - 1], [bx, bz] = P[k], len = Math.hypot(bx - ax, bz - az); if (!len) continue;
+    const X = croiseesLe(ax, az, bx, bz, opts), n = Math.max(1, Math.ceil(len / 2));
+    for (let j = cur ? 1 : 0; j <= n; j++) {
+      const x = ax + (bx - ax) * j / n, z = az + (bz - az) * j / n, c = X.length > 0 && dansCroisees(x, z, X);
+      if (!cur) cur = { coupe: c, pts: [[x, z]] };
+      else if (c !== cur.coupe) { const m = [(px + x) / 2, (pz + z) / 2]; cur.pts.push(m); out.push(cur); cur = { coupe: c, pts: [m] }; }
+      if (j === n && cur.pts.length && (cur.pts[cur.pts.length - 1][0] !== x || cur.pts[cur.pts.length - 1][1] !== z)) cur.pts.push([x, z]);
+      px = x; pz = z;
+    }
+  }
+  if (cur) out.push(cur);
+  // Un bout de lignes de moins de 4 m entre deux carrefours ne se voit pas comme une route : il rejoint le carrefour.
+  const lon = q => { let s = 0; for (let i = 1; i < q.pts.length; i++) s += Math.hypot(q.pts[i][0] - q.pts[i - 1][0], q.pts[i][1] - q.pts[i - 1][1]); return s; };
+  for (let i = 1; i < out.length - 1; i++) if (!out[i].coupe && out[i - 1].coupe && out[i + 1].coupe && lon(out[i]) < 4) out[i].coupe = true;
+  const fus = []; for (const q of out) { const d = fus[fus.length - 1]; if (d && d.coupe === q.coupe) d.pts.push(...q.pts.slice(1)); else fus.push(q); }
+  return fus.filter(q => q.pts.length >= 2);
+}
+if (import.meta.env.DEV) window.__morceaux = (L, i) => morceauxAuCarrefour(L, i); // pour les tests
 export function buildRoads(R) {
   let pi = 0;
   for (let i = 0; i < R.c.length; i++) {
@@ -197,16 +266,20 @@ export function buildRoads(R) {
     const L = { cls: R.c[i], surf: R.f[i] & 3, bridge: !!(R.f[i] & 4), sens: !!(R.f[i] & 8), voies: (R.f[i] >> 4) & 7, pts };
     L.w = largeurRoute(L); roadLines.push(L);
   }
+  const t0 = performance.now(), nRonds = goudronnerRondsPoints();
   const order = roadLines.map((_, i) => i).sort((a, b) => ROAD_ORDER[roadLines[a].cls] - ROAD_ORDER[roadLines[b].cls]);
   const pos = [], idx = [], col = [];
   const bpos = [], bidx = [], bcol = [];
-  const marq4 = { pos: [], uv: [], idx: [], files: 4 }, marq2 = { pos: [], uv: [], idx: [], files: 2 }, marqAxe = { pos: [], uv: [], idx: [], files: 1 }, marqSens = {};
+  const marq4 = { pos: [], uv: [], idx: [], files: 4 }, marq2 = { pos: [], uv: [], idx: [], files: 2 }, marqAxe = { pos: [], uv: [], idx: [], files: 1 }, marqSens = {}, nu = { pos: [], uv: [], idx: [], files: 0 };
+  // Une route peinte : ses lignes, sauf au milieu des carrefours (le bitume seul).
+  const peinte = (L, i, M) => { for (const q of morceauxAuCarrefour(L, i)) { const D = q.coupe ? nu : M; rubanUV(q.pts, L.w, D.pos, D.uv, D.idx); } };
   for (const i of order) {
     const L = roadLines[i], w = L.w, rgb = u8c(roadColor(L.cls, L.surf));
-    if (!L.bridge && L.sens && L.cls <= 3 && L.surf === 0) { const n = Math.max(2, Math.min(4, L.voies || 2)), M = marqSens[n] ??= { pos: [], uv: [], idx: [], sens: n }; rubanUV(L.pts, w, M.pos, M.uv, M.idx); continue; }
-    if (!L.bridge && L.cls <= 2 && L.surf === 0) { const M = L.cls <= 1 ? marq4 : marq2; rubanUV(L.pts, w, M.pos, M.uv, M.idx); continue; }
+    if (L.rond) { ribbon(L.pts, w, pos, idx, col, u8c('#56585c')); continue; } // l'anneau : le gris de l'avenue, sans lignes
+    if (!L.bridge && L.sens && L.cls <= 3 && L.surf === 0) { const n = Math.max(2, Math.min(4, L.voies || 2)), M = marqSens[n] ??= { pos: [], uv: [], idx: [], sens: n }; peinte(L, i, M); continue; }
+    if (!L.bridge && L.cls <= 2 && L.surf === 0) { peinte(L, i, L.cls <= 1 ? marq4 : marq2); continue; }
     // Secondaires goudronnées : rives et axe ; rues de quartier goudronnées : l'axe seul. Avant, une bande grise unie : on ne voyait pas les deux sens.
-    if (!L.bridge && (L.cls === 3 || L.cls === 4) && L.surf === 0) { const M = L.cls === 3 ? marq2 : marqAxe; rubanUV(L.pts, w, M.pos, M.uv, M.idx); continue; }
+    if (!L.bridge && (L.cls === 3 || L.cls === 4) && L.surf === 0) { peinte(L, i, L.cls === 3 ? marq2 : marqAxe); continue; }
     if (!L.bridge) { ribbon(L.pts, w, pos, idx, col, rgb); continue; }
     // pont : tablier surélevé avec rampes
     const dense = [];
@@ -240,14 +313,15 @@ export function buildRoads(R) {
     m.renderOrder = order; m.receiveShadow = true; m.castShadow = depthWrite && !LITE; scene.add(m); return m;
   };
   const routes = mk(pos, idx, col, 7, false); grainSol(routes.material); routes.userData.route = true; COUCHES_SOL.push(routes);
-  for (const M of [marqAxe, marq2, marq4, ...Object.values(marqSens)]) {
+  console.info(`routes : ${nRonds} anneaux de ronds-points goudronnés, lignes coupées aux carrefours, ${Math.round(performance.now() - t0)} ms`);
+  for (const M of [nu, marqAxe, marq2, marq4, ...Object.values(marqSens)]) {
     if (!M.pos.length) continue;
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(M.pos, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(M.pos.length).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(M.uv, 2)); g.setIndex(M.idx);
     const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: M.sens ? texMarquageSens(M.sens) : texMarquage(M.files), depthWrite: false }));
-    m.renderOrder = M.files === 4 ? 7.6 : M.files === 1 ? 7.4 : 7.5; m.receiveShadow = true; m.userData.route = true; scene.add(m); COUCHES_SOL.push(m);
+    m.renderOrder = M.files === 4 ? 7.6 : M.files === 1 ? 7.4 : M.files === 0 ? 7.45 : 7.5; /* le bitume nu du carrefour sous les lignes de la grande route */ m.receiveShadow = true; m.userData.route = true; scene.add(m); COUCHES_SOL.push(m);
   }
   if (bpos.length) mk(bpos, bidx, bcol, 8, true);
 }

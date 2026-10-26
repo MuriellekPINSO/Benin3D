@@ -12,11 +12,11 @@ const CR = 40, ROUTES = { grille: null };
 function grilleRoutes() {
   if (ROUTES.grille) return ROUTES.grille;
   const g = new Map();
-  for (const L of roadLines) {
+  for (const [li, L] of roadLines.entries()) {
     if (L.bridge || L.cls === 6 || L.cls >= 10) continue; // ni ponts, ni sentiers, ni pistes de l'aéroport
     const hw = (L.w || 6) / 2;
     for (let k = 1; k < L.pts.length; k++) {
-      const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k], s = [ax, az, bx, bz, hw, L.cls];
+      const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k], s = [ax, az, bx, bz, hw, L.cls, li];
       for (let cx = Math.floor(Math.min(ax, bx) / CR); cx <= Math.floor(Math.max(ax, bx) / CR); cx++) for (let cz = Math.floor(Math.min(az, bz) / CR); cz <= Math.floor(Math.max(az, bz) / CR); cz++) { const c = cx + ',' + cz; let l = g.get(c); if (!l) g.set(c, l = []); l.push(s); }
     }
   }
@@ -47,6 +47,26 @@ export function surChaussee(x, z, marge = .6) {
   for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const [ax, az, bx, bz, hw, cls] of g.get((cx + i) + ',' + (cz + j)) || []) if (cls <= 5 && distSeg(x, z, ax, az, bx, bz) < hw - marge) return true;
   return false;
 }
+/**
+ * Les tronçons de rue qui CROISENT le segment (ax, az)–(bx, bz) — pas ceux qui le longent — et peuvent le toucher ;
+ * dansCroisees dit ensuite si un point du segment est sur leur chaussée (élargie de `marge`). Pour couper au
+ * carrefour ce qui suit une rue : le terre-plein central et ses lampadaires, les lignes peintes. « Le terre-plein
+ * traverse le carrefour », « on ne décèle pas les limites de chacune des routes » (Carlos, 26/10).
+ * `sauf` : le numéro de la rue suivie elle-même ; `maxCls` : seulement les rues de cette classe ou plus grandes (une
+ * ruelle qui débouche ne coupe pas les lignes d'un boulevard).
+ */
+export function croiseesLe(ax, az, bx, bz, { marge = 0, sauf = -1, maxCls = 5 } = {}) {
+  const g = grilleRoutes(), out = [], vus = new Set(), l = Math.hypot(bx - ax, bz - az) || 1, ux = (bx - ax) / l, uz = (bz - az) / l;
+  for (let cx = Math.floor((Math.min(ax, bx) - 20) / CR); cx <= Math.floor((Math.max(ax, bx) + 20) / CR); cx++) for (let cz = Math.floor((Math.min(az, bz) - 20) / CR); cz <= Math.floor((Math.max(az, bz) + 20) / CR); cz++) for (const s of g.get(cx + ',' + cz) || []) {
+    if (vus.has(s)) continue; vus.add(s);
+    const [sx, sz, ex, ez, hw, cls, li] = s; if (cls > maxCls || li === sauf) continue;
+    const dx = ex - sx, dz = ez - sz, sl = Math.hypot(dx, dz) || 1; if (Math.abs((dx * ux + dz * uz) / sl) > .6) continue;
+    const h = hw + marge; if (Math.max(sx, ex) < Math.min(ax, bx) - h || Math.min(sx, ex) > Math.max(ax, bx) + h || Math.max(sz, ez) < Math.min(az, bz) - h || Math.min(sz, ez) > Math.max(az, bz) + h) continue;
+    out.push([sx, sz, ex, ez, h]);
+  }
+  return out;
+}
+export const dansCroisees = (x, z, L) => L.some(([ax, az, bx, bz, h]) => distSeg(x, z, ax, az, bx, bz) < h);
 /** Les bâtiments OpenStreetMap posés sur une rue où l'on roule (classes 0 à 5 : le GPS de Zém Run, les voitures) :
  *  `B.surRoute[i]` vaut 1. ville.js ne les dessine pas, rue.js n'en fait pas des obstacles. Renvoie leur nombre. */
 export function marquerSurRoute(B) {
