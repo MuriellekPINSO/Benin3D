@@ -5,6 +5,7 @@ import { personne } from './discussions.js';
 import { PLACES, QUARTIERS } from './donnees-lieux.js';
 import { INTERIEURS, dansLaPiece, declarerInterieur, etiquette } from './interieurs.js';
 import { K, groupeLieu, panneauTexte } from './lieux.js';
+import { poserAssis } from './personnages.js';
 import { dansBatiment, surChaussee } from './rue.js';
 import { scene } from './scene.js';
 import { T, choisir, tenirPlat } from './trajets.js';
@@ -131,11 +132,18 @@ const sansOmbre = m => { m.castShadow = false; return m; };
 /** Cloison : ne se traverse pas, et la caméra ne passe pas au travers (murEntre). */
 function cloison(I, w, d, x, z, h, mat) { sansOmbre(K.boite(w, h, d, mat, x, h / 2, z)); I.obstacles.push([x, z, w / 2, d / 2, h]); }
 const meuble = (I, w, d, x, z, h = .8) => I.obstacles.push([x, z, w / 2, d / 2, h]);
-function chaise(I, x, z, cap, couleur = '#f4f2ec') { // chaise monobloc en plastique, où l'on peut s'asseoir
+function chaise(I, x, z, cap, couleur = '#f4f2ec', h = .475) { // chaise monobloc en plastique, où l'on peut s'asseoir ; h : dessus de l'assise
   const m = K.mat(couleur, { rugosite: .5 }), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = cap; K.racine.add(g);
-  K.boite(.46, .05, .44, m, 0, .45, 0, g); K.boite(.46, .48, .05, m, 0, .72, -.22, g);
-  for (const [a, b] of [[-.2, -.19], [.2, -.19], [-.2, .19], [.2, .19]]) K.boite(.04, .45, .04, m, a, .22, b, g);
+  K.boite(.46, .05, .44, m, 0, h - .025, 0, g); K.boite(.46, .48, .05, m, 0, h + .245, -.22, g);
+  for (const [a, b] of [[-.2, -.19], [.2, -.19], [-.2, .19], [.2, .19]]) K.boite(.04, h - .025, .04, m, a, (h - .025) / 2, b, g);
   I.sieges.push({ x, z, cap });
+}
+// Le petit tabouret de bois des femmes qui lavent le linge à la bassine.
+function tabouret(I, x, z, cap, h) {
+  const bois = K.mat('#8a6a4a', { rugosite: .8 }), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = cap; K.racine.add(g);
+  K.boite(.38, .04, .32, bois, 0, h - .02, 0, g);
+  for (const [a, b] of [[-.15, -.12], [.15, -.12], [-.15, .12], [.15, .12]]) K.boite(.04, h - .04, .04, bois, a, (h - .04) / 2, b, g);
+  meuble(I, .38, .32, x, z, h);
 }
 function table(I, w, d, x, z, couleur, h = .74) {
   const m = K.mat(couleur, { rugosite: .6 });
@@ -143,8 +151,8 @@ function table(I, w, d, x, z, couleur, h = .74) {
   meuble(I, w, d, x, z, h + .05);
 }
 /**
- * Le lit (ou la natte) : a = direction de la tête vers les pieds. Le pagne déplié couvre le joueur couché
- * jusqu'à la poitrine ; debout, il est plié au pied du lit.
+ * Le lit (ou la natte) : a = direction de la tête vers les pieds. Couché, le pagne est drapé sur le corps jusqu'à la
+ * poitrine et l'oreiller prend la hauteur de la nuque (border, plus bas) ; debout, le pagne est plié au pied du lit.
  */
 function lit(I, { x, z, a, larg, long, natte = false, vue, leve }) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = a; K.racine.add(g);
@@ -156,31 +164,84 @@ function lit(I, { x, z, a, larg, long, natte = false, vue, leve }) {
     K.boite(larg, .16, long, '#f3efe6', 0, .43, 0, g); y = .51;
     K.boite(larg + .01, .012, long - .5, pagne, 0, y + .006, .25, g); // drap de pagne
   }
-  K.boite(Math.min(larg - .2, .6), .12, .32, '#ffffff', 0, y + .06, -long / 2 + .25, g); // oreiller
-  const deplie = K.boite(larg - .04, .34, long * .6, pagne, 0, y + .17, long / 2 - long * .3 - .02, g); deplie.visible = false; // assez épaisse pour couvrir le corps couché
-  const plie = K.boite(larg - .12, .1, .38, pagne, 0, y + .05, long / 2 - .24, g);
+  const oreiller = K.boite(1, 1, 1, '#ffffff', 0, y + .05, -long / 2 + .22, g); oreiller.scale.set(Math.min(larg - .2, .56), .1, .32); // à la taille de la tête, au coucher
+  const deplie = new THREE.Mesh(new THREE.BufferGeometry(), K.tex('pagneWax', 1, 1, '#ffffff', { face2: true })); deplie.visible = false; deplie.receiveShadow = true; g.add(deplie); // drapé au coucher
+  const plie = K.boite(larg - .12, .06, .38, pagne, 0, y + .03, long / 2 - .24, g);
   const droit = Math.abs(Math.sin(a)) < .5; meuble(I, droit ? larg + .1 : long + .1, droit ? long + .1 : larg + .1, x, z, natte ? .05 : .6);
-  I.lit = { x, z, a, y, vue, leve, deplie, plie };
+  I.lit = { x, z, a, y, larg, long, g, vue, leve, deplie, plie, oreiller };
 }
-function personnes(I, liste) { for (const [graine, role, x, z, cap, assise] of liste) { const p = personne(graine, { role, assise }); p.position.set(x, assise ? .47 : 0, z); p.rotation.y = cap; K.racine.add(p); I.pnj = I.pnj || p; } }
+// Les voisins, debout ou assis. « La maman est encore coincée dans la chaise » (Carlos, 26/10) : son bassin était posé
+// à hauteur d'assise, ses fesses 19 cm plus bas, et la chaise lui traversait les cuisses ; au lever du joueur, son salut
+// (une animation debout) la relevait même à travers l'assise. Le siège est maintenant fait à sa mesure : les fesses
+// dessus, les pieds au sol (pour elle, un tabouret de 29 cm, celui qu'on prend pour laver le linge), et elle reste assise.
+function personnes(I, liste) {
+  for (const [graine, role, x, z, cap, siege, couleur] of liste) {
+    const p = personne(graine, { role, assise: !!siege }); K.racine.add(p); I.pnj = I.pnj || p;
+    if (!siege) { p.position.set(x, 0, z); p.rotation.y = cap; continue; }
+    p.userData.jouer?.('assis'); // pas la pose du téléphone : les mesures sont celles de « assis »
+    const A = p.userData.assise, h = A ? A.pieds - A.fesses : siege === 'tabouret' ? .3 : .475; // hauteur d'assise qui laisse les pieds au sol
+    if (siege === 'tabouret') { const ht = THREE.MathUtils.clamp(h, .22, .45); tabouret(I, x, z, cap, ht); poserAssis(p, x, ht, z, cap); }
+    else { const hc = THREE.MathUtils.clamp(h, .38, .5); chaise(I, x, z, cap, couleur, hc); I.sieges[I.sieges.length - 1].occupe = true; poserAssis(p, x, hc, z, cap, .195); } // .195 : devant du dossier
+  }
+}
+
+// ---------- Dehors, à ciel ouvert ----------
+// « Un arbre et une corde à linge ne peuvent pas être à l'intérieur d'une maison comme ça » (Carlos, 26/10). Rien ne
+// couvrait le manguier ni la corde, mais on ne le voyait pas : la caméra reste sous 2 m, et la cour avait tout d'une
+// grande pièce — un soubassement ocre peint sur les quatre murs, un sol lisse, l'auvent de la cuisine juste au-dessus
+// de la tête, et pas un coin de ciel. Elle a maintenant l'allure d'une cour d'Akpakpa : sol de sable, clôture de
+// parpaings bruts côté rue, plus basse, la chambre et les voisins sous leurs toits de tôle, des cocotiers par-dessus le
+// mur. Et ce qui pousse ou sèche dehors est posé par `dehors` : jamais sous un toit, une avancée, l'auvent ni dans la
+// cabine de douche (I.toits), quelle que soit la disposition du logement.
+function aCielOuvert(I, x, z, rx, rz = rx) {
+  if (Math.abs(x) + rx > I.w / 2 - .2 || Math.abs(z) + rz > I.d / 2 - .2) return false; // dans l'enceinte, à 20 cm des murs
+  return !I.toits.some(([x0, z0, x1, z1]) => x + rx > x0 && x - rx < x1 && z + rz > z0 && z - rz < z1);
+}
+/** La place à ciel ouvert la plus proche de (x, z) pour un objet de demi-largeurs rx, rz (sa ramure comprise). */
+function dehors(I, x, z, rx, rz = rx) {
+  if (aCielOuvert(I, x, z, rx, rz)) return [x, z];
+  let best = [x, z], bd = Infinity;
+  for (let px = -I.w / 2; px <= I.w / 2; px += .25) for (let pz = -I.d / 2; pz <= I.d / 2; pz += .25) { const d = Math.hypot(px - x, pz - z); if (d < bd && aCielOuvert(I, px, pz, rx, rz)) { bd = d; best = [px, pz]; } }
+  return best;
+}
+K.motif('parpaing', (c, t) => { // parpaings bruts et joints de ciment : la clôture d'une parcelle (un carreau : 2 × 6 blocs de 40 × 20 cm)
+  c.fillStyle = '#8f8b83'; c.fillRect(0, 0, t, t);
+  const h = t / 6, l = t / 2;
+  for (let r = 0; r < 6; r++) for (let k = -1; k < 3; k++) { c.fillStyle = ['#a8a59c', '#a29f96', '#aeaba2', '#9c988f'][(r * 3 + k + 4) % 4]; c.fillRect(k * l + (r % 2 ? l / 2 : 0) + 2, r * h + 2, l - 4, h - 4); }
+  for (let i = 0; i < 900; i++) { c.fillStyle = ['#8a867e', '#b8b5ac', '#7d786f'][i % 3]; c.fillRect((i * 37) % t, (i * 91 + i * i) % t, 2, 2); }
+});
 
 // ---------- Maison en cour commune (Akpakpa ; chez l'ami, à Gbégamey) ----------
-// La cour cimentée à ciel ouvert, le manguier, la cabine de douche au seau, le coin cuisine sous l'auvent
-// (réchaud à gaz, marmite), une table et deux chaises, les portes des voisins ; la chambre dans un coin,
-// plafond de contreplaqué, ventilateur, lit en bois et drap de pagne.
+// La cour de sable à ciel ouvert, le manguier, la cabine de douche au seau, le coin cuisine sous l'auvent
+// (réchaud à gaz, marmite), une table et deux chaises, les portes des voisins ; la chambre dans un coin, sous son
+// toit de tôle : plafond de contreplaqué, ventilateur, lit en bois et drap de pagne.
 function cour(I) {
-  const W = I.w, D = I.d, Hm = 2.8, ami = !!I.logis.ami;
-  const enduit = K.mat('#e6d8bd', { rugosite: .95 }), ocre = K.mat('#c98a52', { rugosite: .95 }), bois = K.mat('#6b4a2f', { rugosite: .7 }), bleu = K.mat('#2f5f8a', { rugosite: .55, metal: .2 });
-  sansOmbre(K.boite(W, .2, D, K.tex('cimentSol', W / 3, D / 3), 0, -.1, 0));
-  for (const [w, d, x, z] of [[W, .25, 0, -D / 2], [W, .25, 0, D / 2], [.25, D, -W / 2, 0], [.25, D, W / 2, 0]]) sansOmbre(K.boite(w, Hm, d, enduit, x, Hm / 2, z));
-  for (const [w, d, x, z] of [[W - .3, .02, 0, -D / 2 + .135], [W - .3, .02, 0, D / 2 - .135], [.02, D - .3, -W / 2 + .135, 0], [.02, D - .3, W / 2 - .135, 0]]) sansOmbre(K.boite(w, .9, d, ocre, x, .45, z)); // soubassement peint
-  // Le portail, côté rue, et les toits de tôle des voisins par-dessus les murs.
-  K.boite(2.44, 2.3, .06, bleu, 1.5, 1.15, -D / 2 + .16).castShadow = false;
-  for (const [w, d, x, z, c] of [[W + 3, 3, 0, -D / 2 - 1.8, '#8a8f93'], [W + 3, 3, 0, D / 2 + 1.8, '#8d5a3b'], [3, D, -W / 2 - 1.8, 0, '#7f8488'], [3, D, W / 2 + 1.8, 0, '#94643f']]) { const r = sansOmbre(K.boite(w, .06, d, c, x, 3.25, z)); if (w > d) r.rotation.x = z > 0 ? .18 : -.18; else r.rotation.z = x > 0 ? -.18 : .18; }
+  const W = I.w, D = I.d, Hm = 2.8, Hc = 2.4, ami = !!I.logis.ami;
+  const enduit = K.mat('#e6d8bd', { rugosite: .95 }), crepi = K.mat('#9d9585', { rugosite: 1 }), bois = K.mat('#6b4a2f', { rugosite: .7 }), bleu = K.mat('#2f5f8a', { rugosite: .55, metal: .2 });
+  const tole = K.tex('tole', 1.8, 1.6, '#c9b8a4', { metal: .3 }), parpaing = n => K.tex('parpaing', n / .8, Hc / 1.2);
+  // Sous un toit : la chambre et son avancée, l'avancée des voisins, l'auvent de la cuisine, la cabine de douche.
+  I.toits = [[-6.35, .15, -.6, 5.3], [5.35, -5, 6, 5], [2.9, 2.4, 6.1, 5.1], [3.8, -5, 6, -3]];
+  // Le sol : du sable, et une dalle de ciment devant la chambre et devant les portes des voisins.
+  sansOmbre(K.boite(W, .2, D, K.tex('sable', W / 2.5, D / 2.5), 0, -.1, 0));
+  for (const [w, d, x, z] of [[5.1, .9, -3.45, .05], [.9, 5.3, W / 2 - .45, -.3]]) sansOmbre(K.boite(w, .02, d, K.tex('cimentSol', w / 3, d / 3), x, -.005, z));
+  // Les murs. Au nord (côté rue, avec le portail) et à l'ouest, la clôture de parpaings, plus basse, sous le ciel ; au sud,
+  // le dos de la maison voisine ; à l'est, la façade des voisins ; la chambre a ses propres murs.
+  for (const [w, d, x, z] of [[W, .25, 0, -D / 2], [.25, 5.6, -W / 2, -2.2]]) { sansOmbre(K.boite(w, Hc, d, parpaing(Math.max(w, d)), x, Hc / 2, z)); sansOmbre(K.boite(w + .06, .06, d + .06, '#8a867e', x, Hc + .03, z)); } // et leur chaperon
+  for (const [w, d, x, z] of [[.25, 4.4, -W / 2, 2.8], [5, .25, -3.5, D / 2], [7, .25, 2.5, D / 2], [.25, D, W / 2, 0]]) sansOmbre(K.boite(w, Hm, d, enduit, x, Hm / 2, z));
+  sansOmbre(K.boite(.02, .6, D - .3, crepi, W / 2 - .135, .3, 0)); // soubassement de ciment de la façade des voisins
+  K.boite(2.44, 2.3, .06, bleu, 1.5, 1.15, -D / 2 + .16).castShadow = false; // le portail
+  // Les toits de tôle : la chambre (pente vers la cour, avancée de 45 cm), les voisins à l'est (avancée de 65 cm), la
+  // maison du sud. Rien au-dessus de la clôture : on y voit le ciel, la maison d'en face et deux cocotiers.
+  K.boite(5.75, .05, 5.15, tole, -3.475, 3.05, 2.725).rotation.x = -.12;
+  K.boite(3.95, .05, D + .5, tole, 7.325, 3.08, 0).rotation.z = .12;
+  sansOmbre(K.boite(W + 3, .06, 3, '#8d5a3b', 0, 3.25, D / 2 + 1.8)).rotation.x = .18;
+  sansOmbre(K.boite(7, 3.1, 4, K.mat('#d8c9a8', { rugosite: .95 }), -1.5, 1.55, -D / 2 - 4.6)); K.boite(7.6, .05, 4.6, tole, -1.5, 3.25, -D / 2 - 4.6).rotation.x = .1; // la maison d'en face, de l'autre côté de la rue
+  for (const [x, z] of [[-W / 2 - 3, -D / 2 - 2.5], [W / 2 - 1, -D / 2 - 7]]) K.cocotier(x, z, false);
   // La chambre (sud-ouest) : cloisons, porte ouverte, plafond, ampoule.
   sansOmbre(K.boite(5, .02, 4.4, K.tex('carreauxSol', 2.5, 2.2), -3.5, .01, 2.8));
   cloison(I, 3.5, .2, -4.25, .6, Hm, enduit); cloison(I, .4, .2, -1.2, .6, Hm, enduit); cloison(I, .2, 4.4, -1, 2.8, Hm, enduit); // porte de 1,1 m
   sansOmbre(K.boite(1.1, .6, .2, enduit, -1.95, 2.5, .6));
+  for (const [w, d, x, z] of [[3.5, .02, -4.25, .49], [.4, .02, -1.2, .49], [.02, 4.4, -.89, 2.8]]) sansOmbre(K.boite(w, .6, d, crepi, x, .3, z)); // soubassement de la façade
   K.boite(.05, 2.1, .85, bois, -1.45, 1.05, 1.15);
   sansOmbre(K.boite(5, .05, 4.4, '#d9c7a4', -3.5, 2.72, 2.8));
   K.sphere(.06, K.mat('#fff6d8', { emissif: '#ffe9a8' }), -3.5, 2.6, 2.8);
@@ -202,8 +263,8 @@ function cour(I) {
   I.douche = { x: 4.95, z: -4.1, cap: Math.PI, jet: 2.05, seau: true };
   K.cyl(.03, .03, .9, 6, '#7d868b', 3.4, .45, -4.7); K.cyl(.32, .25, .6, 14, K.mat('#a0522d', { rugosite: .9 }), 2.85, .3, -4.55); meuble(I, .7, .7, 2.85, -4.55, .6); // robinet et canari
   // Le coin cuisine (sud-est) sous l'auvent : table, réchaud à gaz, bouteille, marmite.
-  const auvent = sansOmbre(K.boite(3.1, .04, 2.6, '#8a8f93', 4.5, 2.35, 3.75)); auvent.rotation.x = -.1;
-  for (const z of [2.55, 4.85]) K.cyl(.04, .04, 2.35, 6, '#6d7478', 3.0, 1.17, z);
+  const auvent = K.boite(3.1, .04, 2.6, tole, 4.5, 2.62, 3.75); auvent.rotation.x = -.1; // assez haut pour ne pas faire plafond au-dessus de la caméra
+  for (const z of [2.55, 4.85]) { K.cyl(.04, .04, 2.6, 6, '#6d7478', 3.0, 1.3, z); meuble(I, .1, .1, 3.0, z, 2.6); }
   table(I, 1.5, .7, 4.5, 4.45, '#8a6a4a', .8);
   K.cyl(.2, .2, .08, 14, '#2b2f33', 4.3, .87, 4.45);
   const feu = sansOmbre(K.cyl(.0, .12, .08, 12, K.mat('#4da3ff', { emissif: '#2f7fff', transparent: .8 }), 4.3, .95, 4.45)); feu.visible = false;
@@ -212,18 +273,22 @@ function cour(I) {
   for (const [dx, c] of [[.45, '#c0392b'], [.55, '#d35400'], [.62, '#c0392b'], [.7, '#8e44ad']]) K.sphere(.045, c, 4.3 + dx, .87, 4.35);
   I.fourneau = { x: 4.3, z: 3.75, cap: 0, marmite: [4.3, 1.15, 4.45], feu, plan: 'cour' };
   // Table et chaises de la cour, manguier, banc, corde à linge.
-  table(I, .9, .9, 1.0, 1.6, '#f2f0ea', .72); chaise(I, .35, 1.6, Math.PI / 2); chaise(I, 1.65, 1.6, -Math.PI / 2);
-  K.cyl(.22, .3, 2.8, 10, '#6b4a2f', -3, 1.4, -2.6); meuble(I, .6, .6, -3, -2.6, 2.8);
-  for (const [dx, dy, dz, r] of [[0, 3.7, 0, 1.7], [1, 3.4, .6, 1.2], [-.9, 3.3, -.5, 1.2]]) K.sphere(r, K.mat('#3f6e34', { rugosite: .9 }), -3 + dx, dy, -2.6 + dz);
+  table(I, .9, .9, 1.0, 1.6, '#f2f0ea', .72); chaise(I, .35, 1.6, Math.PI / 2); if (!ami) chaise(I, 1.65, 1.6, -Math.PI / 2); // chez l'ami, la sienne est faite à sa mesure (personnes)
+  // Le manguier : ramure (1,75 m de rayon) au-dessus de 2,6 m, toute à ciel ouvert, et la terre nue à son pied.
+  const [mx, mz] = dehors(I, -3, -2.6, 1.75);
+  K.cyl(.2, .3, 3, 10, '#6b4a2f', mx, 1.5, mz); meuble(I, .6, .6, mx, mz, 3);
+  sansOmbre(K.cyl(1.1, 1.1, .01, 20, '#8a6f4e', mx, .006, mz));
+  for (const [dx, dy, dz, r] of [[0, 4.3, 0, 1.7], [1, 4, .6, 1.2], [-.9, 3.9, -.5, 1.2]]) K.sphere(r, K.mat('#3f6e34', { rugosite: .9 }), mx + dx, dy, mz + dz);
   K.boite(1.5, .06, .4, bois, -1.6, .45, -3.4); meuble(I, 1.5, .4, -1.6, -3.4, .5); I.sieges.push({ x: -1.9, z: -3.4, cap: 0 }, { x: -1.3, z: -3.4, cap: 0 });
-  const corde = K.cyl(.01, .01, 4.2, 4, '#e9e6de', -3.7, 1.95, -1.1); corde.rotation.z = Math.PI / 2;
-  for (const [x, c] of [[-5.2, '#1f3f8a'], [-4.3, '#d9661f'], [-3.4, '#7a1f2b'], [-2.5, '#f2c21b']]) K.boite(.75, .85, .01, c, x, 1.5, -1.1).castShadow = false;
+  // La corde à linge, tendue entre deux poteaux plantés dans le sable, à l'ombre du manguier.
+  const [cx, cz] = dehors(I, -3.55, -1.25, 2.05, .15);
+  for (const s of [-1, 1]) { K.cyl(.025, .025, 2, 6, '#6d7478', cx + s * 1.95, 1, cz); meuble(I, .12, .12, cx + s * 1.95, cz, 2); }
+  K.cable([cx - 1.95, 1.95, cz], [cx + 1.95, 1.95, cz], .008, '#e9e6de');
+  for (const [dx, c] of [[-1.45, '#1f3f8a'], [-.6, '#d9661f'], [.25, '#7a1f2b'], [1.1, '#f2c21b']]) K.boite(.75, .85, .01, c, cx + dx, 1.5, cz).castShadow = false;
   // Les portes des voisins, à l'est, et une voisine qui lave le linge dans une bassine.
   for (const z of [-1.4, .9]) { K.boite(.04, 2.1, .9, z < 0 ? bleu : K.mat('#2f6b4f'), W / 2 - .16, 1.05, z); K.boite(.03, .5, .6, K.mat('#9fc3d1', { emissif: '#6f8f9c' }), W / 2 - .15, 1.6, z + 1.05).castShadow = false; }
   K.cyl(.38, .3, .2, 16, K.mat('#9aa5ad', { metal: .3, rugosite: .4 }), 3.3, .1, -.45); meuble(I, .8, .8, 3.3, -.45, .3);
-  chaise(I, 4.1, -.45, -Math.PI / 2, '#2a6fb0'); I.sieges[I.sieges.length - 1].occupe = true;
-  personnes(I, ami ? [[881, 'jeune', 1.65, 1.6, -Math.PI / 2, true], [882, 'maman', 4.1, -.45, -Math.PI / 2, true]] : [[882, 'maman', 4.1, -.45, -Math.PI / 2, true]]);
-  if (ami) I.sieges.find(s => s.x === 1.65).occupe = true;
+  personnes(I, [...(ami ? [[881, 'jeune', 1.65, 1.6, -Math.PI / 2, 'chaise']] : []), [882, 'maman', 4.1, -.45, -Math.PI / 2, 'tabouret']]);
 }
 
 // ---------- Appartement (Haie Vive) ----------
@@ -318,12 +383,83 @@ function villa(I) {
     meuble(I, .7, 1.7, x, -2.9, .45); I.sieges.push({ x, z: -2.6, cap: 0 }); // le dossier au nord : on regarde la piscine
   }
   K.cyl(.03, .03, 2.2, 8, '#f4f2ec', 6.4, 1.1, -3.4); meuble(I, .2, .2, 6.4, -3.4, 2.2); const para = K.cyl(.02, 1.3, .45, 12, K.mat('#c0392b', { rugosite: .8 }), 6.4, 2.25, -3.4); para.castShadow = false;
-  // Cocotiers dans les angles, et des massifs le long de la clôture.
-  for (const [x, z, h] of [[8.4, -3.8, 4.6], [3.9, 3.8, 4.2]]) {
+  // Cocotiers dans les angles (leurs palmes passent au-dessus du toit, le tronc reste au jardin : dehors), et des massifs le long de la clôture.
+  I.toits = [[-I.w / 2 - .2, -D / 2 - .1, x0 + .2, D / 2 + .1]]; // la maison, jusqu’à la baie (x = 3)
+  for (const [x0c, z0c, h] of [[8.4, -3.8, 4.6], [3.9, 3.8, 4.2]]) {
+    const [x, z] = dehors(I, x0c, z0c, .3);
     const tronc = K.cyl(.12, .17, h, 8, '#8a6a4a', x, h / 2, z); tronc.rotation.z = x > 6 ? -.08 : .08; meuble(I, .4, .4, x, z, h);
     for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2, f = sansOmbre(K.boite(.35, .04, 1.8, K.mat('#3f7a34', { rugosite: .9 }), x + Math.sin(a) * .8, h - .1, z + Math.cos(a) * .8)); f.rotation.y = a; f.rotation.x = .35; }
   }
   for (const z of [-1.2, 3.9]) { K.sphere(.45, K.mat('#4f7a3c', { rugosite: .9 }), x1 - .5, .35, z).scale.set(1, .8, 1.6); meuble(I, .8, 1.4, x1 - .5, z, .7); }
+}
+
+// ---------- Couché : le corps sur le matelas, la tête sur l'oreiller, le pagne drapé dessus ----------
+// « Le personnage déborde du lit, l'oreiller fait une marche, et le pagne est un pavé » (Carlos, 26/10) : le corps était
+// posé à une distance fixe du milieu du lit, quelle que soit sa taille, la tête en l'air au-dessus d'un oreiller de 12 cm,
+// sous une boîte de 34 cm d'épaisseur. On ne devine plus : une fois couché, on relève sa peau (les sommets du modèle animé,
+// dans le repère du lit). Il glisse pour avoir la tête à 6 cm de la tête de lit, le dos 8 mm dans le matelas ; l'oreiller
+// prend la hauteur de sa nuque ; le pagne est un drap fin, 1,5 cm au-dessus de ce qui dépasse (pieds, mains, ventre), qui
+// retombe sur les bords du matelas. Refait quand le personnage change (tenue, modèle arrivé en retard).
+const DRAP = .04; // pas de la grille du pagne (m)
+const poserCouche = c => { const m = H.S.moi; m.visible = true; m.rotation.order = 'YXZ'; m.position.set(c.x, c.y, c.z); m.rotation.set(-Math.PI / 2, c.a, 0); };
+function border(I, c) {
+  const L = I.lit, moi = H.S.moi, ca = Math.cos(L.a), sa = Math.sin(L.a); c.moi = moi;
+  poserCouche(c); moi.userData.velo?.(null); moi.userData.jouer?.('dort'); moi.userData.maj?.(0); moi.updateMatrixWorld(true); L.g.updateMatrixWorld(true);
+  // La peau dans le repère du lit : u en travers, h au-dessus du matelas, v depuis la tête de lit.
+  const U = [], Hh = [], V = [], p = new THREE.Vector3();
+  moi.traverse(o => {
+    if (!o.isMesh || !o.visible) return;
+    const n = o.geometry.attributes.position.count;
+    for (let i = 0; i < n; i += 2) { o.getVertexPosition(i, p).applyMatrix4(o.matrixWorld); L.g.worldToLocal(p); U.push(p.x); Hh.push(p.y - L.y); V.push(p.z + L.long / 2); }
+  });
+  if (!U.length) return;
+  const os = nom => { const b = moi.getObjectByName?.(nom); if (!b) return null; b.getWorldPosition(p); L.g.worldToLocal(p); return [p.x, p.z + L.long / 2]; };
+  const bras = [os('L_Upperarm'), os('R_Upperarm')].filter(Boolean); // avant de le déplacer
+  // Le décalage : la tête à 6 cm de la tête de lit, le corps au milieu, le point le plus bas du dos 8 mm dans le matelas.
+  const min = a => a.reduce((m, x) => Math.min(m, x), Infinity), max = a => a.reduce((m, x) => Math.max(m, x), -Infinity);
+  const dv = .06 - min(V), du = -(min(U) + max(U)) / 2, dh = -.008 - min(Hh);
+  c.x += ca * du + sa * dv; c.z += -sa * du + ca * dv; c.y += dh; poserCouche(c);
+  for (let i = 0; i < U.length; i++) { U[i] += du; V[i] += dv; Hh[i] += dh; }
+  // L'oreiller : sous la tête seulement (13 % de la taille depuis le sommet du crâne : les épaules commencent juste
+  // après), aussi haut que l'arrière du crâne.
+  const nuque = .06 + .13 * (max(V) - min(V)), lo = Math.min(L.larg - .2, .56) / 2;
+  let haut = Infinity; for (let i = 0; i < U.length; i++) if (V[i] < nuque && Math.abs(U[i]) < lo) haut = Math.min(haut, Hh[i]);
+  haut = THREE.MathUtils.clamp(haut - .004, .02, .14);
+  L.oreiller.scale.set(lo * 2, haut, nuque - .02); L.oreiller.position.set(0, L.y + haut / 2, -L.long / 2 + (nuque + .02) / 2);
+  // Le pagne : des aisselles au pied du lit, sur toute la largeur du matelas.
+  const v0 = bras.length ? bras.reduce((s, b) => s + b[1], 0) / bras.length + dv + .1 : nuque + .3;
+  const nu = Math.max(4, Math.round(L.larg / DRAP)), nv = Math.max(4, Math.round((L.long - v0) / DRAP)), du2 = L.larg / nu, dv2 = (L.long - v0) / nv;
+  const g = new Float32Array((nu + 1) * (nv + 1)); // hauteur de la peau sous chaque nœud
+  for (let i = 0; i < U.length; i++) {
+    if (V[i] < v0 - .1) continue;
+    const a = Math.round((U[i] + L.larg / 2) / du2), b = Math.round((V[i] - v0) / dv2);
+    if (a >= 0 && a <= nu && b >= -2 && b <= nv) { const k = Math.max(0, b) * (nu + 1) + a; g[k] = Math.max(g[k], Hh[i]); }
+  }
+  // Drapé : le tissu ne colle pas à la peau, il tombe en pente douce depuis ce qui dépasse (pente 0,6 sur 16 cm autour).
+  const R = 4, drape = new Float32Array(g.length);
+  for (let b = 0; b <= nv; b++) for (let a = 0; a <= nu; a++) {
+    let m = 0;
+    for (let y = Math.max(0, b - R); y <= Math.min(nv, b + R); y++) for (let x = Math.max(0, a - R); x <= Math.min(nu, a + R); x++) m = Math.max(m, g[y * (nu + 1) + x] - .6 * Math.hypot((x - a) * du2, (y - b) * dv2));
+    drape[b * (nu + 1) + a] = m + .015;
+  }
+  // La nappe, et ses bords qui retombent sur les côtés et au pied du matelas (jusqu'au sol pour une natte). Le motif suit
+  // le tissu déplié (longueurs mesurées le long de la nappe) : sinon il s'étirait en rayures sur les pentes et les bords.
+  const chute = Math.min(.12, L.y - .002), col = nu + 3, lig = nv + 2, X = new Float32Array(col * lig), Y = new Float32Array(col * lig), Z = new Float32Array(col * lig);
+  for (let b = 0; b < lig; b++) for (let a = -1; a <= nu + 1; a++) {
+    const k = b * col + a + 1, bord = a < 0 || a > nu || b > nv;
+    X[k] = a < 0 ? -L.larg / 2 - .015 : a > nu ? L.larg / 2 + .015 : -L.larg / 2 + a * du2; Z[k] = b > nv ? L.long + .015 : v0 + b * dv2;
+    Y[k] = bord ? -chute : Math.max(.008, drape[b * (nu + 1) + a]);
+  }
+  const pos = [], uv = [], idx = [], m0 = (col - 1) >> 1;
+  for (let b = 0; b < lig; b++) for (let a = 0; a < col; a++) {
+    const k = b * col + a; let su = 0, sv = 0;
+    for (let x = m0; x !== a; x += a > m0 ? 1 : -1) { const q = b * col + x, r = q + (a > m0 ? 1 : -1); su += Math.hypot(X[r] - X[q], Y[r] - Y[q]) * (a > m0 ? 1 : -1); }
+    for (let y = 0; y < b; y++) { const q = y * col + a; sv += Math.hypot(Z[q + col] - Z[q], Y[q + col] - Y[q]); }
+    pos.push(X[k], L.y + Y[k], Z[k] - L.long / 2); uv.push(su * 2.5, (v0 + sv) * 2.5);
+  }
+  for (let b = 0; b < lig - 1; b++) for (let a = 0; a < col - 1; a++) { const k = b * col + a; idx.push(k, k + col, k + 1, k + 1, k + col, k + col + 1); }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+  L.deplie.geometry.dispose(); L.deplie.geometry = geo;
 }
 
 // ---------- Couché, debout, sous la douche, aux fourneaux ----------
@@ -462,7 +598,7 @@ export function majMaison(dt, av, tour) {
   if (S.couche) {
     if (bouge) { lever(); return false; }
     const c = S.couche; S.anim = 'idle';
-    if (S.moi) { S.moi.visible = true; S.moi.rotation.order = 'YXZ'; S.moi.position.set(c.x, c.y, c.z); S.moi.rotation.set(-Math.PI / 2, c.a, 0); S.moi.userData.jouer('idle'); }
+    if (S.moi) { if (c.moi !== S.moi && S.lieu?.lit) border(S.lieu, c); poserCouche(c); S.moi.userData.jouer('dort'); }
     return true;
   }
   const A = S.activite; if (!A) return false;

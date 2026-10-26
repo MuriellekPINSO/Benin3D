@@ -23,7 +23,7 @@ import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
 import { A_VENDRE, LOGEMENTS, acheterVehicule, ouvertAu, vehiculeLoue, alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
-import { basculerPause, finirJournee, menuTravail } from './metiers.js';
+import { assoirApprenti, basculerPause, finirJournee, menuTravail } from './metiers.js';
 import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces, sauverCommerces } from './commerces.js';
 import { majAmbianceSalon } from './ambiance-salon.js';
 import { afficherChapitres, entrerChapitres, initChapitres, majChapitres, quitterChapitres } from './chapitres.js';
@@ -907,7 +907,7 @@ export function majSalon(dt) {
   if (S.envoi <= 0 && S.canal) {
     S.envoi = ENVOI * (1 + S.autres.size / 30); // à trente en ville, 0,4 s : l'interpolation (kk) comble le reste
     const vh = T.mode === 'conduit' ? T.veh.type : T.mode === 'passager' ? 'zem' : T.mode === 'avion' ? 'avion' : T.mode === 'apprenti' ? 'tokpa' : ''; // le véhicule sous soi, pour les amis
-    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...etatAmis() }, k = JSON.stringify(e);
+    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...(T.mode === 'apprenti' ? { ap: 1 } : {}), ...etatAmis() }, k = JSON.stringify(e);
     if (k !== S.dernier || S.depuis > 2.5) { S.dernier = k; S.depuis = 0; S.canal.envoyer(e); }
   }
   // Les autres, lissés entre deux nouvelles.
@@ -927,7 +927,7 @@ export function majSalon(dt) {
     // au milieu de la route chez les autres.
     const V = vehiculeDe(A, VEH_AMIS.includes(e.vh) && !(e.i || S.lieu) ? e.vh : null);
     if (enAvion) { /* dans l'avion : on ne le voit pas */ }
-    else if (V) { V.x = A.x; V.z = A.z; V.cap = A.cap; V.y = typeof e.y === 'number' ? e.y : 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; asseoirSur(A.g, V, e.vh === 'zem'); }
+    else if (V) { V.x = A.x; V.z = A.z; V.cap = A.cap; V.y = typeof e.y === 'number' ? e.y : 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; if (e.ap) assoirApprenti(A.g, V); else asseoirSur(A.g, V, e.vh === 'zem'); } // l'ami apprenti : assis à la porte ouverte du tokpa-tokpa (metiers.js)
     else if (e.sur && A.g && !(e.i || S.lieu)) { // passager d'un ami : assis derrière lui (dans la voiture, on ne le voit pas)
       const Vd = e.sur === S.R?.id ? (T.mode === 'conduit' ? T.veh : null) : S.autres.get(e.sur)?.veh;
       if (Vd) asseoirSur(A.g, Vd, true); else { A.g.position.set(A.x, ey, A.z); A.g.rotation.y = A.cap; }

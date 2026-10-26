@@ -63,7 +63,7 @@ export function creerVehicule(type, { couleur } = {}) {
   const D = VEHICULES[type], g = new THREE.Group();
   const gabarit = type === 'zem' ? ZEMS_3D.moto : MODELES[type];
   let m;
-  if (type === 'tokpa') { m = TOKPA_3D.geo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(mergeColored(partsTokpa()), matVeh); m.castShadow = true; } // le minibus de Zém Run (Tripo)
+  if (type === 'tokpa') { m = TOKPA_3D.geo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(mergeColored(partsTokpa({ passagers: false })), matVeh); m.castShadow = true; } // le minibus de Zém Run (Tripo)
   else if (gabarit) m = gabarit.clone();
   else { m = new THREE.Mesh(mergeColored(type === 'velo' ? partsVelo({}) : type === 'citadine' ? partsCitadine(couleur || '#c9342c') : type === 'bolide' ? partsBolide(couleur || '#eceff2') : type === 'roadster' ? partsRoadster(couleur || '#dfe3e7') : type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : couleur || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: couleur, chemise: '#f2c21b' })), matVeh); m.castShadow = true; m.receiveShadow = true; } // le vélo est vide : c'est le personnage du joueur qu'on voit dessus
   m.rotation.y = -Math.PI / 2 + (gabarit && MODELES[type] && DEMI_TOUR[type] ? Math.PI : 0); g.add(m); // avant +x → +z

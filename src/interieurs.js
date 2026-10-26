@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { personne } from './discussions.js';
 import { K, centroide, groupeLieu, obb, panneauTexte } from './lieux.js';
+import { poserAssis } from './personnages.js';
 import { CAMPAGNES, matAffiche } from './publicites.js';
 import { scene, sky } from './scene.js';
 import { reduireImage } from './textures.js';
@@ -212,7 +213,7 @@ function foodCourt(I) {
       K.boite(.46, .05, .44, assise, x, .46, z); K.boite(.46, .46, .05, assise, x, .72, z + dos); K.cyl(.025, .025, .44, 6, metal, x, .22, z);
       I.sieges.push({ x, z, cap });
       // Des agents déjeunent déjà à quelques tables.
-      if ((n++ * 7) % 11 === 3) { const p = personne(600 + n, { assise: true }); p.position.set(x, .47, z); p.rotation.y = cap; K.racine.add(p); I.sieges[I.sieges.length - 1].occupe = true; I.assis.push({ p, x, z, cap }); } // clients du serveur (metiers-ville.js)
+      if ((n++ * 7) % 11 === 3) { const p = personne(600 + n, { assise: true }); poserAssis(p, x, .485, z, cap, .195); K.racine.add(p); I.sieges[I.sieges.length - 1].occupe = true; I.assis.push({ p, x, z, cap }); } // clients du serveur (metiers-ville.js)
     }
   }
   // Plantes, drapeau, écran publicitaire.
@@ -314,7 +315,7 @@ function hallAeroport(I) {
     for (let k = 0; k < 6; k++) {
       const x = x0 - 2.5 + k; K.boite(.5, .06, .46, assise, x, .46, z); K.boite(.5, .5, .06, assise, x, .74, z - .22);
       I.sieges.push({ x, z, cap: 0 });
-      if ((n++ * 5) % 9 === 2) { const p = personne(730 + n, { assise: true }); p.position.set(x, .47, z); K.racine.add(p); I.sieges[I.sieges.length - 1].occupe = true; } // des voyageurs attendent déjà
+      if ((n++ * 5) % 9 === 2) { const p = personne(730 + n, { assise: true }); poserAssis(p, x, .49, z, 0, .19); K.racine.add(p); I.sieges[I.sieges.length - 1].occupe = true; } // des voyageurs attendent déjà
     }
   }
   // Plantes, drapeau, écran publicitaire près de l'entrée.
