@@ -14,19 +14,19 @@ const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 export const CHAPITRES = [
   { titre: 'Se débrouiller', etapes: [
-    { texte: 'Trouve un travail : touche la mallette « Travailler », dans les ronds à droite.', prime: 500, fait: () => !!VIE.data?.metier },
+    { texte: 'Trouve un travail : le rond du menu, à droite, puis la mallette « Travailler ».', prime: 500, fait: () => !!VIE.data?.metier },
     { texte: 'Gagne 2 000 F en travaillant.', prime: 500, compte: 'travail', but: 2000, F: true },
     { texte: 'Mange un bon plat : au maquis, au food court de la Cité, ou chez toi.', prime: 300, compte: 'mange', but: 1 },
     { texte: 'Gagne 10 000 F en travaillant.', prime: 1000, compte: 'travail', but: 10000, F: true },
   ] },
   { titre: 'Avoir sa moto', etapes: [
-    { texte: 'Aie ton propre véhicule : « Menu » (le dernier rond à droite), puis « Louer une moto ».', prime: 500, fait: () => !!VIE.data?.vehicule },
+    { texte: 'Aie ton propre véhicule : le rond du menu, à droite, puis « Louer une moto ».', prime: 500, fait: () => !!VIE.data?.vehicule },
     { texte: 'Fais le plein dans une station-service (« Aller » : la station la plus proche).', prime: 300, compte: 'plein', but: 1 },
     { texte: 'Fais 3 courses de zém ou de taxi : « Travailler », puis Zémidjan ou Chauffeur de taxi.', prime: 1500, compte: 'course', but: 3 }, // 5, c'était trop : un testeur a abandonné là (22/10)
     { texte: 'Mets 10 000 F de côté pour ouvrir ton commerce.', prime: 0, fait: () => (VIE.data?.argent || 0) >= 10000 },
   ] },
   { titre: 'Ouvrir son commerce', etapes: [
-    { texte: 'Va voir une boutique à louer : « Menu » (le dernier rond à droite), puis « Commerces ».', prime: 200, compte: 'voirLot', but: 1 },
+    { texte: 'Va voir une boutique à louer : le rond du menu, à droite, puis « Commerces ».', prime: 200, compte: 'voirLot', but: 1 },
     { texte: 'Ouvre ton premier commerce : choisis ce que tu vends, ton équipe s’installe.', prime: 1000, fait: () => nbCommerces() >= 1 },
     { texte: 'Ton commerce travaille pour toi : encaisse 5 000 F de ventes.', prime: 1000, compte: 'commerce', but: 5000, F: true },
     { texte: 'Réapprovisionne ton commerce avant que son stock soit vide.', prime: 500, compte: 'reappro', but: 1 },
@@ -95,11 +95,14 @@ function afficherPaliers() {
   $('#chapEtape').textContent = suivant ? `Prochain titre : « ${titre(atteint + 1)} » à ${fmt(suivant[0])} (tu as ${fmt(argent)}). Tes commerces travaillent pour toi : ${nbCommerces()} ouvert${nbCommerces() > 1 ? 's' : ''}.` : `Tu es au sommet de Cotonou avec ${fmt(argent)}.`;
   $('#chapPrime').textContent = '';
 }
-/** Une nouvelle étape à lire : la pastille rouge de l'icône « Objectifs » s'allume, tant qu'on n'a pas ouvert la fenêtre. */
+/** Une nouvelle étape à lire : la pastille rouge s'allume, tant qu'on n'a pas ouvert la fenêtre. Depuis le menu unique (26/10),
+ *  elle est sur le rond du menu et sur sa tuile « Objectifs ». */
 function signaler() {
-  const pt = $('#slObjPoint'); if (!pt) return;
-  pt.hidden = chapitreFini() || document.getElementById('app')?.classList.contains('obj-ouvert');
-  pt.textContent = '!';
+  for (const pt of [$('#slObjPoint'), $('#slObjPoint2')]) {
+    if (!pt) continue;
+    pt.hidden = chapitreFini() || document.getElementById('app')?.classList.contains('obj-ouvert');
+    pt.textContent = '!';
+  }
 }
 // La prise en main occupe déjà l'écran : l'étape en cours attend son tour — sauf si on a ouvert « Objectifs » exprès.
 const demande = () => document.getElementById('app')?.classList.contains('obj-ouvert');

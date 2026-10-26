@@ -7,6 +7,7 @@ import { son } from './audio.js';
 import { C3, matVeh } from './vehicules.js';
 import { personnage3d } from './personnages.js';
 import { clientDescend } from './pietons.js';
+import { glyphe, kbd } from './saisie.js';
 import { mergeColored } from './ville.js';
 import { PLACES } from './donnees-lieux.js';
 import { BORD } from './bordure.js';
@@ -430,7 +431,9 @@ function suivant() {
   el.querySelector('.qui').textContent = d.qui; el.querySelector('.dit').textContent = d.texte;
   const cl = DISC.client; if (cl && d.qui.startsWith(cl.nom)) for (const b of BULLES) if (b.ancre === cl.siege) b.t = Math.min(b.t, .12); // la carte dit déjà sa question : pas deux fois
   const box = el.querySelector('.choix'); box.innerHTML = '';
-  d.choix.forEach(([t], k) => { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<kbd>${k + 1}</kbd>${t}`; b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); repondre(k); }); box.append(b); });
+  // La touche de chaque réponse : 1, 2, 3 au clavier ; A, B, X à la manette (✕ ○ □ sur PlayStation), les boutons qui
+  // répondent (manette.js). « Sur manette, on n'arrive pas à choisir une des options » (Carlos, 26/10) : rien ne le disait.
+  d.choix.forEach(([t], k) => { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = `${kbd(String(k + 1), true)}${t}`; b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); repondre(k); }); box.append(b); });
   // Téléphone tenu droit : le dialogue se pose juste sous les panneaux du haut, quelle que soit leur hauteur
   // (nom de ligne sur deux lignes), pour ne couvrir ni la barre des arrêts ni la route.
   const haut = matchMedia('(max-width: 720px) and (orientation: portrait)').matches ? $('.jh-haut')?.getBoundingClientRect().bottom : 0;
@@ -530,7 +533,7 @@ export function majDiscussions(st, C, dt) {
       h.etat = 'propose';
       const prochain = JEU.ligne.arretsJ[st.prochain], ou = prochain ? prochain.nom : 'le terminus';
       bulle(h.m, choisir(['Zém ! Zém !', `Zém ! ${ou} ?`, 'Eh zém ! Attends !']), { duree: 2.6 });
-      if (!DISC.client && !st.aideSigne) { st.aideSigne = true; toast(`Quelqu’un te fait signe à ${h.side > 0 ? 'droite' : 'gauche'} : arrête-toi à sa hauteur, puis E`, 2.6); }
+      if (!DISC.client && !st.aideSigne) { st.aideSigne = true; toast(`Quelqu’un te fait signe à ${h.side > 0 ? 'droite' : 'gauche'} : arrête-toi à sa hauteur, puis ${glyphe('E', true)}`, 2.6); }
     }
     if (h.etat === 'propose' && ds < -6) { h.etat = 'ignore'; bulle(h.m, choisir(['Tchrrr…', 'Hum, ces zém-là !', 'Bon, j’attends le suivant.'])); }
   }

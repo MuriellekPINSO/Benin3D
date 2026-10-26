@@ -8,11 +8,11 @@ export const status = (t, p) => { loadTxt.textContent = t; if (p != null) loadBa
 // l'écran de chargement, pour les connexions lentes » — un testeur, 24/10). Ils changent toutes les 4,5 s.
 const CONSEILS = [
   'Glisse dans la ville pour tourner la caméra, et marche avec les flèches ou ZQSD.',
-  'Le rond « Aller », à droite, mène partout : un lieu, un ami, ou un zém à héler.',
+  '« Aller », dans le menu (le rond à droite), mène partout : un lieu, un ami, ou un zém à héler.',
   'Un zém coûte 200 F au départ : c’est plus rapide que la marche jusqu’à Fidjrossè.',
   'En ville, tu croises de vrais joueurs. Dis-leur bonjour dans la discussion.',
   'Tu as faim ? Commande au food court de la Cité ministérielle, puis assieds-toi pour manger.',
-  'La mallette « Travailler », à droite, te trouve un métier : zémidjan, tokpa-tokpa, vendeuse…',
+  '« Travailler », dans le menu (le rond à droite), te trouve un métier : zémidjan, tokpa-tokpa, vendeuse…',
   'Tu peux prendre l’avion pour Ouidah depuis l’aéroport Cardinal Bernardin Gantin.',
   'La musique et les radios béninoises en direct sont dans le menu Musique.',
 ];

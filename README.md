@@ -29,7 +29,8 @@ les droits restent à obtenir pour une diffusion publique.
 
 À essayer : la visite (bouton Présentation), la vue réelle, les fiches « Sur place », la météo
 (touche M), et Zém Run — ↑ accélérer, ↓ freiner, E interagir, au carrefour ralentir puis ← ou → (T : tout droit)
-pour tourner, manette Xbox ou PlayStation acceptée.
+pour tourner, manette Xbox ou PlayStation acceptée (les invites montrent alors ses boutons :
+A B X pour les réponses, Y pour interagir, Start pour la pause ; dans « Ma vie », Start ouvre le menu).
 
 ## Fichiers non versionnés
 
@@ -85,7 +86,8 @@ npm run verifier   # ESLint sur src/
 | `src/publicites.js` | catalogue des campagnes publicitaires (panneaux de la ville et du jeu), affichages comptés, offre aux annonceurs |
 | `src/batiments-google.js` | bâtiments Google Open Buildings chargés par tuiles de 1 km autour de la caméra |
 | `src/meteo.js` | météo (bouton du dock, touche M) : soleil, nuages, pluie tropicale, orage avec éclairs et tonnerre de synthèse ; route glissante dans Zém Run |
-| `src/manette.js` | manettes Xbox / PlayStation (API Gamepad) : conduite, réponses, menus, déplacement dans la ville, vibrations |
+| `src/manette.js` | manettes Xbox / PlayStation (API Gamepad) : conduite, réponses, menus, déplacement dans la ville, vibrations ; dans toute fenêtre (menu, choix, boutiques, pause, fin de course), la croix ou le stick promènent un cadre jaune, A valide, B ferme |
+| `src/saisie.js` | clavier ou manette : la dernière saisie décide des touches affichées (E, 1 2 3, ← → au clavier ; A B X Y à la manette Xbox, ✕ ○ □ △ à la PlayStation) |
 | `src/surplace.js` | onglet « Sur place » des fiches : photos prises à Cotonou et passages des vidéos de drone (`npm run photos`) |
 | `src/egungun.js` | masques Egungun (modèles 3D fournis, ou version dessinée en secours), Zangbeto de raphia, processions du jeu |
 | `src/explorer.js` | filtres, radio, mode Présentation |

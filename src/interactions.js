@@ -96,7 +96,7 @@ export function majInteractions(st, C, dt) {
     I.t = .25;
     I.liste = st.v < 1.2 && !(DISC.courant && DISC.courant.prioritaire) ? aPortee(st, C) : [];
     const el = $('#jhAction');
-    if (el) { el.hidden = !I.liste.length; if (I.liste.length) el.querySelector('span').textContent = I.liste.length > 1 ? `${I.liste[0].label} · ${I.liste.length - 1} autre${I.liste.length > 2 ? 's' : ''}` : I.liste[0].label; }
+    if (el) { el.hidden = !I.liste.length; if (I.liste.length) el.querySelector(':scope > span').textContent = I.liste.length > 1 ? `${I.liste[0].label} · ${I.liste.length - 1} autre${I.liste.length > 2 ? 's' : ''}` : I.liste[0].label; } // :scope > span : le texte, pas les <span> de la touche dessinée (E, Y ou △)
   }
   // Attendre garé : sans client, arrêté sur le côté, un passant finit par venir.
   if (avecClients(JEU.veh) && st.v < .3 && !DISC.client && !DISC.courant && st.service <= 0 && Math.abs(st.lat) > 1) {
