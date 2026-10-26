@@ -48,7 +48,7 @@ export function vibrer(type) {
 // De la plus haute à la plus basse : une fenêtre de choix s'ouvre par-dessus le menu, la fiche d'un métier par-dessus le
 // choix. Le menu « Ma vie », les gestes, la garde-robe, les fiches des commerces, la carte et le compte n'y étaient pas :
 // on ne pouvait ni y choisir ni en sortir sans la souris (Murielle et Carlos, 26/10).
-const PANNEAUX = ['#choix', '#metierFiche', '#compte', '#momo', '#vieFiche', '#garderobe', '#carteGrande', '#vieTirage', '#salon', '#vieHud.ouvert', '#slActions.ouvert', '#accueil', '#boutique', '#mode', '#evenement', '#jeuPause', '#jeuFin', '#jeuClassement', '#jeuDefi', '#jeuMenu', '#offrePub', '#reel'];
+const PANNEAUX = ['#metierFiche', '#choix', '#compte', '#momo', '#vieFiche', '#garderobe', '#carteGrande', '#vieTirage', '#salon', '#vieHud.ouvert', '#slActions.ouvert', '#accueil', '#boutique', '#mode', '#evenement', '#jeuPause', '#jeuFin', '#jeuClassement', '#jeuDefi', '#jeuMenu', '#offrePub', '#reel'];
 const FERMER = '.bq-x, .op-x, #reelFermer, #jpReprendre, #jmRetour, #acPasser, #chAnnuler, #slFermer, #grFermer, #vfFermer, #vhReprendre, #slGestesFermer, #cgFermer, #jcFermer, #jdFermer, #modeFermer, #compteFermer, .momo-fermer, #evAnnuler';
 // Le premier bouton où poser le focus en ouvrant : la ligne de Zém Run, « Reprendre », « Rejouer », les tuiles du menu…
 const FAVORIS = '.jm-ligne, #jpReprendre, #jfRejouer, #slCreer, #vtCommencer, .vh-tuile, .ac-mode';
