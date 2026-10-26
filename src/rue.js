@@ -3,7 +3,7 @@ import { dansTerrePlein } from './terre-pleins.js';
 import { LITE, hash, toXZ } from './base.js';
 import { camera, controls, scene } from './scene.js';
 import { rectSansConstruction, sansConstruction, zoneBoutique } from './zones.js';
-import { ROAD_W, roadLines } from './ville.js';
+import { ilesDesRondsPoints, ROAD_W, roadLines } from './ville.js';
 import { texFacades } from './facades.js';
 import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
 import { MAX_DECOR, reduireImage } from './textures.js';
@@ -61,6 +61,7 @@ function indexer(data) {
     const [sx, sz] = c(L.etoile.star), rMin = Math.min(...L.etoile.ring.map(p => Math.hypot(p[0] - x, p[1] - z)));
     R.anneaux.push([sx, sz, rMin - 9.1, rMin + 8]);
   }
+  for (const [x, z, r] of ilesDesRondsPoints()) zone(x, z, r); // îles des ronds-points sans anneau dans OSM (ville.js)
   if (L.amazone) zone(L.amazone.pt[0], L.amazone.pt[1], 140);
   if (L.marina) { const [x, z] = c(L.marina); zone(x, z, 160); }
   if (L.congres) { const [x, z] = c(L.congres.outer.flat()); zone(x, z, 150); }

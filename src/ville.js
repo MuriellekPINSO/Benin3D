@@ -231,6 +231,41 @@ function goudronnerRondsPoints() {
   return n;
 }
 /**
+ * Les ronds-points sans anneau dans les données : les avenues goudronnées s'y arrêtent toutes au même rayon autour d'une
+ * place de sable, sans rien qui les relie (« ce problème revient à tous les carrefours et ronds-points », Carlos,
+ * 26/10). On les reconnaît à au moins 6 bouts de route goudronnée qui ne touchent aucune autre rue, à 12-40 m d'un même
+ * centre (écart de rayon < 20 %), répartis tout autour. On y ajoute l'anneau comme une rue (roadLines) : il est dessiné,
+ * les murs, les maisons et les arbres s'en écartent, et le réseau du jeu le connaît. Pas à l'Étoile Rouge, à l'aéroport ni
+ * à Bio Guéra : leur anneau est dessiné par lieux.js et lieux-videos.js. Renvoie les îles [x, z, r] à laisser vides.
+ */
+const ILES = [];
+function anneauxManquants() {
+  const C = 20, g = new Map(), bouts = [];
+  roadLines.forEach((L, li) => { if (L.bridge || L.cls > 6) return; for (let k = 1; k < L.pts.length; k++) { const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k]; for (let cx = Math.floor((Math.min(ax, bx) - 3) / C); cx <= Math.floor((Math.max(ax, bx) + 3) / C); cx++) for (let cz = Math.floor((Math.min(az, bz) - 3) / C); cz <= Math.floor((Math.max(az, bz) + 3) / C); cz++) { const q = cx + ',' + cz; (g.get(q) || g.set(q, []).get(q)).push([li, ax, az, bx, bz]); } } });
+  const seul = (x, z, li) => { for (const [lj, ax, az, bx, bz] of g.get(Math.floor(x / C) + ',' + Math.floor(z / C)) || []) { if (lj === li) continue; const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)); if (Math.hypot(ax + dx * t - x, az + dz * t - z) < 3) return false; } return true; };
+  roadLines.forEach((L, li) => { if (L.bridge || L.cls > 3 || L.surf !== 0) return; for (const k of [0, L.pts.length - 1]) if (seul(L.pts[k][0], L.pts[k][1], li)) bouts.push(L.pts[k]); });
+  const connus = [[6.35231, 2.38605], [6.35015, 2.38752], [6.3712, 2.4090]].map(([la, lo]) => toXZ(la, lo)), pris = new Set(), nouveaux = [];
+  bouts.forEach((p, i) => {
+    if (pris.has(i)) return;
+    const grp = []; bouts.forEach((q, j) => { if (!pris.has(j) && Math.hypot(p[0] - q[0], p[1] - q[1]) < 80) grp.push(j); });
+    if (grp.length < 6) return;
+    const cx = grp.reduce((s, j) => s + bouts[j][0], 0) / grp.length, cz = grp.reduce((s, j) => s + bouts[j][1], 0) / grp.length;
+    const ds = grp.map(j => Math.hypot(bouts[j][0] - cx, bouts[j][1] - cz)), m = ds.reduce((a, c) => a + c, 0) / ds.length;
+    if (m < 12 || m > 40 || Math.sqrt(ds.reduce((a, c) => a + (c - m) ** 2, 0) / ds.length) > m * .2 || connus.some(([x, z]) => Math.hypot(x - cx, z - cz) < 80)) return;
+    const angles = grp.map(j => Math.atan2(bouts[j][1] - cz, bouts[j][0] - cx)).sort((a, b) => a - b), trou = Math.max(...angles.map((a, k) => (k ? a - angles[k - 1] : a + Math.PI * 2 - angles[angles.length - 1])));
+    if (trou > Math.PI * .75) return; // tout autour, pas une fourche
+    for (const j of grp) pris.add(j);
+    // Sens inverse des aiguilles d'une montre vu d'en haut (on roule à droite) ; z va vers le sud.
+    const pts = []; for (let k = 0; k <= 64; k++) { const a = k / 64 * Math.PI * 2; pts.push([cx + Math.cos(a) * m, cz - Math.sin(a) * m]); }
+    nouveaux.push({ cls: 3, surf: 0, bridge: false, sens: false, voies: 2, pts, w: 9, rond: true, anneau: true });
+    ILES.push([cx, cz, m - 4.5]);
+  });
+  roadLines.push(...nouveaux);
+  return nouveaux.length;
+}
+/** Les îles des ronds-points ajoutés par anneauxManquants : ni murs ni maisons dedans (rue.js). */
+export const ilesDesRondsPoints = () => ILES;
+/**
  * Une rue découpée en morceaux, coupés ou non au carrefour : là où une rue au moins aussi importante la croise, ses
  * lignes peintes s'arrêtent au bord de la chaussée croisée — sans quoi les rives et l'axe des deux rues se croisaient
  * au milieu du carrefour, et l'on ne voyait plus où finissait chaque route (Carlos, 26/10). Un échantillon tous les
@@ -266,7 +301,7 @@ export function buildRoads(R) {
     const L = { cls: R.c[i], surf: R.f[i] & 3, bridge: !!(R.f[i] & 4), sens: !!(R.f[i] & 8), voies: (R.f[i] >> 4) & 7, pts };
     L.w = largeurRoute(L); roadLines.push(L);
   }
-  const t0 = performance.now(), nRonds = goudronnerRondsPoints();
+  const t0 = performance.now(), nAjoutes = anneauxManquants(), nRonds = goudronnerRondsPoints();
   const order = roadLines.map((_, i) => i).sort((a, b) => ROAD_ORDER[roadLines[a].cls] - ROAD_ORDER[roadLines[b].cls]);
   const pos = [], idx = [], col = [];
   const bpos = [], bidx = [], bcol = [];
@@ -313,7 +348,7 @@ export function buildRoads(R) {
     m.renderOrder = order; m.receiveShadow = true; m.castShadow = depthWrite && !LITE; scene.add(m); return m;
   };
   const routes = mk(pos, idx, col, 7, false); grainSol(routes.material); routes.userData.route = true; COUCHES_SOL.push(routes);
-  console.info(`routes : ${nRonds} anneaux de ronds-points goudronnés, lignes coupées aux carrefours, ${Math.round(performance.now() - t0)} ms`);
+  console.info(`routes : ${nRonds} anneaux de ronds-points goudronnés, ${nAjoutes} ajoutés, lignes coupées aux carrefours, ${Math.round(performance.now() - t0)} ms`);
   for (const M of [nu, marqAxe, marq2, marq4, ...Object.values(marqSens)]) {
     if (!M.pos.length) continue;
     const g = new THREE.BufferGeometry();
