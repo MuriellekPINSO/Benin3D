@@ -522,8 +522,8 @@ function porte(V, ecart = 1.2) { const r = V.cap - Math.PI / 2; return [V.x + Ma
 // Cotes relevées au rayon sur le modèle Tripo (côté droit à x = −1,00…−1,05, plancher 0,56, toit intérieur 2,40 au bord) et
 // sur le minibus dessiné (vehicules.js, partsTokpa : côté à −0,93, porte de z = −0,05 à 0,95, toit 2,05).
 const HABITACLE = {
-  tripo: { av: .95, ar: -.25, bas: .66, haut: 2.25, cote: -1.06, int: .85, plancher: .62, plafond: 2.28, z0: -.9, z1: 1 },
-  dessin: { av: .95, ar: -.05, bas: .55, haut: 1.85, cote: -.95, int: .8, plancher: .5, plafond: 1.95, z0: -.9, z1: 1 },
+  tripo: { av: .95, ar: -.25, bas: .66, haut: 2.25, cote: -1.06, int: .85, plancher: .62, plafond: 2.28, z0: -.9, z1: 1, coupe: -.8 },
+  dessin: { av: .95, ar: -.05, bas: .55, haut: 1.85, cote: -.95, int: .8, plancher: .5, plafond: 1.95, z0: -.9, z1: 1, coupe: .85 }, // fait de blocs pleins : on le coupe jusqu'au côté gauche
 };
 const STRAPONTIN = { x: -.32, z: .25 }; // sous les fesses de l'apprenti, au milieu de l'ouverture
 let habits = null; // matériaux partagés de l'habitacle
@@ -531,7 +531,7 @@ function ouvrirPorte(V) {
   if (V.porteTk) return V.porteTk;
   const m = V.g.children[0], D = HABITACLE[m.geometry === TOKPA_3D.geo ? 'tripo' : 'dessin'];
   // La découpe : on ne dessine plus la carrosserie dans la boîte de la porte (intersection des cinq demi-espaces).
-  const plans = [[0, 0, -1, D.ar], [0, 0, 1, -D.av], [0, -1, 0, D.bas], [0, 1, 0, -D.haut], [1, 0, 0, .8]].map(([x, y, z, c]) => new THREE.Plane(new THREE.Vector3(x, y, z), c));
+  const plans = [[0, 0, -1, D.ar], [0, 0, 1, -D.av], [0, -1, 0, D.bas], [0, 1, 0, -D.haut], [1, 0, 0, -D.coupe]].map(([x, y, z, c]) => new THREE.Plane(new THREE.Vector3(x, y, z), c));
   m.material = m.material.clone(); m.material.clippingPlanes = plans.map(P => P.clone()); m.material.clipIntersection = true; m.material.clipShadows = true;
   renderer.localClippingEnabled = true;
   habits ??= { fond: new THREE.MeshLambertMaterial({ color: '#2f2a25', side: THREE.BackSide }), siege: new THREE.MeshLambertMaterial({ color: '#4a3b30' }), cadre: new THREE.MeshLambertMaterial({ color: '#d8d2c2' }) };
@@ -584,7 +584,7 @@ function allerGare(id, reprise) {
   if (id === 'chauffeur') {
     T.veh = V; VIE.travail = { type: 'tokpa', carburant: VEHICULES.tokpa.reservoir };
     const e = X.etiquette('Tokpa-tokpa du patron'); e.position.y = 3; V.g.add(e); V.etiquette = e;
-    tk.aide = perso(7700, 'jeune'); scene.add(tk.aide); tk.aide.g = tk.aide;
+    tk.aide = perso(7700, 'jeune'); scene.add(tk.aide); tk.aide.g = tk.aide; assoirApprenti(tk.aide, V); // il attend déjà à sa place (avant, il restait au point zéro de la carte tant qu'on n'était pas au volant)
     X.ligne(`Gare routière de Godomey. Le tokpa-tokpa du patron t’attend${reprise ? '' : ` (versement ${fmt(METIERS.chauffeur.versement)} ce soir)`}. Monte au volant, attends que l’apprenti ait rempli, puis prends la route de Calavi en t’arrêtant à chaque arrêt.`);
   } else X.ligne('Gare routière de Godomey. Le chauffeur t’attend : monte à la porte, c’est toi l’apprenti. Crie la destination pour remplir, encaisse chaque passager (rends bien la monnaie !) et donne le départ.');
 }

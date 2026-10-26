@@ -98,7 +98,10 @@ export function partsTokpa(c = {}) {
   add(B3(0.05, 1.02, 1.7).rotateZ(0.507).translate(1.99, 1.6, 0), '#2b3a44');
   add(B3(0.06, 0.5, 1.6).translate(-2.46, 1.6, 0), '#27323a');
   add(B3(1.0, 1.4, 0.05).translate(0.45, 1.18, 0.94), '#121619');
-  add(B3(4.9, 0.1, 1.9).translate(0, 0.98, 0), c.bande || '#3d8f5a');
+  // La bande verte, peinte tout autour : quatre lames sur la carrosserie, pas un plateau en travers de l'habitacle (on le
+  // voyait passer à travers les genoux de l'apprenti par la porte ouverte, metiers.js).
+  for (const z of [0.945, -0.945]) add(B3(4.9, 0.1, 0.03).translate(0, 0.98, z), c.bande || '#3d8f5a');
+  for (const x of [2.46, -2.46]) add(B3(0.03, 0.1, 1.9).translate(x, 0.98, 0), c.bande || '#3d8f5a');
   for (const [x, z] of [[1.0, -0.94], [-1.4, 0.94], [-0.2, -0.94]]) add(B3(0.4, 0.2, 0.02).translate(x, 0.65, z), '#9a6a45');
   add(B3(0.14, 0.22, 1.92).translate(2.5, 0.56, 0), '#4a4a4a'); add(B3(0.14, 0.22, 1.92).translate(-2.5, 0.56, 0), '#4a4a4a');
   for (const z of [0.66, -0.66]) { add(B3(0.05, 0.15, 0.3).translate(2.47, 0.86, z), '#f4efd8'); add(B3(0.05, 0.12, 0.2).translate(-2.47, 0.86, z), '#c8382f'); }
@@ -115,7 +118,7 @@ export function partsTokpa(c = {}) {
     add(B3(0.12, 0.6, 0.12).translate(0.4, 0.9, 1.05), '#2d3e5a');
     add(C3(0.04, 0.04, 0.5, 5).rotateX(-1.1).translate(0.55, 1.6, 1.32), '#c8382f');
   }
-  for (let x = -1.9; x < 1.2; x += 0.62) add(new THREE.SphereGeometry(0.12, 6, 5).translate(x, 1.66, -0.75), '#4a2f22');
+  if (c.passagers !== false) for (let x = -1.9; x < 1.2; x += 0.62) add(new THREE.SphereGeometry(0.12, 6, 5).translate(x, 1.66, -0.75), '#4a2f22'); // des têtes sans corps : pas dans le minibus dont on ouvre la porte
   return P;
 }
 export function partsVoiture(couleur) {
