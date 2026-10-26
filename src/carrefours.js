@@ -1,4 +1,5 @@
 import { roadLines } from './ville.js';
+import { dansTerrePlein } from './terre-pleins.js';
 
 // ---------- Réseau routier : carrefours et itinéraires ----------
 // Graphe des rues d'OpenStreetMap (routes principales à rues de quartier). Les lignes ont
@@ -213,7 +214,7 @@ export function itineraireDemiTour(x, z, rue, cibles, debut = []) {
  * qu'il est à contresens. Normalement, au tournant du carrefour, on doit se retrouver sur la route opposée », Carlos,
  * 26/10 ; 1 615 m sur les 1 647 de la ligne express). Tous les 4 m, si la rue sous le trajet est à sens unique dans
  * l'autre sens, le point passe sur la chaussée jumelle qui va dans le bon sens, à 35 m au plus, de l'autre côté du
- * terre-plein. Le trajet garde sa longueur, ses monuments et ses arrêts ; le passage d'une chaussée à l'autre se fait
+ * terre-plein (TP, terre-pleins.js : il faut qu'il y en ait un entre les deux). Le trajet garde sa longueur, ses monuments et ses arrêts ; le passage d'une chaussée à l'autre se fait
  * là où la ligne arrive sur le boulevard, au carrefour — comme un vrai tourne-à-gauche. Un recalcul par le plus court
  * chemin dans le bon sens a été essayé : les nœuds du réseau sont trop espacés, il faisait des détours de 50 à 70 %.
  */
@@ -221,22 +222,38 @@ export function surLaBonneChaussee(pts) {
   const CG = 40, g = new Map();
   roadLines.forEach((L, li) => { if (L.cls > 5 || L.bridge) return; for (let k = 1; k < L.pts.length; k++) { const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k]; for (let cx = Math.floor((Math.min(ax, bx) - 35) / CG); cx <= Math.floor((Math.max(ax, bx) + 35) / CG); cx++) for (let cz = Math.floor((Math.min(az, bz) - 35) / CG); cz <= Math.floor((Math.max(az, bz) + 35) / CG); cz++) { const q = cx + ',' + cz; (g.get(q) || g.set(q, []).get(q)).push([li, ax, az, bx, bz]); } } });
   // Rue sous (x, z) dans l'axe (dx, dz) — à moins de sa demi-largeur — et la plus proche des chaussées qui vont dans ce sens.
+  // Une rue qui tourne de plus de 90° en moins de 600 m : un anneau de rond-point ou une bretelle, pas un boulevard.
+  const courbe = L => L.courbe ??= (() => { let t = 0, l = 0; for (let k = 1; k < L.pts.length; k++) { l += Math.hypot(L.pts[k][0] - L.pts[k - 1][0], L.pts[k][1] - L.pts[k - 1][1]); if (k > 1) { const a1 = Math.atan2(L.pts[k - 1][0] - L.pts[k - 2][0], L.pts[k - 1][1] - L.pts[k - 2][1]), a2 = Math.atan2(L.pts[k][0] - L.pts[k - 1][0], L.pts[k][1] - L.pts[k - 1][1]); t += Math.abs(Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1))); } } return l < 600 && t > Math.PI / 2; })();
   const sous = (x, z, dx, dz) => {
-    let rue = null, bd = Infinity, bonne = null, bb = 35;
+    let rue = null, bd = Infinity, bonne = null, bb = 35; const cand = [];
     for (const [li, ax, az, bx, bz] of g.get(Math.floor(x / CG) + ',' + Math.floor(z / CG)) || []) {
       const L = roadLines[li], ux = bx - ax, uz = bz - az, l = Math.hypot(ux, uz) || 1, c = (ux * dx + uz * dz) / l; if (Math.abs(c) < .8) continue;
       const t = Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / (l * l))), px = ax + ux * t, pz = az + uz * t, d = Math.hypot(px - x, pz - z);
-      if (d < L.w / 2 && d < bd) { bd = d; rue = { L, c }; }
-      if (L.sens && c > .8 && d < bb) { bb = d; bonne = [px, pz]; }
+      if (d < L.w / 2 && d < bd) { bd = d; rue = { L, c, li }; }
+      if (L.sens && c > .8 && d < 35) cand.push([d, px, pz, L.cls, li]);
     }
-    return rue && rue.L.sens && rue.c < 0 ? bonne : null;
+    if (!rue || !rue.L.sens || rue.c > 0) return null; // la rue sous le trajet va dans notre sens (ou dans les deux)
+    // La jumelle : la plus proche des chaussées qui vont dans notre sens, de la même classe à un cran près (pas une bretelle),
+    // une autre rue que celle sous le trajet, à 18 m au plus — ou plus loin, mais de l'autre côté d'un terre-plein. Pas
+    // l'autre côté d'un rond-point (le trajet traversait l'île et ses maisons : 20 à 60 m), ni une rue parallèle
+    // derrière un pâté de maisons.
+    const milieu = (px, pz) => [.3, .5, .7].some(f => dansTerrePlein(x + (px - x) * f, z + (pz - z) * f, 1.5));
+    const large = rue.L.cls <= 1 && !courbe(rue.L); // les grandes artères ont des terre-pleins larges, pas toujours relevés
+    for (const [d, px, pz, cls, li] of cand) if (d < bb && li !== rue.li && Math.abs(cls - rue.L.cls) <= 1 && (d <= 18 || large || milieu(px, pz))) { bb = d; bonne = [px, pz]; }
+    return bonne;
   };
-  const out = []; let n = 0;
+  const ech = [];
   for (let i = 1; i < pts.length; i++) {
     const [ax, az] = pts[i - 1], [bx, bz] = pts[i], l = Math.hypot(bx - ax, bz - az); if (!l) continue;
     const dx = (bx - ax) / l, dz = (bz - az) / l;
-    for (let d = i === 1 ? 0 : 4; d <= l; d += 4) { const x = ax + dx * Math.min(d, l), z = az + dz * Math.min(d, l), q = sous(x, z, dx, dz); if (q) n++; out.push(q || [x, z]); }
+    for (let d = i === 1 ? 0 : 4; d <= l; d += 4) { const x = ax + dx * Math.min(d, l), z = az + dz * Math.min(d, l); ech.push([x, z, sous(x, z, dx, dz)]); }
   }
+  // Pas de bascule de moins de 40 m (10 échantillons) : les étiquettes de sens unique changent d'un tronçon OSM à
+  // l'autre, et le trajet sautait d'une chaussée à l'autre en travers du terre-plein, au milieu du pâté de maisons.
+  const bas = ech.map(e => !!e[2]);
+  for (let pass = 0; pass < 2; pass++) for (let i = 0; i < bas.length;) { let j = i; while (j < bas.length && bas[j] === bas[i]) j++; if (j - i < 10 && i > 0 && j < bas.length) for (let k = i; k < j; k++) bas[k] = !bas[k]; i = j; }
+  const out = []; let n = 0;
+  for (const [i, [x, z, q]] of ech.entries()) { if (bas[i] && q) { n++; out.push([q[0], q[1]]); } else out.push([x, z]); }
   out.push(pts[pts.length - 1]);
   if (import.meta.env.DEV) console.info(`ligne : ${n * 4} m remis sur la bonne chaussée`);
   return out;
