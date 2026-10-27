@@ -262,6 +262,7 @@ function bioGuera(cx, cz, rIle) {
   K.into(g, () => {
     // D'après le drone (2025) : île dallée de granit gris clair, bordure de gazon et haie taillée en couronne.
     K.cyl(rIle, rIle, .35, 64, K.tex('paves', 10, 10, '#c4c1ba'), 0, .17, 0).castShadow = false;
+    anneauDeBitume(rIle);
     K.cyl(rIle + .5, rIle + .5, .45, 64, '#e8e5dc', 0, .2, 0, undefined, true);
     const bordure = new THREE.RingGeometry(rIle - 2.4, rIle - .1, 64); bordure.rotateX(-Math.PI / 2);
     K.maillage(bordure, K.tex('gazon', 8, 1), 0, .37, 0).castShadow = false;
@@ -347,11 +348,17 @@ function marcheGanhi() {
   bake(g);
 }
 
+// L'anneau où l'on tourne, autour de l'île. OpenStreetMap n'en a pas ici : les avenues s'arrêtaient à 21-26 m du
+// centre, dans le sable (« le goudron ne devrait pas simplement s'arrêter et continuer juste comme ça après », Carlos,
+// 26/10). 10 m de large, comme l'anneau de l'Étoile Rouge (lieux.js), par-dessus le bout des avenues.
+function anneauDeBitume(rIle) { K.anneau(rIle + .4, rIle + 10.5, K.tex('bitume', 20, 20), 0, .03, 0); }
+
 // ---------- Rond-point de l'aéroport : fleur rouge sur gazon ----------
 function rondPointAeroport(cx, cz, r) {
   const g = groupeLieu('rond-point-aeroport', cx, cz);
   K.into(g, () => {
     K.cyl(r + .4, r + .4, .45, 64, '#e8e5dc', 0, .2, 0, undefined, true);
+    anneauDeBitume(r);
     const disque = new THREE.Mesh(new THREE.CircleGeometry(r, 64).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(K.toile('fleurRouge')), roughness: .95 }));
     disque.material.map.colorSpace = THREE.SRGBColorSpace; disque.position.y = .42; disque.receiveShadow = true; K.racine.add(disque);
     for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 + .2; K.palmierRoyal(Math.cos(a) * (r - 2), Math.sin(a) * (r - 2)); }

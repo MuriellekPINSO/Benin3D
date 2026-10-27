@@ -3,7 +3,7 @@ import { dansTerrePlein } from './terre-pleins.js';
 import { LITE, hash, toXZ } from './base.js';
 import { camera, controls, scene } from './scene.js';
 import { rectSansConstruction, sansConstruction, zoneBoutique } from './zones.js';
-import { ROAD_W, roadLines } from './ville.js';
+import { ilesDesRondsPoints, ROAD_W, roadLines } from './ville.js';
 import { texFacades } from './facades.js';
 import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
 import { MAX_DECOR, reduireImage } from './textures.js';
@@ -61,6 +61,7 @@ function indexer(data) {
     const [sx, sz] = c(L.etoile.star), rMin = Math.min(...L.etoile.ring.map(p => Math.hypot(p[0] - x, p[1] - z)));
     R.anneaux.push([sx, sz, rMin - 9.1, rMin + 8]);
   }
+  for (const [x, z, r] of ilesDesRondsPoints()) zone(x, z, r); // îles des ronds-points sans anneau dans OSM (ville.js)
   if (L.amazone) zone(L.amazone.pt[0], L.amazone.pt[1], 140);
   if (L.marina) { const [x, z] = c(L.marina); zone(x, z, 160); }
   if (L.congres) { const [x, z] = c(L.congres.outer.flat()); zone(x, z, 150); }
@@ -120,6 +121,9 @@ function presAutreRoute(x, z, li, marge) {
   }
   return false;
 }
+/** Un pied de lampadaire ou de poteau en (x, z), au bord de la rue `li` : ni sur une autre chaussée (marge de 0,6 m),
+ *  ni sur un terre-plein. */
+const piedLibre = (x, z, li) => !presAutreRoute(x, z, li, .6) && !dansTerrePlein(x, z, .3);
 // Le trajet d'une course, mètre par mètre, rangé par cases de 8 m : ni mur ni maison générés dessus (les virages
 // coupent les coins, et la rue transversale n'était pas dégagée).
 function surTrajet(x, z) {
@@ -277,15 +281,17 @@ function genererCarre(cx, cz) {
         const flush = () => { if (run.length > 3) ruban(run, trot, bordure, cote, sw); run = []; };
         ech.forEach((e, k) => { if (libre[k]) run.push(e); else flush(); }); flush();
       }
-      // Lampadaires solaires tous les ~30 m, en quinconce.
-      if (grand) for (let k = (cote > 0 ? 0 : 15); k < ech.length; k += 30) if (libre[k]) { const [x, z] = ech[k], [nx, nz] = n(k), r = route ? .7 : sw - .5; lampes.push([x - nx * r, z - nz * r, Math.atan2(nz, -nx)]); }
+      // Lampadaires solaires tous les ~30 m, en quinconce. Le pied est ramené au bord de la chaussée APRÈS le test de
+      // libre[k] (fait au fond du trottoir) : on le revérifie là où il se plante. Au coin d'un carrefour, il tombait
+      // sur la chaussée de la rue transversale (« des lampadaires en plein milieu de la voie », 26/10).
+      if (grand) for (let k = (cote > 0 ? 0 : 15); k < ech.length; k += 30) if (libre[k]) { const [x, z] = ech[k], [nx, nz] = n(k), r = route ? .7 : sw - .5, px = x - nx * r, pz = z - nz * r; if (piedLibre(px, pz, li)) lampes.push([px, pz, Math.atan2(nz, -nx)]); }
       // Panneau publicitaire de temps en temps, derrière les murs, tourné vers ceux qui arrivent.
       if (L.cls <= 2 || route) for (let k = 60; k < ech.length; k += 150) if (libre[k] === 1 && libre[Math.min(ech.length - 1, k + 4)] === 1 && hash(li * 7 + k, cote + 3) < .6) {
         const [x, z, dx, dz] = ech[k], [nx, nz] = n(k), sens = hash(li + k, 2) < .5 ? 1 : -1, fx = -nx * .75 - dx * .66 * sens, fz = -nz * .75 - dz * .66 * sens;
         pubs.push([x + nx * 2.2, z + nz * 2.2, Math.atan2(fx, fz), CAMPAGNES.indexOf(campagne(hash(li + k, 9)))]);
       }
       // Poteaux électriques et fils sur les rues de quartier (un seul côté ; le jeu a les siens).
-      if (cote > 0 && L.cls >= 3 && !route) { let prev = null; for (let k = 0; k < ech.length; k += 34) { if (!libre[k]) { prev = null; continue; } const [x, z] = ech[k], [nx, nz] = n(k), px = x - nx * (sw * .5 + .2), pz = z - nz * (sw * .5 + .2); poteaux.push([px, pz]); if (prev) for (const h of [8.2, 7.7]) fils.push(prev[0], h, prev[1], px, h, pz); prev = [px, pz]; } }
+      if (cote > 0 && L.cls >= 3 && !route) { let prev = null; for (let k = 0; k < ech.length; k += 34) { if (!libre[k]) { prev = null; continue; } const [x, z] = ech[k], [nx, nz] = n(k), px = x - nx * (sw * .5 + .2), pz = z - nz * (sw * .5 + .2); if (!piedLibre(px, pz, li)) { prev = null; continue; } poteaux.push([px, pz]); if (prev) for (const h of [8.2, 7.7]) fils.push(prev[0], h, prev[1], px, h, pz); prev = [px, pz]; } }
       // Parcelles : murs + portail, ou boutiques sur les grands axes.
       let k = 0;
       while (k < ech.length) {

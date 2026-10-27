@@ -23,7 +23,7 @@ import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
 import { A_VENDRE, LOGEMENTS, acheterVehicule, ouvertAu, vehiculeLoue, alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
-import { basculerPause, finirJournee, menuTravail } from './metiers.js';
+import { assoirApprenti, basculerPause, finirJournee, menuTravail } from './metiers.js';
 import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces, sauverCommerces } from './commerces.js';
 import { majAmbianceSalon } from './ambiance-salon.js';
 import { afficherChapitres, entrerChapitres, initChapitres, majChapitres, quitterChapitres } from './chapitres.js';
@@ -35,6 +35,7 @@ import { camera, canvas, controls, scene } from './scene.js';
 import { filtrer } from './moderation.js';
 import { actionsLancePierre, cameraTir, fovTir, initLancePierre, majLancePierre, tirEnCours } from './lancepierre.js';
 import { actionsFauxFrere, initFauxFrere, majFauxFrere, quitterFauxFrere } from './fauxfrere.js';
+import { SAISIE } from './saisie.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
 // Jusqu'à 8 amis dans la même ville : chacun se promène à pied avec son personnage, voit les autres,
@@ -227,7 +228,7 @@ function majListe() {
   else el.textContent = `${amis.length ? `Avec ${amis.join(', ')} · ` : ''}${autres.length + 1} personnes en ville`;
 }
 
-/** « Aller » (barre d'icônes) : le zém qu'on hèle, les lieux et ses commerces. Chaque lieu dit combien de gens
+/** « Aller » (tuile du menu) : le zém qu'on hèle, les lieux et ses commerces. Chaque lieu dit combien de gens
  *  sont déjà sur place — on va là où il y a du monde. « Chez moi » et « Station-service » sont propres à chacun,
  *  on ne les compte pas. */
 function menuAller() {
@@ -744,9 +745,9 @@ const GS = { vuCouche: false, marche: 0, px: null, pz: 0, activite: false, dehor
 let guideSalon = null;
 const etapesSalon = () => [
   { id: 'lever', texte: () => coarse ? 'Tu te réveilles chez toi. Touche « Se lever ».' : 'Tu te réveilles chez toi. [E] pour te lever.', quand: () => !!S.couche, fait: () => GS.vuCouche && !S.couche },
-  { id: 'marcher', texte: () => coarse ? 'Le joystick pour marcher, « Courir » pour courir.' : 'Flèches ou [Z] [Q] [S] [D] pour marcher. Glisse dans la ville pour tourner la caméra.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
+  { id: 'marcher', texte: () => SAISIE.manette ? 'Le stick gauche pour marcher (poussé à fond, tu cours), le stick droit pour tourner la caméra.' : coarse ? 'Le joystick pour marcher, « Courir » pour courir.' : 'Flèches ou [Z] [Q] [S] [D] pour marcher. Glisse dans la ville pour tourner la caméra.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
   { id: 'maison', texte: 'Approche-toi de la douche, du fourneau ou de la table : le bouton vert fait le reste.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.activite || GS.dehorsT > 0 },
-  { id: 'rue', texte: 'Les ronds à droite : l’épingle « Aller » choisit où aller (le chemin s’allume au sol), la mallette « Travailler » te trouve un métier.', quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier },
+  { id: 'rue', texte: () => `Le rond à droite ouvre le menu${coarse && !SAISIE.manette ? '' : ' [Échap]'} : « Aller » choisit où aller (le chemin s’allume au sol), « Travailler » te trouve un métier.`, quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier },
   { id: 'vie', texte: 'En haut à gauche : ton argent et ta faim. Mange quand elle baisse — maquis, food court, ou chez toi.', quand: () => GS.dehorsT > 16 && !!VIE.data?.metier, fait: () => !!VIE.service, duree: 40 }, // se ferme quand on commence à travailler
 ];
 function majGuideSalon(dt) {
@@ -765,7 +766,7 @@ function majGuideSalon(dt) {
  * se chevauchait, en portrait comme à l'horizontale (retours des testeurs du 24/10). On mesure donc deux hauteurs,
  * en deux temps pour qu'aucune ne se mesure à travers elle-même : --sl-barre, le bas de la seule barre du salon
  * (l'argent et la mini-carte s'y rangent dessous), puis --sl-bandeau, le bas de tout l'ensemble (le guide, la
- * barre d'icônes et ses fenêtres s'y rangent dessous).
+ * rond du menu et ses fenêtres s'y rangent dessous).
  */
 function mesurerBandeau() {
   if (bandeauVu) return;
@@ -777,10 +778,10 @@ function mesurerBandeau() {
     const racine = document.documentElement, barre = $('.sl-haut');
     racine.style.setProperty('--sl-barre', `${barre ? bas([barre]) : 0}px`); // la barre du salon : elle ne dépend de rien
     racine.style.setProperty('--sl-bandeau', `${bas(els)}px`); // puis l'argent et la mini-carte, une fois rangés dessous
-    const r = $('.sl-rail')?.getBoundingClientRect(); // les fenêtres de la barre d'icônes (objectifs, gestes) s'ouvrent sous elle
+    const r = $('.sl-rail')?.getBoundingClientRect(); // les fenêtres des objectifs et des gestes s'ouvrent sous le rond du menu
     if (r?.height) racine.style.setProperty('--sl-pop', `${Math.round(r.bottom + 8)}px`);
   };
-  const ro = new ResizeObserver(poser); for (const e of [...els, $('.sl-rail')].filter(Boolean)) ro.observe(e); // la barre d'icônes ne compte pas dans le bandeau, mais sa hauteur fixe --sl-pop
+  const ro = new ResizeObserver(poser); for (const e of [...els, $('.sl-rail')].filter(Boolean)) ro.observe(e); // le rond du menu ne compte pas dans le bandeau, mais il fixe --sl-pop
   addEventListener('resize', poser); poser();
 }
 let bandeauVu = false;
@@ -791,10 +792,10 @@ function suivreClavier() {
   vv.addEventListener('resize', poser); vv.addEventListener('scroll', poser); poser();
 }
 
-/** L'appel du bouton « Aller · gestes » s'arrête dès qu'on l'a ouvert une fois. */
-function vuGestes() {
-  $('#slGestesBtn')?.classList.remove('appel');
-  try { localStorage.setItem('cotonou3d.vuGestes', '1'); } catch { /* navigation privée */ }
+/** L'appel du rond du menu s'arrête dès qu'on l'a ouvert une fois. */
+function vuMenu() {
+  $('#slMenuBtn')?.classList.remove('appel');
+  try { localStorage.setItem('cotonou3d.vuMenu', '1'); } catch { /* navigation privée */ }
 }
 
 export function majSalon(dt) {
@@ -911,7 +912,7 @@ export function majSalon(dt) {
   if (S.envoi <= 0 && S.canal) {
     S.envoi = ENVOI * (1 + S.autres.size / 30); // à trente en ville, 0,4 s : l'interpolation (kk) comble le reste
     const vh = T.mode === 'conduit' ? T.veh.type : T.mode === 'passager' ? 'zem' : T.mode === 'avion' ? 'avion' : T.mode === 'apprenti' ? 'tokpa' : ''; // le véhicule sous soi, pour les amis
-    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...etatAmis() }, k = JSON.stringify(e);
+    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...(T.mode === 'apprenti' ? { ap: 1 } : {}), ...etatAmis() }, k = JSON.stringify(e);
     if (k !== S.dernier || S.depuis > 2.5) { S.dernier = k; S.depuis = 0; S.canal.envoyer(e); }
   }
   // Les autres, lissés entre deux nouvelles.
@@ -931,7 +932,7 @@ export function majSalon(dt) {
     // au milieu de la route chez les autres.
     const V = vehiculeDe(A, VEH_AMIS.includes(e.vh) && !(e.i || S.lieu) ? e.vh : null);
     if (enAvion) { /* dans l'avion : on ne le voit pas */ }
-    else if (V) { V.x = A.x; V.z = A.z; V.cap = A.cap; V.y = typeof e.y === 'number' ? e.y : 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; asseoirSur(A.g, V, e.vh === 'zem'); }
+    else if (V) { V.x = A.x; V.z = A.z; V.cap = A.cap; V.y = typeof e.y === 'number' ? e.y : 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; if (e.ap) assoirApprenti(A.g, V); else asseoirSur(A.g, V, e.vh === 'zem'); } // l'ami apprenti : assis à la porte ouverte du tokpa-tokpa (metiers.js)
     else if (e.sur && A.g && !(e.i || S.lieu)) { // passager d'un ami : assis derrière lui (dans la voiture, on ne le voit pas)
       const Vd = e.sur === S.R?.id ? (T.mode === 'conduit' ? T.veh : null) : S.autres.get(e.sur)?.veh;
       if (Vd) asseoirSur(A.g, Vd, true); else { A.g.position.set(A.x, ey, A.z); A.g.rotation.y = A.cap; }
@@ -951,8 +952,9 @@ export function majSalon(dt) {
     : S.gradin ? [{ texte: 'Se lever', f: leverGradins }]
     : tir ? actionsLancePierre(S, T)
     : [...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : [])]; // l'action du lieu d'abord, « Sortir » en dernier
-  // La touche de chaque bouton : celle de la manette si elle est branchée (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
-  const touches = S.pad && performance.now() - S.padT < 1000 ? (S.pad.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
+  // La touche de chaque bouton : celle de la manette si l'on joue avec (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
+  // Une manette branchée mais posée affichait ses boutons même au clavier : c'est la dernière saisie qui compte (saisie.js).
+  const touches = SAISIE.manette ? (SAISIE.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
   ['#slEntrer', '#slAction2', '#slAction3'].forEach((sel, k) => { // trois au plus (apprenti à l'arrêt : encaisser, crier, donner le départ)
     const b = $(sel), a = S.actions[k], txt = a ? `${a.texte}${touches ? ` (${touches[k]})` : ''}` : '';
     if (b && b.textContent !== txt) { b.textContent = txt; b.hidden = !txt; }
@@ -998,10 +1000,12 @@ function angleDedans(P, dist, inc) {
 // ---------- Menu : argent, logement, travail, commerces, inviter, quitter (bouton « Menu » ou Échap) ----------
 // Demande du 21/10 : moins de choses à l'écran. Replié, le panneau du haut à gauche ne garde que l'argent, la faim,
 // l'essence et la vitesse en conduisant, la mission, « Travailler » et « Menu » (le reste : CSS .vie-hud:not(.ouvert)).
+// Depuis le 26/10, c'est aussi le seul menu du jeu : le rond à droite l'ouvre, et les actions de l'ancienne colonne
+// d'icônes (objectifs, travailler, aller, gestes, m'habiller, vue) y sont des tuiles, en tête.
 function menu(ouvrir) {
   const el = $('#vieHud'); if (!el || (ouvrir && el.hidden)) return;
   el.classList.toggle('ouvert', ouvrir); $('#vhVoile').hidden = !ouvrir; $('#slMenuBtn')?.setAttribute('aria-expanded', String(ouvrir));
-  S.menu = ouvrir; if (ouvrir) { S.touches.clear(); majSon(); }
+  S.menu = ouvrir; if (ouvrir) { S.touches.clear(); majSon(); vuMenu(); }
 }
 // Son : le même interrupteur que le bouton Son de Zém Run (AUDIO.muet). La ville, les pièces et les voix s'y plient.
 function majSon() {
@@ -1118,15 +1122,20 @@ function changerVue() {
 /** Appelé par manette.js à chaque image quand le salon est ouvert et qu'aucune fenêtre n'attend un choix. */
 export function manetteSalon(m) {
   S.pad = m; S.padT = performance.now();
-  if (!S.padVu) { S.padVu = true; const a = $('.sl-touches'); if (a) a.textContent = m.ps ? 'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · L1 vue · R2/L2 gaz et frein · ✕ □ ○ : les actions affichées sur les boutons (○ klaxonne en roulant) · △ gestes, travail, habits · Select aller à · Start phrases' : 'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · LB vue · RT/LT gaz et frein · A X B : les actions affichées sur les boutons (B klaxonne en roulant) · Y gestes, travail, habits · Select aller à · Start phrases'; }
   if (m.lb) changerVue();
   if (m.a) porte();
   if (m.x) S.actions?.[1]?.f();
   if (m.b) { if (T.mode === 'conduit') son('klaxon'); else S.actions?.[2]?.f(); } // à pied : la 3e action
-  if (m.y) choisir('Gestes', [...GESTES.map(([id, nom]) => ({ texte: nom, f: () => geste(id) })), { texte: 'Prendre un zém', f: helerZem }, { texte: 'Travailler', f: menuTravail }, { texte: 'Mes commerces', f: listeCommerces }, { texte: 'M’habiller', f: () => ouvrirGarderobe(S.modele) }]);
+  if (m.y) choisir('Gestes', [...GESTES.map(([id, nom]) => ({ texte: nom, f: () => geste(id) })), { texte: 'Prendre un zém', f: helerZem }, { texte: 'Travailler', f: menuTravail }, { texte: 'Mes commerces', f: listeCommerces }, { texte: 'M’habiller', f: () => ouvrirGarderobe(S.modele) }, { texte: 'Dire à tes amis…', sous: 'Une phrase toute faite dans la discussion', f: phrasesRapides }]);
   if (m.select) choisir(T.mode === 'conduit' ? 'GPS : où vas-tu ?' : 'Aller à…', tousLieux().map(L => ({ texte: L[1], f: () => aller(L[0]) })));
-  if (m.start) choisir('Dire à tes amis', PHRASES.map(p => ({ texte: p, f: () => dire(p) })));
+  // Start, le bouton ☰ de la manette : le menu, comme Échap et le rond à droite (les phrases passent sous Y).
+  if (m.start) menu(!S.menu);
 }
+const phrasesRapides = () => choisir('Dire à tes amis', PHRASES.map(p => ({ texte: p, f: () => dire(p) })));
+// L'aide écrite en bas de l'écran : celle du clavier, ou celle de la manette dès qu'on la prend en main.
+const AIDE_MANETTE = { x: 'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · LB vue · RT/LT gaz et frein · A X B : les actions affichées sur les boutons (B klaxonne en roulant) · Y gestes et phrases · Select aller à · ☰ menu', p: 'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · L1 vue · R2/L2 gaz et frein · ✕ □ ○ : les actions affichées sur les boutons (○ klaxonne en roulant) · △ gestes et phrases · Create aller à · Options menu' };
+let aideClavier = null;
+function majAide() { const a = $('.sl-touches'); if (!a) return; aideClavier ??= a.textContent; a.textContent = SAISIE.manette ? AIDE_MANETTE[SAISIE.ps ? 'p' : 'x'] : aideClavier; }
 
 // ---------- Héler un zém : choisir où aller, négocier le prix ----------
 function helerZem() {
@@ -1241,7 +1250,7 @@ export function initSalon(data) {
   $('#slQuitter')?.addEventListener('click', () => choisir('Quitter la partie ?', [{ texte: 'Quitter', sous: 'Ton argent, ton logement et ta journée de travail sont gardés.', f: quitter }], { annuler: 'Rester' }));
   $('#slVue2')?.addEventListener('click', changerVue);
   $('#slAllerBtn')?.addEventListener('click', menuAller);
-  $('#slMenuBtn')?.addEventListener('click', () => menu(true));
+  $('#slMenuBtn')?.addEventListener('click', () => menu(!S.menu)); // le rond à droite : le menu, et ses tuiles (objectifs, travailler, aller, gestes, m’habiller, vue)
   $('#slEntrer')?.addEventListener('click', () => porte());
   $('#slAction2')?.addEventListener('click', () => S.actions?.[1]?.f());
   $('#slAction3')?.addEventListener('click', () => S.actions?.[2]?.f());
@@ -1249,7 +1258,7 @@ export function initSalon(data) {
   $('#vhReprendre')?.addEventListener('click', () => menu(false)); $('#vhVoile')?.addEventListener('click', () => menu(false));
   $('#vhSon')?.addEventListener('click', () => { AUDIO.muet = !AUDIO.muet; if (AUDIO.muet) { taire(); moteurMaj(0, false); } else audioCtx(); majSon(); });
   $('#vhInviter')?.addEventListener('click', () => { menu(false); $('#slInviter')?.click(); }); $('#vhQuitter')?.addEventListener('click', () => { menu(false); $('#slQuitter')?.click(); });
-  $('#vieHud')?.addEventListener('click', e => { if (S.menu && e.target.closest('.vh-boutons button:not(.vh-menu)')) menu(false); }); // Commerces, Louer, Pause… : la fenêtre qui s'ouvre passe devant
+  $('#vieHud')?.addEventListener('click', e => { if (S.menu && e.target.closest('.vh-boutons button:not(.vh-menu), .vh-tuile')) menu(false); }); // une tuile, Commerces, Louer, Pause… : la fenêtre qui s'ouvre passe devant
   $('#vhPause')?.addEventListener('click', basculerPause);
   $('#vhFinir')?.addEventListener('click', () => choisir('Finir ta journée ?', [{ texte: 'Oui, j’arrête pour aujourd’hui', f: finirJournee }], { annuler: 'Non, je continue' }));
   $('#slHabiller')?.addEventListener('click', () => ouvrirGarderobe(S.modele));
@@ -1297,19 +1306,22 @@ export function initSalon(data) {
   const objectifs = ouvert => {
     app.classList.toggle('obj-ouvert', ouvert); $('#slObjectifs')?.setAttribute('aria-expanded', String(ouvert));
     try { localStorage.setItem('cotonou3d.objectifs', ouvert ? '1' : '0'); } catch { /* navigation privée */ }
-    if (ouvert) { const pt = $('#slObjPoint'); if (pt) pt.hidden = true; $('#slActions').classList.remove('ouvert'); $('#slGestesBtn')?.setAttribute('aria-expanded', 'false'); etroit() && chat(false); }
+    if (ouvert) { for (const pt of [$('#slObjPoint'), $('#slObjPoint2')]) if (pt) pt.hidden = true; $('#slActions').classList.remove('ouvert'); $('#slGestesBtn')?.setAttribute('aria-expanded', 'false'); etroit() && chat(false); }
     afficherChapitres(); // sans attendre le prochain tour de boucle
   };
   try { objectifs(localStorage.getItem('cotonou3d.objectifs') === '1'); } catch { /* navigation privée */ }
   $('#slObjectifs')?.addEventListener('click', () => objectifs(!app.classList.contains('obj-ouvert')));
-  // Les gestes, derrière leur icône. « Tu pourrais faire clignoter l'icône » (un testeur, 24/10) : elle bat
-  // doucement tant qu'on ne l'a pas ouverte une fois.
-  try { if (!localStorage.getItem('cotonou3d.vuGestes')) $('#slGestesBtn')?.classList.add('appel'); } catch { /* navigation privée */ }
-  $('#slGestesBtn')?.addEventListener('click', () => {
-    const ouvert = !$('#slActions').classList.contains('ouvert');
-    $('#slActions').classList.toggle('ouvert', ouvert); $('#slGestesBtn').setAttribute('aria-expanded', String(ouvert));
-    if (ouvert) { vuGestes(); objectifs(false); etroit() && chat(false); }
-  });
+  // Le rond du menu. « Tu pourrais faire clignoter l'icône » (un testeur, 24/10, pour les gestes, qui sont maintenant
+  // dans le menu) : il bat doucement tant qu'on ne l'a pas ouvert une fois.
+  try { if (!localStorage.getItem('cotonou3d.vuMenu')) $('#slMenuBtn')?.classList.add('appel'); } catch { /* navigation privée */ }
+  // Les gestes : la tuile du menu ouvre leur fenêtre, qui reste ouverte pour en enchaîner plusieurs ; sa croix (B) la ferme.
+  const gestes = ouvert => {
+    $('#slActions').classList.toggle('ouvert', ouvert); $('#slGestesBtn')?.setAttribute('aria-expanded', String(ouvert));
+    if (ouvert) { objectifs(false); etroit() && chat(false); }
+  };
+  $('#slGestesBtn')?.addEventListener('click', () => gestes(!$('#slActions').classList.contains('ouvert')));
+  $('#slGestesFermer')?.addEventListener('click', () => gestes(false));
+  document.addEventListener('saisie', majAide); majAide(); // l'aide du bas : clavier ou manette
   $('#slForm')?.addEventListener('submit', e => { e.preventDefault(); dire($('#slTexte').value); $('#slTexte').value = ''; });
   const ph = $('#slPhrases'); if (ph) for (const p of PHRASES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = p; b.addEventListener('click', () => dire(p)); ph.append(b); }
   const ge = $('#slGestes'); if (ge) for (const [i, [id, nom]] of GESTES.entries()) { const b = document.createElement('button'); b.type = 'button'; b.textContent = coarse ? nom : `${i + 1} · ${nom}`; b.addEventListener('click', () => geste(id)); ge.append(b); } // au clavier, le chiffre du geste est écrit sur le bouton

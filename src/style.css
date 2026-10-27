@@ -894,6 +894,42 @@ button { font: inherit; color: inherit; }
 .sl-point { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #d64536; color: #fff; font: 700 11px/18px var(--font-body); text-align: center; }
 .sl-point[hidden] { display: none; }
 @media (min-width: 1180px) { .sl-ic .t-long { display: inline; } } /* la place est là : on écrit le nom, personne ne devine une icône */
+/* Un seul rond, le menu (26/10). « Il faut créer un menu unique qui contient tout ça, et c'est en accédant à ce menu
+   qu'on choisit l'action qu'on souhaite exécuter » (Murielle, devant la colonne Objectifs, Travailler, Aller, Gestes,
+   M'habiller, Vue, Menu) : le rond ouvre le menu « Ma vie », où ces actions sont des tuiles. La pastille rouge des
+   objectifs passe sur lui. À la manette, son bouton (☰, Options) s'écrit dans le coin. */
+.salon-hud .sl-ic-menu { box-sizing: border-box; width: 52px; height: 52px; padding: 0; justify-content: center; }
+.sl-ic-menu svg { width: 24px; height: 24px; }
+.sl-ic-touche { display: none; position: absolute; left: -6px; bottom: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; place-items: center; background: var(--ink); color: #fff; font: 800 10px/1 var(--font-body); }
+.manette .sl-ic-touche { display: inline-grid; }
+.vh-tuiles { display: none; }
+.vie-hud.ouvert .vh-tuiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 4px 0 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.vh-tuile { position: relative; display: grid; justify-items: center; gap: 6px; border: 0; background: none; padding: 6px 2px 4px; border-radius: var(--r-md); color: var(--ink); font: 700 13px/1.2 var(--font-body); cursor: pointer; }
+.vh-tuile i { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: var(--chip); box-shadow: inset 0 0 0 1px var(--line); transition: transform .12s, background .12s; }
+.vh-tuile svg { width: 25px; height: 25px; }
+.vh-tuile:hover:not(:disabled) i { transform: scale(1.06); background: #e7efe9; }
+.vh-tuile-vert i, .vh-tuile[aria-expanded="true"] i { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+.vh-tuile-vert:hover:not(:disabled) i { background: var(--accent); }
+.vh-tuile:disabled { opacity: .45; cursor: default; }
+.vh-tuile .sl-point { top: 2px; right: calc(50% - 34px); }
+.vh-tuile-touche { display: none; position: absolute; top: 2px; left: calc(50% - 38px); min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; place-items: center; background: var(--panel-solid); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); font: 800 10px/1 var(--font-body); }
+@media (pointer: fine) { .vh-tuile-touche:has(.tc:not(:empty)) { display: inline-grid; } } /* au clavier : V, 1-5 */
+.manette .vh-tuile-touche { display: inline-grid; }
+.vie-hud.ouvert #vhTravail { display: none; } /* la tuile « Travailler » le remplace */
+.sl-actions-titre { font: 700 11px/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); padding: 4px 36px 0 2px; }
+.sl-actions-fermer { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border: 0; border-radius: 50%; background: var(--chip); color: var(--ink); font-size: 18px; line-height: 1; cursor: pointer; }
+@media (pointer: coarse) { .sl-actions-fermer { width: 40px; height: 40px; } }
+
+/* Touches dessinées (saisie.js) : clavier, Xbox ou PlayStation, selon la dernière saisie. */
+.tch > .tx, .tch > .tp { display: none; }
+.manette .tch > .tc { display: none; }
+.manette:not(.pad-ps) .tch > .tx, .manette.pad-ps .tch > .tp { display: inline; }
+.manette.pad-ps .tch > .tp { font-size: 1.2em; line-height: 1; } /* ✕ ○ □ △ : plus fins que des lettres */
+.manette .bq-choix kbd { display: none; } /* la boutique se parcourt à la croix : les chiffres du clavier n'y servent pas */
+/* Le focus de la manette : un cadre jaune (le gilet des zém) cerné de sombre, lisible sur le blanc comme sur le vert. */
+.manette :is(button, a[href], input, select, summary, [tabindex="0"]):focus { outline: 3px solid var(--zem); outline-offset: 2px; box-shadow: 0 0 0 7px rgba(21, 33, 27, .45); }
+.manette .vie-hud .vh-tuile:focus { outline: none; box-shadow: none; } /* le cadre va sur le rond de la tuile */
+.manette .vie-hud .vh-tuile:focus i { outline: 3px solid var(--zem); outline-offset: 3px; box-shadow: 0 0 0 8px rgba(21, 33, 27, .4); transform: scale(1.08); }
 /* La discussion : une bulle en bas à gauche, comme dans les jeux ; le fil s'ouvre au-dessus. */
 .sl-bulle { position: absolute; left: var(--gutter); bottom: var(--gutter); z-index: 6; width: 52px; height: 52px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); cursor: pointer; }
 .sl-bulle svg { width: 24px; height: 24px; }
@@ -1192,8 +1228,12 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
   .sl-chat.ouvert { left: 118px; right: auto; top: 62px; bottom: 8px; width: min(330px, 40vw); max-height: none; } /* à droite de la colonne joystick / courir / bulle */
   #app:has(.sl-chat.ouvert) :is(.sl-guide, .chap-hud) { display: none !important; } /* on ne lit pas le guide et la discussion en même temps sur 390 px de haut */
   .sl-chat.ouvert ol { max-height: none; min-height: 0; }
-  /* L'écran ne fait que 390 px de haut : la barre d'icônes passe sur deux colonnes à côté de la mini-carte. */
-  .sl-rail { top: 6px; right: 108px; grid-template-columns: 1fr 1fr; gap: 6px; }
+  /* L'écran ne fait que 390 px de haut : le rond du menu se range à côté de la mini-carte, et ses tuiles sur une ligne. */
+  .sl-rail { top: 6px; right: 108px; gap: 6px; }
+  .salon-hud .sl-ic-menu { width: 46px; height: 46px; }
+  .vie-hud.ouvert { width: min(560px, calc(100vw - 32px)); box-sizing: border-box; } /* sa marge comptait en plus de max-height : le menu sortait de l’écran */
+  .vie-hud.ouvert .vh-tuiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .vh-tuile i { width: 46px; height: 46px; }
   .sl-actions { right: 10px; top: auto; bottom: 8px; width: min(250px, 34vw); max-height: calc(100vh - 64px); overflow-y: auto; }
   .sl-bulle { left: 14px; bottom: 112px; width: 44px; height: 44px; }
   .sl-bulle svg { width: 21px; height: 21px; }
@@ -1330,11 +1370,11 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
   .sl-guide .ev-sur { font-size: 10px; }
 }
 
-/* Le bouton « Aller · gestes » bat tant qu'on ne l'a pas ouvert une fois : c'est derrière lui que se trouvent
-   « M'habiller », « Prendre un zém » et « Aller à », et il est fermé par défaut (retour d'un testeur, 24/10). */
+/* Le rond du menu bat tant qu'on ne l'a pas ouvert une fois : c'est derrière lui que se trouvent les gestes,
+   « M'habiller », « Aller » et « Travailler » (le bouton des gestes battait déjà ainsi, retour d'un testeur, 24/10). */
 @keyframes sl-appel { 0%, 100% { box-shadow: var(--shadow), 0 0 0 0 rgba(242, 183, 5, .55); } 50% { box-shadow: var(--shadow), 0 0 0 9px rgba(242, 183, 5, 0); } }
-#slGestesBtn.appel { animation: sl-appel 1.7s ease-out infinite; outline: 2px solid var(--accent); outline-offset: 1px; }
-@media (prefers-reduced-motion: reduce) { #slGestesBtn.appel { animation: none; } }
+#slMenuBtn.appel { animation: sl-appel 1.7s ease-out infinite; outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { #slMenuBtn.appel { animation: none; } }
 
 /* Perte du contexte WebGL (le navigateur reprend la carte graphique) : au lieu d'un écran noir muet, on le dit. */
 #app.webgl-perdu::after { content: 'La carte graphique a été reprise par le navigateur. Recharge la page.'; position: fixed; inset: auto 0 0; z-index: 90; padding: 14px 16px; background: #b3261e; color: #fff; font: 700 14px/1.4 var(--font-body); text-align: center; }

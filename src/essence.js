@@ -5,6 +5,7 @@ import { BORD } from './bordure.js';
 import { bulle, dialogue, DISC } from './discussions.js';
 import { JEU, arretAuto, fmtF, toast } from './jeu.js';
 import { ameliore, progres } from './missions.js';
+import { glyphe } from './saisie.js';
 
 // ---------- L'essence ----------
 // Le réservoir baisse en roulant (1 litre pour 3 km, à l'échelle du jeu). On fait le plein
@@ -73,7 +74,7 @@ export function majEssence(st, dt) {
   if (st.essence < 1 || st.panne) for (const it of BORD.items) {
     if (it.type !== 'station' && it.type !== 'kpayo') continue;
     const ds = it.s - st.s;
-    if (ds > 40 && ds < 80 && !it.propose && !(st.temps < (st.proposeT ?? -99) + 25)) { it.propose = true; st.proposeT = st.temps; toast(`${it.type === 'station' ? `Station${it.nom ? ' ' + it.nom : ''}` : 'Kpayo'} à ${it.side > 0 ? 'droite' : 'gauche'} : arrête-toi devant, puis E pour le plein`, 2.6); break; }
+    if (ds > 40 && ds < 80 && !it.propose && !(st.temps < (st.proposeT ?? -99) + 25)) { it.propose = true; st.proposeT = st.temps; toast(`${it.type === 'station' ? `Station${it.nom ? ' ' + it.nom : ''}` : 'Kpayo'} à ${it.side > 0 ? 'droite' : 'gauche'} : arrête-toi devant, puis ${glyphe('E', true)} pour le plein`, 2.6); break; }
   }
   // Bouton « Faire le plein » : le prochain vendeur, tant que le réservoir est bas.
   let pro = null;
@@ -81,7 +82,7 @@ export function majEssence(st, dt) {
   if (st.auto) pro = null; // déjà en train de se ranger
   PLEIN.it = pro;
   const b = $('#jhPlein');
-  if (b) { b.hidden = !pro; if (pro) b.querySelector('span').textContent = `Faire le plein · ${pro.type === 'station' ? 'station' : 'kpayo'} à ${pro.side > 0 ? 'droite' : 'gauche'}, ${Math.round(pro.s - st.s)} m`; }
+  if (b) { b.hidden = !pro; if (pro) b.querySelector(':scope > span').textContent = `Faire le plein · ${pro.type === 'station' ? 'station' : 'kpayo'} à ${pro.side > 0 ? 'droite' : 'gauche'}, ${Math.round(pro.s - st.s)} m`; } // :scope > span : pas les <span> de la touche dessinée
   // Jauge du HUD.
   const el = $('#jhEssence'); if (el) { el.firstElementChild.style.width = `${Math.max(0, st.essence / reservoir() * 100).toFixed(0)}%`; el.classList.toggle('bas', st.essence < .45); }
   const li = $('#jhLitres'); if (li) li.textContent = `${Math.max(0, st.essence).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`;

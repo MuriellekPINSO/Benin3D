@@ -3,6 +3,7 @@ import { parCarres } from './carres.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { LITE, hash } from './base.js';
 import { COUCHES_SOL, grainSol, scene } from './scene.js';
+import { croiseesLe, dansCroisees } from './chaussee.js';
 
 // ---------- Terre-pleins centraux des boulevards ----------
 // Entre les deux chaussées à sens unique d'un même boulevard (calculé par scripts/donnees.mjs,
@@ -46,9 +47,38 @@ function drapeauToile() {
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
+/**
+ * Le terre-plein s'interrompt là où une rue le traverse. Les bandes calculées par scripts/donnees.mjs filent d'un
+ * bout à l'autre du boulevard : bordures et béton barraient la rue transversale, et ses lampadaires se dressaient au
+ * milieu du carrefour (« le terre-plein traverse le carrefour », « des lampadaires en plein milieu de la voie »,
+ * Carlos et Murielle, 26/10). Chaque bande est ré-échantillonnée au mètre, coupée sur la chaussée de toute rue qui la
+ * croise (les deux chaussées du boulevard la longent : elles ne comptent pas), avec 2 m de plus pour le nez du
+ * terre-plein, puis rendue en tronçons (de 12 m au moins : au croisement de deux boulevards, il restait un bout de
+ * terre-plein au milieu du carrefour). Les tronçons remplacent les bandes : un carrefour n'est plus un obstacle
+ * invisible pour le zém (dansTerrePlein) ni pour les passants.
+ */
+function troncons(T) {
+  const out = [], NEZ = 2; // en échantillons d'un mètre
+  for (const b of T) {
+    const q = [];
+    for (let i = 1; i < b.p.length; i++) {
+      const [ax, az, wa] = b.p[i - 1], [bx, bz, wb] = b.p[i], L = Math.hypot(bx - ax, bz - az); if (!L) continue;
+      const X = croiseesLe(ax, az, bx, bz, { maxCls: 4 }), n = Math.max(1, Math.round(L));
+      for (let j = q.length ? 1 : 0; j <= n; j++) { const t = j / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t; q.push([x, z, wa + (wb - wa) * t, X.length > 0 && dansCroisees(x, z, X)]); }
+    }
+    const coupe = q.map((e, i) => { for (let d = -NEZ; d <= NEZ; d++) if (q[i + d]?.[3]) return true; return false; });
+    let run = [], s0 = 0, s = 0;
+    const fin = () => { if (run.length > 1 && s - s0 >= 12) out.push({ nom: b.nom, p: run.map(e => [e[0], e[1], e[2]]), s0 }); run = []; };
+    q.forEach((e, i) => { if (i) s += Math.hypot(e[0] - q[i - 1][0], e[1] - q[i - 1][1]); if (coupe[i]) fin(); else { if (!run.length) s0 = s; run.push(e); } });
+    fin();
+  }
+  return out;
+}
+
 /** Construit les terre-pleins : gazon, bordures, haies, lampadaires, drapeaux. */
 export function construireTerrePleins() {
   if (!TP.bandes.length) return;
+  const nb = TP.bandes.length; initTerrePleins(troncons(TP.bandes));
   const gaz = { pos: [], col: [], idx: [] }, bord = { pos: [], idx: [] };
   const haies = [], lampes = [], drapeaux = [];
   const vert = ['#5c8a3f', '#557f3a', '#64924a', '#5a8740'].map(h => new THREE.Color(h)), beton = ['#c9c6be', '#c3c0b8', '#cfccc4'].map(h => new THREE.Color(h)), blanc = new THREE.Color('#ecebe4');
@@ -72,16 +102,24 @@ export function construireTerrePleins() {
         if (i) { const o = b0 + (i - 1) * 3, q = o + 3; bord.idx.push(o, q, o + 1, o + 1, q, q + 1, o + 1, q + 1, o + 2, o + 2, q + 1, q + 2); }
       }
     }
-    // Haies, lampadaires et drapeaux le long de l'axe.
-    let cum = 0;
+    // Le nez du tronçon, de chaque côté d'un carrefour : une bordure blanche en travers, dessus et face à la rue.
+    if (type !== 'peint') for (const i of [0, n - 1]) {
+      const [x, z, w] = p[i], [nx, nz] = normale(p, i), [, , tx, tz] = normale(p, i), e = w / 2, sg = i ? 1 : -1, o = bord.pos.length / 3;
+      bord.pos.push(x - nx * e, .2, z - nz * e, x + nx * e, .2, z + nz * e, x - nx * e - tx * sg * .3, .2, z - nz * e - tz * sg * .3, x + nx * e - tx * sg * .3, .2, z + nz * e - tz * sg * .3, x - nx * e, 0, z - nz * e, x + nx * e, 0, z + nz * e);
+      bord.idx.push(o, o + 2, o + 1, o + 1, o + 2, o + 3, o, o + 1, o + 4, o + 1, o + 5, o + 4);
+    }
+    // Haies, lampadaires et drapeaux le long de l'axe — à distance du nez (un lampadaire au bout du tronçon, c'est
+    // un poteau au bord du carrefour). L'abscisse s suit la bande d'origine : le rythme des lampadaires ne change pas.
+    let cum = 0, tot = 0;
+    for (let i = 1; i < n; i++) tot += Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]);
     for (let i = 1; i < n; i++) {
       const [ax, az, wa] = p[i - 1], [bx, bz] = p[i], L = Math.hypot(bx - ax, bz - az); if (!L) continue;
       const ang = Math.atan2(bx - ax, bz - az);
       for (let d = 0; d < L; d += 1) {
-        const s = cum + d, x = ax + (bx - ax) * d / L, z = az + (bz - az) * d / L;
-        if (s < 6) continue;
+        const loc = cum + d, s = (b.s0 || 0) + loc, x = ax + (bx - ax) * d / L, z = az + (bz - az) * d / L;
+        if (s < 6 || loc < 2.5 || loc > tot - 2.5) continue;
         if (type === 'gazon' && s % 7 < 1) haies.push([x, z, ang, Math.min(1.5, wa - 1.6), hash(bi * 97 + Math.round(s), 3)]);
-        if (type !== 'peint' && (s + 16) % 32 < 1) lampes.push([x, z, ang]);
+        if (type !== 'peint' && (s + 16) % 32 < 1 && loc > 5 && loc < tot - 5) lampes.push([x, z, ang]);
       }
       cum += L;
     }
@@ -119,5 +157,5 @@ export function construireTerrePleins() {
   // Drapeaux du Bénin sur mâts (boulevard de la Marina).
   inst(new THREE.CylinderGeometry(.05, .07, 8, 6).translate(0, 4, 0), new THREE.MeshLambertMaterial({ color: '#e8e4d6' }), drapeaux, ([x, z, a], v, q, s, Y) => { v.set(x, .16, z); q.setFromAxisAngle(Y, a); s.set(1, 1, 1); });
   inst(new THREE.PlaneGeometry(1.6, 1.05).translate(.85, 7.3, 0).rotateY(Math.PI / 2), new THREE.MeshLambertMaterial({ map: drapeauToile(), side: THREE.DoubleSide }), drapeaux, ([x, z, a], v, q, s, Y) => { v.set(x, .16, z); q.setFromAxisAngle(Y, a); s.set(1, 1, 1); });
-  console.info(`terre-pleins : ${TP.bandes.length} bandes, ${haies.length} haies, ${lampes.length} lampadaires, ${drapeaux.length} drapeaux`);
+  console.info(`terre-pleins : ${nb} bandes en ${TP.bandes.length} tronçons coupés aux carrefours, ${haies.length} haies, ${lampes.length} lampadaires, ${drapeaux.length} drapeaux`);
 }

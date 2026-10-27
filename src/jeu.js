@@ -27,11 +27,12 @@ import { essenceDepart, facteurEssence, fairePlein, majEssence } from './essence
 import { interagir, majInteractions } from './interactions.js';
 import { METEO } from './meteo.js';
 import { vibrer } from './manette.js';
-import { carrefoursDe, construireReseau, itineraire, itineraireCourt, itineraireDemiTour, rueSous } from './carrefours.js';
+import { carrefoursDe, construireReseau, itineraire, itineraireCourt, itineraireDemiTour, rueSous, surLaBonneChaussee } from './carrefours.js';
 import { ouvrirOffre } from './publicites.js';
 import { dansBatiment, pietonOk, profilRoute, profondeurRue, rueRouteJeu } from './rue.js';
 import { dansTerrePlein } from './terre-pleins.js';
 import { creerGuide } from './guide.js';
+import { SAISIE, kbd } from './saisie.js';
 import { compterUneFois, lieuStats } from './statistiques.js';
 import { suspendreChanson } from './lecteur.js';
 import { envoyerScore, initClassement, ouvrirClassement, placeApresCourse } from './classement.js';
@@ -396,11 +397,16 @@ function mesurerHautJeu() {
 export function lancerLigne(L, veh, defi = null) {
   geosJeu(); chargerMasques(); // les processions d'Egungun prennent les modèles 3D dès qu'ils sont là
   JEU.defi = defi ? departDefi(L) : null; if (!JEU.defi) $('#jhDefi')?.setAttribute('hidden', '');
-  JEU.ligne = L; JEU.veh = veh; JEU.chemin = cheminDe(L.pts); compterUneFois('zemrun'); lieuStats('zemrun');
+  JEU.ligne = L; JEU.veh = veh; compterUneFois('zemrun'); lieuStats('zemrun');
+  // Le trajet remis sur la chaussée qui va dans le bon sens (carrefours.js) ; à défaut, celui des données.
+  const C0 = cheminDe(L.pts), tot = L.arrets[L.arrets.length - 1].s || 1, xzArrets = L.arrets.map(a => { const p = pose(C0, a.s / tot * C0.L, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }); return [p.x, p.z]; });
+  if (!L.ptsSens) { try { L.ptsSens = surLaBonneChaussee(L.pts); } catch (e) { console.warn('ligne', e); L.ptsSens = L.pts; } }
+  JEU.chemin = cheminDe(L.ptsSens);
   const C = JEU.chemin; C.H = calerSurPonts(C);
-  // Recale les arrêts sur le chemin lissé.
-  const tot = L.arrets[L.arrets.length - 1].s || 1; L.arretsJ = L.arrets.map(a => ({ ...a, s: Math.min(C.L - 2, a.s / tot * C.L) }));
-  L.arretsJ[0].s = 0;
+  // Recale les arrêts sur le chemin lissé : chacun au point du nouveau trajet le plus proche, dans l'ordre.
+  let depuis = 0;
+  L.arretsJ = L.arrets.map((a, k) => { const [x, z] = xzArrets[k]; let best = depuis, bd = Infinity; for (let i = depuis; i < C.n; i += 2) { const d = (C.X[i] - x) ** 2 + (C.Z[i] - z) ** 2; if (d < bd) { bd = d; best = i; } } depuis = best; return { ...a, s: Math.min(C.L - 2, best) }; });
+  L.arretsJ[0].s = 0; L.arretsJ[L.arretsJ.length - 1].s = C.L - 2;
   L.arretsJ = arretsIntermediaires(L, C, L.arretsJ);
   L.arretsXZ = L.arretsJ.map(a => { const p = pose(C, a.s, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }); return [p.x, p.z]; });
   if (JEU.decor) scene.remove(JEU.decor);
@@ -811,7 +817,7 @@ export function majJeu(dt) {
       if (elC.dataset.cle !== cle) {
         elC.dataset.cle = cle; elC.className = 'jh-carrefour' + (actif ? ' maintenant' : '');
         const gps = cf.droit ? (cf.sens > 0 ? 'Le GPS tourne à droite' : 'Le GPS tourne à gauche') : 'Le GPS va tout droit';
-        const b = (dir, sym, nom, k, ok) => `<button type="button" data-dir="${dir}"${ok && actif ? '' : ' disabled'} aria-label="${nom}"><i>${sym}</i><kbd>${k}</kbd></button>`;
+        const b = (dir, sym, nom, k, ok) => `<button type="button" data-dir="${dir}"${ok && actif ? '' : ' disabled'} aria-label="${nom}"><i>${sym}</i>${kbd(k, true)}</button>`; // ← T → au clavier, ◀ ▲ ▶ (croix ou stick) à la manette
         elC.innerHTML = `${b(-1, '↰', 'Tourner à gauche', '←', !!cf.gauche)}<span><b>${ici ? (lent ? 'À toi de choisir' : 'Ralentis pour choisir') : 'Carrefour'}<em></em></b><small>${gps}</small></span>${cf.droit ? b(0, '↑', 'Tout droit', 'T', true) : ''}${b(1, '↱', 'Tourner à droite', '→', !!cf.droite)}`;
       }
       const em = elC.querySelector('em'); if (em) em.textContent = ici ? '' : ` · ${d} m`;
@@ -862,7 +868,7 @@ let guideJeu = null;
 function etapesJeu() {
   const st = () => JEU.etat, clients = () => avecClients(JEU.veh), prochain = () => JEU.ligne?.arretsJ[st().prochain];
   return [
-    { id: 'client', texte: () => coarse ? 'Ton client demande le prix : touche une réponse.' : 'Ton client demande le prix : clique sur une réponse, ou appuie sur [1] [2] [3].', quand: () => clients() && !!DISC.client && !DISC.client.accord && !$('#jhDialogue').hidden, fait: () => !clients() || !!DISC.client?.accord },
+    { id: 'client', texte: () => SAISIE.manette ? 'Ton client demande le prix : appuie sur [1], [2] ou [3], le bouton écrit sur la réponse.' : coarse ? 'Ton client demande le prix : touche une réponse.' : 'Ton client demande le prix : clique sur une réponse, ou appuie sur [1] [2] [3].', quand: () => clients() && !!DISC.client && !DISC.client.accord && !$('#jhDialogue').hidden, fait: () => !clients() || !!DISC.client?.accord },
     { id: 'rouler', texte: () => coarse ? 'Ton zém avance tout seul. Glisse le doigt vers le bas et garde-le posé pour freiner.' : JEU.autoGaz ? 'Ton zém avance tout seul. [↓] pour freiner, [↑] pour aller plus vite.' : 'Maintiens [↑] pour rouler. Relâche pour ralentir, [↓] pour freiner.', quand: () => true, fait: () => st().v > 8 },
     { id: 'arret', texte: () => `Bientôt l’arrêt ${prochain()?.nom || ''} : ${coarse ? 'glisse à droite, puis vers le bas en gardant le doigt posé' : 'mets-toi à droite [→], puis freine [↓]'} dans la zone jaune. ${clients() ? 'Ton client descend et paie.' : 'L’apprenti encaisse les passagers.'}`, quand: () => { const a = prochain(); return !!a && a.s - st().s < 260 && (!clients() || !!DISC.client); }, fait: () => st().servis >= 1 },
     { id: 'files', texte: () => coarse ? 'Glisse à gauche ou à droite pour éviter les zems, les trous et les chèvres. Vers le haut : sauter.' : '[←] [→] : change de file pour éviter les zems, les trous et les chèvres. [Espace] : sauter par-dessus un trou.', quand: () => st().v > 5, fait: () => G.changements >= 1 },

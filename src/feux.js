@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { LITE } from './base.js';
 import { COUCHES_SOL, scene } from './scene.js';
 import { roadLines } from './ville.js';
+import { surChaussee } from './chaussee.js';
+import { dansTerrePlein } from './terre-pleins.js';
 
 // ---------- Feux tricolores et passages piétons réels ----------
 // Positions d'OpenStreetMap (highway=traffic_signals : 81 feux ; highway=crossing : passages
@@ -38,7 +40,12 @@ export function construireFeux(feux = [], passages = []) {
     const r = rueProche(x, z); if (!r) continue;
     const rx = -r.dz, rz = r.dx, phase = Math.abs(r.dx) >= Math.abs(r.dz) ? 0 : 1; // côté droit du sens +d ; est-ouest ou nord-sud
     for (const s of [1, -1]) { // un poteau pour chaque sens de circulation
-      const off = r.w / 2 + 1.1, px = r.x + rx * off * s, pz = r.z + rz * off * s;
+      // Pas sur une autre chaussée ni sur un terre-plein : au carrefour, à 1,1 m du bord de sa rue, le poteau tombait
+      // souvent sur la rue transversale ou au milieu d'un boulevard (« un poteau seul au milieu de la chaussée »,
+      // 26/10). On l'écarte du bord jusqu'à 4 m ; sinon, pas de feu de ce côté.
+      let off = r.w / 2 + 1.1, px = 0, pz = 0;
+      for (; off <= r.w / 2 + 4; off += .5) { px = r.x + rx * off * s; pz = r.z + rz * off * s; if (!surChaussee(px, pz, -.4) && !dansTerrePlein(px, pz, .3)) break; }
+      if (off > r.w / 2 + 4) continue;
       poteaux.push([px, pz]);
       const fx = -r.dx * s, fz = -r.dz * s; // la tête regarde ceux qui arrivent
       tetes.push({ x: px - rx * s * .9, z: pz - rz * s * .9, ang: Math.atan2(fx, fz), phase });
