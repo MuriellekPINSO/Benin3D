@@ -12,6 +12,9 @@ const R = { pret: false, X: null, Z: null, adj: null, grille: null, n: 0 };
 // qui n'ont pas de vraie rue (le food court de la Cité ministérielle), mais très pénalisées : on ne les prend
 // qu'au bout du trajet, faute de mieux. Zem Run les ignore (carrefoursDe).
 const FUSION = 1.6, CASE = 25, FACTEUR = [1, 1, 1.05, 1.2, 1.6, 4];
+// Pour remettre une ligne dans le bon sens : jamais par une voie de service (allées du marché Dantokpa, parkings) — souvent
+// pas dessinées, sous les toits des étals ; le trajet passait dans les bâtiments.
+const SANS_SERVICE = [1, 1, 1.05, 1.2, 1.6, Infinity];
 const cle = (x, z, c) => Math.floor(x / c) + ',' + Math.floor(z / c);
 
 export function construireReseau() {
@@ -218,12 +221,23 @@ export function itineraireDemiTour(x, z, rue, cibles, debut = []) {
  * là où la ligne arrive sur le boulevard, au carrefour — comme un vrai tourne-à-gauche. Un recalcul par le plus court
  * chemin dans le bon sens a été essayé : les nœuds du réseau sont trop espacés, il faisait des détours de 50 à 70 %.
  */
-export function surLaBonneChaussee(pts) {
+export function surLaBonneChaussee(pts, cles = []) {
   const CG = 40, g = new Map();
-  roadLines.forEach((L, li) => { if (L.cls > 5 || L.bridge) return; for (let k = 1; k < L.pts.length; k++) { const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k]; for (let cx = Math.floor((Math.min(ax, bx) - 35) / CG); cx <= Math.floor((Math.max(ax, bx) + 35) / CG); cx++) for (let cz = Math.floor((Math.min(az, bz) - 35) / CG); cz <= Math.floor((Math.max(az, bz) + 35) / CG); cz++) { const q = cx + ',' + cz; (g.get(q) || g.set(q, []).get(q)).push([li, ax, az, bx, bz]); } } });
+  // Les ponts comptent : les grands ponts de la lagune ont un tablier par sens, et la ligne prenait celui d'en face.
+  roadLines.forEach((L, li) => { if (L.cls > 5) return; for (let k = 1; k < L.pts.length; k++) { const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k]; for (let cx = Math.floor((Math.min(ax, bx) - 35) / CG); cx <= Math.floor((Math.max(ax, bx) + 35) / CG); cx++) for (let cz = Math.floor((Math.min(az, bz) - 35) / CG); cz <= Math.floor((Math.max(az, bz) + 35) / CG); cz++) { const q = cx + ',' + cz; (g.get(q) || g.set(q, []).get(q)).push([li, ax, az, bx, bz]); } } });
   // Rue sous (x, z) dans l'axe (dx, dz) — à moins de sa demi-largeur — et la plus proche des chaussées qui vont dans ce sens.
   // Une rue qui tourne de plus de 90° en moins de 600 m : un anneau de rond-point ou une bretelle, pas un boulevard.
   const courbe = L => L.courbe ??= (() => { let t = 0, l = 0; for (let k = 1; k < L.pts.length; k++) { l += Math.hypot(L.pts[k][0] - L.pts[k - 1][0], L.pts[k][1] - L.pts[k - 1][1]); if (k > 1) { const a1 = Math.atan2(L.pts[k - 1][0] - L.pts[k - 2][0], L.pts[k - 1][1] - L.pts[k - 2][1]), a2 = Math.atan2(L.pts[k][0] - L.pts[k - 1][0], L.pts[k][1] - L.pts[k - 1][1]); t += Math.abs(Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1))); } } return l < 600 && t > Math.PI / 2; })();
+  // La rue sous (x, z) va-t-elle dans l'autre sens que (dx, dz) ? (à sens unique, à moins de sa demi-largeur)
+  const aContresens = (x, z, dx, dz) => {
+    let rue = null, bd = Infinity;
+    for (const [li, ax, az, bx, bz] of g.get(Math.floor(x / CG) + ',' + Math.floor(z / CG)) || []) {
+      const L = roadLines[li], ux = bx - ax, uz = bz - az, l = Math.hypot(ux, uz) || 1, c = (ux * dx + uz * dz) / l; if (Math.abs(c) < .8) continue;
+      const t = Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / (l * l))), d = Math.hypot(ax + ux * t - x, az + uz * t - z);
+      if (d < L.w / 2 && d < bd) { bd = d; rue = { L, c }; }
+    }
+    return !!rue && rue.L.sens && rue.c < 0;
+  };
   const sous = (x, z, dx, dz) => {
     let rue = null, bd = Infinity, bonne = null, bb = 35; const cand = [];
     for (const [li, ax, az, bx, bz] of g.get(Math.floor(x / CG) + ',' + Math.floor(z / CG)) || []) {
@@ -258,7 +272,107 @@ export function surLaBonneChaussee(pts) {
   for (const [i, [x, z, q]] of ech.entries()) { if (bas[i] && q) { n++; out.push([q[0], q[1]]); } else out.push([x, z]); }
   if (!out.length) return pts;
   if (import.meta.env.DEV) console.info(`ligne : ${n * 4} m remis sur la bonne chaussée`);
+  return contourner(out, cles, aContresens);
+}
+/**
+ * Ce qui reste à contresens après la bascule — une rue à sens unique sans chaussée jumelle (le centre, autour de
+ * Dantokpa et de Ganhi), un boulevard dont les deux chaussées sont à plus de 18 m, des maisons sur le terre-plein — est
+ * contourné par le réseau des rues, dans le bon sens (« corrige aussi les contresens qui restent », 27/10). Pour chaque
+ * tronçon, on repart 32 m avant, du carrefour devant soi, et l'on rejoint la ligne 32 m après par le plus court chemin
+ * qui ne prend aucune rue à contresens, en passant par les arrêts du tronçon. Le passage d'une chaussée à l'autre se
+ * fait donc toujours à un carrefour. Pas de détour de plus de trois fois le tronçon (et 700 m), ni plus de 25 % de
+ * route en plus sur toute la ligne.
+ */
+function contourner(pts, cles, aContresens) {
+  construireReseau();
+  const E = []; let cum = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, az] = pts[i - 1], [bx, bz] = pts[i], l = Math.hypot(bx - ax, bz - az); if (!l) continue;
+    const dx = (bx - ax) / l, dz = (bz - az) / l;
+    for (let d = 0; d < l; d += 4) { const x = ax + dx * d, z = az + dz * d; E.push({ x, z, dx, dz, s: cum + d, c: aContresens(x, z, dx, dz) }); }
+    cum += l;
+  }
+  // Les tronçons à contresens (12 m au moins), réunis s'ils sont à moins de 72 m l'un de l'autre.
+  const tr = [];
+  for (let k = 0; k < E.length;) { if (!E[k].c) { k++; continue; } let j = k; while (j + 1 < E.length && E[j + 1].c) j++; const d = tr[tr.length - 1]; if (d && k - d[1] < 18) d[1] = j; else tr.push([k, j]); k = j + 1; }
+  const sArrets = cles.map(([x, z]) => { let b = null, bd = 900; for (const e of E) { const d = (e.x - x) ** 2 + (e.z - z) ** 2; if (d < bd) { bd = d; b = e; } } return b ? [b.s, x, z] : null; }).filter(Boolean);
+  const lon = ch => { let s = 0; for (let i = 1; i < ch.length; i++) s += Math.hypot(R.X[ch[i]] - R.X[ch[i - 1]], R.Z[ch[i]] - R.Z[ch[i - 1]]); return s; };
+  const sections = []; let gagne = 0;
+  for (const [k0, k1] of tr) {
+    if (k1 - k0 < 2) continue;
+    const A = E[Math.max(0, k0 - 8)], B = E[Math.min(E.length - 1, k1 + 8)], ra = rueSous(A.x, A.z, A.dx, A.dz), rb = rueSous(B.x, B.z, B.dx, B.dz);
+    // La rue où l'on quitte la ligne, et celle où on la rejoint : sous le trajet (6 m), pas une parallèle derrière les maisons.
+    const loin = (P, e) => { const [a, b] = e, ux = R.X[b] - R.X[a], uz = R.Z[b] - R.Z[a], l2 = ux * ux + uz * uz || 1, t = Math.max(0, Math.min(1, ((P.x - R.X[a]) * ux + (P.z - R.Z[a]) * uz) / l2)); return Math.hypot(R.X[a] + ux * t - P.x, R.Z[a] + uz * t - P.z) > 6; };
+    if (!ra || !rb || loin(A, ra) || loin(B, rb)) continue;
+    const etapes = [ra[1], ...sArrets.filter(([s]) => s > A.s && s < B.s).map(([, x, z]) => cible(x, z)?.[0]).filter(n => n !== undefined), rb[0]];
+    let route = [etapes[0]], avant = ra[0], ok = true;
+    for (const n of etapes.slice(1)) {
+      const cur = route[route.length - 1]; if (n === cur) continue;
+      const ch = dijkstra(cur, n, avant, SANS_SERVICE); if (!ch) { ok = false; break; } // jamais à contresens : pas de repli ici
+      route.push(...ch.slice(1)); avant = ch[ch.length - 2];
+    }
+    if (!ok) continue;
+    const l = Math.hypot(R.X[route[0]] - A.x, R.Z[route[0]] - A.z) + lon(route) + Math.hypot(B.x - R.X[route[route.length - 1]], B.z - R.Z[route[route.length - 1]]), span = B.s - A.s;
+    if (l > 3 * span + 700) { if (import.meta.env.DEV) console.info(`ligne : ${Math.round((k1 - k0 + 1) * 4)} m à contresens laissés (détour de ${Math.round(l)} m pour ${Math.round(span)} m)`); continue; }
+    sections.push([A.s, B.s, [[A.x, A.z], ...route.map(n => [R.X[n], R.Z[n]]), [B.x, B.z]], l - span, (k1 - k0 + 1) * 4]);
+  }
+  // Au total, pas plus de 25 % de route en plus sur la ligne : les détours les moins chers d'abord (mètres ajoutés par
+  // mètre de contresens évité). Les autres tronçons restent à contresens.
+  let budget = cum * .25; const gardees = [];
+  for (const S of [...sections].sort((a, b) => a[3] / a[4] - b[3] / b[4])) if (S[3] <= budget) { budget -= Math.max(0, S[3]); gardees.push(S); gagne += S[4]; }
+  sections.length = 0; sections.push(...gardees.sort((a, b) => a[0] - b[0]));
+  if (!sections.length) return parEtapes(pts, cles, aContresens);
+  if (import.meta.env.DEV) console.info(`ligne : ${gagne} m de contresens contournés par ${sections.length} détours`);
+  return parEtapes(recoudre(pts, sections), cles, aContresens);
+}
+/** Remplace dans pts les sections [début, fin, points] (abscisses le long de pts), rangées dans l'ordre. */
+function recoudre(pts, sections) {
+  const out = []; let c = 0, si = 0;
+  for (let i = 0; i < pts.length; i++) {
+    if (i) c += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    while (si < sections.length && c >= sections[si][0]) { out.push(...sections[si][2]); si++; }
+    if (!sections.some(([a, b]) => c >= a && c <= b)) out.push(pts[i]); // bornes comprises : la section commence et finit par elles
+  }
+  while (si < sections.length) out.push(...sections[si++][2]);
   return out;
+}
+/**
+ * Dernier recours, d'un arrêt au suivant : s'il reste plus de 60 m à contresens entre deux arrêts (un quartier de sens
+ * uniques, où aucun petit détour ne suffit — la fin de la ligne de la plage au stade, vers l'Étoile Rouge), l'étape
+ * entière est refaite par le plus court chemin dans le bon sens, d'un arrêt à l'autre, si elle ne s'allonge pas de plus
+ * de 60 % (et 400 m). Les points de passage devant les monuments de cette étape sont alors perdus : rouler dans le bon
+ * sens passe avant.
+ */
+function parEtapes(pts, cles, aContresens) {
+  const E = []; let cum = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, az] = pts[i - 1], [bx, bz] = pts[i], l = Math.hypot(bx - ax, bz - az); if (!l) continue;
+    const dx = (bx - ax) / l, dz = (bz - az) / l;
+    for (let d = 0; d < l; d += 4) { const x = ax + dx * d, z = az + dz * d; E.push({ x, z, s: cum + d, c: aContresens(x, z, dx, dz) }); }
+    cum += l;
+  }
+  if (!E.length) return pts;
+  // Chaque arrêt au point le plus proche APRÈS le précédent : une ligne qui repasse près d'un arrêt (aller et retour)
+  // faisait sinon commencer l'étape au mauvais passage, et le trajet traversait les pâtés de maisons.
+  const bornes = [0]; for (const [x, z] of cles) { let b = bornes[bornes.length - 1], bd = Infinity; for (let k = b; k < E.length; k++) { const d = (E[k].x - x) ** 2 + (E[k].z - z) ** 2; if (d < bd) { bd = d; b = k; } } bornes.push(b); }
+  bornes.push(E.length - 1); const sections = [];
+  for (let k = 1; k < bornes.length; k++) {
+    const i0 = bornes[k - 1], i1 = bornes[k]; let contre = 0; for (let i = i0; i < i1; i++) if (E[i].c) contre += 4;
+    if (contre <= 60 || i1 - i0 < 3) continue;
+    // Les nœuds les plus proches de chaque bout (60 m) : le plus proche peut être une rue à sens unique qui ne fait que
+    // partir de l'arrêt (vers l'Étoile Rouge, on n'arrivait par aucune). On garde le premier couple qui se rejoint.
+    const pres = P => noeudsPres(P.x, P.z, 60).filter(([n]) => relie(n)).slice(0, 6).map(([n]) => n);
+    let ch = null, a = -1, b = -1;
+    for (const na of pres(E[i0])) { for (const nb of pres(E[i1])) { if (na === nb) continue; ch = dijkstra(na, nb, -1, SANS_SERVICE); if (ch) { a = na; b = nb; break; } } if (ch) break; } // jamais à contresens
+    if (!ch) { if (import.meta.env.DEV) console.info(`ligne : étape à ${contre} m de contresens, aucun chemin dans le bon sens`); continue; }
+    let l = Math.hypot(R.X[a] - E[i0].x, R.Z[a] - E[i0].z) + Math.hypot(E[i1].x - R.X[b], E[i1].z - R.Z[b]);
+    for (let i = 1; i < ch.length; i++) l += Math.hypot(R.X[ch[i]] - R.X[ch[i - 1]], R.Z[ch[i]] - R.Z[ch[i - 1]]);
+    const span = E[i1].s - E[i0].s;
+    if (import.meta.env.DEV) console.info(`ligne : étape à ${contre} m de contresens, refaite en ${Math.round(l)} m pour ${Math.round(span)} m${l > 1.6 * span + 400 ? ' (refusé)' : ''}`);
+    if (l > 1.6 * span + 400) continue;
+    sections.push([E[i0].s, E[i1].s, [[E[i0].x, E[i0].z], ...ch.map(n => [R.X[n], R.Z[n]]), [E[i1].x, E[i1].z]]]);
+  }
+  return sections.length ? recoudre(pts, sections) : pts;
 }
 
 // Raccourci du client pressé : distance pure, petites rues comprises (pas de préférence pour les grands axes).

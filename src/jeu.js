@@ -400,7 +400,7 @@ export function lancerLigne(L, veh, defi = null) {
   JEU.ligne = L; JEU.veh = veh; compterUneFois('zemrun'); lieuStats('zemrun');
   // Le trajet remis sur la chaussée qui va dans le bon sens (carrefours.js) ; à défaut, celui des données.
   const C0 = cheminDe(L.pts), tot = L.arrets[L.arrets.length - 1].s || 1, xzArrets = L.arrets.map(a => { const p = pose(C0, a.s / tot * C0.L, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }); return [p.x, p.z]; });
-  if (!L.ptsSens) { try { L.ptsSens = surLaBonneChaussee(L.pts); } catch (e) { console.warn('ligne', e); L.ptsSens = L.pts; } }
+  if (!L.ptsSens) { try { L.ptsSens = surLaBonneChaussee(L.pts, xzArrets.slice(1, -1)); } catch (e) { console.warn('ligne', e); L.ptsSens = L.pts; } }
   JEU.chemin = cheminDe(L.ptsSens);
   const C = JEU.chemin; C.H = calerSurPonts(C);
   // Recale les arrêts sur le chemin lissé : chacun au point du nouveau trajet le plus proche, dans l'ordre.
