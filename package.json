@@ -16,7 +16,8 @@
     "tripo": "node scripts/tripo.mjs",
     "leger": "node scripts/leger.mjs",
     "personnages": "node scripts/personnages.mjs",
-    "pubs": "node scripts/pubs.mjs"
+    "pubs": "node scripts/pubs.mjs",
+    "trafic": "node scripts/trafic.mjs"
   },
   "dependencies": {
     "@vercel/functions": "^3.10.3",

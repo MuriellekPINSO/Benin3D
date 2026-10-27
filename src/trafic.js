@@ -3,7 +3,7 @@ import { dansTerrePlein } from './terre-pleins.js';
 import { LITE, hash } from './base.js';
 import { E } from './etat.js';
 import { camera, scene } from './scene.js';
-import { ZEMS_3D, matVeh, partsTokpa, partsZem } from './vehicules.js';
+import { TRAFIC_3D, ZEMS_3D, matVeh, partsTokpa, partsZem } from './vehicules.js';
 import { ROAD_W, mergeColored, roadLines } from './ville.js';
 
 // ---------- Zémidjans ----------
@@ -18,10 +18,13 @@ export function buildZems() {
     const len = cum[cum.length - 1]; if (len < 30) continue;
     total += len * W[L.cls]; paths.push({ xz, cum, len, w: L.w ?? ROAD_W[L.cls], sens: L.sens && L.cls <= 3, acc: total });
   }
-  const n = LITE ? 800 : 3000; // téléphone : 1 400 zéms à 1 176 triangles faisaient 1,6 M de triangles à chaque image
-  const g = mergeColored(partsZem({ passager: '#2f6fb0' }));
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .6, emissive: '#ffcf6a', emissiveIntensity: 0 });
-  E.zems = new THREE.InstancedMesh(g, mat, n);
+  // 1 200 au lieu de 3 000 (350 au lieu de 800 au téléphone) : ils se traversaient les uns les autres, et ceux de la
+  // circulation (« on a toujours un problème de collision des voitures et motos qui deviennent beaucoup : supprime la
+  // majorité », Murielle, 27/10). De loin, la moto-taxi en 3D allégée (630 triangles), plus la moto dessinée en code.
+  const n = LITE ? 350 : 1200;
+  const loin = TRAFIC_3D.loin, g = loin ? loin.geo : mergeColored(partsZem({ passager: '#2f6fb0' }));
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: !loin, map: loin?.map ?? null, roughness: .6, emissive: '#ffcf6a', emissiveIntensity: 0 });
+  E.zems = new THREE.InstancedMesh(g, mat, n); E.zems.userData.en3D = !!loin;
   E.zems.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   E.zems.frustumCulled = false; E.zems.renderOrder = 11; E.zems.visible = false;
   for (let i = 0; i < n; i++) {
@@ -29,19 +32,32 @@ export function buildZems() {
     while (lo < hi) { const mid = (lo + hi) >> 1; if (paths[mid].acc < r) lo = mid + 1; else hi = mid; }
     const P = paths[lo];
     // Chaussée à sens unique (moitié de boulevard) : tout le monde roule dans le même sens, réparti sur la largeur.
-    E.zemState.push({ P, s: hash(i, 61) * P.len, v: 7 + hash(i, 62) * 7, dir: P.sens ? 1 : hash(i, 63) < 0.5 ? 1 : -1, seg: 0, lane: P.sens ? (hash(i, 64) - .5) * (P.w - 2) : 0.8 + hash(i, 64) * (P.w * 0.3), hl: 1.05, hw: .42 });
+    // Un sur trois n'est pas un zém : un conducteur en chemise (civil 1 à 4, la couleur de sa chemise ; 0 : gilet jaune).
+    const z = { P, s: hash(i, 61) * P.len, v: 7 + hash(i, 62) * 7, dir: P.sens ? 1 : hash(i, 63) < 0.5 ? 1 : -1, seg: 0, lane: P.sens ? (hash(i, 64) - .5) * (P.w - 2) : 0.8 + hash(i, 64) * (P.w * 0.3), hl: 1.05, hw: .42, civil: hash(i, 65) < .34 ? 1 + Math.floor(hash(i, 66) * 4) : 0 };
+    z.vc = z.v; (P.zems ??= []).push(z); E.zemState.push(z);
   }
   scene.add(E.zems);
 }
-// Les motos proches de la caméra passent au zémidjan détaillé (moto-taxi-lod.glb).
+// Les motos proches de la caméra passent au modèle 3D de près : la moto-taxi (3 000 triangles, scripts/trafic.mjs — 11 000
+// avec moto-taxi-lod.glb), et les motos ordinaires, conducteur en chemise, une par couleur. Celles-ci sont rangées sous
+// E.zemsProches : elles se montrent et se cachent avec lui.
 export function zemsDetailles() {
-  if (!ZEMS_3D.motoLod) return;
-  const max = LITE ? 40 : 90;
-  E.zemsProches = new THREE.InstancedMesh(ZEMS_3D.motoLod.geo, ZEMS_3D.motoLod.mat, max);
-  E.zemsProches.userData.max = max; E.zemsProches.count = 0;
-  E.zemsProches.instanceMatrix.setUsage(THREE.DynamicDrawUsage); E.zemsProches.frustumCulled = false;
-  E.zemsProches.castShadow = !LITE; E.zemsProches.receiveShadow = true; E.zemsProches.visible = false;
+  const zem = TRAFIC_3D.zem ?? ZEMS_3D.motoLod; if (!zem) return;
+  const max = LITE ? 30 : 60, inst = (m, n) => { const I = new THREE.InstancedMesh(m.geo, m.mat, n); I.userData.max = n; I.count = 0; I.instanceMatrix.setUsage(THREE.DynamicDrawUsage); I.frustumCulled = false; I.castShadow = !LITE; I.receiveShadow = true; return I; };
+  E.zemsProches = inst(zem, max); E.zemsProches.visible = false;
+  E.zemsProches.userData.civils = TRAFIC_3D.civils.map(c => { const I = inst(c, Math.ceil(max / 3)); E.zemsProches.add(I); return I; });
   scene.add(E.zemsProches);
+}
+/** La vitesse visée par z : celle de la rue, ou moins s'il en rattrape un autre devant lui dans sa file (même rue, même
+ *  sens). Ils ne se voyaient pas : deux zéms de la même rue passaient l'un dans l'autre. */
+function suivre(z) {
+  let vise = z.v;
+  for (const W of z.P.zems) {
+    if (W === z || W.dir !== z.dir || Math.abs(W.lane - z.lane) > z.hw + W.hw + .4) continue;
+    const d = (W.s - z.s) * z.dir; if (d <= 0 || d > 16) continue;
+    const ecart = d - z.hl - W.hl; vise = Math.min(vise, ecart < 2 ? 0 : W.vc + (ecart - 2) * .9);
+  }
+  return vise;
 }
 // Seuls les véhicules dans le champ et à portée de vue passent par la carte graphique (rangés en tête, `count` réduit) :
 // dans la rue, les 800 zéms de toute la ville étaient dessinés à chaque image (940 000 triangles sur téléphone).
@@ -53,11 +69,11 @@ function majChamp() {
 const dansLeChamp = (x, z, r) => { _sph.center.set(x, 1, z); _sph.radius = r; return CHAMP.intersectsSphere(_sph); };
 export function updateZems(dt) {
   const A = E.zems.instanceMatrix.array;
-  const PR = E.zemsProches, B = PR ? PR.instanceMatrix.array : null, cam = camera.position, R2 = 300 * 300, V2 = majChamp();
-  let np = 0, nv = 0;
+  const PR = E.zemsProches, PRS = PR ? [PR, ...(PR.userData.civils || [])] : [], NP = PRS.map(() => 0), cam = camera.position, R2 = 300 * 300, V2 = majChamp();
+  let nv = 0; const y0 = E.zems.userData.en3D ? .04 : .15; // le modèle 3D est posé au sol ; celui dessiné en code se relève de 15 cm
   for (let i = 0; i < E.zemState.length; i++) {
     const z = E.zemState[i], P = z.P;
-    if (!cede(z, dt)) z.s += z.v * dt * z.dir;
+    const vise = cede(z, dt) ? 0 : suivre(z); z.vc += THREE.MathUtils.clamp(vise - z.vc, -9 * dt, 3 * dt); z.s += z.vc * dt * z.dir;
     if (P.sens) { if (z.s >= P.len) z.s = 0.01; } // sens unique : pas de demi-tour, on repart du début
     else if (z.s >= P.len) { z.s = P.len - 0.01; z.dir = -1; } else if (z.s <= 0) { z.s = 0.01; z.dir = 1; }
     const cum = P.cum; let k = z.seg;
@@ -71,18 +87,19 @@ export function updateZems(dt) {
     retenir(z, x, zz, dx, dz);
     const d2 = (x - cam.x) ** 2 + (zz - cam.z) ** 2; if (d2 > V2 || !dansLeChamp(x, zz, 2)) continue;
     const th = Math.atan2(-dz, dx), c = Math.cos(th), s = Math.sin(th);
-    if (B && np < PR.userData.max && d2 < R2) {
-      const q = np++ * 16;
+    const kv = PRS[z.civil] ? z.civil : 0, M = PRS[kv]; // sa moto de près : zém ou conducteur en chemise
+    if (M && NP[kv] < M.userData.max && d2 < R2) {
+      const B = M.instanceMatrix.array, q = NP[kv]++ * 16;
       B[q] = c; B[q + 1] = 0; B[q + 2] = -s; B[q + 3] = 0; B[q + 4] = 0; B[q + 5] = 1; B[q + 6] = 0; B[q + 7] = 0;
       B[q + 8] = s; B[q + 9] = 0; B[q + 10] = c; B[q + 11] = 0; B[q + 12] = x; B[q + 13] = 0.04; B[q + 14] = zz; B[q + 15] = 1;
       continue;
     }
     const o = nv++ * 16;
     A[o] = c; A[o + 1] = 0; A[o + 2] = -s; A[o + 3] = 0; A[o + 4] = 0; A[o + 5] = 1; A[o + 6] = 0; A[o + 7] = 0;
-    A[o + 8] = s; A[o + 9] = 0; A[o + 10] = c; A[o + 11] = 0; A[o + 12] = x; A[o + 13] = 0.15; A[o + 14] = zz; A[o + 15] = 1;
+    A[o + 8] = s; A[o + 9] = 0; A[o + 10] = c; A[o + 11] = 0; A[o + 12] = x; A[o + 13] = y0; A[o + 14] = zz; A[o + 15] = 1;
   }
   E.zems.count = nv; E.zems.instanceMatrix.needsUpdate = true;
-  if (PR) { PR.count = np; PR.instanceMatrix.needsUpdate = true; }
+  PRS.forEach((M, k) => { M.count = NP[k]; M.instanceMatrix.needsUpdate = true; });
 }
 
 // ---------- La circulation et le joueur de « Vivre à Cotonou » ----------

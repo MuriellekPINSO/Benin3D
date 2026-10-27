@@ -302,6 +302,51 @@ export async function chargerTokpa(url) {
   } catch (e) { console.warn('modèle tokpa indisponible', e.message); }
   return TOKPA_3D;
 }
+// ---------- La circulation en 3D (scripts/trafic.mjs) ----------
+// « Duplique juste les simples modèles de voiture et moto qu'on a, mais en 3D, en réduisant un peu la qualité ; pour les
+// motos des zéms aussi, mais certains ne seront pas en habit de zém » (Murielle, 27/10). La voiture rouge (2 500
+// triangles) est repeinte en blanc, argent, noir et bleu ; le taxi jaune et vert ; la moto-taxi de près (3 000) et de
+// loin (630) ; et des motos dont le conducteur porte une chemise au lieu du gilet jaune.
+export const TRAFIC_3D = { pret: false, echec: false, voitures: [], taxi: null, zem: null, civils: [], loin: null };
+const CARROSSERIES = ['#e9e9e4', '#a9adb0', '#25282b', '#34507a', null]; // null : le rouge d'origine
+const CHEMISES = ['#f2f0ea', '#2f6fb0', '#c8382f', '#3a7d44'];
+/**
+ * La texture `tex` repeinte : les pixels que `garde` retient prennent la couleur `hex`, avec leur ombre et leur lumière
+ * (la luminosité d'origine, rapportée à celle de `ref`). Une texture glTF ne se retourne pas (flipY faux).
+ */
+function repeindre(tex, garde, hex, ref) {
+  const img = tex.image, cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+  const c = cv.getContext('2d'); c.drawImage(img, 0, 0); const d = c.getImageData(0, 0, cv.width, cv.height), p = d.data;
+  const v = new THREE.Color(hex), [vr, vg, vb] = [v.r * 255, v.g * 255, v.b * 255];
+  for (let i = 0; i < p.length; i += 4) {
+    const r = p[i], g = p[i + 1], b = p[i + 2]; if (!garde(r, g, b)) continue;
+    const k = Math.min(1.6, (r + g + b) / ref); p[i] = Math.min(255, vr * k); p[i + 1] = Math.min(255, vg * k); p[i + 2] = Math.min(255, vb * k);
+  }
+  c.putImageData(d, 0, 0);
+  const t = new THREE.CanvasTexture(cv); t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.wrapS = tex.wrapS; t.wrapT = tex.wrapT; t.anisotropy = 4;
+  return t;
+}
+const rouge = (r, g, b) => r > 90 && r > g * 1.7 && r > b * 1.7; // la carrosserie de la voiture rouge
+const gilet = (r, g, b) => r > 140 && g > 120 && r - b > 45 && g - b > 35 && Math.abs(r - g) < 60; // le gilet du zém : un jaune pâle (220, 220, 160), pas la peau
+const matTrafic = map => new THREE.MeshStandardMaterial({ map, roughness: .7, metalness: .05 });
+let traficEnRoute = null;
+export function chargerTrafic() {
+  return traficEnRoute ??= (async () => {
+    const url = f => import.meta.env.BASE_URL + 'modeles/trafic/' + f;
+    try {
+      const [voiture, taxi, moto, loin] = await Promise.all(['voiture.glb', 'taxi.glb', 'moto.glb', 'moto-loin.glb'].map(f => chargeur.loadAsync(url(f)).then(g => g.scene)));
+      const V = geometrieDe(gabaritDe(voiture, { largeur: 4.3 })), T = geometrieDe(gabaritDe(taxi, { largeur: 4.3 }));
+      const M = geometrieDe(gabaritDe(moto, { largeur: 1.95 })), L = geometrieDe(gabaritDe(loin, { largeur: 1.95 }));
+      TRAFIC_3D.voitures = CARROSSERIES.map(h => ({ geo: V.geo, mat: matTrafic(h ? repeindre(V.mat.map, rouge, h, 330) : V.mat.map) }));
+      TRAFIC_3D.taxi = { geo: T.geo, mat: matTrafic(T.mat.map) };
+      TRAFIC_3D.zem = { geo: M.geo, mat: matTrafic(M.mat.map) };
+      TRAFIC_3D.civils = CHEMISES.map(h => ({ geo: M.geo, mat: matTrafic(repeindre(M.mat.map, gilet, h, 600)) }));
+      TRAFIC_3D.loin = { geo: L.geo, map: L.mat.map };
+      TRAFIC_3D.pret = true;
+    } catch (e) { console.warn('circulation en 3D indisponible', e.message); TRAFIC_3D.echec = true; }
+    return TRAFIC_3D;
+  })();
+}
 // Lancé dès que les données de la ville sont arrivées (main.js) : le téléchargement (1,5 Mo) se fait pendant
 // que le téléphone construit la ville, au lieu d'attendre l'étape « Zémidjans ».
 let zemsEnRoute = null;
