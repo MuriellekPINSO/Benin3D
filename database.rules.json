@@ -203,6 +203,92 @@
           }
         }
       }
+    },
+    "zem_lp_departs": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['t', 'j'])",
+        "t": { ".validate": "newData.val() === now" },
+        "j": { ".validate": "newData.isString() && newData.val().matches(/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/)" },
+        "$autre": { ".validate": false }
+      }
+    },
+    "zem_lp": {
+      ".read": "auth != null",
+      "$jour": {
+        ".indexOn": ["s"],
+        ".validate": "$jour.matches(/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/)",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && newData.exists()",
+          ".validate": "newData.hasChildren(['n', 's', 'b', 'u', 'g', 'c', 'k', 'ti', 'dep', 't']) && root.child('zem_lp_departs').child($uid).child('t').val() === newData.child('dep').val() && root.child('zem_lp_departs').child($uid).child('j').val() === $jour && now - newData.child('dep').val() >= 57000 && now - newData.child('dep').val() <= 900000 && newData.child('s').val() === newData.child('b').val() * 10 + newData.child('u').val() * 20 + newData.child('g').val() * 30 + newData.child('c').val() * 40 + newData.child('k').val() && newData.child('k').val() * 2 <= newData.child('s').val() && newData.child('b').val() + newData.child('u').val() + newData.child('g').val() + newData.child('c').val() <= newData.child('ti').val() * 6 && (!data.exists() || newData.child('s').val() > data.child('s').val())",
+          "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+          "s": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 20000" },
+          "b": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 200 && newData.val() % 1 === 0" },
+          "u": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0" },
+          "g": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 80 && newData.val() % 1 === 0" },
+          "c": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 30 && newData.val() % 1 === 0" },
+          "k": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 10 === 0" },
+          "ti": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 90 && newData.val() % 1 === 0" },
+          "dep": { ".validate": "newData.isNumber()" },
+          "t": { ".validate": "newData.val() === now" },
+          "$autre": { ".validate": false }
+        }
+      }
+    },
+    "zem_ff": {
+      ".read": "auth != null",
+      ".indexOn": ["salon"],
+      "$partie": {
+        ".write": "auth != null && ((!data.exists() && newData.child('hote').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('hote').val() === auth.uid && data.child('etat').val() === 'inscription'))",
+        ".validate": "$partie.matches(/^[a-z0-9]{6,24}$/) && newData.hasChildren(['hote', 'salon', 'lieu', 'cree', 'etat'])",
+        "hote": { ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val())" },
+        "salon": { ".validate": "newData.isString() && newData.val().length <= 12 && (!data.exists() || newData.val() === data.val())" },
+        "lieu": { ".validate": "newData.isString() && newData.val().length <= 24 && (!data.exists() || newData.val() === data.val())" },
+        "cree": { ".validate": "(!data.exists() && newData.val() === now) || newData.val() === data.val()" },
+        "etat": {
+          ".write": "auth != null && root.child('zem_ff').child($partie).child('hote').val() === auth.uid",
+          ".validate": "(!data.exists() && newData.val() === 'inscription') || (data.val() === 'inscription' && newData.val() === 'jeu') || newData.val() === data.val()"
+        },
+        "debut": {
+          ".write": "auth != null && root.child('zem_ff').child($partie).child('hote').val() === auth.uid && !data.exists()",
+          ".validate": "newData.val() === now && newData.parent().child('etat').val() === 'jeu'"
+        },
+        "joueurs": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('zem_ff').child($partie).child('etat').val() === 'inscription'",
+            ".validate": "newData.hasChildren(['n', 't'])",
+            "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+            "t": { ".validate": "newData.val() === now || newData.val() === data.val()" },
+            "$autre": { ".validate": false }
+          }
+        },
+        "indices": {
+          "$manche": {
+            "$passe": {
+              "$uid": {
+                ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('zem_ff').child($partie).child('etat').val() === 'jeu' && root.child('zem_ff').child($partie).child('joueurs').child($uid).exists()",
+                ".validate": "newData.hasChildren(['m', 't']) && $manche.matches(/^[0-9]$/) && $passe.matches(/^[0-9]$/)",
+                "m": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 20" },
+                "t": { ".validate": "newData.val() === now" },
+                "$autre": { ".validate": false }
+              }
+            }
+          }
+        },
+        "votes": {
+          "$manche": {
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('zem_ff').child($partie).child('etat').val() === 'jeu' && root.child('zem_ff').child($partie).child('joueurs').child($uid).exists()",
+              ".validate": "newData.hasChildren(['c', 't']) && $manche.matches(/^[0-9]$/) && newData.child('c').isString() && root.child('zem_ff').child($partie).child('joueurs').child(newData.child('c').val()).exists()",
+              "c": { ".validate": "newData.isString()" },
+              "t": { ".validate": "newData.val() === now" },
+              "$autre": { ".validate": false }
+            }
+          }
+        },
+        "$autre": { ".validate": false }
+      }
     }
   }
 }

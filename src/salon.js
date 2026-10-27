@@ -33,6 +33,8 @@ import { AUDIO, audioCtx, moteurMaj, son } from './audio.js';
 import { taire } from './voix.js';
 import { camera, canvas, controls, scene } from './scene.js';
 import { filtrer } from './moderation.js';
+import { actionsLancePierre, cameraTir, fovTir, initLancePierre, majLancePierre, tirEnCours } from './lancepierre.js';
+import { actionsFauxFrere, initFauxFrere, majFauxFrere, quitterFauxFrere } from './fauxfrere.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
 // Jusqu'à 8 amis dans la même ville : chacun se promène à pied avec son personnage, voit les autres,
@@ -669,7 +671,7 @@ async function porter(modele, forcer = false) {
 function quitter() {
   if (!S.actif) return;
   lieuStats('carte');
-  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterChapitres(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
+  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
   S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
   for (const A of S.autres.values()) retirer(A); S.autres.clear();
@@ -798,11 +800,11 @@ function vuGestes() {
 export function majSalon(dt) {
   if (!S.actif) { E.joueur = null; majAmbianceSalon(dt, null); return; }
   majGuideSalon(dt);
-  const t = S.touches, j = S.joy;
+  const t = S.touches, j = S.joy, tir = tirEnCours(); // au stand du lance-pierre : on ne marche plus, la caméra vise les cibles
   const pad = S.pad && performance.now() - S.padT < 250 ? S.pad : null; // manette (voir manette.js), si elle vient de parler : débranchée ou menu ouvert, on n'avance plus
-  const av = S.menu ? 0 : THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
-  const tour = S.menu ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) - (j ? j.x : 0) - (pad ? pad.lx : 0), -1, 1);
-  majVie(dt); majCommerces(dt); majChapitres(dt); majCarteSalon();
+  const av = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
+  const tour = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) - (j ? j.x : 0) - (pad ? pad.lx : 0), -1, 1);
+  majVie(dt); majCommerces(dt); majChapitres(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
   let suivi = majTrajets(dt, av, tour); // en voiture, à moto, derrière un zém : c'est le véhicule qui bouge
   if (T.mode === 'ami') suivi = majAmi(); // derrière un ami : c'est lui qui conduit
   // La circulation s'arrête devant lui (trafic.js, circulation.js) ; dedans, elle l'ignore. Elle doit connaître sa taille :
@@ -890,15 +892,16 @@ export function majSalon(dt) {
   } else S.bras = 1;
   if (S.saut || suivi?.libre) { camera.position.copy(voulue); S.saut = false; } else camera.position.lerp(voulue, 1 - Math.exp(-dt * (suivi ? 6.5 : 7))); // en avion (temps accéléré), la caméra reste collée derrière
   controls.target.copy(cible);
+  if (tir) { cameraTir(controls); if (S.moi) S.moi.visible = false; } // à la place de ses yeux : on ne voit que le lance-pierre
   for (const b of [$('#slVue'), $('#slVue2')]) if (b && b.disabled !== !!S.lieu) { b.disabled = !!S.lieu; b.title = S.lieu ? 'La vue change une fois dehors' : 'Changer de vue (V)'; } // dedans, la caméra reste près de soi : le premier clic ne faisait rien
-  const near = S.lieu ? .3 : .6; if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); } // dehors : deux fois plus de précision de profondeur au loin
+  const near = S.lieu || tir ? .3 : .6; if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); } // dehors : deux fois plus de précision de profondeur au loin
   // Dans une pièce, téléphone en hauteur : à 45°, l'image ne fait que 21° de large et le personnage la remplit ; les murs
   // empêchent de reculer, alors on ouvre l'angle (jusqu'à 70°, ~60° de large visés). Ordinateur, paysage : 45°, inchangé.
-  const fov = S.lieu ? THREE.MathUtils.clamp(2 * Math.atan(Math.tan(Math.PI / 6) / camera.aspect) * 180 / Math.PI, 45, 70) : 45;
+  const fov = tir ? fovTir() : S.lieu ? THREE.MathUtils.clamp(2 * Math.atan(Math.tan(Math.PI / 6) / camera.aspect) * 180 / Math.PI, 45, 70) : 45;
   if (Math.abs(camera.fov - fov) > .1) { camera.fov = fov; camera.updateProjectionMatrix(); }
   // Téléphone en hauteur : le bas de l'écran est pris par le joystick, les boutons et le guide. On remonte l'image de 12 %
   // (le personnage passe au tiers supérieur) au lieu de le laisser au milieu, derrière la carte du guide.
-  const haut = coarse && innerHeight > innerWidth * 1.2;
+  const haut = !tir && coarse && innerHeight > innerWidth * 1.2;
   // setViewOffset fixe aussi camera.aspect (largeur / hauteur données) : avec (1, 1…), l'image devenait carrée, étirée deux fois en hauteur.
   if (haut !== !!camera.view?.enabled) { if (haut) camera.setViewOffset(camera.aspect, 1, 0, .12, camera.aspect, 1); else camera.clearViewOffset(); }
   majAmbianceSalon(dt, { x: P.x, z: P.z, dedans: !!S.lieu, public: !!S.lieu && !S.lieu.prive, clients: S.lieu ? 0 : genteCommerces(S.x, S.z) }); // les bruits de la ville (ambiance-salon.js)
@@ -946,7 +949,8 @@ export function majSalon(dt) {
   S.actions = T.mode === 'ami' ? actionsAmi()
     : occupe() ? actionsMaison() // couché : se lever ; sous la douche, aux fourneaux : arrêter
     : S.gradin ? [{ texte: 'Se lever', f: leverGradins }]
-    : [...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : [])]; // l'action du lieu d'abord, « Sortir » en dernier
+    : tir ? actionsLancePierre(S, T)
+    : [...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : [])]; // l'action du lieu d'abord, « Sortir » en dernier
   // La touche de chaque bouton : celle de la manette si elle est branchée (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
   const touches = S.pad && performance.now() - S.padT < 1000 ? (S.pad.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
   ['#slEntrer', '#slAction2', '#slAction3'].forEach((sel, k) => { // trois au plus (apprenti à l'arrêt : encaisser, crier, donner le départ)
@@ -1203,6 +1207,8 @@ export function initSalon(data) {
   suivreClavier();
   guideSalon = creerGuide({ cle: 'cotonou3d.guide', el: $('#slGuide'), titre: 'Prise en main', etapes: etapesSalon() });
   initCommerces({ S, T, ligne, choisir, allerVers }); // devenir patron (commerces.js)
+  initLancePierre({ S, ligne, choisir }); // le stand de la plage de Fidjrossè (lancepierre.js)
+  initFauxFrere({ S, ligne, choisir, bulleDe: (u, t) => { const A = u === S.R?.id ? S : S.autres.get(u); if (A) bulle(A, t); } }); // le maquis de la plage (fauxfrere.js)
   initChapitres({ ligne, guide: () => !$('#slGuide').hidden }); // la prochaine étape, toujours affichée (chapitres.js)
   initCarteSalon({ S, T, aller, lieux: () => [ // la mini-carte et la grande carte (carte-salon.js) : les lieux, sa maison, ses commerces
     ...LIEUX.filter(L => L[0] !== 'station').map(L => { const d = destination(L); return d && { id: L[0], nom: L[1], x: d[0], z: d[1], type: L[0] === 'maison' ? 'maison' : 'lieu' }; }).filter(Boolean),
@@ -1327,7 +1333,7 @@ export function initSalon(data) {
   window.addEventListener('keyup', e => { const k = CLAVIER[e.code]; if (k) S.touches.delete(k); }, true);
   window.addEventListener('blur', () => S.touches.clear());
   // Glisser sur la ville pour tourner, molette pour s'approcher ou s'éloigner.
-  canvas.addEventListener('pointerdown', e => { if (S.actif) S.glisse = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+  canvas.addEventListener('pointerdown', e => { if (S.actif && !tirEnCours()) S.glisse = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
   window.addEventListener('pointermove', e => { if (S.glisse && e.pointerId === S.glisse.id) { S.orbite -= (e.clientX - S.glisse.x) * .006; S.orbiteT = performance.now(); S.tangage = THREE.MathUtils.clamp(S.tangage + (e.clientY - S.glisse.y) * .005, -.15, 1.48); S.glisse.x = e.clientX; S.glisse.y = e.clientY; } }); // vers le bas : on prend de la hauteur
   window.addEventListener('pointerup', e => { if (S.glisse?.id === e.pointerId) S.glisse = null; });
   // Un clic dans la ville verrouillait le pointeur : la souris dirigeait la caméra sans tenir de bouton, comme
@@ -1345,7 +1351,7 @@ export function initSalon(data) {
   const rendreSouris = () => { if (document.pointerLockElement === canvas) document.exitPointerLock(); };
   const veille = new MutationObserver(() => { if (['#choix', '#garderobe', '#vieFiche', '#carteGrande', '#vieTirage'].some(s => $(s) && !$(s).hidden) || S.menu) rendreSouris(); });
   for (const s of ['#choix', '#garderobe', '#vieFiche', '#carteGrande', '#vieTirage', '#vieHud']) if ($(s)) veille.observe($(s), { attributes: true, attributeFilter: ['hidden', 'class'] });
-  canvas.addEventListener('wheel', e => { if (!S.actif) return; S.dist = THREE.MathUtils.clamp(S.dist * (1 + Math.sign(e.deltaY) * .12), 2.5, S.lieu ? 6 : 150); e.preventDefault(); }, { passive: false });
+  canvas.addEventListener('wheel', e => { if (!S.actif || tirEnCours()) return; S.dist = THREE.MathUtils.clamp(S.dist * (1 + Math.sign(e.deltaY) * .12), 2.5, S.lieu ? 6 : 150); e.preventDefault(); }, { passive: false });
   $('#slCourir')?.addEventListener('click', e => { S.court = !S.court; e.currentTarget.setAttribute('aria-pressed', String(S.court)); }); // téléphone : courir sans pousser le joystick jusqu'au bord
   // Manette tactile : un rond qu'on pousse avec le pouce.
   const joy = $('#slJoy');

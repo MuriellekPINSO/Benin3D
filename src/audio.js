@@ -74,6 +74,7 @@ export function bruit(type, duree) {
 export function son(nom, variante) {
   const ctx = AUDIO.ctx; if (!ctx || AUDIO.muet) return; const t = ctx.currentTime;
   const bip = (type, f0, f1, d, v = .12, t0 = 0) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t + t0); o.frequency.exponentialRampToValueAtTime(f1, t + t0 + d); g.gain.setValueAtTime(v, t + t0); g.gain.exponentialRampToValueAtTime(.001, t + t0 + d); o.connect(g).connect(ctx.destination); o.start(t + t0); o.stop(t + t0 + d + .02); };
+  const bruit = (d, type, f, v) => { const n = ctx.createBufferSource(), b = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * d), ctx.sampleRate), x = b.getChannelData(0); for (let i = 0; i < x.length; i++) x[i] = (Math.random() * 2 - 1) * (1 - i / x.length) ** 2; n.buffer = b; const fi = ctx.createBiquadFilter(); fi.type = type; fi.frequency.value = f; const g = ctx.createGain(); g.gain.value = v; n.connect(fi).connect(g).connect(ctx.destination); n.start(); };
   if (nom === 'piece') { bip('sine', 1320, 1760, .09, .1); bip('sine', 1760, 2200, .1, .08, .07); }
   else if (nom === 'saut') bip('sine', 300, 700, .18, .1);
   else if (nom === 'klaxon') { // klaxons du garage
@@ -85,6 +86,13 @@ export function son(nom, variante) {
   else if (nom === 'arret') { bip('triangle', 880, 880, .25, .14); bip('triangle', 1320, 1320, .35, .12, .18); }
   else if (nom === 'bosse') bip('sine', 120, 50, .2, .25);
   else if (nom === 'choc') { const n = ctx.createBufferSource(), b = ctx.createBuffer(1, ctx.sampleRate * .35, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2; n.buffer = b; const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; const g = ctx.createGain(); g.gain.value = .5; n.connect(f).connect(g).connect(ctx.destination); n.start(); }
+  // Le lance-pierre (lancepierre.js) : l'élastique qu'on tend, le claquement du tir, la boîte, la bouteille, la mangue, la bâche.
+  else if (nom === 'elastique') bip('triangle', 180, 420, .3, .05);
+  else if (nom === 'fronde') { bip('sawtooth', 620, 140, .14, .07); bruit(.08, 'highpass', 2500, .18); }
+  else if (nom === 'boite') { bip('square', 1850, 1700, .09, .05); bip('square', 2650, 2500, .07, .04, .02); bruit(.12, 'bandpass', 3200, .35); }
+  else if (nom === 'verre') { bruit(.35, 'highpass', 4000, .5); for (let i = 0; i < 4; i++) bip('sine', 3000 + Math.random() * 2500, 2800, .08, .04, i * .04); }
+  else if (nom === 'mangue') bruit(.16, 'lowpass', 500, .7);
+  else if (nom === 'bache') bruit(.1, 'lowpass', 300, .5);
 }
 
 

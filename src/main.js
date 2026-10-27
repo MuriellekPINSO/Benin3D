@@ -33,6 +33,8 @@ import { construireLieuxVideos } from './lieux-videos.js';
 import { animerOuidah, construireOuidah } from './ouidah.js';
 import { animerEtals, construireEtals, initBoutique } from './artisans.js';
 import { construireCaiCai } from './caicai.js';
+import { construireStand } from './lancepierre.js';
+import { construireMaquis } from './fauxfrere.js';
 import { initOffre } from './publicites.js';
 import { initMode } from './mode.js';
 import { horsDeLaPiece } from './interieurs.js';
@@ -159,7 +161,7 @@ async function main() {
   await chargerIndexTripo(); // bâtiments reconnaissables générés par Tripo, s'il y en a
   chargerPersonnages(); // personnages animés (en tâche de fond : le jeu garde ses personnages en code en attendant)
   await construireLieux(data);
-  construireLieuxVideos(data); construireOuidah(data.L); construireEtals(data.L); construireCaiCai();
+  construireLieuxVideos(data); construireOuidah(data.L); construireEtals(data.L); construireCaiCai(); construireStand(); construireMaquis();
   semeOne(data.L.semeOne); portailUAC(data.L.campus, data.L.lignes?.find(l => l.id === 'calavi')?.pts); construireTokpas();
   const sansArbres = degagerChaussees(VEGETATION); // pas d'arbre au milieu de la rue
   if (import.meta.env.DEV) console.info(`arbres retirés des chaussées : ${sansArbres}`);

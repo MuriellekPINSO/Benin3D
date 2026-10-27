@@ -15,9 +15,11 @@ const apiLocale = () => {
     // Le fichier est relu dès qu'il change : sans ça, `npm run preview` gardait la version chargée au démarrage (le 22/10,
     // la copie de test parlait encore à l'ancien /api/fedapay et refusait chaque paiement).
     // /api/paiements : les paiements du jeu pour le tableau de bord (en local, sans le code d'accès de middleware.js).
-    for (const nom of ['fedapay', 'paiements']) {
+    // /api/faux-frere : l'arbitre du Faux Frère, avec le secret de .env.local (FAUX_FRERE_SECRET), sinon un secret d'essai.
+    const secrets = { fedapay: cle, paiements: cle, 'faux-frere': loadEnv('development', process.cwd(), 'FAUX_FRERE_').FAUX_FRERE_SECRET || 'secret-de-developpement' };
+    for (const nom of ['fedapay', 'paiements', 'faux-frere']) {
       const api = pathToFileURL(path.resolve(`api/${nom}.js`)).href; // adresse absolue : Vite ne réécrit pas cet import
-      server.middlewares.use(`/api/${nom}`, async (req, res) => (await import(/* @vite-ignore */ `${api}?v=${fs.statSync(`api/${nom}.js`).mtimeMs}`)).default(req, res, cle));
+      server.middlewares.use(`/api/${nom}`, async (req, res) => (await import(/* @vite-ignore */ `${api}?v=${fs.statSync(`api/${nom}.js`).mtimeMs}`)).default(req, res, secrets[nom]));
     }
   };
   return { name: 'api-locale', configureServer: brancher, configurePreviewServer: brancher };
