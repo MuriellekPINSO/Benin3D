@@ -28,6 +28,7 @@ export function partsZem(c = {}) {
     for (const z of [0.22, -0.22]) add(C3(0.055, 0.05, 0.52, 6).rotateZ(1.15).translate(0.2, 1.38, z), chemise);
     add(C3(0.06, 0.06, 0.12, 8).translate(0.0, 1.66, 0), '#4a2f22');
     add(new THREE.SphereGeometry(0.17, 10, 8).scale(1.12, 0.95, 1).translate(0.02, 1.8, 0), c.casque || '#1d2733');
+    add(new THREE.SphereGeometry(0.176, 10, 3, Math.PI - .9, 1.8, .38 * Math.PI, .2 * Math.PI).scale(1.12, 0.95, 1).translate(0.02, 1.8, 0), '#15181c'); // l'écran fumé d'un casque intégral (avant vers +x)
     add(B3(0.03, 0.08, 0.26).translate(0.19, 1.78, 0), '#0f1418');
   }
   if (c.passager) {

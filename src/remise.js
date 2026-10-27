@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { scene } from './scene.js';
+import { casqueIntegral } from './casque.js';
 
 // ---------- Ce qu'on paie, on le reçoit ----------
 // Quand le zém achète quelque chose, on voit l'échange : le billet part de sa main vers le
@@ -16,7 +17,7 @@ function objet(type) {
   else if (type === 'eau') add(new THREE.BoxGeometry(.16, .06, .22), mat('#cfe8f7', { transparent: true, opacity: .85 }));
   else if (type === 'beignets') { add(new THREE.ConeGeometry(.1, .2, 10).rotateX(Math.PI), mat('#e9dcc0'), 0, .02, 0); for (const [x, z] of [[-.04, 0], [.04, .01], [0, -.04]]) add(new THREE.SphereGeometry(.045, 8, 6), mat('#b9792f'), x, .11, z); }
   else if (type === 'essence') { add(new THREE.CylinderGeometry(.09, .11, .42, 10), mat('#f2c21b', { transparent: true, opacity: .9 }), 0, .21, 0); add(new THREE.CylinderGeometry(.04, .04, .06, 8), mat('#c8382f'), 0, .45, 0); }
-  else if (type === 'casque') add(new THREE.SphereGeometry(.16, 12, 8, 0, Math.PI * 2, 0, Math.PI * .55), mat('#1d2733'));
+  else if (type === 'casque') g.add(casqueIntegral()); // le casque intégral neuf (casque.js)
   else if (type === 'carte') add(new THREE.BoxGeometry(.09, .005, .055), mat('#2f6fb0'));
   else if (type === 'ticket') { add(new THREE.BoxGeometry(.2, .004, .08), mat('#f6f4ee')); add(new THREE.BoxGeometry(.05, .005, .08), mat('#1f5fa8'), -.075, .001, 0); } // carte d'embarquement
   else if (type === 'outil') { add(new THREE.BoxGeometry(.04, .03, .3), mat('#8f979b', { })); add(new THREE.TorusGeometry(.04, .012, 6, 12, Math.PI * 1.4).rotateX(Math.PI / 2), mat('#8f979b'), 0, 0, .16); }

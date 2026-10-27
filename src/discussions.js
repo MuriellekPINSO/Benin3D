@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { envoyerKlaxon } from './multijoueur.js';
 import { remettre } from './remise.js';
+import { casqueIntegral } from './casque.js';
 import { $, LITE, hash } from './base.js';
 import { camera } from './scene.js';
 import { son } from './audio.js';
@@ -280,11 +281,10 @@ export function nouveauClient(st, k, { arrete = false } = {}) {
     ['Monte, on va s’entendre', () => accord(juste - 50, .2, `Ah, toi tu es gentil ! ${juste - 50} F alors.`)],
   ], { defaut: 1, bloquant: arrete });
 }
-// Casque obligatoire pour le zém et pour le client (cahier des charges, priorité 1).
-const COUL_CASQUE = ['#1d2733', '#c8382f', '#f2f2ee', '#2f6fb0', '#e9b23a'];
+// Casque obligatoire pour le zém et pour le client (cahier des charges, priorité 1) : un casque intégral (casque.js).
 function mettreCasque(p) {
   if (!p || p.userData.casque) return;
-  const t = p.userData.tete, c = new THREE.Mesh(new THREE.SphereGeometry(.155, 12, 8, 0, Math.PI * 2, 0, Math.PI * .55), new THREE.MeshLambertMaterial({ color: choisir(COUL_CASQUE) }));
+  const t = p.userData.tete, c = casqueIntegral();
   if (p.userData.coiffer) p.userData.coiffer(c); // personnage animé : le casque suit la tête
   else { c.position.set(t.position.x, t.position.y - .22, t.position.z); p.add(c); }
   p.userData.casque = c;

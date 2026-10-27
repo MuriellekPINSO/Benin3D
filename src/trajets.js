@@ -9,6 +9,7 @@ import { dansCirculation } from './trafic.js';
 import { allumerLesPortes, arriveeDehors, comptoirProche, devantChaise, siegeProche } from './interieurs.js';
 import { payerEtRecevoir, remettre } from './remise.js';
 import { scene } from './scene.js';
+import { porterCasque } from './casque.js';
 import { VIE, carburant, consommer, depenser, faireLePlein, manger, reservoir, sauverVie } from './vie.js';
 import { actionsVol, arreterVol, initVol, majAeroports, majVol } from './vol.js';
 import { actionsMetier, chocMetier, enService, initMetiers, majMetiers, quitterMetiers } from './metiers.js';
@@ -405,6 +406,7 @@ export function majTrajets(dt, av, tour) {
     asseoirSur(S.moi, V, true); majGps(dt, V.x, V.z, V.cap);
     return { x: V.x, y: V.y, z: V.z, cap: V.cap, dist: 6, haut: 2.6 };
   }
+  porterCasque(S.moi, false); // à pied : on l'a ôté en descendant
   majGps(dt, S.x, S.z, S.cap);
   return null;
 }
@@ -413,7 +415,7 @@ export function majTrajets(dt, av, tour) {
 const phaseVelo = V => V.km * 1000 / 2.2 * Math.PI * 2;
 export function asseoirSur(p, V, passager) {
   if (!p) return;
-  const s = siege(V, passager); p.visible = !!s; if (!s) return;
+  const s = siege(V, passager); p.visible = !!s; porterCasque(p, !!s && (V.type === 'moto' || V.type === 'zem')); if (!s) return; // le casque intégral : sur une moto, pas à vélo
   v3.set(0, s.y, s.z).applyAxisAngle(THREE.Object3D.DEFAULT_UP, V.cap);
   p.position.set(V.x + v3.x, V.y + v3.y, V.z + v3.z); p.rotation.y = V.cap; p.userData.jouer?.('assis');
   // Au guidon, « assis » ne suffit pas — c'est la pose d'une chaise : bras au guidon, et les jambes qui
@@ -422,7 +424,7 @@ export function asseoirSur(p, V, passager) {
 }
 /** Pour les amis : leur véhicule sous eux (créé à la demande). */
 export function vehiculeDe(A, type) {
-  if (!type) { if (A.veh) { retirerVehicule(A.veh); A.veh = null; if (A.g) A.g.visible = true; } return null; }
+  if (!type) { if (A.veh) { retirerVehicule(A.veh); A.veh = null; if (A.g) { A.g.visible = true; porterCasque(A.g, false); } } return null; }
   if (!A.veh || A.veh.type !== type) { retirerVehicule(A.veh); A.veh = creerVehicule(type); }
   return A.veh;
 }
