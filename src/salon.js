@@ -18,7 +18,7 @@ import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personna
 import { retirerRuban, stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment, obstaclesPres, profondeurRue } from './rue.js';
 import { hauteurSol } from './sols.js';
-import { actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe } from './trajets.js';
+import { actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe, vehiculeGareDe } from './trajets.js';
 import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
 import { A_VENDRE, LOGEMENTS, acheterVehicule, ouvertAu, vehiculeLoue, alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
@@ -34,6 +34,7 @@ import { taire } from './voix.js';
 import { camera, canvas, controls, scene } from './scene.js';
 import { filtrer } from './moderation.js';
 import { actionsLancePierre, cameraTir, fovTir, initLancePierre, majLancePierre, tirEnCours } from './lancepierre.js';
+import { STICKERS, elementSticker, stickerDe, texteSticker, toileSticker } from './stickers.js';
 import { actionsFauxFrere, initFauxFrere, majFauxFrere, quitterFauxFrere } from './fauxfrere.js';
 import { SAISIE } from './saisie.js';
 
@@ -159,10 +160,15 @@ function etiquette(texte, moi = false, ami = false) {
   // Ancrée par le bas (center), juste au-dessus du crâne : centrée à 36 cm, elle flottait loin de la tête vue de près et la couvrait vue de haut.
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); s.scale.set(.145, .033, 1); s.center.set(.5, .05); s.position.y = .08; s.renderOrder = 30; return s;
 }
-// Bulle de discussion au-dessus de la tête, six secondes.
-function bulle(qui, texte) {
+// Bulle de discussion au-dessus de la tête, six secondes ; un sticker s'y montre tel quel, sans la bulle.
+function bulle(qui, texte, st = null) {
   if (!qui.g) return;
   retirerBulle(qui);
+  if (st) {
+    const t = new THREE.CanvasTexture(toileSticker(st)); t.colorSpace = THREE.SRGBColorSpace;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); s.scale.set(.15, .15 * 300 / 320, 1); s.center.set(.5, 0); s.position.y = .62; s.renderOrder = 31;
+    qui.g.userData.tete.add(s); qui.bulle = s; qui.bulleFin = performance.now() + 6000; return;
+  }
   const mots = nettoyer(texte, 90).split(' '), lignes = ['']; for (const m of mots) { const l = lignes[lignes.length - 1]; if ((l + ' ' + m).trim().length > 28 && l) { if (lignes.length === 3) break; lignes.push(m); } else lignes[lignes.length - 1] = (l + ' ' + m).trim(); }
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 64 + 48 * lignes.length; const c = cv.getContext('2d');
   c.fillStyle = '#fffaf0'; c.beginPath(); c.roundRect(8, 8, 496, cv.height - 30, 28); c.fill();
@@ -175,6 +181,8 @@ function bulle(qui, texte) {
 }
 function retirerBulle(qui) { if (!qui.bulle) return; qui.bulle.parent?.remove(qui.bulle); qui.bulle.material.map.dispose(); qui.bulle.material.dispose(); qui.bulle = null; }
 function retirer(A) { if (A.g) { retirerBulle(A); scene.remove(A.g); A.g.userData.liberer?.(); A.g = null; } retirerAvion(A.avion); A.avion = null; }
+/** Il quitte la ville : lui, et ses véhicules (celui qu'il conduisait restait sur la route après son départ). */
+function oublier(A) { retirer(A); vehiculeDe(A, null); vehiculeGareDe(A, null); }
 
 // ---------- Les autres joueurs ----------
 // Le personnage d'un autre est une femme ou un homme : les phrases du jeu s'accordent (« arrivée », « la retrouver »).
@@ -186,7 +194,7 @@ const estAmi = A => !S.public || !!A.ami;
 function majEtiquette(A) { if (!A.g) return; if (A.etiquette) A.g.userData.tete.remove(A.etiquette); A.etiquette = etiquette(A.nom, false, S.public && A.ami); A.g.userData.tete.add(A.etiquette); }
 function surEtat(id, e) {
   let A = S.autres.get(id);
-  if (!e) { if (A) { retirer(A); S.autres.delete(id); majListe(); if (A.nom) ligne(S.public ? `${A.nom} a quitté la ville.` : `${A.nom} a quitté le salon.`); } return; }
+  if (!e) { if (A) { oublier(A); S.autres.delete(id); majListe(); if (A.nom) ligne(S.public ? `${A.nom} a quitté la ville.` : `${A.nom} a quitté le salon.`); } return; }
   if (typeof e.x !== 'number' || typeof e.z !== 'number') return;
   if (!A) { A = { id, x: e.x, z: e.z, cap: e.h || 0, nom: '', modele: '', g: null, enCours: false, bulle: null, bulleFin: 0, ami: id === S.inviteur }; S.autres.set(id, A); }
   const avant = A.etat?.sur; A.etat = e;
@@ -208,7 +216,7 @@ function surEtat(id, e) {
     // navigateur en veille) : dès qu'il revient, on propose de le rejoindre.
     if (nouveau && id === S.inviteur && S.actif && !S.aRejoint) { S.aRejoint = true; choisir(`${nom} est en ville`, [{ texte: `Rejoindre ${nom}`, sous: 'Tu arrives juste à côté', f: () => retrouver(A) }], { annuler: 'Plus tard' }); }
   }
-  const moi = S.R?.id; if (moi && (e.sur === moi) !== (avant === moi)) ligne(e.sur === moi ? `${nom} monte avec toi : roule, tu l’emmènes.` : `${nom} descend.`);
+  const moi = S.R?.id; if (moi && (e.sur === moi) !== (avant === moi)) ligne(e.sur !== moi ? `${nom} descend.` : T.mode === 'conduit' ? `${nom} monte avec toi : roule, tu l’emmènes.` : `${nom} s’installe dans ${T.veh?.D.cache ? 'ta voiture' : 'ton véhicule'} : prends le volant, tu l’emmènes.`);
   if (e.m !== A.modele && !A.enCours) habiller(A);
 }
 async function habiller(A) {
@@ -326,19 +334,19 @@ function ligne(texte, { nom = '', lieu = null, moi = false, u = '' } = {}) {
 function surMessage(m) {
   if (!m || S.vus.has(m.cle)) return; S.vus.add(m.cle);
   if (MUETS.has(m.u)) return;
-  const moi = m.u === S.R?.id, texte = filtrer(nettoyer(m.txt, 140)), lieu = LIEUX.some(l => l[0] === m.lieu) ? m.lieu : null;
+  const moi = m.u === S.R?.id, texte = filtrer(nettoyer(m.txt, 140)), lieu = LIEUX.some(l => l[0] === m.lieu) ? m.lieu : null, st = stickerDe(m.st);
   if (!texte) return;
-  ligne(texte, { nom: filtrer(nettoyer(m.n, 16)) || 'Ami', lieu, moi, u: m.u });
+  ligne(st ? elementSticker(st) : texte, { nom: filtrer(nettoyer(m.n, 16)) || 'Ami', lieu, moi, u: m.u });
   if (typeof m.t === 'number' && Date.now() - m.t > 15000) return; // l'historique ne fait pas de bulles
-  if (moi) bulle(S, texte); else { const A = S.autres.get(m.u); if (A) bulle(A, texte); }
+  if (moi) bulle(S, texte, st); else { const A = S.autres.get(m.u); if (A) bulle(A, texte, st); }
 }
-function dire(texte) {
+function dire(texte, st = null) { // st : l'identifiant d'un sticker (stickers.js), `texte` étant alors ce qu'il dit
   texte = filtrer(nettoyer(texte, 140)); if (!texte || !S.canal) return;
   const t = performance.now();
   if (texte === S.dernierMsg && t - S.dernierMsgT < 30000) return; // le même message, encore et encore
   if (t - (S.dernierMsgT || 0) < 2000) { ligne('Doucement : un message toutes les deux secondes.'); return; }
   S.dernierMsg = texte; S.dernierMsgT = t;
-  S.canal.dire({ n: S.nom, txt: texte });
+  S.canal.dire({ n: S.nom, txt: texte, ...(st ? { st } : {}) });
 }
 // « Je vais à la Haie Vive, venez ! » partait tout seul à chaque déplacement : dans la ville publique, la
 // discussion en était noyée et les vrais messages des joueurs s'y perdaient (un testeur, 26/10). Il ne part plus
@@ -675,7 +683,7 @@ function quitter() {
   menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
   S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
-  for (const A of S.autres.values()) retirer(A); S.autres.clear();
+  for (const A of S.autres.values()) oublier(A); S.autres.clear();
   if (S.moi) { retirerBulle(S); scene.remove(S.moi); S.moi.userData.liberer?.(); S.moi = S.g = null; }
   for (const A of S.autres.values()) vehiculeDe(A, null);
   $('#salonHud').hidden = true; $('#slMessages').replaceChildren(); S.touches.clear(); S.joy = null;
@@ -745,7 +753,7 @@ const GS = { vuCouche: false, marche: 0, px: null, pz: 0, activite: false, dehor
 let guideSalon = null;
 const etapesSalon = () => [
   { id: 'lever', texte: () => coarse ? 'Tu te réveilles chez toi. Touche « Se lever ».' : 'Tu te réveilles chez toi. [E] pour te lever.', quand: () => !!S.couche, fait: () => GS.vuCouche && !S.couche },
-  { id: 'marcher', texte: () => SAISIE.manette ? 'Le stick gauche pour marcher (poussé à fond, tu cours), le stick droit pour tourner la caméra.' : coarse ? 'Le joystick pour marcher, « Courir » pour courir.' : 'Flèches ou [Z] [Q] [S] [D] pour marcher. Glisse dans la ville pour tourner la caméra.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
+  { id: 'marcher', texte: () => SAISIE.manette ? 'Le stick gauche pour marcher (poussé à fond, tu cours), le stick droit pour tourner la caméra.' : coarse ? 'Le joystick pour marcher, « Courir » pour courir.' : 'Flèches ou [Z] [Q] [S] [D] pour marcher, [Maj] pour courir. Glisse dans la ville pour tourner la caméra.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.marche > 2.5 },
   { id: 'maison', texte: 'Approche-toi de la douche, du fourneau ou de la table : le bouton vert fait le reste.', quand: () => !S.couche && !!S.lieu?.prive, fait: () => GS.activite || GS.dehorsT > 0 },
   { id: 'rue', texte: () => `Le rond à droite ouvre le menu${coarse && !SAISIE.manette ? '' : ' [Échap]'} : « Aller » choisit où aller (le chemin s’allume au sol), « Travailler » te trouve un métier.`, quand: () => !S.lieu && T.mode === 'pied', fait: () => !!T.zem || T.mode !== 'pied' || !!VIE.data?.metier },
   { id: 'vie', texte: 'En haut à gauche : ton argent et ta faim. Mange quand elle baisse — maquis, food court, ou chez toi.', quand: () => GS.dehorsT > 16 && !!VIE.data?.metier, fait: () => !!VIE.service, duree: 40 }, // se ferme quand on commence à travailler
@@ -806,6 +814,7 @@ export function majSalon(dt) {
   const av = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
   const tour = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) - (j ? j.x : 0) - (pad ? pad.lx : 0), -1, 1);
   majVie(dt); majCommerces(dt); majChapitres(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
+  for (const A of S.autres.values()) { const G = A.garee; if (G?.g.visible && (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < 1600) E.circulation.push({ px: G.x, pz: G.z, cap: G.cap, hl: G.D.long / 2, hw: G.D.larg / 2, v: 0, type: G.type }); } // vidée à chaque image (main.js)
   let suivi = majTrajets(dt, av, tour); // en voiture, à moto, derrière un zém : c'est le véhicule qui bouge
   if (T.mode === 'ami') suivi = majAmi(); // derrière un ami : c'est lui qui conduit
   // La circulation s'arrête devant lui (trafic.js, circulation.js) ; dedans, elle l'ignore. Elle doit connaître sa taille :
@@ -841,7 +850,10 @@ export function majSalon(dt) {
       S.cap += pas; S.orbite -= pas;
     }
     // Courir : Maj au clavier, le bouton « Courir » ou le joystick poussé jusqu'au bord sur téléphone, la manette à fond.
-    const court = t.has('court') || S.court || (j && Math.hypot(j.x, j.y) > .95) || (pad && (pad.court || Math.hypot(pad.lx, pad.ly) > .95));
+    // Dehors, au clavier, on court aussi quand on garde une flèche enfoncée plus d'une seconde : sur ordinateur, on ne
+    // trouvait pas la touche Maj — « sur PC je ne peux pas courir, je ne peux que marcher » (27/10).
+    S.pousseT = !S.lieu && ['avant', 'arriere', 'gauche', 'droite'].some(k => t.has(k)) ? (S.pousseT || 0) + dt : 0;
+    const court = t.has('court') || S.court || S.pousseT > 1.1 || (j && Math.hypot(j.x, j.y) > .95) || (pad && (pad.court || Math.hypot(pad.lx, pad.ly) > .95));
     const v = pousse * (court ? 5.2 : 1.7) * vitesseFaim(); // trop faim : au ralenti
     deplacer(S.x + Math.sin(S.cap) * v * dt, S.z + Math.cos(S.cap) * v * dt);
     const marche = Math.abs(v) > .05;
@@ -912,7 +924,9 @@ export function majSalon(dt) {
   if (S.envoi <= 0 && S.canal) {
     S.envoi = ENVOI * (1 + S.autres.size / 30); // à trente en ville, 0,4 s : l'interpolation (kk) comble le reste
     const vh = T.mode === 'conduit' ? T.veh.type : T.mode === 'passager' ? 'zem' : T.mode === 'avion' ? 'avion' : T.mode === 'apprenti' ? 'tokpa' : ''; // le véhicule sous soi, pour les amis
-    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...(T.mode === 'apprenti' ? { ap: 1 } : {}), ...etatAmis() }, k = JSON.stringify(e);
+    // Son véhicule garé : les autres le voient dans la rue et peuvent s'y installer (« un inconnu ne voit pas ma voiture »).
+    const G = T.veh && T.mode !== 'conduit' && T.mode !== 'apprenti' && VEH_GARES.includes(T.veh.type) ? T.veh : null, ex = S.expulse && performance.now() < S.expulse.fin ? [S.expulse.u] : null;
+    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...(T.mode === 'apprenti' ? { ap: 1 } : {}), ...(G ? { gv: [G.type, r2(G.x), r2(G.z), r2(G.cap)] } : {}), ...(ex ? { ex } : {}), ...etatAmis() }, k = JSON.stringify(e);
     if (k !== S.dernier || S.depuis > 2.5) { S.dernier = k; S.depuis = 0; S.canal.envoyer(e); }
   }
   // Les autres, lissés entre deux nouvelles.
@@ -934,10 +948,16 @@ export function majSalon(dt) {
     if (enAvion) { /* dans l'avion : on ne le voit pas */ }
     else if (V) { V.x = A.x; V.z = A.z; V.cap = A.cap; V.y = typeof e.y === 'number' ? e.y : 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; if (e.ap) assoirApprenti(A.g, V); else asseoirSur(A.g, V, e.vh === 'zem'); } // l'ami apprenti : assis à la porte ouverte du tokpa-tokpa (metiers.js)
     else if (e.sur && A.g && !(e.i || S.lieu)) { // passager d'un ami : assis derrière lui (dans la voiture, on ne le voit pas)
-      const Vd = e.sur === S.R?.id ? (T.mode === 'conduit' ? T.veh : null) : S.autres.get(e.sur)?.veh;
+      const Vd = e.sur === S.R?.id ? T.veh : vehiculeAmi(S.autres.get(e.sur)); // dans sa voiture, qu'elle roule ou soit garée
       if (Vd) asseoirSur(A.g, Vd, true); else { A.g.position.set(A.x, ey, A.z); A.g.rotation.y = A.cap; }
     }
     else if (A.g) { A.g.position.set(A.x, typeof e.y === 'number' ? e.y : 0, A.z); A.g.rotation.y = A.cap; A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? (e.a === 'course' && A.g.userData.peut?.('course') ? 'course' : 'marche') : ANIMS.has(e.a) ? e.a : 'idle'); } // l'ami qui court, court aussi chez soi
+    const G = vehiculeGareDe(A, !S.lieu && Array.isArray(e.gv) && VEH_GARES.includes(e.gv[0]) && e.gv.slice(1, 4).every(Number.isFinite) ? e.gv : null);
+    if (G) {
+      G.g.visible = (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < VU * VU;
+      if (!G.etiquette) { G.etiquette = etiquette(ETIQUETTE_GARE[G.type](A.nom)); G.etiquette.position.y = G.D.cache ? 2.2 : 1.7; G.g.add(G.etiquette); }
+      G.etiquette.visible = Math.hypot(G.x - S.x, G.z - S.z) > 4.5; // tout près, elle couvrait le nom des gens
+    }
     if (A.bulle && now > A.bulleFin) retirerBulle(A);
   }
   if (S.bulle && now > S.bulleFin) retirerBulle(S);
@@ -951,7 +971,7 @@ export function majSalon(dt) {
     : occupe() ? actionsMaison() // couché : se lever ; sous la douche, aux fourneaux : arrêter
     : S.gradin ? [{ texte: 'Se lever', f: leverGradins }]
     : tir ? actionsLancePierre(S, T)
-    : [...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : [])]; // l'action du lieu d'abord, « Sortir » en dernier
+    : [...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : [])]; // l'action du lieu d'abord, « Sortir » en dernier
   // La touche de chaque bouton : celle de la manette si l'on joue avec (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
   // Une manette branchée mais posée affichait ses boutons même au clavier : c'est la dernière saisie qui compte (saisie.js).
   const touches = SAISIE.manette ? (SAISIE.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
@@ -1017,42 +1037,61 @@ function majSon() {
 // Il s'arrête à côté de soi : « Monter derrière … » (une place sur la moto, trois dans la voiture). On est alors porté par
 // son véhicule tel que ses messages le placent ; il voit son passager assis derrière lui. « Aller à » lui demande de
 // nous emmener (son message a un bouton « Y aller » qui trace son GPS). Il descend, entre quelque part ou s'en va : on
-// descend aussi.
+// descend aussi. Dans la ville publique, c'est pareil avec quelqu'un qu'on vient de rencontrer.
+// Son véhicule garé se voit aussi chez les autres (`gv`), et l'on peut s'y installer en l'attendant : quand il prend le
+// volant, on part avec lui. Le propriétaire peut faire descendre qui il veut (`ex`) ; celui-là ne remonte pas avant 2 min.
 const AMI_VEH = ['moto', 'voiture', 'taxi', 'citadine', 'bolide', 'roadster']; // ceux où l'on monte avec un ami
 const VEH_AMIS = [...AMI_VEH, 'zem', 'tokpa', 'velo']; // ceux qu'on dessine sous un ami
+const VEH_GARES = [...AMI_VEH, 'velo']; // ceux qu'on voit garés chez les autres
+const ETIQUETTE_GARE = { moto: n => `Moto ${deNom(n)}`, voiture: n => `Voiture ${deNom(n)}`, taxi: n => `Taxi ${deNom(n)}`, citadine: n => `Citadine ${deNom(n)}`, bolide: n => `Bolide ${deNom(n)}`, roadster: n => `Roadster ${deNom(n)}`, velo: n => `Vélo ${deNom(n)}` };
+/** Le véhicule où l'on peut être avec A : celui qu'il conduit, sinon celui qu'il a garé. */
+function vehiculeAmi(A) {
+  const e = A?.etat; if (!e) return null;
+  if (A.veh && AMI_VEH.includes(e.vh)) return e.i ? null : A.veh;
+  return A.garee && AMI_VEH.includes(A.garee.type) ? A.garee : null;
+}
 function amisAuVolant() {
   if (S.lieu || T.mode !== 'pied' || T.trans) return [];
-  const out = [];
+  const out = [], now = performance.now();
   for (const A of S.autres.values()) {
-    const e = A.etat, V = A.veh; if (!e || !V || !AMI_VEH.includes(e.vh) || e.i) continue;
-    if (Math.hypot(V.x - S.x, V.z - S.z) > (V.D.cache ? 3.6 : 3) || (A.vitesse ?? 0) > 1) continue; // à côté, et arrêté
+    const V = vehiculeAmi(A); if (!V || !A.nom || now < (A.refus || 0)) continue;
+    const gare = V === A.garee;
+    if (Math.hypot(V.x - S.x, V.z - S.z) > (V.D.cache ? 3.6 : 3) || (!gare && (A.vitesse ?? 0) > 1)) continue; // à côté, et arrêté
     const places = V.D.cache ? 3 : 1, pris = [...S.autres.values()].filter(B => B.etat?.sur === A.id).length;
-    if (pris < places) out.push({ texte: V.D.cache ? `Monter dans la voiture ${deNom(A.nom)}` : `Monter derrière ${A.nom}`, f: () => monterAmi(A) });
+    if (pris < places) out.push({ texte: V.D.cache ? `Monter dans la voiture ${deNom(A.nom)}` : gare ? `Monter sur la moto ${deNom(A.nom)}` : `Monter derrière ${A.nom}`, f: () => monterAmi(A) });
   }
   return out;
 }
 function monterAmi(A) {
-  const V = A.veh; if (!V) return;
-  const cote = V.D.cache ? 1.3 : .55, bx = V.x + Math.sin(V.cap + Math.PI / 2) * cote, bz = V.z + Math.cos(V.cap + Math.PI / 2) * cote;
+  const V = vehiculeAmi(A); if (!V) return;
+  const gare = V === A.garee, cote = V.D.cache ? 1.3 : .55, bx = V.x + Math.sin(V.cap + Math.PI / 2) * cote, bz = V.z + Math.cos(V.cap + Math.PI / 2) * cote;
   T.trans = { t: 0, duree: .8, de: [S.x, S.z], vers: [bx, bz], fin: () => {
     if (!S.autres.has(A.id)) return;
     T.mode = 'ami'; S.ami = A.id; son('bosse');
-    ligne(`Tu montes ${V.D.cache ? `dans la voiture ${deNom(A.nom)}` : `derrière ${A.nom}`}. « Aller » lui demande de t’emmener ; « Descendre » quand il s’arrête.`);
+    ligne(gare ? `Tu t’installes ${V.D.cache ? `dans la voiture ${deNom(A.nom)}` : `sur la moto ${deNom(A.nom)}`}. Quand ${A.nom} prendra le volant, tu partiras avec ; « Descendre » pour sortir.`
+      : `Tu montes ${V.D.cache ? `dans la voiture ${deNom(A.nom)}` : `derrière ${A.nom}`}. « Aller » lui demande de t’emmener ; « Descendre » quand il s’arrête.`);
   } };
 }
 function majAmi() {
-  const A = S.autres.get(S.ami), e = A?.etat, V = A?.veh;
-  if (!A || !e || !V || !AMI_VEH.includes(e.vh) || e.i) { descendreAmi(A ? `Fin du trajet avec ${A.nom} : tu descends.` : 'Ton ami a quitté le salon : tu descends.'); return null; }
+  const A = S.autres.get(S.ami), e = A?.etat, V = vehiculeAmi(A);
+  if (A && Array.isArray(e?.ex) && e.ex.includes(S.R?.id)) { A.refus = performance.now() + 120000; descendreAmi(`${A.nom} te fait descendre.`); return null; }
+  if (!A || !e || !V) { descendreAmi(A ? `Fin du trajet avec ${A.nom} : tu descends.` : 'Ton ami a quitté le salon : tu descends.'); return null; }
   S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; S.anim = 'assis';
   asseoirSur(S.moi, V, true);
   return { x: V.x, y: V.y, z: V.z, cap: V.cap, dist: V.D.cache ? 8 : 6, haut: V.D.cache ? 3.2 : 2.6 };
 }
 function actionsAmi() {
-  const A = S.autres.get(S.ami);
-  return A && (A.vitesse ?? 0) < 1.5 ? [{ texte: 'Descendre', f: () => descendreAmi() }] : []; // on ne saute pas d'une moto qui roule
+  const A = S.autres.get(S.ami), V = vehiculeAmi(A);
+  return A && (V === A.garee || (A.vitesse ?? 0) < 1.5) ? [{ texte: 'Descendre', f: () => descendreAmi() }] : []; // on ne saute pas d'une moto qui roule
+}
+/** Le propriétaire : « Faire descendre … » celui qui s'est installé chez lui, à l'arrêt ou à côté de son véhicule garé. */
+function actionsProprio() {
+  const V = T.veh, moi = S.R?.id; if (!V || !moi || S.lieu || !(T.mode === 'conduit' ? Math.abs(V.v) < 1 : T.mode === 'pied' && Math.hypot(V.x - S.x, V.z - S.z) < 8)) return [];
+  const B = [...S.autres.values()].find(A => A.etat?.sur === moi && A.nom); if (!B) return [];
+  return [{ texte: `Faire descendre ${B.nom}`, f: () => { S.expulse = { u: B.id, fin: performance.now() + 8000 }; ligne(`Tu fais descendre ${B.nom}.`); } }];
 }
 function descendreAmi(message = '') {
-  const A = S.autres.get(S.ami), V = A?.veh;
+  const A = S.autres.get(S.ami), V = vehiculeAmi(A) ?? A?.veh ?? A?.garee;
   T.mode = 'pied'; S.ami = null; S.y = 0; S.anim = 'idle';
   if (V) { const cote = V.D.cache ? 1.6 : 1; S.x = V.x + Math.sin(V.cap + Math.PI / 2) * cote; S.z = V.z + Math.cos(V.cap + Math.PI / 2) * cote; S.cap = V.cap; }
   if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; }
@@ -1223,7 +1262,7 @@ export function initSalon(data) {
     ...LIEUX.filter(L => L[0] !== 'station').map(L => { const d = destination(L); return d && { id: L[0], nom: L[1], x: d[0], z: d[1], type: L[0] === 'maison' ? 'maison' : 'lieu' }; }).filter(Boolean),
     ...lieuxCommerces().map(c => ({ id: c.id, nom: c.nom, x: c.x, z: c.z, type: 'commerce' })),
   ] });
-  if (import.meta.env.DEV) window.__salon = { S, T, VIE, LIEUX, surRoute, profondeurRue, dansBatiment, profondeurInterieur, obstaclesPres, porter, destination, menuAller }; // pour les tests (console, scripts)
+  if (import.meta.env.DEV) window.__salon = { S, T, VIE, LIEUX, surRoute, profondeurRue, dansBatiment, profondeurInterieur, obstaclesPres, porter, destination, menuAller, garerSonVehicule }; // pour les tests (console, scripts)
   S.local = new URLSearchParams(location.search).has('salon-local');
   prechargerVignettes(); // la fenêtre « Vivre à Cotonou » les montre tout de suite
   // L'appli fermée, le téléphone verrouillé : sur iPhone, rien ne prévient la page qu'on la quitte. On enregistre dès
@@ -1293,6 +1332,7 @@ export function initSalon(data) {
   // place est là, et c'est par là que le jeu parle), repliée sur un téléphone. Retenu d'une partie à l'autre.
   const chat = ouvert => {
     $('#slChat').classList.toggle('ouvert', ouvert); $('#slChatBtn')?.setAttribute('aria-expanded', String(ouvert));
+    if (!ouvert && $('#slStickers')) { $('#slStickers').hidden = true; $('#slStickersBtn').setAttribute('aria-expanded', 'false'); }
     try { localStorage.setItem('cotonou3d.chat', ouvert ? '1' : '0'); } catch { /* navigation privée */ }
     if (ouvert) { $('#slActions').classList.remove('ouvert'); $('#slGestesBtn')?.setAttribute('aria-expanded', 'false'); S.nonLus = 0; $('#slNonLus').hidden = true; $('#slMessages').scrollTop = 1e6; }
   };
@@ -1323,6 +1363,11 @@ export function initSalon(data) {
   $('#slGestesFermer')?.addEventListener('click', () => gestes(false));
   document.addEventListener('saisie', majAide); majAide(); // l'aide du bas : clavier ou manette
   $('#slForm')?.addEventListener('submit', e => { e.preventDefault(); dire($('#slTexte').value); $('#slTexte').value = ''; });
+  const tiroir = $('#slStickers'), btSt = $('#slStickersBtn'), montrerStickers = v => { tiroir.hidden = !v; btSt.setAttribute('aria-expanded', String(v)); };
+  if (tiroir && btSt) {
+    for (const s of STICKERS) { const b = document.createElement('button'); b.type = 'button'; b.title = s.t; b.append(elementSticker(s)); b.addEventListener('click', () => { dire(texteSticker(s), s.id); montrerStickers(false); b.blur(); }); tiroir.append(b); } // sans rendre la main au champ : au doigt, le clavier s'ouvrirait
+    btSt.addEventListener('click', () => montrerStickers(tiroir.hidden));
+  }
   const ph = $('#slPhrases'); if (ph) for (const p of PHRASES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = p; b.addEventListener('click', () => dire(p)); ph.append(b); }
   const ge = $('#slGestes'); if (ge) for (const [i, [id, nom]] of GESTES.entries()) { const b = document.createElement('button'); b.type = 'button'; b.textContent = coarse ? nom : `${i + 1} · ${nom}`; b.addEventListener('click', () => geste(id)); ge.append(b); } // au clavier, le chiffre du geste est écrit sur le bouton
   // Clavier : capté avant les raccourcis de l'exploration (qui écoutent window), sauf quand on écrit.

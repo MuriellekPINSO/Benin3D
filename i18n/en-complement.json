@@ -369,7 +369,9 @@
   "Louer un logement": "Rent a home",
   "Que veux-tu faire ?": "What do you want to do?",
   "Fermer les gestes": "Close gestures",
-  "Menu : objectifs, travailler, aller, gestes, m’habiller, vue": "Menu: goals, work, go, gestures, get dressed, view"
+  "Menu : objectifs, travailler, aller, gestes, m’habiller, vue": "Menu: goals, work, go, gestures, get dressed, view",
+  "Envoyer un sticker": "Send a sticker",
+  "Stickers": "Stickers"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -686,7 +688,6 @@
   "'« Aller à », en bas à droite : choisis où aller, le chemin s’allume au sol. « Travailler », en haut à gauche, te trouve un métier.'": "'“Go to”, bottom right: pick where to go, the way lights up on the ground. “Work”, top left, finds you a job.'",
   "'En haut à gauche : ton argent et ta faim. Mange quand elle baisse — maquis, food court, ou chez toi.'": "'Top left: your money and your hunger. Eat when it drops — a maquis, the food court, or at home.'",
   " · ta destination": " · where you’re going",
-  "'Flèches ou [Z] [Q] [S] [D] pour marcher. Glisse dans la ville pour tourner la caméra.'": "'Arrows or [W] [A] [S] [D] to walk. Drag in the city to turn the camera.'",
   "'Y aller à pied'": "'Walk there'",
   "'Le chemin s’allume au sol'": "'The path lights up on the ground'",
   "'Tu y es tout de suite'": "'You get there at once'",
@@ -811,7 +812,27 @@
   "'Dire à tes amis…'": "'Say to your friends…'",
   "'Une phrase toute faite dans la discussion'": "'A ready-made line in the chat'",
   "'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · LB vue · RT/LT gaz et frein · A X B : les actions affichées sur les boutons (B klaxonne en roulant) · Y gestes et phrases · Select aller à · ☰ menu'": "'Controller: left stick to walk or drive · right stick to turn and rise · LB view · RT/LT throttle and brake · A X B: the actions shown on the buttons (B honks while driving) · Y gestures and phrases · Select go to · ☰ menu'",
-  "'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · L1 vue · R2/L2 gaz et frein · ✕ □ ○ : les actions affichées sur les boutons (○ klaxonne en roulant) · △ gestes et phrases · Create aller à · Options menu'": "'Controller: left stick to walk or drive · right stick to turn and rise · L1 view · R2/L2 throttle and brake · ✕ □ ○: the actions shown on the buttons (○ honks while driving) · △ gestures and phrases · Create go to · Options menu'"
+  "'Manette : stick gauche pour marcher ou conduire · stick droit pour tourner et prendre de la hauteur · L1 vue · R2/L2 gaz et frein · ✕ □ ○ : les actions affichées sur les boutons (○ klaxonne en roulant) · △ gestes et phrases · Create aller à · Options menu'": "'Controller: left stick to walk or drive · right stick to turn and rise · L1 view · R2/L2 throttle and brake · ✕ □ ○: the actions shown on the buttons (○ honks while driving) · △ gestures and phrases · Create go to · Options menu'",
+  "'Flèches ou [Z] [Q] [S] [D] pour marcher, [Maj] pour courir. Glisse dans la ville pour tourner la caméra.'": "'Arrows or [W] [A] [S] [D] to walk, [Shift] to run. Drag in the city to turn the camera.'",
+  " s’installe dans ": " gets into ",
+  "'ta voiture'": "'your car'",
+  "'ton véhicule'": "'your vehicle'",
+  " : prends le volant, tu l’emmènes.": ": take the wheel, you’re taking them along.",
+  "Moto ": "Motorbike of ",
+  "Voiture ": "Car of ",
+  "Taxi ": "Taxi of ",
+  "Citadine ": "Hatchback of ",
+  "Bolide ": "Sports car of ",
+  "Roadster ": "Roadster of ",
+  "Vélo ": "Bike of ",
+  "Monter sur la moto ": "Get on the motorbike of ",
+  "Tu t’installes ": "You get ",
+  "sur la moto ": "on the motorbike of ",
+  ". Quand ": ". When ",
+  " prendra le volant, tu partiras avec ; « Descendre » pour sortir.": " takes the wheel, you’ll leave with them; “Get off” to get out.",
+  "Faire descendre ": "Drop off ",
+  "Tu fais descendre ": "You drop off ",
+  " te fait descendre.": " drops you off."
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -2395,5 +2416,22 @@
  "src/faux-frere-regles.js": {
   "'Un seul mot, sans espace (2 à 20 lettres).'": "'One word, no spaces (2 to 20 letters).'",
   "'Pas ton mot secret ! Donne un autre mot.'": "'Not your secret word! Give another word.'"
+ },
+ "src/stickers.js": {
+  "'Bonne arrivée !'": "'Welcome!'",
+  "'Ehéé !'": "'Ehéé!'",
+  "'Akpé !'": "'Akpé! (thanks)'",
+  "'C’est chaud !'": "'It’s lit!'",
+  "'Ambiance !'": "'Party time!'",
+  "'Zém !'": "'Zem!'",
+  "'On mange quoi ?'": "'What are we eating?'",
+  "'On est ensemble !'": "'We’re together!'",
+  "'J’arrive !'": "'On my way!'",
+  "'Hum…'": "'Hmm…'",
+  "'Tchuiiip !'": "'Tchuiiip!'",
+  "'Bravo !'": "'Well done!'",
+  "'Mon cœur !'": "'My love!'",
+  "'Je vais dormir'": "'Off to bed'",
+  "'Ça va aller !'": "'It’ll be fine!'"
  }
 }

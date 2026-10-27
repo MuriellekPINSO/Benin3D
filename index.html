@@ -393,7 +393,8 @@
       <small class="sl-chat-sur" id="slChatSur"></small>
       <ol id="slMessages" aria-live="polite" aria-label="Messages du salon"></ol>
       <div class="sl-phrases" id="slPhrases"></div>
-      <form id="slForm"><input id="slTexte" maxlength="140" placeholder="Écris à tes amis… (Entrée)" autocomplete="off" aria-label="Message"><button type="submit">Envoyer</button></form>
+      <div class="sl-stickers" id="slStickers" hidden aria-label="Stickers"></div>
+      <form id="slForm"><input id="slTexte" maxlength="140" placeholder="Écris à tes amis… (Entrée)" autocomplete="off" aria-label="Message"><button type="button" class="sl-st-btn" id="slStickersBtn" aria-expanded="false" aria-controls="slStickers" title="Stickers" aria-label="Envoyer un sticker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12.5a8.5 8.5 0 1 1-9-8.98"/><path d="M20.5 12.5c-4.6 0-8.4-3.6-9-8.98a8.5 8.5 0 0 1 9 8.98Z"/><path d="M8.6 14.4a3.6 3.6 0 0 0 5.6.8"/><path d="M8.5 10h.01"/></svg></button><button type="submit">Envoyer</button></form>
     </div>
     <div class="sl-actions panel" id="slActions"><b class="sl-actions-titre">Gestes</b><button type="button" class="sl-actions-fermer" id="slGestesFermer" aria-label="Fermer les gestes" title="Fermer les gestes">×</button><div class="sl-gestes" id="slGestes" aria-label="Gestes"></div></div>
     <button type="button" class="sl-bulle" id="slChatBtn" aria-expanded="false" aria-controls="slChat" title="Discussion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.6a8.3 8.3 0 0 1-8.9 8.3 9.4 9.4 0 0 1-2.9-.4L3.2 21l1.6-4.3A8.2 8.2 0 0 1 3.2 11.6 8.3 8.3 0 0 1 12.1 3.3 8.3 8.3 0 0 1 21 11.6Z"/></svg><b id="slNonLus" hidden></b></button>

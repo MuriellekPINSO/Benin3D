@@ -40,6 +40,8 @@ function pointDeRoute(x, z, rMin = 0, rMax = 25) {
   for (let r = rMin; r <= rMax; r += 1.5) for (let a = 0; a < 16; a++) { const px = x + Math.cos(a * Math.PI / 8) * r, pz = z + Math.sin(a * Math.PI / 8) * r; if (surRoute(px, pz)) return [px, pz]; }
   return null;
 }
+/** La couleur de son véhicule à soi : la même chez soi et chez les autres (le bolide rouge passait blanc chez eux). */
+const couleurPerso = type => (['zem', 'tokpa', 'taxi'].includes(type) ? undefined : type === 'voiture' ? '#7a1f2b' : '#a32b26');
 /** À l'arrivée dans le salon : son véhicule (Fils à papa : voiture ; moto louée) garé sur la route la plus proche. */
 export function entrerMonde() {
   quitterMonde(); T.mode = 'pied';
@@ -53,7 +55,7 @@ export function garerSonVehicule(ou = null) {
   const type = VIE.data?.vehicule; if (!type || !VEHICULES[type] || T.veh) return;
   const o = S.lieu ? arriveeDehors(S.lieu) : S; // dans un bâtiment (chez soi au réveil) : dans la rue, devant la porte
   const p = ou ? [ou.x, ou.z] : pointDeRoute(o.x + Math.sin(o.cap + Math.PI / 2) * 4, o.z + Math.cos(o.cap + Math.PI / 2) * 4, 0, 150); if (!p) return;
-  T.veh = creerVehicule(type, { couleur: type === 'voiture' ? '#7a1f2b' : '#a32b26' }); placer(T.veh, p[0], p[1], ou ? ou.cap : Math.atan2(p[0] - o.x, p[1] - o.z));
+  T.veh = creerVehicule(type, { couleur: couleurPerso(type) }); placer(T.veh, p[0], p[1], ou ? ou.cap : Math.atan2(p[0] - o.x, p[1] - o.z));
   const nom = type === 'voiture' ? 'Ta voiture' : type === 'velo' ? 'Ton vélo' : type === 'citadine' ? 'Ta citadine' : type === 'bolide' ? 'Ton bolide' : 'Ta moto', e = etiquette(nom); e.position.y = ['voiture', 'citadine', 'bolide'].includes(type) ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
   const d = Math.round(Math.hypot(p[0] - o.x, p[1] - o.z) / 5) * 5;
   if (d > 8 && !S.lieu) ligne(type === 'velo' ? `Ton vélo est posé sur la route, à ${d} m : suis l’étiquette jaune.` : `${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
@@ -425,6 +427,14 @@ export function asseoirSur(p, V, passager) {
 /** Pour les amis : leur véhicule sous eux (créé à la demande). */
 export function vehiculeDe(A, type) {
   if (!type) { if (A.veh) { retirerVehicule(A.veh); A.veh = null; if (A.g) { A.g.visible = true; porterCasque(A.g, false); } } return null; }
-  if (!A.veh || A.veh.type !== type) { retirerVehicule(A.veh); A.veh = creerVehicule(type); }
+  if (!A.veh || A.veh.type !== type) { retirerVehicule(A.veh); A.veh = creerVehicule(type, { couleur: couleurPerso(type) }); }
   return A.veh;
+}
+/** Pour les autres : leur véhicule garé (`gv` = [type, x, z, cap]), qu'on voit dans la rue et où l'on peut monter. */
+export function vehiculeGareDe(A, gv) {
+  if (!gv) { if (A.garee) { retirerVehicule(A.garee); A.garee = null; } return null; }
+  const [type, x, z, cap] = gv;
+  if (!A.garee || A.garee.type !== type) { retirerVehicule(A.garee); A.garee = creerVehicule(type, { couleur: couleurPerso(type) }); A.garee.ou = ''; }
+  const ou = `${x},${z},${cap}`; if (A.garee.ou !== ou) { placer(A.garee, x, z, cap); A.garee.ou = ou; } // posée sur le sol une fois, pas à chaque image
+  return A.garee;
 }
