@@ -1544,37 +1544,122 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
 .lp-force { fill: #fff; font: 800 22px var(--font-display); paint-order: stroke; stroke: rgba(0, 0, 0, .5); stroke-width: 4px; }
 @media (max-width: 520px) { .lp-hud { padding-top: calc(64px + env(safe-area-inset-top)); } .lp-haut { gap: 10px; font-size: 14px; padding: 7px 12px; } } /* sous le bouton « Arrêter la partie » */
 
-/* ---------- Le Faux Frère (fauxfrere.js) : le panneau de la partie ----------
-   À droite sur ordinateur (à gauche de la barre d'icônes), en bas sur téléphone ; réductible d'un geste. */
-.ff-panneau { position: absolute; z-index: 6; right: 76px; top: 216px; width: min(340px, calc(100% - 2 * var(--gutter))); max-height: calc(100% - 300px); overflow: auto; padding: 12px 14px; border-radius: var(--r-lg); display: grid; gap: 8px; text-align: left; }
-.ff-panneau header { display: flex; align-items: baseline; gap: 8px; }
+/* ---------- Le Faux Frère (fauxfrere.js) : le panneau du salon ----------
+   À droite sur ordinateur (à gauche de la barre d'icônes), en bas sur téléphone ; réductible d'un geste. Chaud et arrondi :
+   la carte du mot couleur sable, les rôles en trois couleurs (frère vert, faux frère jaune zém, Ignorant violet). */
+.ff-panneau { position: absolute; z-index: 6; right: 76px; top: 216px; width: min(360px, calc(100% - 2 * var(--gutter))); max-height: calc(100% - 300px); overflow: auto; overscroll-behavior: contain; padding: 12px 14px; border-radius: var(--r-lg); display: grid; gap: 8px; align-content: start; text-align: left; }
+.ff-panneau header { display: flex; align-items: center; gap: 8px; position: sticky; top: -12px; margin: -12px -14px 0; padding: 12px 14px 6px; background: var(--panel); z-index: 1; border-radius: var(--r-lg) var(--r-lg) 0 0; }
 .ff-panneau header b { font: 800 16px/1.2 var(--font-display); }
 .ff-phase { flex: 1; color: var(--ink-2); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.ff-reduire { border: 0; background: var(--chip); border-radius: 999px; width: 28px; height: 28px; font-weight: 800; cursor: pointer; }
+.ff-reduire, .ff-sortir { flex: none; border: 0; background: var(--chip); border-radius: 999px; width: 30px; height: 30px; font-weight: 800; font-size: 16px; line-height: 1; cursor: pointer; }
+.ff-sortir:hover { background: #fde0db; color: #b3261e; }
 .ff-panneau.reduit .ff-corps { display: none; }
 .ff-corps { display: grid; gap: 10px; }
-.ff-mot { margin: 0; font-size: 14px; color: var(--ink-2); }
-.ff-mot b { display: block; font: 900 26px/1.1 var(--font-display); color: var(--accent); margin: 2px 0; }
-.ff-mot small { display: block; font-size: 12px; }
-.ff-joueurs { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.ff-joueurs li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 10px; background: var(--chip); font-size: 13px; }
-.ff-joueurs li b { margin-right: 2px; }
-.ff-joueurs li em { color: var(--accent); font-weight: 700; font-style: normal; }
-.ff-joueurs li small { margin-left: auto; color: var(--ink-2); font-weight: 700; }
-.ff-joueurs li.tour { outline: 2px solid var(--zem); }
-.ff-joueurs li.parti { opacity: .55; text-decoration: line-through; }
-.ff-joueurs li.faux { opacity: 1; text-decoration: none; background: #fdecc8; }
-.ff-ind { padding: 1px 8px; border-radius: 999px; background: var(--panel-solid); border: 1px solid var(--line); font-weight: 700; }
-.ff-agir p { margin: 0 0 6px; font-weight: 700; }
-.ff-votes { display: flex; flex-wrap: wrap; gap: 6px; }
-.ff-votes button { border: 1px solid var(--line); background: var(--panel-solid); border-radius: 999px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
-.ff-votes button:hover { border-color: var(--accent); }
+.ff-panneau .jouer:disabled { background: #b9c4bd; box-shadow: none; cursor: default; }
+.ff-boutons { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ff-boutons button:not(.jouer) { border: 1px solid var(--line); background: var(--panel-solid); border-radius: 999px; padding: 9px 14px; font-weight: 700; cursor: pointer; }
+.ff-agir p, .ff-agir small { margin: 0 0 6px; }
+.ff-agir p { font-weight: 700; }
+.ff-agir small { display: block; color: var(--ink-2); }
+.ff-info { margin: 0; color: #8a5a00; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ff-info:empty { display: none; }
+.ff-fige { padding: 8px 10px; border-radius: var(--r-md); background: #ece6f7; color: #3e2a6b; }
+/* Le salon : le code à partager, les réglages de l'hôte, le gagnant de la partie finie. */
+.ff-code { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border-radius: var(--r-md); background: #f7efdf; border: 1px solid #ecdcbb; }
+.ff-code span { flex: 1; display: grid; }
+.ff-code small { color: #7a5b2a; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.ff-code b { font: 900 22px/1.1 var(--font-mono); letter-spacing: .14em; color: #4a3413; }
+.ff-rond { flex: none; width: 44px; height: 44px; border-radius: 999px; border: 0; background: var(--accent); color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 4px 14px rgba(26, 125, 82, .28); }
+.ff-rond svg { width: 20px; height: 20px; }
+.ff-options:empty { display: none; }
+.ff-reglages { display: grid; gap: 4px; }
+.ff-reglages > span { font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.ff-choix { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px; }
+.ff-choix button { border: 1px solid var(--line); background: var(--panel-solid); border-radius: 999px; padding: 6px 11px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.ff-choix button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ff-reglages-lus { margin: 0; font-size: 13px; color: var(--ink-2); font-weight: 600; }
+.ff-gagnant { display: grid; gap: 2px; padding: 12px 14px; border-radius: var(--r-md); background: #dff1e7; animation: ff-pop .5s ease-out; }
+.ff-gagnant b { font: 900 20px/1.15 var(--font-display); }
+.ff-gagnant span { font-size: 13px; font-weight: 600; }
+.ff-gagnant.imposteurs { background: #fdecc8; }
+.ff-gagnant.ignorant { background: #ece6f7; }
+.ff-xp { justify-self: start; margin-top: 4px; padding: 2px 10px; border-radius: 999px; background: var(--zem); color: #2b2100; font-style: normal; font-weight: 900; }
+/* La carte du mot : face cachée, on la retourne d'une touche. */
+.ff-carte { width: 100%; height: 112px; padding: 0; border: 0; background: none; cursor: pointer; perspective: 700px; display: block; position: relative; }
+.ff-dos, .ff-face { position: absolute; inset: 0; border-radius: var(--r-md); display: grid; place-content: center; gap: 4px; text-align: center; backface-visibility: hidden; -webkit-backface-visibility: hidden; transition: transform .45s cubic-bezier(.3, .7, .3, 1.15); box-shadow: 0 6px 16px rgba(74, 52, 19, .18); }
+.ff-dos { background: repeating-linear-gradient(45deg, #e8c98d 0 10px, #e2bd7a 10px 20px); color: #4a3413; border: 3px solid #f7efdf; }
+.ff-dos b { font: 900 22px/1 var(--font-display); }
+.ff-dos small, .ff-face small { font-size: 12px; font-weight: 700; opacity: .8; }
+.ff-face { background: #fffaf0; border: 3px solid #ecdcbb; transform: rotateY(180deg); color: var(--ink); padding: 0 12px; }
+.ff-face b { font: 900 30px/1.05 var(--font-display); color: var(--accent); overflow-wrap: anywhere; }
+.ff-face b.ff-sans { font-size: 20px; color: #3e2a6b; }
+.ff-carte.retournee .ff-dos { transform: rotateY(-180deg); }
+.ff-carte.retournee .ff-face { transform: rotateY(0); }
+/* Les joueurs : avatar, nom, étiquettes, et leurs indices dessous, d'une manche à l'autre. */
+.ff-joueurs { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.ff-ligne { box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 34px 1fr; column-gap: 8px; row-gap: 3px; align-items: center; padding: 6px 8px; border-radius: 14px; background: var(--chip); border: 2px solid transparent; font: inherit; font-size: 13px; text-align: left; color: inherit; }
+button.ff-ligne { cursor: pointer; border-color: var(--line); background: var(--panel-solid); }
+button.ff-ligne:hover { border-color: var(--accent); }
+.ff-joueurs li.choisi .ff-ligne { border-color: var(--accent); background: #dff1e7; }
+.ff-joueurs li.tour .ff-ligne { border-color: var(--zem); background: #fff6d6; box-shadow: 0 0 0 3px rgba(245, 197, 24, .25); }
+.ff-joueurs li.moi .ff-ligne b { color: var(--accent); }
+.ff-joueurs li.parti .ff-ligne { opacity: .62; }
+.ff-joueurs li.revele .ff-ligne { animation: ff-revele .7s cubic-bezier(.3, .7, .3, 1.2); opacity: 1; }
+.ff-av { grid-row: span 2; width: 34px; height: 34px; border-radius: 999px; display: grid; place-items: center; font: 900 15px/1 var(--font-display); font-style: normal; color: #fff; background: hsl(var(--h) 52% 42%); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .15); }
+.ff-qui { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; }
+.ff-qui b small { color: var(--ink-2); font-weight: 600; }
+.ff-qui em { color: #8a5a00; font-weight: 800; font-style: normal; }
+.ff-inds { display: flex; flex-wrap: wrap; gap: 4px; min-height: 0; }
+.ff-inds:empty { display: none; }
+.ff-ind { padding: 1px 9px; border-radius: 999px; background: #fffaf0; border: 1px solid #ecdcbb; font-weight: 800; }
+.ff-ind.dep { border-style: dashed; }
+.ff-ind.vide { background: #fde0db; border-color: #f3b8ad; color: #8c2b1f; font-weight: 700; font-size: 12px; }
+.ff-tag { padding: 1px 8px; border-radius: 999px; background: rgba(21, 33, 27, .07); color: var(--ink-2); font-size: 11px; font-weight: 800; }
+.ff-tag.tour { background: var(--zem); color: #2b2100; }
+.ff-tag.ok { background: var(--accent); color: #fff; }
+.ff-tag.hote { background: #f7efdf; color: #7a5b2a; }
+.ff-role { padding: 1px 9px; border-radius: 999px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; background: #dff1e7; color: #135c3c; }
+.ff-role.faux { background: #fdecc8; color: #7a4c00; }
+.ff-role.ignorant { background: #ece6f7; color: #3e2a6b; }
+/* Le résultat d'un vote : le rôle révélé, qui a voté pour qui. */
+.ff-elimine { padding: 10px 12px; border-radius: var(--r-md); background: var(--chip); animation: ff-pop .5s ease-out; }
+.ff-elimine.frere { background: #dff1e7; } .ff-elimine.faux { background: #fdecc8; } .ff-elimine.ignorant { background: #ece6f7; }
+.ff-sous { margin: 4px 0 2px !important; font-size: 12px; color: var(--ink-2); }
+.ff-qui-vote { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 13px; }
+.ff-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+/* Saisir un indice, le mot de l'Ignorant. */
 .ff-saisie { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: end; }
-.ff-saisie label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
-.ff-saisie input { font: 600 16px var(--font-body); padding: 9px 12px; border: 1px solid var(--line); border-radius: var(--r-md); }
-.ff-saisie .jouer { padding: 10px 16px; }
+.ff-saisie label { display: grid; gap: 4px; font-size: 12px; font-weight: 800; color: var(--ink-2); }
+.ff-saisie input { font: 600 16px var(--font-body); padding: 10px 12px; border: 2px solid var(--zem); border-radius: var(--r-md); min-width: 0; }
+.ff-saisie .jouer { padding: 11px 16px; }
 .ff-erreur { grid-column: 1 / -1; color: #b3261e; font-weight: 700; }
 .ff-erreur:empty { display: none; }
+/* Les discussions : le salon, la partie (et les messages du jeu, en italique), les éliminés. */
+.ff-fil { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; }
+.ff-onglets { display: flex; gap: 4px; }
+.ff-onglets:empty { display: none; }
+.ff-onglets button { border: 0; background: var(--chip); border-radius: 999px; padding: 6px 12px; font-weight: 800; font-size: 12px; cursor: pointer; }
+.ff-onglets button[aria-selected="true"] { background: var(--ink); color: #fff; }
+.ff-onglets button b { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: #c8352b; color: #fff; font-size: 11px; }
+.ff-note { margin: 0; padding: 6px 10px; border-radius: 10px; background: #f7efdf; color: #7a5b2a; font-size: 12px; font-weight: 700; }
+.ff-note:empty { display: none; }
+.ff-messages { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; max-height: 150px; overflow: auto; font-size: 13px; }
+.ff-messages:empty { display: none; }
+.ff-messages li { padding: 3px 8px; border-radius: 10px; overflow-wrap: anywhere; }
+.ff-messages li b { cursor: pointer; }
+.ff-messages li.moi { background: #dff1e7; }
+.ff-messages li.sys { color: var(--ink-2); font-style: italic; font-size: 12px; background: none; padding: 1px 8px; }
+.ff-ecrire { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.ff-ecrire input { font: 500 15px var(--font-body); padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; min-width: 0; background: var(--panel-solid); }
+.ff-ecrire input:disabled { background: var(--chip); }
+.ff-ecrire button { border: 0; background: var(--ink); color: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; cursor: pointer; }
+.ff-ecrire button:disabled { opacity: .4; cursor: default; }
+@keyframes ff-pop { from { transform: scale(.86); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes ff-revele { 0% { transform: rotateX(90deg); } 60% { transform: rotateX(-12deg) scale(1.03); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ff-dos, .ff-face { transition: none; } .ff-gagnant, .ff-elimine, .ff-joueurs li.revele .ff-ligne { animation: none; } }
 @media (max-width: 720px) {
-  .ff-panneau { right: var(--gutter); left: var(--gutter); top: auto; bottom: 120px; width: auto; max-height: 46vh; }
+  .ff-panneau { right: var(--gutter); left: var(--gutter); top: auto; bottom: 120px; width: auto; max-height: 56vh; }
+  .ff-carte { height: 84px; }
+  .ff-face b { font-size: 26px; }
+  .ff-messages { max-height: 120px; }
 }
