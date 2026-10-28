@@ -47,11 +47,37 @@ export function reduireTextures(racine, max = MAX_TEX) {
   return racine;
 }
 
-/** Le chargeur de modèles du jeu : meshopt, et les textures réduites à l'arrivée sur téléphone. */
-export function chargeurGLB() {
+// ---------- Images rendues une fois envoyées à la carte graphique ----------
+// Comme pour les sommets (memoire.js), three garde l'image d'une texture après l'avoir envoyée, au cas où il
+// faudrait la renvoyer. Mesuré sur ordinateur (1440 × 900, écran Retina), en ville : 430 Mo d'images tenues ainsi,
+// la moitié de la mémoire de l'onglet. Les modèles Tripo en font 250 à eux seuls : chacun a une couleur en
+// 2048 × 2048, soit 16 Mo une fois décodée, et 2 Mo pour le relief et la rugosité.
+// On rend l'image au moment où three a fini l'envoi (onUpdate), et seulement pour ce qui ne repart jamais :
+// ni les canevas qu'on redessine, ni ce que montrent aussi la cabine d'essayage et la boutique (personnages,
+// tenues, objets : mode.js et artisans.js ont leur propre carte graphique, elles devraient renvoyer l'image et
+// n'auraient plus rien). Après une perte du contexte WebGL, ces textures ne reviennent pas, pas plus que les
+// sommets : le jeu demande déjà de recharger la page (incidents.js).
+const liberable = t => t?.isTexture && !t.isVideoTexture && !t.isDataTexture && !t.isCompressedTexture && !t.isRenderTargetTexture;
+function rendreImage(t) { const im = t.source.data; t.source.data = null; im?.close?.(); } // close : un ImageBitmap rend sa mémoire tout de suite
+/** Une texture seule (une photo qui arrive après coup) : son image est rendue à chaque envoi. */
+export function libererApresEnvoi(t) { if (liberable(t)) t.onUpdate = rendreImage; return t; }
+/** Les textures d'un modèle chargé. Une image partagée par plusieurs textures (même image, réglages différents)
+ *  attend que toutes soient parties : la deuxième n'aurait sinon plus rien à envoyer. */
+export function libererImages(racine) {
+  const parSource = new Map();
+  racine?.traverse(o => { for (const m of [].concat(o.material || [])) for (const k in m) { const t = m?.[k]; if (liberable(t)) { if (!parSource.has(t.source)) parSource.set(t.source, new Set()); parSource.get(t.source).add(t); } } });
+  for (const ts of parSource.values()) { const attente = new Set(ts); for (const t of ts) t.onUpdate = () => { attente.delete(t); if (!attente.size) rendreImage(t); }; }
+  return racine;
+}
+
+/** Le chargeur de modèles du jeu : meshopt, et les textures réduites à l'arrivée sur téléphone.
+ *  `liberer` : modèles que seule la ville montre (bâtiments et véhicules Tripo, zémidjans), images rendues après l'envoi.
+ *  `max` : côté maximal de leurs images, sur ordinateur aussi. */
+export function chargeurGLB({ liberer = false, max = MAX_TEX } = {}) {
   const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  if (MAX_TEX === Infinity) return L;
+  max = Math.min(max, MAX_TEX);
+  if (max === Infinity && !liberer) return L;
   const charger = L.loadAsync.bind(L);
-  L.loadAsync = (...a) => charger(...a).then(g => { reduireTextures(g.scene); return g; });
+  L.loadAsync = (...a) => charger(...a).then(g => { reduireTextures(g.scene, max); if (liberer) libererImages(g.scene); return g; });
   return L;
 }

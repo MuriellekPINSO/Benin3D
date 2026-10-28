@@ -7,6 +7,7 @@ import { ilesDesRondsPoints, ROAD_W, roadLines } from './ville.js';
 import { texFacades } from './facades.js';
 import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
 import { MAX_DECOR, reduireImage } from './textures.js';
+import { preparerGeometries } from './memoire.js';
 
 // Habillage des rues, d'après les vues Street View de Cotonou (2026) : dans une vraie
 // rue, il n'y a pas de sable vide entre la chaussée et les maisons. Les parcelles
@@ -691,8 +692,11 @@ export function majRue(dt, centre, proche) {
   attente -= dt; if (attente > 0) return; attente = .05;
   const c = centre || controls.target;
   const dist = proche ?? camera.position.distanceTo(c);
-  // Vue rapprochée seulement : vu de haut, la ville d'origine reste homogène.
-  const rayon = LITE ? (dist < 600 ? 1 : -1) : (dist < 950 ? 2 : -1);
+  // Vue rapprochée seulement : vu de haut, la ville d'origine reste homogène. Sur ordinateur, à pied (caméra à moins de
+  // 200 m), un carré autour de soi comme sur téléphone, et non deux : entre les murs, on ne voit pas à 400 m, et les
+  // seize carrés de l'anneau extérieur coûtaient 0,7 ms par image (mesuré sur un Mac M3). Zém Run (`proche` donné) garde
+  // ses deux carrés : on y roule vite.
+  const rayon = LITE ? (dist < 600 ? 1 : -1) : dist >= 950 ? -1 : proche == null && dist < 200 ? 1 : 2;
   const cx = Math.floor(c.x / CARRE), cz = Math.floor(c.z / CARRE);
   // Libère ce qui est trop loin (avec marge, pour ne pas reconstruire en va-et-vient).
   for (const [k, g] of R.carres) { const [a, b] = k.split(',').map(Number); if (rayon < 0 || Math.max(Math.abs(a - cx), Math.abs(b - cz)) > rayon + 1) { liberer(g); R.carres.delete(k); } }
@@ -703,5 +707,7 @@ export function majRue(dt, centre, proche) {
     const a = cx + i, b = cz + j, k = a + ',' + b; if (R.carres.has(k)) continue;
     const d = (a + .5) * CARRE - c.x, e = (b + .5) * CARRE - c.z, dd = d * d + e * e; if (dd < bd) { bd = dd; best = [a, b, k]; }
   }
-  if (best) { const t0 = performance.now(); const g = genererCarre(best[0], best[1]); STATS_RUE.ms = performance.now() - t0; STATS_RUE.n++; R.carres.set(best[2], g); scene.add(g); }
+  // preparerGeometries : le carré rend ses sommets côté JavaScript une fois envoyés (memoire.js). Les carrés faits après les
+  // trois passages de main.js les gardaient : 10 Mo pour 30 carrés, mesuré sur ordinateur après une minute de marche.
+  if (best) { const t0 = performance.now(); const g = genererCarre(best[0], best[1]); STATS_RUE.ms = performance.now() - t0; STATS_RUE.n++; R.carres.set(best[2], g); scene.add(g); preparerGeometries(g); }
 }

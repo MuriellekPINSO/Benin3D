@@ -146,7 +146,7 @@ function gabaritAvion(obj) {
 }
 function chargerAvion() {
   if (!TRIPO.info['avion-tourisme']) return;
-  plusTard(() => chargeurGLB().loadAsync(urlTripo('avion-tourisme')))
+  plusTard(() => chargeurGLB({ liberer: true }).loadAsync(urlTripo('avion-tourisme')))
     .then(g => { VOL.gabarit = gabaritAvion(g.scene); for (const A of VOL.attendent) habiller(A); VOL.attendent.length = 0; })
     .catch(e => console.warn('modèle avion-tourisme', e.message));
 }

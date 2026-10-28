@@ -42,7 +42,10 @@ export function creerRendu() {
   throw dernier;
 }
 export const renderer = creerRendu();
-renderer.setPixelRatio(Math.min(devicePixelRatio, SECOURS ? 1 : LITE ? 1.25 : 2)); // téléphone : moins de mémoire d'image, l'écran est petit
+// Téléphone : moins de mémoire d'image, l'écran est petit. Ordinateur : 1,5 au plus. Sur un écran Retina (×2), l'image de
+// 1440 × 900 en faisait 2880 × 1800, et ses tampons anticrénelés plus de 160 Mo de mémoire vidéo ; à 1,5, 44 % de pixels
+// en moins à colorier à chaque image, et l'anticrénelage garde les bords nets.
+renderer.setPixelRatio(Math.min(devicePixelRatio, SECOURS ? 1 : LITE ? 1.25 : 1.5));
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.shadowMap.enabled = !LITE;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;

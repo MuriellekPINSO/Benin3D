@@ -61,8 +61,16 @@ const extras = [];
 let shadowSize = 0;
 // Une erreur dans une image ne doit pas figer la ville ni le jeu : on la signale une fois et on continue.
 const erreursVues = new Set();
+// Écran à 120 Hz ou plus (MacBook Pro, beaucoup de téléphones Android) : requestAnimationFrame y tombe deux fois plus
+// souvent, et chaque image coûte au processeur autant qu'à 60 Hz — 6 ms de JavaScript en ville, mesurées sur un Mac M3.
+// Quand les appels arrivent à moins de 10 ms d'écart en moyenne, on n'en dessine qu'un sur deux : 60 images par seconde
+// à 120 Hz, au même rythme régulier. Une image trop lourde pour tenir dans 8 ms écarte d'elle-même les appels suivants
+// au-delà de 10 ms : on dessine alors chacun, comme avant.
+let ecart = 16.7, precedent = 0, sauter = false;
 function loop(now) {
   requestAnimationFrame(loop);
+  ecart += (Math.min(100, now - precedent) - ecart) * .1; precedent = now; // écart moyen entre deux appels
+  if (ecart < 10 && (sauter = !sauter)) return;
   try { image(now); } catch (err) { const k = String(err?.message); if (!erreursVues.has(k)) { erreursVues.add(k); console.error('image', err); } }
 }
 function image(now) {

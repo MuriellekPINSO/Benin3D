@@ -52,7 +52,7 @@ const LONGUEURS = { voiture: 4.4, moto: 2, taxi: 4.3 };
 const DEMI_TOUR = { voiture: true, moto: true, taxi: false }; // le redressement aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu (phare devant)
 const SELLES = { moto: [.86, -.27] }; // selle du modèle Tripo, mesurée : dessus à 0,78 m, 0,2 à 0,3 m derrière le centre (avec [1,02 ; −0,08] du zém, on s'asseyait sur le réservoir)
 export function chargerVehicules() {
-  const ch = chargeurGLB();
+  const ch = chargeurGLB({ liberer: true });
   for (const [type, id] of [['voiture', 'voiture-perso'], ['moto', 'moto-perso'], ['taxi', 'voiture']]) { // taxi : celui de Zém Run
     if (!TRIPO.info[id]) continue;
     plusTard(() => ch.loadAsync(urlTripo(id))).then(g => { MODELES[type] = gabaritDe(g.scene, { largeur: LONGUEURS[type] }); }).catch(e => console.warn(`modèle ${id}`, e.message));

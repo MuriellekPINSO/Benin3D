@@ -226,7 +226,7 @@ export const matVeh = new THREE.MeshStandardMaterial({ vertexColors: true, rough
 // zem.glb : moto rouge, conducteur en chemise jaune et passagère au chapeau.
 // Gabarits : origine au sol au centre du véhicule, avant tourné vers +x.
 export const ZEMS_3D = { moto: null, zem: null, motoLod: null };
-const chargeur = chargeurGLB();
+const chargeur = chargeurGLB({ liberer: true });
 
 /**
  * Remet un véhicule droit sur sa route (repris de Rues.redresser, 3D monde) :

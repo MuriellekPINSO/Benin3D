@@ -5,6 +5,7 @@ import { surLaChaussee } from './chaussee.js';
 import { ajouterEmprises } from './rue.js';
 import { lireJsonGz } from './chargement.js';
 import { rectSansConstruction } from './zones.js';
+import { preparerGeometries } from './memoire.js';
 
 // ---------- Bâtiments Google Open Buildings ----------
 // Google détecte les bâtiments sur ses images satellite et publie leurs emprises
@@ -44,6 +45,7 @@ async function charger(k) {
     const [tx, tz] = k.split('_').map(Number), { T, ids } = horsChaussee(brut);
     e.mesh = maillageLot(T, 2e6 + Math.floor(hash(tx * 977 + tz, 5) * 1e6), ids);
     e.mesh.castShadow = false; e.mesh.visible = BG.visible; scene.add(e.mesh);
+    preparerGeometries(e.mesh); // sommets rendus une fois envoyés (memoire.js) : une tuile arrivée en marchant les gardait, 35 Mo en ville
     if (!BG.emprises.has(k)) { BG.emprises.add(k); ajouterEmprises(T, [tx * BG.taille, tz * BG.taille, (tx + 1) * BG.taille, (tz + 1) * BG.taille]); } // les emprises restent quand la tuile part : à son retour, on les rajoutait en double
   } catch (err) { console.warn('tuile', k, err); }
   finally { BG.enCours--; }
