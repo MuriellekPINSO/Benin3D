@@ -44,7 +44,8 @@ export const vehiculeLoue = v => !!v?.vehicule && (v.vehiculeFin || 0) > 0;
 export async function acheterVehicule(id) {
   const V = A_VENDRE.find(v => v.id === id); if (!V || !VIE.data || VIE.data.vehicule === id) return false;
   if (vehiculeLoue(VIE.data)) { annonce('Rends d’abord ton véhicule loué.'); return false; }
-  if (!(await depenser(V.prix, `achat : ${V.nom}`))) // « achat d’tesla roadster » : on ne fait pas l'élision { annonce(`Il te faut ${fmt(V.prix)} pour l’acheter.`); return false; }
+  // « achat : Tesla Roadster » : sans élision, « achat d’tesla roadster » ne se lisait pas.
+  if (!(await depenser(V.prix, `achat : ${V.nom}`))) { annonce(`Il te faut ${fmt(V.prix)} pour l’acheter.`); return false; }
   await ecrire({ vehicule: id, carburant: RESERVOIRS[id], vehiculeFin: 0 }); rendreVie(); return true;
 }
 // Les métiers du transport (étape 2, première vague) : metiers.js. Sans véhicule à soi, on travaille avec celui
