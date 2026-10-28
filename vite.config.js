@@ -15,11 +15,11 @@ const apiLocale = () => {
     // Le fichier est relu dès qu'il change : sans ça, `npm run preview` gardait la version chargée au démarrage (le 22/10,
     // la copie de test parlait encore à l'ancien /api/fedapay et refusait chaque paiement).
     // /api/paiements : les paiements du jeu pour le tableau de bord (en local, sans le code d'accès de middleware.js).
-    // /api/faux-frere : l'arbitre du Faux Frère, avec le secret de .env.local (FAUX_FRERE_SECRET), sinon un secret d'essai.
+    // /api/faux-frere : l'arbitre du Faux Frère, qui écrit en administrateur avec le secret de la base de .env.local (FIREBASE_DB_SECRET).
     // /api/recharge : crédite une recharge payée, avec le secret de la base de .env.local (FIREBASE_DB_SECRET, ou FIREBASE_SERVICE_ACCOUNT).
     // /api/lance-pierre : rejoue une partie de lance-pierre et l'inscrit au classement, avec le même secret de la base.
     const base = loadEnv('development', process.cwd(), 'FIREBASE_');
-    const secrets = { fedapay: cle, paiements: cle, 'faux-frere': loadEnv('development', process.cwd(), 'FAUX_FRERE_').FAUX_FRERE_SECRET || 'secret-de-developpement', recharge: { cle, secret: base.FIREBASE_DB_SECRET, compte: base.FIREBASE_SERVICE_ACCOUNT }, 'lance-pierre': { secret: base.FIREBASE_DB_SECRET } };
+    const secrets = { fedapay: cle, paiements: cle, 'faux-frere': { secret: base.FIREBASE_DB_SECRET }, recharge: { cle, secret: base.FIREBASE_DB_SECRET, compte: base.FIREBASE_SERVICE_ACCOUNT }, 'lance-pierre': { secret: base.FIREBASE_DB_SECRET } };
     for (const nom of ['fedapay', 'paiements', 'faux-frere', 'recharge', 'lance-pierre']) {
       const api = pathToFileURL(path.resolve(`api/${nom}.js`)).href; // adresse absolue : Vite ne réécrit pas cet import
       server.middlewares.use(`/api/${nom}`, async (req, res) => (await import(/* @vite-ignore */ `${api}?v=${fs.statSync(`api/${nom}.js`).mtimeMs}`)).default(req, res, secrets[nom]));

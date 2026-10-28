@@ -1301,7 +1301,7 @@ export function initSalon(data) {
   guideSalon = creerGuide({ cle: 'cotonou3d.guide', el: $('#slGuide'), titre: 'Prise en main', etapes: etapesSalon() });
   initCommerces({ S, T, ligne, choisir, allerVers }); // devenir patron (commerces.js)
   initLancePierre({ S, ligne, choisir }); // le stand de la plage de Fidjrossè (lancepierre.js)
-  initFauxFrere({ S, ligne, choisir, bulleDe: (u, t) => { const A = u === S.R?.id ? S : S.autres.get(u); if (A) bulle(A, t); } }); // le maquis de la plage (fauxfrere.js)
+  initFauxFrere({ S, ligne, choisir, dehors, bulleDe: (u, t) => { const A = u === S.R?.id ? S : S.autres.get(u); if (A) bulle(A, t); } }); // le maquis de la plage (fauxfrere.js)
   initChapitres({ ligne, guide: () => !$('#slGuide').hidden }); // la prochaine étape, toujours affichée (chapitres.js)
   initCarteSalon({ S, T, tracer: tracerVers, moyens: moyensVers, effacer: () => { retirerRuban(T.gps?.m); T.gps = null; }, partager: partagerPosition, peutPartager: () => !!S.canal, lieux: () => [ // la mini-carte et la grande carte (carte-salon.js) : les lieux, sa maison, ses commerces
     ...LIEUX.filter(L => L[0] !== 'station').map(L => { const d = destination(L); return d && { id: L[0], nom: L[1], x: d[0], z: d[1], type: L[0] === 'maison' ? 'maison' : 'lieu' }; }).filter(Boolean),

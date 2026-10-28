@@ -293,6 +293,79 @@
         },
         "$autre": { ".validate": false }
       }
+    },
+    "zem_ff2": {
+      ".read": "auth != null",
+      ".indexOn": ["salon"],
+      "$partie": {
+        ".write": "auth != null && !data.exists() && newData.child('pub').child('hote').val() === auth.uid",
+        ".validate": "$partie.matches(/^[a-z0-9]{6,24}$/) && newData.hasChildren(['salon', 'lieu', 'cree', 'pub', 'reglages']) && (data.exists() || (!newData.hasChild('ms') && !newData.hasChild('mp')))",
+        "salon": { ".validate": "newData.isString() && newData.val().length <= 12 && (!data.exists() || newData.val() === data.val())" },
+        "lieu": { ".validate": "newData.isString() && newData.val().length <= 24 && (!data.exists() || newData.val() === data.val())" },
+        "cree": { ".validate": "(!data.exists() && newData.val() === now) || newData.val() === data.val()" },
+        "pub": {
+          ".validate": "data.exists() || (newData.child('rev').val() === 0 && newData.child('n').val() === 0 && newData.child('etat').val() === 'salon' && newData.child('hote').val() === auth.uid)",
+          "rev": { ".validate": "newData.isNumber()" },
+          "n": { ".validate": "newData.isNumber()" },
+          "etat": { ".validate": "newData.isString()" },
+          "hote": { ".validate": "newData.isString()" },
+          "$autre": { ".validate": "data.exists()" }
+        },
+        "reglages": {
+          ".write": "auth != null && root.child('zem_ff2').child($partie).child('pub').child('hote').val() === auth.uid && root.child('zem_ff2').child($partie).child('pub').child('etat').val() === 'salon'",
+          ".validate": "newData.hasChildren(['duree', 'theme'])",
+          "duree": { ".validate": "newData.val() === 20 || newData.val() === 30 || newData.val() === 45" },
+          "theme": { ".validate": "newData.isString() && newData.val().matches(/^(tous|cuisine|boissons|lieux|transports|nature|vie)$/)" },
+          "$autre": { ".validate": false }
+        },
+        "joueurs": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && ((data.exists() && newData.exists()) || root.child('zem_ff2').child($partie).child('pub').child('etat').val() === 'salon')",
+            ".validate": "newData.hasChildren(['n', 't', 'vu']) && (data.exists() || $uid === auth.uid)",
+            "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+            "t": { ".validate": "newData.val() === now || newData.val() === data.val()" },
+            "vu": { ".validate": "newData.val() === now" },
+            "$autre": { ".validate": false }
+          }
+        },
+        "ms": {
+          "$m": {
+            ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid && root.child('zem_ff2').child($partie).child('pub').child('etat').val() === 'salon' && root.child('zem_ff2').child($partie).child('joueurs').child(auth.uid).exists()",
+            ".validate": "newData.hasChildren(['u', 'n', 'txt', 't'])",
+            "u": { ".validate": "newData.isString()" },
+            "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+            "txt": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 140" },
+            "t": { ".validate": "newData.val() === now" },
+            "$autre": { ".validate": false }
+          }
+        },
+        "mp": {
+          "$m": {
+            ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid && root.child('zem_ff2').child($partie).child('pub').child('etat').val() === 'jeu' && root.child('zem_ff2').child($partie).child('pub').child('jeu').child('vivants').child(auth.uid).val() === true && root.child('zem_ff2').child($partie).child('pub').child('jeu').child('phase').val() !== 'ignorant'",
+            ".validate": "newData.hasChildren(['u', 'n', 'txt', 't'])",
+            "u": { ".validate": "newData.isString()" },
+            "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+            "txt": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 140" },
+            "t": { ".validate": "newData.val() === now" },
+            "$autre": { ".validate": false }
+          }
+        },
+        "$autre": { ".validate": false }
+      }
+    },
+    "zem_ff2_morts": {
+      "$partie": {
+        ".read": "auth != null && root.child('zem_ff2').child($partie).child('pub').child('jeu').child('morts').child(auth.uid).exists()",
+        "$m": {
+          ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid && root.child('zem_ff2').child($partie).child('pub').child('etat').val() === 'jeu' && root.child('zem_ff2').child($partie).child('pub').child('jeu').child('morts').child(auth.uid).exists()",
+          ".validate": "newData.hasChildren(['u', 'n', 'txt', 't'])",
+          "u": { ".validate": "newData.isString()" },
+          "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+          "txt": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 140" },
+          "t": { ".validate": "newData.val() === now" },
+          "$autre": { ".validate": false }
+        }
+      }
     }
   }
 }
