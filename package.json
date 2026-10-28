@@ -17,7 +17,8 @@
     "leger": "node scripts/leger.mjs",
     "personnages": "node scripts/personnages.mjs",
     "pubs": "node scripts/pubs.mjs",
-    "recherche": "node scripts/recherche.mjs"
+    "recherche": "node scripts/recherche.mjs",
+    "trafic": "node scripts/trafic.mjs"
   },
   "dependencies": {
     "@vercel/functions": "^3.10.3",

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { B3, C3, matVeh, partsVelo, partsVoiture, partsZem } from './vehicules.js';
+import { TRAFIC_3D, chargerTrafic, matVeh, partsVoiture, partsZem } from './vehicules.js';
 import { E } from './etat.js';
 import { degagerAutourDuJoueur } from './trafic.js';
 import { LITE } from './base.js';
@@ -7,43 +7,35 @@ import { mergeColored, roadLines } from './ville.js';
 import { scene } from './scene.js';
 
 // ---------- La circulation autour du joueur (« Vivre à Cotonou ») ----------
-// Les zems de toute la ville (trafic.js) sont trop clairsemés là où l'on marche : ici, une circulation dense, seulement
-// autour du joueur — voitures de toutes les couleurs, taxis jaunes, camions, vélos et zems. Chacun suit sa rue (à droite
+// Les zems de toute la ville (trafic.js) sont trop clairsemés là où l'on marche : ici, une circulation, seulement autour
+// du joueur — voitures de plusieurs couleurs, taxis jaunes, zems et motos, en 3D (TRAFIC_3D). Chacun suit sa rue (à droite
 // sur une rue à double sens, réparti sur la largeur d'un boulevard à sens unique), passe à la rue suivante au carrefour,
 // garde ses distances avec celui de devant, et s'arrête si le joueur est devant lui. Loin du joueur, il réapparaît sur une
 // rue proche. Comme ceux de trafic.js, ils sont solides : E.circulation (dansCirculation).
 
-const N = LITE ? 50 : 110, LOIN = 300, CELL = 150, POIDS = c => (c <= 2 ? 5 : c === 3 ? 3 : c === 4 ? 2 : 1); // plus de monde sur les grands axes
+// 40 au lieu de 110 (18 au lieu de 50 au téléphone) : à 110, ils se rentraient dedans aux carrefours et dans les files
+// (« on a toujours un problème de collision des voitures et motos qui deviennent beaucoup : supprime la majorité »,
+// Murielle, 27/10). Plus de camions ni de vélos dessinés en boîtes : seulement les voitures et les motos qu'on a en 3D.
+const N = LITE ? 18 : 40, LOIN = 300, CELL = 150, POIDS = c => (c <= 2 ? 5 : c === 3 ? 3 : c === 4 ? 2 : 1); // plus de monde sur les grands axes
 const TYPES = [ // part de la circulation, vitesse (m/s), demi-longueur et demi-largeur (pour les collisions)
-  { id: 'voiture', part: .4, v: [8, 13], hl: 2.15, hw: .9 },
-  { id: 'zem', part: .28, v: [8, 12], hl: 1.05, hw: .42 },
-  { id: 'taxi', part: .1, v: [8, 12], hl: 2.15, hw: .9 },
-  { id: 'camion', part: .1, v: [6, 9], hl: 3.8, hw: 1.2 },
-  { id: 'velo', part: .12, v: [3, 5], hl: .9, hw: .3 },
+  { id: 'voiture', part: .5, v: [8, 13], hl: 2.15, hw: .9 },
+  { id: 'taxi', part: .15, v: [8, 12], hl: 2.15, hw: .9 },
+  { id: 'zem', part: .22, v: [8, 12], hl: 1.05, hw: .42 },
+  { id: 'moto', part: .13, v: [8, 12], hl: 1.05, hw: .42 }, // une moto ordinaire : le conducteur en chemise, pas en gilet de zém
 ];
 const COULEURS = ['#e8e8e4', '#9da3a6', '#1f2326', '#7b2a2a', '#2c4a6e', '#c9c9c4'];
 const C = { pret: false, meshes: new Map(), vehicules: [], grille: null, bouts: null, routes: null, actif: false };
 const hasard = (a, b) => a + Math.random() * (b - a);
 
 // ---------- Les modèles (même repère que vehicules.js : l'avant vers +x) ----------
-function partsCamion() {
-  const P = [], add = (g, hex) => P.push([g, hex]), caisse = ['#2f6fb0', '#c8553d', '#e3b21c', '#3a7d44'][Math.floor(Math.random() * 4)];
-  add(B3(2, 2, 2.3).translate(2.6, 1.45, 0), '#d9d6cf'); add(B3(.08, .8, 2).translate(3.62, 1.9, 0), '#2e3a40'); // cabine, pare-brise
-  add(B3(5.2, 2.6, 2.4).translate(-1.1, 1.85, 0), caisse); add(B3(7.6, .3, 2.2).translate(.2, .55, 0), '#3a3530'); // caisse, châssis
-  for (const x of [2.7, -.6, -2.6]) for (const z of [1.05, -1.05]) add(C3(.48, .48, .32, 12).rotateX(Math.PI / 2).translate(x, .48, z), '#1c1c1e');
-  for (const z of [.75, -.75]) add(B3(.05, .16, .34).translate(3.62, 1.05, z), '#f4efd8');
-  return P;
-}
+// Les modèles 3D de scripts/trafic.mjs, une variante par couleur ; s'ils manquent, ceux dessinés en code.
 function maillages() {
-  const def = [
-    ['voiture', 0], ['voiture', 1], ['voiture', 2], ['voiture', 3], ['voiture', 4], ['voiture', 5],
-    ['taxi', 0], ['zem', 0], ['camion', 0], ['camion', 1], ['velo', 0], ['velo', 1],
-  ];
-  for (const [t, k] of def) {
-    // Un vélo sur deux est un Caï Caï (cadre blanc, jantes bleues, le canard) ; l'autre, un vélo comme on en croise partout.
-    const velo = k === 0 ? { pilote: true, haut: '#e8e8e4' } : { pilote: true, canard: false, casque: false, cadre: '#2f6fb0', jante: '#9aa1a7', haut: '#d9a521' };
-    const parts = t === 'voiture' ? partsVoiture(COULEURS[k]) : t === 'taxi' ? partsVoiture('#f2c21b') : t === 'zem' ? partsZem({ passager: '#2f6fb0' }) : t === 'camion' ? partsCamion() : partsVelo(velo);
-    const m = new THREE.InstancedMesh(mergeColored(parts), matVeh, N); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.frustumCulled = false; m.castShadow = !LITE; m.visible = false;
+  const D = TRAFIC_3D.pret ? { voiture: TRAFIC_3D.voitures, taxi: [TRAFIC_3D.taxi], zem: [TRAFIC_3D.zem], moto: TRAFIC_3D.civils } : {
+    voiture: COULEURS.map(c => ({ geo: mergeColored(partsVoiture(c)), mat: matVeh })), taxi: [{ geo: mergeColored(partsVoiture('#f2c21b')), mat: matVeh }],
+    zem: [{ geo: mergeColored(partsZem({ passager: '#2f6fb0' })), mat: matVeh }], moto: [{ geo: mergeColored(partsZem({ passager: false })), mat: matVeh }],
+  };
+  for (const [t, variantes] of Object.entries(D)) for (const { geo, mat } of variantes) {
+    const m = new THREE.InstancedMesh(geo, mat, N); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.frustumCulled = false; m.castShadow = !LITE; m.receiveShadow = true; m.visible = false;
     scene.add(m); (C.meshes.get(t) || C.meshes.set(t, []).get(t)).push(m);
   }
 }
@@ -74,7 +66,7 @@ function poser(R, s, dir) {
 }
 function voie(R, type) { // décalage à droite de la direction de marche
   if (R.sens) return (Math.random() - .5) * Math.max(0, R.hw * 2 - 2.4);
-  return type === 'velo' ? Math.max(.6, R.hw - .9) : Math.min(2, R.hw * .45);
+  return type === 'zem' || type === 'moto' ? Math.min(2.4, Math.max(.6, R.hw - 1.1)) : Math.min(2, R.hw * .45); // les motos serrent à droite
 }
 /** Le joueur J (un point, rayon r) est-il dans l'emprise d'un véhicule posé en (x, z), orienté cap, de demi-longueur hl
  *  et de demi-largeur hw ? Même boîte que dansCirculation (trafic.js). */
@@ -89,7 +81,6 @@ function placer(V, jx, jz, rMin, rMax) {
     const l = C.grille.get(Math.floor(x / CELL) + ',' + Math.floor(z / CELL)); if (!l || !l.size) continue;
     const routes = [...l], tot = routes.reduce((t, r) => t + POIDS(r.L.cls), 0); let u = Math.random() * tot, R = routes[0];
     for (const r of routes) { u -= POIDS(r.L.cls); if (u <= 0) { R = r; break; } }
-    if (V.type.id === 'camion' && R.hw < 3) continue; // un camion ne croise pas une voiture dans une rue de moins de 6 m
     V.R = R; V.dir = R.sens ? 1 : Math.random() < .5 ? 1 : -1; V.s = Math.random() * R.len; V.lane = voie(R, V.type.id);
     const p = poser(R, V.s, V.dir), dj = Math.hypot(p.x - jx, p.z - jz); if (dj < rMin * .7 || dj > rMax * 1.2) continue;
     // Pas sur un autre : posé dans sa carrosserie, il y restait le temps que l'autre s'éloigne.
@@ -119,7 +110,7 @@ const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector
 /** À chaque image du salon : `J` la position du joueur (à pied ou en véhicule), ou null (dedans : rien à montrer). */
 export function majCirculation(dt, J) {
   if (!roadLines.length) return;
-  if (!C.pret) creer();
+  if (!C.pret) { if (!TRAFIC_3D.pret && !TRAFIC_3D.echec) { chargerTrafic(); return; } creer(); } // les modèles 3D d'abord (~300 Ko)
   const visible = !!J; if (visible !== C.actif) { C.actif = visible; for (const ms of C.meshes.values()) for (const m of ms) m.visible = visible; }
   if (!visible) return;
   const Jr = Math.max(J.hl ?? .3, J.hw ?? .3); // rayon du joueur : un piéton, ou la voiture qu'il conduit
@@ -174,7 +165,7 @@ export function majCirculation(dt, J) {
     if (V.s < 0 || V.s > V.R.len) { // au bout de la rue : la suivante (au carrefour), sinon demi-tour
       const bout = V.s < 0 ? 0 : 1, p = bout ? V.R.L.pts[V.R.L.pts.length - 1] : V.R.L.pts[0];
       const plat = C.bouts.get(C.cleBout(p[0], p[1])) || [], suite = [];
-      for (let j = 0; j < plat.length; j += 2) { const R = C.routes[plat[j]], s = plat[j + 1]; if (R !== V.R && s > .5 && s < R.len - .5 && !(V.type.id === 'camion' && R.hw < 3)) suite.push({ R, s }); }
+      for (let j = 0; j < plat.length; j += 2) { const R = C.routes[plat[j]], s = plat[j + 1]; if (R !== V.R && s > .5 && s < R.len - .5) suite.push({ R, s }); }
       // On rejoint la rue croisée en son milieu : il faut donc vérifier la place, sinon on atterrit sur un autre
       // véhicule et les deux se bloquent (la première version doublait le nombre de véhicules à l'arrêt).
       let pris = null;
@@ -265,5 +256,5 @@ function desserrer(dt, J) {
 }
 export function cacherCirculation() { C.actif = false; for (const ms of C.meshes.values()) for (const m of ms) m.visible = false; for (const V of C.vehicules) V.R = null; }
 /** Combien de véhicules roulent à moins de r mètres de (x, z) (pour le bruit de la circulation, ambiance-salon.js). */
-export function densiteCirculation(x, z, r = 60) { let n = 0; for (const V of C.vehicules) if (V.R && Math.abs(V.px - x) < r && Math.abs(V.pz - z) < r) n += V.type.id === 'velo' ? .2 : V.type.id === 'camion' ? 2 : 1; return n; }
+export function densiteCirculation(x, z, r = 60) { let n = 0; for (const V of C.vehicules) if (V.R && Math.abs(V.px - x) < r && Math.abs(V.pz - z) < r) n += 2.5; return n; } // 40 au lieu de 110 : chacun compte pour plus, le bruit de la rue ne baisse pas
 if (import.meta.env.DEV) window.__circulation = C;

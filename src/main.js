@@ -40,7 +40,7 @@ import { initMode } from './mode.js';
 import { horsDeLaPiece } from './interieurs.js';
 import { ouvrirCompte, synchroniserAuDemarrage } from './compte.js';
 import { initSalon, majSalon, pieceDuSalon, salonActif } from './salon.js';
-import { chargerTokpa, chargerZems, prechargerZems } from './vehicules.js';
+import { chargerTokpa, chargerTrafic, chargerZems, prechargerZems } from './vehicules.js';
 import { demarrerTelechargements, plusTard } from './telechargements.js';
 import { demarrerStats } from './statistiques.js';
 import { initZones } from './zones.js';
@@ -143,7 +143,7 @@ async function main() {
   status('Téléchargement de la ville…', 2); await frame();
   const mo = n => (n / 1048576).toFixed(1).replace('.', ',');
   // Zémidjans et statue : téléchargés pendant la construction de la ville (le réseau est libre, le processeur occupé).
-  const prechargerModeles = () => { prechargerZems(); prechargerAmazone().catch(() => { }); };
+  const prechargerModeles = () => { prechargerZems(); chargerTrafic(); prechargerAmazone().catch(() => { }); };
   const data = await decode((lu, total) => {
     if (total && lu >= total) { status('Décompression des données OpenStreetMap…', 7); prechargerModeles(); } // fini : on passe à la suite
     else status(total ? `Téléchargement de la ville… ${mo(lu)} / ${mo(total)} Mo` : `Téléchargement de la ville… ${mo(lu)} Mo`, total ? 2 + 5 * lu / total : null);
@@ -174,7 +174,7 @@ async function main() {
   const sansArbres = degagerChaussees(VEGETATION); // pas d'arbre au milieu de la rue
   if (import.meta.env.DEV) console.info(`arbres retirés des chaussées : ${sansArbres}`);
   status('Zémidjans et tokpa-tokpa…', 94); await frame();
-  await chargerZems();
+  await chargerZems(); await chargerTrafic(); // les voitures et motos de la circulation, en 3D (scripts/trafic.mjs)
   // Le vrai minibus des tokpa-tokpa (Tripo) remplace celui dessiné en code dans la circulation de la ville.
   if (TRIPO.info.tokpa) plusTard(() => chargerTokpa(urlTripo('tokpa'))).then(t => { if (t.geo && E.tokpas) { E.tokpas.geometry = t.geo; E.tokpas.material = t.mat; E.tokpas.castShadow = !LITE; } });
   buildZems(); zemsDetailles(); buildLamps(); buildLabels();

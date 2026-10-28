@@ -151,6 +151,12 @@ Les zémidjans viennent du projet « 3D monde » :
 
 Les modèles sont redressés au chargement avec la méthode de `Rues.redresser` de 3D monde.
 
+
+La circulation (« Vivre à Cotonou » et les zémidjans de la ville) dédouble des copies allégées des modèles 3D : `npm run trafic`
+(scripts/trafic.mjs) fabrique `public/modeles/trafic/` — la voiture rouge (2 500 triangles, repeinte en blanc, argent, noir
+et bleu au chargement), le taxi jaune et vert, la moto-taxi de près (5 800) et de loin (630). Un tiers des motos ont un
+conducteur en chemise plutôt qu'en gilet de zém (la texture repeinte, vehicules.js).
+
 ## À savoir
 
 - Seuls 39 bâtiments ont un nombre d'étages dans OpenStreetMap : les autres hauteurs sont estimées.
