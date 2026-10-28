@@ -1,9 +1,9 @@
 // Les paiements du jeu, pour le tableau de bord (public/tableau.html ; middleware.js exige le même code d'accès) : relus
 // chez FedaPay avec la clé secrète, qui ne quitte jamais le serveur. Le compte FedaPay est partagé avec Qualiwo : on ne
-// garde que les transactions du jeu, reconnues à leur custom_metadata.objet (concert, commerce, boutique).
+// garde que les transactions du jeu, reconnues à leur custom_metadata.objet (concert, commerce, boutique, recharge).
 // Aucune donnée du client (nom, numéro) n'est renvoyée.
 //   GET /api/paiements → { recus, montant, aujourdhui, semaine, tentatives, parObjet, derniers, lu }
-const OBJETS = ['concert', 'commerce', 'boutique'];
+const OBJETS = ['concert', 'commerce', 'boutique', 'recharge'];
 const PAYES = ['approved', 'transferred'];
 const OPERATEURS = { mtn_open: 'MTN', moov: 'Moov', sbin: 'Celtiis', mtn_open_ci: 'MTN Côte d’Ivoire', moov_tg: 'Moov Togo' };
 const B = 3600e3; // heure du Bénin (UTC+1)

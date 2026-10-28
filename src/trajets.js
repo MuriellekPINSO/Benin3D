@@ -52,6 +52,7 @@ export const PEINTURES = [
   { nom: 'Orange', c: '#ef7a1a' }, { nom: 'Rose', c: '#db7093' }, { nom: 'Violet', c: '#6f3fb0' }, { nom: 'Bordeaux', c: '#6b1426' },
 ];
 export const PEIGNABLES = ['voiture', 'citadine', 'bolide', 'roadster', 'moto']; // le vélo et les véhicules de travail gardent leurs couleurs
+export const PRIX_PEINTURE = 5000; // F la couleur (Murielle, 28/10) ; revenir à la couleur d'origine est gratuit
 const CLE_PEINTURE = 'kutonu.peinture';
 /** Une couleur reçue d'un autre joueur : un code « #rrggbb », sinon rien. */
 export const couleurValide = c => (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c.toLowerCase() : null);

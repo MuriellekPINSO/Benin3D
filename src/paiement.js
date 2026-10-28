@@ -62,7 +62,7 @@ let enCours = null; // la fenêtre ne sert qu'à un paiement à la fois : un nou
  * parte, 'reseau' si le serveur ne répond pas, sinon le statut FedaPay (approved, pending, declined…). Dès que la
  * transaction existe, fermer la fenêtre rend 'pending' avec son numéro : le paiement peut encore aboutir.
  */
-export function payerMoMo({ montant, description, objet, infos = {} }) {
+export function payerMoMo({ montant, description, objet, infos = {}, extra = {} }) { // extra : champs en plus pour le serveur (recharge : formule et jeton)
   enCours?.({ paye: false, statut: 'annule' });
   const el = fenetre(), f = el.querySelector('form'), num = el.querySelector('#momoNumero'), etat = el.querySelector('.momo-etat');
   const payer = el.querySelector('.momo-payer'), fermer = el.querySelector('.momo-fermer'), ops = [...el.querySelectorAll('[data-op]')];
@@ -103,7 +103,7 @@ export function payerMoMo({ montant, description, objet, infos = {} }) {
       if (!numero) { num.focus(); return dire(REFUS['numero-invalide'], 'mal'); }
       saisie(false); payer.classList.add('charge'); dire('Envoi de la demande de paiement…');
       // 1. La transaction : rien ne part encore vers le téléphone, donc un échec ici n'a rien prélevé.
-      const c = await appelerApi({ etape: 'creer', objet, operateur: op, numero, mode: MODE, montant, description, infos });
+      const c = await appelerApi({ ...extra, etape: 'creer', objet, operateur: op, numero, mode: MODE, montant, description, infos });
       if (fin) return;
       if (!c?.id || !c.jeton) { payer.classList.remove('charge'); saisie(true); return dire(REFUS[c?.statut] || 'Le paiement n’a pas pu être préparé : rien n’a été prélevé. Réessaie dans un instant.', 'mal'); }
       id = c.id; ecrireMemo({ op, numero });

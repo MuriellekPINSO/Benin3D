@@ -31,11 +31,12 @@ const RESERVOIRS = { moto: 3, voiture: 6, taxi: 6, tokpa: 10, velo: 0, citadine:
 // « Débrouillard » avec 2 000 F. Puis 60 000 et 250 000, encore trop long. Prix fixés par Murielle le 25/10 :
 // deux voitures ordinaires au même prix — on choisit celle qu'on préfère, pas la plus chère — et le Roadster
 // à 5 000 F, celui qu'on vise. Repère : la journée de location de moto vaut 1 500 F, le loyer d'un appartement
-// 5 000 F. Une voiture, c'est donc une bonne journée de travail ; le Roadster, trois ou quatre.
+// 5 000 F. Une voiture, c'est donc une bonne journée de travail. Le Roadster passe à 50 000 F le 28/10 (Murielle) :
+// celui qu'on s'offre après des jours de travail, ou en rechargeant son compte (recharge.js).
 export const A_VENDRE = [
   { id: 'citadine', nom: 'Citadine', prix: 2000, sous: 'Courte, haute, économe : celle qu’on croise partout' },
   { id: 'bolide', nom: 'Bolide électrique', prix: 2000, sous: 'Silencieux et très vif. Une charge qui dure' },
-  { id: 'roadster', nom: 'Tesla Roadster', prix: 5000, sous: 'Le coupé électrique : bas, large, et le plus rapide de Cotonou' },
+  { id: 'roadster', nom: 'Tesla Roadster', prix: 50000, sous: 'Le coupé électrique : bas, large, et le plus rapide de Cotonou' },
 ];
 /** Achète un véhicule : il est à soi pour de bon (pas de vehiculeFin, contrairement à la location). */
 /** Une voiture à soi remplace celle qu'on avait (celle du « Fils à papa », ou une achetée) ; un véhicule loué se rend d'abord. */
@@ -43,7 +44,7 @@ export const vehiculeLoue = v => !!v?.vehicule && (v.vehiculeFin || 0) > 0;
 export async function acheterVehicule(id) {
   const V = A_VENDRE.find(v => v.id === id); if (!V || !VIE.data || VIE.data.vehicule === id) return false;
   if (vehiculeLoue(VIE.data)) { annonce('Rends d’abord ton véhicule loué.'); return false; }
-  if (!(await depenser(V.prix, `achat d’${V.nom.toLowerCase()}`))) { annonce(`Il te faut ${fmt(V.prix)} pour l’acheter.`); return false; }
+  if (!(await depenser(V.prix, `achat : ${V.nom}`))) // « achat d’tesla roadster » : on ne fait pas l'élision { annonce(`Il te faut ${fmt(V.prix)} pour l’acheter.`); return false; }
   await ecrire({ vehicule: id, carburant: RESERVOIRS[id], vehiculeFin: 0 }); rendreVie(); return true;
 }
 // Les métiers du transport (étape 2, première vague) : metiers.js. Sans véhicule à soi, on travaille avec celui
@@ -93,12 +94,15 @@ async function lire() {
 export async function ecrire(patch) {
   // Un nombre invalide (NaN) faisait refuser l'écriture par la base, et toutes les suivantes avec : on ne l'envoie pas.
   for (const [k, x] of Object.entries(patch)) if (typeof x === 'number' && !Number.isFinite(x)) { console.warn('vie : valeur invalide', k); return false; }
+  // Une recharge en cours de crédit (pendantRecharge) : le gain ou la dépense part du nouveau solde, pas de l'ancien.
+  while ('argent' in patch && VIE.verrou) { const avant = VIE.data.argent; await VIE.verrou; patch = { ...patch, argent: patch.argent + VIE.data.argent - avant }; }
   Object.assign(VIE.data, patch); if ('argent' in patch) VIE.tArgent = Date.now();
   if (VIE.local) { try { localStorage.setItem(CLE_LOCALE, JSON.stringify(VIE.data)); } catch { /* navigation privée */ } return true; }
   try {
     const { d } = await firebase();
     const p = { ...patch }; if ('argent' in p) p.t = d.serverTimestamp();
-    await d.update(VIE.ref, p); return true;
+    const envoi = d.update(VIE.ref, p); if ('argent' in p) VIE.ecriture = envoi.catch(() => { }); // pendantRecharge l'attend
+    await envoi; return true;
   } catch (e) { console.warn('vie', e.message); await relire(Object.keys(patch)); return false; }
 }
 /** Refusé par la base, ou perdu en route : l'écran montrait de l'argent que le serveur n'a jamais reçu. On reprend
@@ -106,6 +110,18 @@ export async function ecrire(patch) {
 async function relire(cles) {
   try { const { d } = await firebase(), v = (await d.get(VIE.ref)).val(); if (!v || !VIE.data) return; for (const k of cles) if (k in v) VIE.data[k] = v[k]; rendreVie(); }
   catch { /* hors ligne : on garde l'affichage, le prochain enregistrement réessaiera */ }
+}
+
+/**
+ * Une recharge payée est créditée par le serveur (api/recharge.js, recharge.js), qui écrit l'argent sans passer par la
+ * page. Pendant ce temps, les gains et les dépenses du jeu attendent : un gain calculé sur l'ancien solde l'aurait
+ * écrasé (la base l'aurait pris pour une dépense). Ensuite on relit le solde du serveur. `f` rend la réponse du serveur.
+ */
+export async function pendantRecharge(f) {
+  while (VIE.verrou) await VIE.verrou;
+  let fin; VIE.verrou = new Promise(r => { fin = r; });
+  try { await VIE.ecriture; return await f(); } // un gain parti juste avant arrive d'abord
+  finally { if (!VIE.local) await relire(['argent']); VIE.verrou = null; fin(); }
 }
 
 // ---------- Créer sa vie : le tirage du départ ----------

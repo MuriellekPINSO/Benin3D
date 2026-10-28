@@ -18,7 +18,7 @@ import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personna
 import { retirerRuban, stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment, obstaclesPres, profondeurRue } from './rue.js';
 import { hauteurSol } from './sols.js';
-import { PEIGNABLES, PEINTURES, actions, appelerZem, asseoir, asseoirSur, choisir, couleurValide, entrerMonde, garerSonVehicule, gps, pointDeRoute, initTrajets, majTrajets, peindreSonVehicule, peintureDe, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe, vehiculeGareDe } from './trajets.js';
+import { PEIGNABLES, PEINTURES, PRIX_PEINTURE, actions, appelerZem, asseoir, asseoirSur, choisir, couleurValide, entrerMonde, garerSonVehicule, gps, pointDeRoute, initTrajets, majTrajets, peindreSonVehicule, peintureDe, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe, vehiculeGareDe } from './trajets.js';
 import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
 import { A_VENDRE, LOGEMENTS, acheterVehicule, ouvertAu, vehiculeLoue, alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
@@ -38,6 +38,7 @@ import { actionsLancePierre, cameraTir, fovTir, initLancePierre, majLancePierre,
 import { STICKERS, elementSticker, stickerDe, texteSticker, toileSticker } from './stickers.js';
 import { actionsFauxFrere, initFauxFrere, majFauxFrere, quitterFauxFrere } from './fauxfrere.js';
 import { SAISIE } from './saisie.js';
+import { initRecharge, proposerRecharge, verifierRecharges } from './recharge.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
 // Jusqu'à 8 amis dans la même ville : chacun se promène à pied avec son personnage, voit les autres,
@@ -693,6 +694,7 @@ async function entrerSalon(code, { ami = '', nouveau = false } = {}) {
   bonjourDuJour().then(b => { if (b && S.actif) { ligne(b); son('piece'); } }).catch(() => { });
   for (const m of entrerCommerces()) ligne(m); // ce que les commerces ont vendu pendant l'absence (commerces.js)
   entrerChapitres(); // la prochaine étape (chapitres.js)
+  setTimeout(() => { if (S.actif) verifierRecharges(); }, 5000); // une recharge payée pas encore créditée (recharge.js), après le bonjour du jour
   if (personnagesPrets()) chargerDanses();
   const g = await creerAvatar(S.modele, graine(S.canal.id));
   if (!S.actif) { g.userData.liberer?.(); return; }
@@ -1293,6 +1295,8 @@ export function initSalon(data) {
   surAnnonce(t => ligne(t)); // argent gagné ou dépensé, faim : dans le fil du salon
   S.dire = dire; initTrajets(data, { S, ligne, dedans, dehors, bulle, retirerBulle });
   initMaison({ S, ligne, geste, guide: () => !!guideSalon?.actif() }); // chez soi : se lever, se doucher, cuisiner (maison.js)
+  initRecharge({ ligne, son }); // recharger son compte par Mobile Money (recharge.js)
+  $('#vhRecharger')?.addEventListener('click', e => { e.stopPropagation(); proposerRecharge(); });
   suivreClavier();
   guideSalon = creerGuide({ cle: 'cotonou3d.guide', el: $('#slGuide'), titre: 'Prise en main', etapes: etapesSalon() });
   initCommerces({ S, T, ligne, choisir, allerVers }); // devenir patron (commerces.js)
@@ -1350,19 +1354,28 @@ export function initSalon(data) {
     const a = VIE.data?.vehicule && !vehiculeLoue(VIE.data) ? VIE.data.vehicule : ''; // la voiture qu'on a déjà, remplacée par la nouvelle
     if (a && T.mode !== 'pied') { ligne('Descends d’abord de ta voiture pour en changer.'); return; }
     choisir(a ? 'Quelle voiture ? Elle remplace la tienne' : 'Quelle voiture ?', A_VENDRE.map(V => ({
-      texte: `${V.nom} · ${V.prix.toLocaleString('fr-FR')} F`, sous: V.id === a ? 'C’est déjà la tienne' : !ouvertAu(1) ? 'S’ouvre au chapitre 2' : (VIE.data?.argent ?? 0) < V.prix ? `Il te manque ${(V.prix - (VIE.data?.argent ?? 0)).toLocaleString('fr-FR')} F` : V.sous,
-      desactive: V.id === a || !ouvertAu(1) || (VIE.data?.argent ?? 0) < V.prix,
-      f: () => acheterVehicule(V.id).then(ok => { if (ok) { if (a) reprendreVehicule(); garerSonVehicule(); ligne(`${V.nom} achetée ! Elle t’attend à côté : approche-toi et monte dedans.`); } }),
+      texte: `${V.nom} · ${V.prix.toLocaleString('fr-FR')} F`, sous: V.id === a ? 'C’est déjà la tienne' : !ouvertAu(1) ? 'S’ouvre au chapitre 2' : (VIE.data?.argent ?? 0) < V.prix ? `Il te manque ${(V.prix - (VIE.data?.argent ?? 0)).toLocaleString('fr-FR')} F : recharger ton compte` : V.sous,
+      desactive: V.id === a || !ouvertAu(1),
+      f: () => { // sans l'argent : recharger son compte par Mobile Money, puis l'achat se fait tout seul (recharge.js)
+        const acheter = () => acheterVehicule(V.id).then(ok => { if (ok) { if (a) reprendreVehicule(); garerSonVehicule(); ligne(`${V.nom} achetée ! Elle t’attend à côté : approche-toi et monte dedans.`); } });
+        const manque = V.prix - (VIE.data?.argent ?? 0); if (manque > 0) proposerRecharge({ manque, pour: `la ${V.nom}`, puis: acheter }); else acheter();
+      },
     })));
   });
   // Peindre sa voiture (« je dois pouvoir changer la couleur de ma voiture », Murielle, 28/10) : elle change tout de
   // suite, garée ou en roulant, et les autres la voient dans la même couleur.
   $('#vhPeindre')?.addEventListener('click', () => {
     const type = VIE.data?.vehicule; if (!PEIGNABLES.includes(type)) return;
-    const a = peintureDe(type), nom = type === 'moto' ? 'Ta moto' : 'Ta voiture';
-    choisir(`De quelle couleur peindre ${nom.toLowerCase()} ?`, PEINTURES.map(P => ({
-      texte: P.nom, couleur: P.c || '#a32b26', sous: P.c === a ? 'Sa couleur' : '', desactive: P.c === a,
-      f: () => { peindreSonVehicule(type, P.c); son('piece'); ligne(P.c ? `${nom} est maintenant ${P.nom.toLowerCase()}. Tout le monde la voit comme ça.` : `${nom} a retrouvé sa couleur d’origine.`); },
+    const a = peintureDe(type), nom = type === 'moto' ? 'Ta moto' : 'Ta voiture', prix = PRIX_PEINTURE.toLocaleString('fr-FR');
+    const peindre = P => { peindreSonVehicule(type, P.c); son('piece'); ligne(P.c ? `${nom} est maintenant ${P.nom.toLowerCase()}. Tout le monde la voit comme ça.` : `${nom} a retrouvé sa couleur d’origine.`); };
+    choisir(`De quelle couleur peindre ${nom.toLowerCase()} ? ${prix} F la peinture`, PEINTURES.map(P => ({
+      texte: P.nom, couleur: P.c || '#a32b26', sous: P.c === a ? 'Sa couleur' : P.c ? `${prix} F` : 'Gratuit', desactive: P.c === a,
+      // 5 000 F la couleur (Murielle, 28/10) ; revenir à celle d'origine est gratuit. Sans l'argent : recharger son compte.
+      f: () => {
+        if (!P.c) { peindre(P); return; }
+        const payer = () => depenser(PRIX_PEINTURE, `peinture ${P.nom.toLowerCase()}`).then(ok => { if (ok) peindre(P); });
+        const manque = PRIX_PEINTURE - (VIE.data?.argent ?? 0); if (manque > 0) proposerRecharge({ manque, pour: 'la peinture', puis: payer }); else payer();
+      },
     })), { annuler: 'Garder sa couleur' });
   });
   // Louer un logement : on choisit lequel visiter, on y va (à pied, téléporté, en zém ou au volant), on visite, et « Louer »

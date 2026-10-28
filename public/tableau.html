@@ -162,7 +162,7 @@
   // de 15 minutes est affichée « Non abouti » : le joueur a abandonné, FedaPay la fera expirer plus tard.
   const $ = s => document.querySelector(s), nb = n => (n ?? 0).toLocaleString('fr-FR'), F = n => `${nb(n)} F`;
   const STATUTS = { approved: ['Payé', 'paye'], transferred: ['Payé', 'paye'], pending: ['En attente', ''], expired: ['Expiré', 'rate'], canceled: ['Annulé', 'rate'], declined: ['Refusé', 'rate'], refunded: ['Remboursé', 'rate'] };
-  const OBJETS = { concert: 'entrée du concert', commerce: 'ouverture de commerce', boutique: 'boutique de mode' };
+  const OBJETS = { concert: 'entrée du concert', commerce: 'ouverture de commerce', boutique: 'boutique de mode', recharge: 'recharge de compte' };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   fetch('/api/paiements', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(P => {
     $('#pRecus').textContent = nb(P.recus); $('#pMontant').textContent = F(P.montant); $('#pRecents').textContent = `${nb(P.aujourdhui)} · ${nb(P.semaine)}`; $('#pTentatives').textContent = nb(P.tentatives);

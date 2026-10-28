@@ -16,8 +16,9 @@ const apiLocale = () => {
     // la copie de test parlait encore à l'ancien /api/fedapay et refusait chaque paiement).
     // /api/paiements : les paiements du jeu pour le tableau de bord (en local, sans le code d'accès de middleware.js).
     // /api/faux-frere : l'arbitre du Faux Frère, avec le secret de .env.local (FAUX_FRERE_SECRET), sinon un secret d'essai.
-    const secrets = { fedapay: cle, paiements: cle, 'faux-frere': loadEnv('development', process.cwd(), 'FAUX_FRERE_').FAUX_FRERE_SECRET || 'secret-de-developpement' };
-    for (const nom of ['fedapay', 'paiements', 'faux-frere']) {
+    // /api/recharge : crédite une recharge payée, avec le compte de service Firebase de .env.local (FIREBASE_SERVICE_ACCOUNT).
+    const secrets = { fedapay: cle, paiements: cle, 'faux-frere': loadEnv('development', process.cwd(), 'FAUX_FRERE_').FAUX_FRERE_SECRET || 'secret-de-developpement', recharge: { cle, compte: loadEnv('development', process.cwd(), 'FIREBASE_').FIREBASE_SERVICE_ACCOUNT } };
+    for (const nom of ['fedapay', 'paiements', 'faux-frere', 'recharge']) {
       const api = pathToFileURL(path.resolve(`api/${nom}.js`)).href; // adresse absolue : Vite ne réécrit pas cet import
       server.middlewares.use(`/api/${nom}`, async (req, res) => (await import(/* @vite-ignore */ `${api}?v=${fs.statSync(`api/${nom}.js`).mtimeMs}`)).default(req, res, secrets[nom]));
     }

@@ -1,4 +1,4 @@
-// Paiements FedaPay (entrée du concert, ouverture d'un commerce, commandes de la boutique de mode) par MTN MoMo, Moov Money
+// Paiements FedaPay (entrée du concert, ouverture d'un commerce, commandes de la boutique de mode, recharge du compte) par MTN MoMo, Moov Money
 // ou Celtiis Cash. La clé secrète ne quitte jamais le serveur (FEDAPAY_SECRET_KEY sur Vercel et dans .env.local).
 //
 // Paiement « sans redirection » : plus de fenêtre FedaPay. La page de jeu demande l'opérateur et le numéro, puis :
@@ -11,16 +11,20 @@
 //    Relit la transaction : la page la redemande jusqu'à la validation. Un paiement ne vaut que pour son objet.
 //
 // Le montant de l'entrée du concert et d'un commerce est fixé ici, jamais par la page ; la boutique ne se paie qu'en mode
-// test (le serveur ne connaît pas encore les prix des articles). `mode` : celui de la clé publique de la page ; s'il ne
+// test (le serveur ne connaît pas encore les prix des articles). Une recharge (`formule`, src/recharge-formules.js) porte
+// l'identifiant du joueur, lu dans son jeton Firebase : seul lui pourra se la faire créditer (api/recharge.js).
+// `mode` : celui de la clé publique de la page ; s'il ne
 // correspond pas à la clé secrète, on le dit (« cles-incoherentes ») au lieu de laisser croire au joueur qu'il n'a rien payé.
 // La même fonction sert en local : vite.config.js la branche sur le serveur de développement.
+import { formule } from '../src/recharge-formules.js';
+
 export const MONTANT_MIN = 100;
 
 // Codes FedaPay du paiement sans redirection pour le Bénin (docs v1, « Paiement sans redirection »).
 export const OPERATEURS = { mtn: 'mtn_open', moov: 'moov', celtiis: 'sbin' };
 const PRIX = { concert: 100, commerce: 100 };
 const DESCRIPTIONS = { concert: 'Entrée au concert de l’Esplanade · Kutɔnu Vibes', commerce: 'Ouverture d’un commerce · Kutɔnu Vibes' };
-const PAYES = ['approved', 'transferred']; // « transferred » : payé, puis reversé sur le solde du marchand
+export const PAYES = ['approved', 'transferred']; // « transferred » : payé, puis reversé sur le solde du marchand
 
 const hoteDe = cle => cle.startsWith('sk_live_') ? 'https://api.fedapay.com' : 'https://sandbox-api.fedapay.com';
 const modeDe = cle => cle.startsWith('sk_live_') ? 'live' : 'sandbox';
@@ -41,6 +45,11 @@ const erreurFedaPay = (etape, r, extra = {}) => {
   return { code: 502, corps: { statut: r.statut ? `fedapay-${etape}-${r.statut}` : 'fedapay-injoignable', ...extra } };
 };
 
+/** La transaction telle que FedaPay la connaît (statut, montant, custom_metadata), ou null si FedaPay ne répond pas. */
+export async function lireTransaction(id, cle) {
+  const r = await appeler(cle, 'GET', `/transactions/${id}`);
+  return { ok: r.ok, statut: r.statut, t: r.ok ? r.d?.['v1/transaction'] || r.d?.transaction || r.d || {} : null };
+}
 export async function verifierPaiement(id, min = MONTANT_MIN, cle = process.env.FEDAPAY_SECRET_KEY, mode = '', objet = '') {
   if (!cle) return { code: 503, corps: { paye: false, statut: 'non-configure' } };
   if (mode && mode !== modeDe(cle)) return { code: 500, corps: { paye: false, statut: 'cles-incoherentes' } };
@@ -53,6 +62,17 @@ export async function verifierPaiement(id, min = MONTANT_MIN, cle = process.env.
   if (objet && pour && pour !== objet) return { code: 200, corps: { paye: false, statut: 'autre-objet' } };
   const attendu = Math.max(MONTANT_MIN, Number(min) || 0);
   return { code: 200, corps: { paye: PAYES.includes(t.status) && Number(t.amount) >= attendu, statut: t.status, montant: Number(t.amount) } };
+}
+
+// Le jeton Firebase du joueur : la base ne laisse lire sa vie (zem_vies/<uid>) qu'à lui. Si elle accepte de la lire avec
+// ce jeton, il est authentique, et l'identifiant qu'il porte est bien le sien (même vérification que api/faux-frere.js).
+export const BASE = 'https://zem-run-cotonou-default-rtdb.europe-west1.firebasedatabase.app';
+export async function uidVerifie(jeton, base = BASE) {
+  jeton = String(jeton || ''); if (!jeton || jeton.length > 4000) return '';
+  let uid = ''; try { const p = JSON.parse(Buffer.from(jeton.split('.')[1], 'base64url').toString()); uid = String(p.user_id || p.sub || ''); } catch { return ''; }
+  if (!/^[A-Za-z0-9_-]{6,128}$/.test(uid)) return '';
+  try { const r = await fetch(`${base}/zem_vies/${uid}/nom.json?auth=${encodeURIComponent(jeton)}`, { signal: AbortSignal.timeout(8000) }); return r.ok && (await r.json()) ? uid : ''; } // sans vie, pas de compte à recharger
+  catch { return ''; }
 }
 
 /** Numéro béninois → 10 chiffres « 01XXXXXXXX » (les anciens numéros à 8 chiffres reçoivent le 01 du nouveau plan), ou null. */
@@ -80,13 +100,18 @@ export async function creerPaiement(q, cle = process.env.FEDAPAY_SECRET_KEY, ip 
   const numero = numeroBenin(q.numero);
   if (!OPERATEURS[q.operateur]) return { code: 400, corps: { statut: 'operateur-invalide' } };
   if (!numero) return { code: 400, corps: { statut: 'numero-invalide' } };
-  let montant = PRIX[q.objet], description = DESCRIPTIONS[q.objet];
+  let montant = PRIX[q.objet], description = DESCRIPTIONS[q.objet], serveur = {};
   if (q.objet === 'boutique' && modeDe(cle) === 'sandbox') { montant = Math.round(Number(q.montant)); description = String(q.description || 'Boutique de mode · Kutɔnu Vibes').slice(0, 140); }
+  if (q.objet === 'recharge') {
+    const F = formule(q.formule); if (!F) return { code: 400, corps: { statut: 'objet-invalide' } };
+    const uid = await uidVerifie(q.jeton); if (!uid) return { code: 401, corps: { statut: 'jeton-refuse' } };
+    montant = F.prix; description = `Recharge : ${F.credit.toLocaleString('fr-FR')} F dans le jeu · Kutɔnu Vibes`; serveur = { formule: F.id, uid };
+  }
   if (!montant || montant < MONTANT_MIN || montant > 200000) return { code: 400, corps: { statut: 'objet-invalide' } };
   if (tropDEssais(`ip:${ip}`, 8) || tropDEssais(`no:${numero}`, 4)) return { code: 429, corps: { statut: 'trop-d-essais' } };
   const infos = Object.fromEntries(Object.entries(q.infos && typeof q.infos === 'object' ? q.infos : {}).slice(0, 10).map(([k, v]) => [String(k).slice(0, 30), String(v).slice(0, 80)]));
   const t = await appeler(cle, 'POST', '/transactions', {
-    description, amount: montant, currency: { iso: 'XOF' }, custom_metadata: { objet: q.objet, ...infos },
+    description, amount: montant, currency: { iso: 'XOF' }, custom_metadata: { ...infos, objet: q.objet, ...serveur }, // la page ne réécrit ni l'objet, ni la formule, ni le joueur
     customer: { firstname: 'Joueur', lastname: 'Kutonu Vibes', phone_number: { number: numero, country: 'bj' } },
   });
   const id = (t.d?.['v1/transaction'] || t.d?.transaction || t.d)?.id;
@@ -113,7 +138,7 @@ export async function envoyerPaiement(q, cle = process.env.FEDAPAY_SECRET_KEY, i
   return { code: 200, corps: { id, statut: 'pending' } };
 }
 
-async function lireCorps(req) {
+export async function lireCorps(req) {
   if (req.body && typeof req.body === 'object') return req.body; // Vercel a déjà lu le JSON
   let brut = ''; for await (const morceau of req) { brut += morceau; if (brut.length > 10000) break; }
   try { return JSON.parse(brut || '{}'); } catch { return {}; }
@@ -122,7 +147,7 @@ async function lireCorps(req) {
 // domaine et les aperçus Vercel du projet « tours » ; en local (vite.config.js), localhost et le wifi de la maison.
 const ORIGINES_EN_LIGNE = /^https:\/\/((www\.)?(xn--kutnuvibes-ghe|kotonuvibes)\.com|tours[\w-]*\.vercel\.app)$/; // les deux noms de domaine du site
 const ORIGINES_LOCALES = /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?$/;
-const origineAdmise = o => ORIGINES_EN_LIGNE.test(o) || (!process.env.VERCEL && ORIGINES_LOCALES.test(o));
+export const origineAdmise = o => ORIGINES_EN_LIGNE.test(o) || (!process.env.VERCEL && ORIGINES_LOCALES.test(o));
 
 export default async function handler(req, res, cle = process.env.FEDAPAY_SECRET_KEY) { // en local, vite.config.js passe la clé de .env.local
   const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();

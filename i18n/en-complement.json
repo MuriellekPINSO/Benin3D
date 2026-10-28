@@ -376,7 +376,8 @@
   "Où suis-je ?": "Where am I?",
   "Résultats de la recherche": "Search results",
   "Peindre ma voiture": "Paint my car",
-  "Fermer la fiche": "Close"
+  "Fermer la fiche": "Close",
+  "Recharger mon compte": "Top up my account"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -856,7 +857,10 @@
   " est maintenant ": " is now ",
   ". Tout le monde la voit comme ça.": ". Everyone sees it that way.",
   " a retrouvé sa couleur d’origine.": " is back to its original colour.",
-  "'Garder sa couleur'": "'Keep its colour'"
+  "'Garder sa couleur'": "'Keep its colour'",
+  " F : recharger ton compte": " F: top up your account",
+  " F la peinture": " F a paint job",
+  "'la peinture'": "'the paint job'"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -1018,7 +1022,6 @@
   "'Bolide électrique'": "'Electric speedster'",
   "'Silencieux et très vif. Une charge qui dure'": "'Silent and very quick. A charge that lasts'",
   "'Tu as déjà un véhicule : rends-le d’abord.'": "'You already have a vehicle: give it back first.'",
-  "achat d’": "purchase of ",
   " pour l’acheter.": " to buy it.",
   "'Tesla Roadster'": "'Tesla Roadster'",
   "'Le coupé électrique : bas, large, et le plus rapide de Cotonou'": "'The electric coupé: low, wide, and the fastest thing in Cotonou'",
@@ -2386,7 +2389,9 @@
   "'Pas de vent'": "'No wind'",
   "Vent ": "Wind ",
   "'Tire !'": "'Shoot!'",
-  "'Le chariot !'": "'The cart!'"
+  "'Le chariot !'": "'The cart!'",
+  "'Sticks : viser · garde A ou RT pour tendre, lâche pour tirer · B : arrêter'": "'Sticks: aim · hold A or RT to pull, release to shoot · B: stop'",
+  "'Sticks : viser · garde ✕ ou R2 pour tendre, lâche pour tirer · ○ : arrêter'": "'Sticks: aim · hold ✕ or R2 to pull, release to shoot · ○: stop'"
  },
  "src/fauxfrere.js": {
   "'Poisson braisé · Boissons fraîches · Le Faux Frère'": "'Grilled fish · Cold drinks · Fake Brother'",
@@ -2536,5 +2541,21 @@
   "'Position introuvable pour l’instant. Réessaie dans un moment, de préférence dehors.'": "'Location not found for now. Try again in a moment, ideally outdoors.'",
   "'Réessayer'": "'Try again'",
   "'Point choisi'": "'Chosen spot'"
+ },
+ "src/recharge.js": {
+  "'délai'": "'timeout'",
+  "Ton compte est rechargé : +": "Your account is topped up: +",
+  "'La recharge par Mobile Money n’est pas encore disponible sur ce site.'": "'Top-ups by Mobile Money aren’t available on this site yet.'",
+  ". Recharger ton compte ?": ". Top up your account?",
+  "'Recharger ton compte'": "'Top up your account'",
+  " dans le jeu": " in the game",
+  "Tu paies ": "You pay ",
+  "' · ne suffit pas'": "' · not enough'",
+  "'Pas maintenant'": "'Not now'",
+  "'Pas de connexion : réessaie dans un instant.'": "'No connection: try again in a moment.'",
+  "Recharge de ton compte : ": "Account top-up: ",
+  "'Ce paiement n’a pas pu être ajouté à ton compte.'": "'This payment couldn’t be added to your account.'",
+  "'Paiement reçu ! Ton argent arrive sur ton compte dans un instant.'": "'Payment received! Your money will reach your account in a moment.'",
+  "'Dès que tu valides le paiement sur ton téléphone, ton argent arrive sur ton compte.'": "'As soon as you approve the payment on your phone, your money reaches your account.'"
  }
 }
