@@ -396,8 +396,10 @@ function poserTension(p) {
   if (V.p >= .97 && !V.plein) { V.plein = true; son('tendu'); vibrer(1, 40); } else if (V.p < .9) V.plein = false;
 }
 const annonce = txt => { if (P) P.message = { t: performance.now(), txt, petit: true }; };
+const tensionAuTemps = () => V.par === 'souris' || V.par === 'clavier' || (V.par === 'manette' && !MA.parRT);
 function lacher() {
   if (!V.tendu) return;
+  if (tensionAuTemps()) poserTension((performance.now() - V.debut) / 1000 / TEMPS_TENSION); // à l'horloge, même si aucune image n'est passée
   V.tendu = false;
   const tir = { lacet: r5(V.lacet), hausse: r5(V.hausse), p: r5(V.p) }; V.p = 0;
   if (tir.p < SEUIL) { if (V.pMax >= SEUIL) annonce('Tir annulé'); return; }
@@ -509,7 +511,7 @@ export function manetteLancePierre({ dt, lx, ly, rx, ry, rt, a, aAppui, b, start
   if (MA.analogique && (MA.parRT || !V.tendu)) {
     if (rt > .05) {
       if (!V.tendu) { if (!tendre('manette')) return; MA.parRT = true; MA.hist = []; }
-      poserTension((rt - .05) / .9); MA.hist.push([t, V.p]); while (MA.hist.length && t - MA.hist[0][0] > 150) MA.hist.shift();
+      poserTension((rt - .05) / .9); MA.hist.push([t, V.p]); if (MA.hist.length > 8) MA.hist.shift(); // les dernières images, même lentes
       return;
     }
     if (V.tendu && MA.parRT) { // la tension d'avant le relâchement : 110 ms, ou les trois dernières images si elles sont lentes
@@ -545,7 +547,7 @@ export function majLancePierre(dt, S) {
   L.zoom += ((V.tendu && jouable() ? 1 : 0) - L.zoom) * Math.min(1, dt * 6); L.secousse = Math.max(0, L.secousse - dt);
   if (!P.pause) {
     // Les tensions au temps (clic, espace, A), la visée aux flèches, les vibrations pendant qu'on tend.
-    if (V.tendu && (V.par === 'souris' || V.par === 'clavier' || (V.par === 'manette' && !MA.parRT))) poserTension((performance.now() - V.debut) / 1000 / TEMPS_TENSION);
+    if (V.tendu && tensionAuTemps()) poserTension((performance.now() - V.debut) / 1000 / TEMPS_TENSION);
     if (CLAV.size) {
       const h = Number(CLAV.has('ArrowRight')) - Number(CLAV.has('ArrowLeft')), v = Number(CLAV.has('ArrowUp')) - Number(CLAV.has('ArrowDown'));
       V.lacet = borne(V.lacet + h * .3 * sens() * dt, LACET_MAX); V.hausse = borne(V.hausse + v * .15 * sens() * (REGLAGES.inverse ? -1 : 1) * dt, HAUSSE_MAX);

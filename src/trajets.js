@@ -13,6 +13,8 @@ import { porterCasque } from './casque.js';
 import { VIE, carburant, consommer, depenser, faireLePlein, manger, reservoir, sauverVie } from './vie.js';
 import { actionsVol, arreterVol, initVol, majAeroports, majVol } from './vol.js';
 import { actionsMetier, chocMetier, enService, initMetiers, majMetiers, quitterMetiers } from './metiers.js';
+// Le nom du véhicule sur le compteur (des mots, traduits en anglais ; V.type reste le code).
+const COMPTEUR = { moto: 'Moto', voiture: 'Voiture', taxi: 'Taxi', tokpa: 'Tokpa-tokpa', zem: 'Zémidjan', velo: 'Vélo', citadine: 'Citadine', bolide: 'Bolide électrique', roadster: 'Tesla Roadster' };
 
 // ---------- Se déplacer et vivre en ville : véhicule, zém, essence, GPS, repas ----------
 // Appelé par le salon (S : position, personnage, pièce où l'on est). On voit son personnage monter sur sa
@@ -420,7 +422,9 @@ export function majTrajets(dt, av, tour) {
     if (!V.D.pedale) moteurMaj(Math.abs(V.v), true);
     S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; S.anim = 'assis';
     asseoirSur(S.moi, V, false); if (V.etiquette) V.etiquette.visible = false;
-    const kmh = Math.round(Math.abs(V.v) * 3.6); $('#vhVitesse').hidden = false; $('#vhVitesse').textContent = `${kmh} km/h${V.vol ? ` · à ${Math.round(V.alt)} m` :V.v < -.2 ? ' · marche arrière' : ''}`;
+    // Le compteur, comme celui de Slop New York : le véhicule en petit, la vitesse en grand.
+    const kmh = Math.round(Math.abs(V.v) * 3.6), vit = $('#vhVitesse'), html = `<small>${COMPTEUR[V.type] || V.D.nom}</small><span>${kmh}</span> km/h${V.vol ? ` · à ${Math.round(V.alt)} m` : V.v < -.2 ? ' · marche arrière' : ''}`;
+    vit.hidden = false; if (vit.dataset.h !== html) { vit.dataset.h = html; vit.innerHTML = html; }
     majGps(dt, V.x, V.z, V.cap, !!V.vol);
     if (V.vol) return { x: V.x, y: V.y, z: V.z, cap: V.cap, dist: 8 + V.alt * .11, haut: 3.2, libre: V.alt > 12 }; // de haut : on recule pour voir la ville sous la voiture
     return { x: V.x, y: V.y, z: V.z, cap: V.cap, dist: V.type === 'tokpa' ? 11 : V.D.cache ? 8 : 6, haut: V.type === 'tokpa' ? 4 : V.D.cache ? 3.2 : 2.6 };

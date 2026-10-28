@@ -97,7 +97,10 @@ const GLSL_BRUIT = `
   float hS(vec2 p){ vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
   float bS(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     return mix(mix(hS(i), hS(i + vec2(1.0, 0.0)), f.x), mix(hS(i + vec2(0.0, 1.0)), hS(i + vec2(1.0, 1.0)), f.x), f.y); }`;
-export function grainSol(mat, nu = false) {
+// `bitume` : sur le goudron (gris foncé), des fissures fines et sinueuses, des rapiéçages et des lignes peintes un peu
+// usées, près de la caméra — comme le bitume de Slop New York de mrdoob (« les voies respirent », Murielle, 28/10). Le
+// sable et la latérite (clairs) n'en ont pas.
+export function grainSol(mat, nu = false, bitume = false) {
   mat.onBeforeCompile = s => {
     s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vSolW;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvSolW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
@@ -112,10 +115,22 @@ export function grainSol(mat, nu = false) {
           c = mix(c, c * vec3(1.1, 0.78, 0.62), lat * 0.6);
           float herbe = smoothstep(0.68, 0.86, bS(p * 0.03 + 31.0)) * smoothstep(0.35, 0.75, n2 + 0.3 * n3);
           c = mix(c, vec3(0.2, 0.26, 0.09) * (0.75 + 0.5 * n3), herbe * 0.55);` : ''}
+          ${bitume ? `float lum = dot(diffuseColor.rgb, vec3(0.333)), goudron = (1.0 - smoothstep(0.12, 0.25, lum)) * pres;
+          if (goudron > 0.0) {
+            vec2 cel = floor(p / 3.2), q = fract(p / 3.2); float h = hS(cel * 1.7 + 11.0);
+            float plaque = step(0.93, h) * smoothstep(0.0, 0.06, min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y)));
+            c *= mix(1.0, h > 0.965 ? 0.8 : 1.14, plaque * goudron);
+            float f1 = abs(bS(p * 0.23 + 17.0) - 0.5), f2 = abs(bS(p * 0.61 + 41.0) - 0.5);
+            float fis = (1.0 - smoothstep(0.0, 0.016, f1)) * smoothstep(0.55, 0.78, bS(p * 0.045 + 5.0))
+              + 0.7 * (1.0 - smoothstep(0.0, 0.01, f2)) * smoothstep(0.6, 0.82, bS(p * 0.07 + 9.0));
+            c *= 1.0 - 0.5 * min(1.0, fis) * goudron;
+          }
+          float peinte = smoothstep(0.35, 0.6, lum) * pres;
+          c = mix(c, c * 0.6, peinte * smoothstep(0.55, 0.9, bS(p * 1.7 + 23.0)) * 0.55);` : ''}
           diffuseColor.rgb = c;
         }`);
   };
-  mat.customProgramCacheKey = () => 'grainSol' + nu;
+  mat.customProgramCacheKey = () => 'grainSol' + nu + bitume;
   return mat;
 }
 

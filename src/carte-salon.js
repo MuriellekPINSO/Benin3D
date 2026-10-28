@@ -14,7 +14,7 @@ import { roadLines } from './ville.js';
 // ctx : { S, T, lieux() → [{ id, nom, x, z, type }], tracer(D) → bool, moyens(D) → [{ texte, sous, f }], effacer(), partager(x, z, texte) }.
 
 let X = null;
-const CELL = 200, M = { u: 1, grille: null, t: 0, grande: false, centre: [0, 0], echelle: 6, glisse: null, cibles: [], dest: null, vrai: null, resultats: [], iciT: 0 };
+const CELL = 200, M = { u: 1, grille: null, t: 0, grande: false, centre: [0, 0], echelle: 6, glisse: null, cibles: [], dest: null, vrai: null, resultats: [], iciT: 0, rue: '', rueT: 0, debut: 0 };
 const COUL = { fond: '#e7dfcd', route: '#ffffff', bord: '#c9bfa8', gps: '#2e8fd6', moi: '#1a7d52', ami: '#2e86c1', zem: '#f2c21b', maison: '#c8553d', commerce: '#1a7d52', lieu: '#3a3f44', dest: '#d93a2b', vrai: '#1e6fd9' };
 const LARG = c => (c <= 1 ? 7 : c <= 2 ? 5.5 : c <= 3 ? 4.5 : c <= 4 ? 3.5 : 2.5); // largeur dessinée (m) selon la classe de route
 
@@ -101,6 +101,22 @@ function dessinerMini() {
   c.beginPath(); c.arc(sx, sy, 8 * u, 0, Math.PI * 2); c.fillStyle = '#15211b'; c.fill();
   c.fillStyle = '#ffffff'; c.font = `800 ${10 * u}px "Google Sans", system-ui, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('N', sx, sy + .5);
   c.beginPath(); c.arc(R, R, R - 1.5 * u, 0, Math.PI * 2); c.lineWidth = 3 * u; c.strokeStyle = '#ffffff'; c.stroke();
+  // La rue où l'on est et son quartier, en bas de la carte, comme les plaques vertes de Slop New York (mrdoob, 28/10).
+  if (M.rue) {
+    c.font = `800 ${10.5 * u}px "Google Sans", system-ui, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    let t = M.rue; if (c.measureText(t).width > D * .72) { while (t.length > 4 && c.measureText(`${t}…`).width > D * .72) t = t.slice(0, -1); t = `${t.trimEnd()}…`; }
+    const w = c.measureText(t).width + 14 * u, h = 18 * u, y = D * .8;
+    c.beginPath(); if (c.roundRect) c.roundRect(R - w / 2, y - h / 2, w, h, h / 2); else c.rect(R - w / 2, y - h / 2, w, h);
+    c.fillStyle = '#1a7d52'; c.fill(); c.lineWidth = 1.5 * u; c.strokeStyle = 'rgba(255,255,255,.85)'; c.stroke();
+    c.fillStyle = '#ffffff'; c.fillText(t, R, y + .5 * u);
+  }
+}
+/** La rue la plus proche (à 35 m près) et le quartier ; sans nom (la plupart des rues de Cotonou), le quartier seul. */
+function majRue(t) {
+  if (t - M.rueT < 700) return; M.rueT = t;
+  M.debut ||= t; if (!M.index && t - M.debut > 6000) { M.index = true; chargerRecherche(); } // l'index des rues (120 Ko), une fois en ville : pas au démarrage
+  const [px, pz] = positionJoueur(), { rue, quartier } = ouEstCe(px, pz), petit = $('#miniCarte').getBoundingClientRect().width < 150;
+  M.rue = rue ? (petit || !quartier ? rue : `${rue} · ${quartier}`) : quartier;
 }
 
 // ---------- La grande carte ----------
@@ -228,7 +244,7 @@ export function majCarteSalon() {
   const mini = $('#miniCarte'), dehors = !X.S.lieu && X.T.mode !== 'avion';
   if (mini.hidden === dehors) mini.hidden = !dehors;
   const t = performance.now(); if (t - M.t < 100) return; M.t = t;
-  if (dehors) dessinerMini();
+  if (dehors) { majRue(t); dessinerMini(); }
   if (M.grande) { dessinerGrande(); majIci(); }
 }
 export function basculerCarte() { if (M.grande) fermerGrande(); else if (X && !X.S.lieu) ouvrirGrande(); }

@@ -1142,7 +1142,12 @@
   "'ton bolide'": "'your sports car'",
   "'du bolide'": "'of the sports car'",
   "'Ta citadine'": "'Your hatchback'",
-  "'Ton bolide'": "'Your sports car'"
+  "'Ton bolide'": "'Your sports car'",
+  "'Moto'": "'Motorbike'",
+  "'Voiture'": "'Car'",
+  "'Vélo'": "'Bike'",
+  "'Citadine'": "'City car'",
+  "'Bolide électrique'": "'Electric speedster'"
  },
  "src/conduite.js": {
   "'zém'": "'zém'",

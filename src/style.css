@@ -1065,7 +1065,9 @@ button { font: inherit; color: inherit; }
 .vh-faim i { height: 8px; border-radius: 4px; background: linear-gradient(90deg, #2ea043 var(--faim, 50%), var(--chip) var(--faim, 50%)); }
 .vh-faim i.bas { background: linear-gradient(90deg, #d64536 var(--faim, 50%), var(--chip) var(--faim, 50%)); }
 .vh-dette { color: #d64536 !important; font-weight: 700; }
-.vh-vitesse { font: 800 22px/1 var(--font-display); }
+.vh-vitesse { font: 800 15px/1 var(--font-display); display: flex; align-items: baseline; gap: 5px; }
+.vh-vitesse small { align-self: center; font: 800 10px/1 var(--font-body); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); }
+.vh-vitesse span { font-size: 26px; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
 .vh-mission { font-size: 12px; line-height: 1.3; color: var(--ink); border-left: 3px solid var(--accent); padding-left: 6px; }
 .vh-boutons { display: flex; flex-wrap: wrap; gap: 6px; }
 .vh-louer { justify-self: start; border: 0; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 12px; padding: 5px 10px; cursor: pointer; }
