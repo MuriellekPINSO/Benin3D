@@ -236,6 +236,10 @@
         }
       }
     },
+    "zem_lp2": {
+      ".read": "auth != null",
+      "$jour": { "$a": { ".indexOn": ["s"] } }
+    },
     "zem_ff": {
       ".read": "auth != null",
       ".indexOn": ["salon"],

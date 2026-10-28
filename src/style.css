@@ -1523,26 +1523,56 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
 .jd-bareme p { margin: 0; }
 
 /* ---------- Tir au lance-pierre (lancepierre.js) : l'écran du jeu ----------
-   Pendant la partie, l'interface de la ville s'efface : il ne reste que le bouton « Arrêter la partie », en haut à
-   droite, le temps, le score et le vent en haut, et le lance-pierre dessiné en bas, au-dessus de la ville. */
-.salon-hud.lp-tir > :not(.sl-agir) { display: none !important; }
-.salon-hud.lp-tir .sl-agir { top: calc(var(--gutter) + env(safe-area-inset-top)); bottom: auto; left: auto; right: var(--gutter); transform: none; }
-.salon-hud.lp-tir .sl-agir .jouer { font-size: 13px; padding: 8px 14px; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); }
-/* Le fil de discussion ouvert (règle #app:has(.sl-chat.ouvert), plus forte) recentrait « Arrêter » sous la pastille du score ;
-   à la manette, « Arrêter la partie (B) » est le 3e bouton, plus large. */
-#app .salon-hud.lp-tir .sl-agir { left: auto; right: var(--gutter); margin: 0; }
-.salon-hud.lp-tir .sl-agir .sl-agir2 { font-size: 13px; padding: 8px 14px; }
+   Pendant la partie, l'interface de la ville s'efface : en haut, le temps, le score et la girouette, la pause dans un rond
+   à gauche (et, à l'entraînement, « passer » à droite) ; en bas, le lance-pierre dessiné, la jauge de tension du côté de
+   la main qui tire, le repère du doigt. */
+.salon-hud.lp-tir > * { display: none !important; }
+canvas.lp-vise { cursor: crosshair; }
 .lp-hud { position: absolute; inset: 0; z-index: 16; pointer-events: none; display: grid; justify-items: center; align-content: start; padding-top: calc(var(--gutter) + env(safe-area-inset-top)); font-family: var(--font-display); }
 .lp-haut { display: flex; gap: 14px; align-items: center; padding: 8px 16px; border-radius: 999px; font-size: 16px; }
 .lp-temps, .lp-score { font-variant-numeric: tabular-nums; }
 .lp-temps.fin { color: #c8382f; }
-.lp-vent { color: var(--ink-2); font-weight: 700; white-space: nowrap; }
-.lp-grand { margin: 16vh 0 0; font: 900 clamp(34px, 7vw, 64px)/1 var(--font-display); color: #fff; text-shadow: 0 3px 14px rgba(0, 0, 0, .45); }
-.lp-grand.rate { color: #ffd9d2; font-size: clamp(30px, 6vw, 56px); }
-.lp-aide { position: absolute; bottom: 36vh; margin: 0; padding: 6px 14px; border-radius: 999px; background: rgba(21, 33, 27, .72); color: #fff; font-weight: 700; text-align: center; max-width: calc(100% - 2 * var(--gutter)); }
+.lp-score:empty { display: none; }
+/* La girouette : un fanion orange qui flotte dans le sens du vent ; il pend sans vent, se tend avec la force. */
+.lp-vent { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-weight: 700; white-space: nowrap; }
+.lp-fanion { width: 34px; height: 24px; overflow: visible; }
+.lp-fanion .mat { stroke: #6b4a2c; stroke-width: 2.6; stroke-linecap: round; }
+.lp-fanion .drapeau { fill: #f07a1a; transform-origin: 7px 10px; transition: transform .4s ease; animation: lp-flotte 1.1s ease-in-out infinite; }
+.lp-vent.f0 .drapeau { transform: rotate(72deg) scaleX(.55); animation: none; }
+.lp-vent.f1 .drapeau { transform: scaleX(.6) rotate(18deg); animation-duration: 1.4s; }
+.lp-vent.f2 .drapeau { transform: scaleX(.85) rotate(7deg); animation-duration: .8s; }
+.lp-vent.f3 .drapeau { transform: scaleX(1.05); animation-duration: .45s; }
+.lp-vent.gauche .lp-fanion { transform: scaleX(-1); }
+@keyframes lp-flotte { 50% { translate: 0 1px; scale: 1 .82; } }
+.lp-pause, .lp-passer { position: absolute; top: calc(var(--gutter) + env(safe-area-inset-top)); width: 46px; height: 46px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); pointer-events: auto; cursor: pointer; touch-action: manipulation; }
+.lp-pause { left: var(--gutter); }
+.lp-passer { right: var(--gutter); }
+.lp-pause svg, .lp-passer svg { width: 22px; height: 22px; fill: currentColor; }
+.lp-pause:focus-visible, .lp-passer:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.lp-grand { margin: 16vh 0 0; font: 900 clamp(34px, 7vw, 64px)/1 var(--font-display); color: #fff; text-shadow: 0 3px 14px rgba(0, 0, 0, .45); text-align: center; padding: 0 var(--gutter); }
+.lp-grand.petit { font-size: clamp(20px, 4vw, 30px); font-weight: 800; color: #f3efe6; }
+.lp-aide { position: absolute; bottom: calc(min(100vw, 100vh) * .34 + 14px); margin: 0; padding: 6px 14px; border-radius: 999px; background: rgba(21, 33, 27, .72); color: #fff; font-weight: 700; text-align: center; max-width: calc(100% - 2 * var(--gutter)); }
+/* Les points qui sautent au-dessus d'une cible touchée. */
+.lp-pts { position: absolute; translate: -50% -100%; font: 900 24px/1 var(--font-display); color: #ffe27a; text-shadow: 0 2px 8px rgba(0, 0, 0, .55); animation: lp-saute .95s ease-out forwards; }
+@keyframes lp-saute { from { opacity: .7; transform: translateY(6px) scale(.8); } 15% { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-44px); } }
+/* La main fantôme de l'entraînement : un doigt qui se pose et glisse vers l'arrière ; à la manette, la gâchette qu'on
+   enfonce ; à la souris, le bouton qu'on garde. Côté main droite, ou gauche pour un gaucher. */
+.lp-fantome { position: absolute; left: 66%; top: 58%; width: 58px; height: 58px; }
+.lp-fantome.gaucher { left: 32%; }
+.lp-fantome i { position: absolute; inset: 0; border-radius: 50%; background: rgba(255, 255, 255, .85); box-shadow: 0 0 0 8px rgba(255, 255, 255, .25), 0 4px 14px rgba(0, 0, 0, .35); animation: lp-geste 2.2s ease-in-out infinite; }
+.lp-fantome.toucher::before { content: ''; position: absolute; left: 50%; top: 50%; width: 3px; height: 120px; translate: -50% 0; background: repeating-linear-gradient(#fff 0 6px, transparent 6px 12px); opacity: .55; }
+@keyframes lp-geste { 0%, 12% { transform: translateY(0) scale(.6); opacity: 0; } 22% { transform: translateY(0) scale(1); opacity: 1; } 70% { transform: translateY(110px) scale(1); opacity: 1; } 84%, 100% { transform: translateY(110px) scale(1.25); opacity: 0; } }
+.lp-fantome.manette i, .lp-fantome.souris i, .lp-fantome.clavier i { border-radius: 16px 16px 12px 12px; width: 64px; height: 44px; inset: auto; animation: lp-appui 1.4s ease-in-out infinite; display: grid; place-items: center; font: 900 18px var(--font-display); color: #15211b; }
+.lp-fantome.manette i::after { content: 'RT'; }
+.lp-fantome.souris i { width: 44px; height: 62px; border-radius: 22px; background: linear-gradient(90deg, #ffd23f 0 50%, rgba(255, 255, 255, .85) 50%) top / 100% 45% no-repeat, rgba(255, 255, 255, .85); }
+.lp-fantome.clavier i { width: 120px; }
+.lp-fantome.clavier i::after { content: '␣'; }
+@keyframes lp-appui { 0%, 100% { transform: translateY(0); } 45%, 70% { transform: translateY(8px); box-shadow: 0 0 0 10px rgba(255, 226, 122, .45); } }
 .lp-fronde { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 16; pointer-events: none; }
-.lp-force { fill: #fff; font: 800 22px var(--font-display); paint-order: stroke; stroke: rgba(0, 0, 0, .5); stroke-width: 4px; }
-@media (max-width: 520px) { .lp-hud { padding-top: calc(64px + env(safe-area-inset-top)); } .lp-haut { gap: 10px; font-size: 14px; padding: 7px 12px; } } /* sous le bouton « Arrêter la partie » */
+.lp-plein { filter: drop-shadow(0 0 6px #ffd23f); }
+@media (max-width: 520px) { .lp-hud { padding-top: calc(var(--gutter) + 56px + env(safe-area-inset-top)); } .lp-haut { gap: 10px; font-size: 14px; padding: 7px 12px; } } /* sous les ronds de la pause */
+@media (orientation: landscape) { .lp-aide { bottom: calc(min(100vw, 100vh) * .25 + 14px); } } /* au-dessus du lance-pierre, plus petit en paysage */
+@media (prefers-reduced-motion: reduce) { .lp-fantome i, .lp-fanion .drapeau { animation: none; } }
 
 /* ---------- Le Faux Frère (fauxfrere.js) : le panneau de la partie ----------
    À droite sur ordinateur (à gauche de la barre d'icônes), en bas sur téléphone ; réductible d'un geste. */

@@ -374,7 +374,8 @@ function majRepas(dt) {
 }
 
 // ---------- Fenêtre de choix (zém, menu) ----------
-export function choisir(titre, options, { annuler = 'Annuler' } = {}) {
+/** `puis` : appelé quand on ferme sans choisir (la pause du lance-pierre reprend la partie). */
+export function choisir(titre, options, { annuler = 'Annuler', puis = null } = {}) {
   const el = $('#choix'); $('#chTitre').textContent = titre; const l = $('#chListe'); l.replaceChildren();
   l.classList.toggle('ch-pastilles', options.length > 0 && options.every(o => o.couleur)); // des couleurs : une grille de pastilles
   for (const o of options) {
@@ -383,7 +384,7 @@ export function choisir(titre, options, { annuler = 'Annuler' } = {}) {
     if (o.sous) { const s = document.createElement('small'); s.textContent = o.sous; b.append(s); }
     b.disabled = !!o.desactive; b.addEventListener('click', () => { el.hidden = true; o.f(); }); l.append(b);
   }
-  $('#chAnnuler').textContent = annuler; $('#chAnnuler').onclick = () => { el.hidden = true; };
+  $('#chAnnuler').textContent = annuler; $('#chAnnuler').onclick = () => { el.hidden = true; puis?.(); };
   el.hidden = false; l.querySelector('button:not(:disabled)')?.focus();
 }
 

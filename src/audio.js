@@ -88,6 +88,7 @@ export function son(nom, variante) {
   else if (nom === 'choc') { const n = ctx.createBufferSource(), b = ctx.createBuffer(1, ctx.sampleRate * .35, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2; n.buffer = b; const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; const g = ctx.createGain(); g.gain.value = .5; n.connect(f).connect(g).connect(ctx.destination); n.start(); }
   // Le lance-pierre (lancepierre.js) : l'élastique qu'on tend, le claquement du tir, la boîte, la bouteille, la mangue, la bâche.
   else if (nom === 'elastique') bip('triangle', 180, 420, .3, .05);
+  else if (nom === 'tendu') bip('triangle', 640, 700, .06, .04); // tendu à fond : un petit déclic
   else if (nom === 'fronde') { bip('sawtooth', 620, 140, .14, .07); bruit(.08, 'highpass', 2500, .18); }
   else if (nom === 'boite') { bip('square', 1850, 1700, .09, .05); bip('square', 2650, 2500, .07, .04, .02); bruit(.12, 'bandpass', 3200, .35); }
   else if (nom === 'verre') { bruit(.35, 'highpass', 4000, .5); for (let i = 0; i < 4; i++) bip('sine', 3000 + Math.random() * 2500, 2800, .08, .04, i * .04); }

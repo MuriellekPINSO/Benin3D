@@ -25,7 +25,8 @@ import { SAISIE, saisieClavier, saisieManette } from './saisie.js';
 // (entrer, monter, faire le plein, commander…), X : 2e action, B : 3e action ou klaxon, Y : gestes et phrases,
 // Select : aller à (GPS en roulant), Start : le menu (comme Échap).
 // Au stand du lance-pierre, pendant la partie : stick gauche (ou croix) pour viser, stick droit pour viser finement,
-// garder A ou RT pour tendre l'élastique, lâcher pour tirer ; B : relâcher sans tirer, ou arrêter la partie.
+// gâchette droite plus ou moins enfoncée (ou A gardé) pour tendre l'élastique, la relâcher pour tirer ; B : annuler le
+// tir, Start : la pause.
 
 const M = { index: null, prec: [], dernier: null, lateral: 0, haut: false, roulement: 0, nom: '', sens: '', repete: 0 };
 const zone = (v, s = .16) => { const a = Math.abs(v); return a <= s ? 0 : Math.sign(v) * Math.min(1, (a - s) / (1 - s)); };
@@ -39,10 +40,10 @@ function manette() {
   const dispo = Array.from(l).filter(ok); M.index = dispo[0]?.index ?? null; return dispo[0] || null;
 }
 function actionneur() { const g = manette(); return g?.vibrationActuator ?? g?.hapticActuators?.[0] ?? null; }
-/** Vibration courte : 'piece', 'choc', 'arret', 'selection'. */
+/** Vibration courte : 'piece', 'choc', 'arret', 'selection', ou [faible, forte, durée en ms] (le lance-pierre qu'on tend). */
 export function vibrer(type) {
   const a = actionneur(); if (!a) return;
-  const [faible, forte, duree] = { selection: [.12, .08, 55], piece: [.25, .1, 70], arret: [.55, .38, 220], choc: [1, .9, 480] }[type] || [.3, .2, 100];
+  const [faible, forte, duree] = Array.isArray(type) ? type : { selection: [.12, .08, 55], piece: [.25, .1, 70], arret: [.55, .38, 220], choc: [1, .9, 480] }[type] || [.3, .2, 100];
   if (a.playEffect) a.playEffect('dual-rumble', { startDelay: 0, duration: duree, weakMagnitude: faible, strongMagnitude: forte }).catch(() => { });
   else a.pulse?.(Math.max(faible, forte), duree).catch(() => { });
 }
@@ -118,12 +119,12 @@ export function majManette(dt) {
     M.lateral = lx > .55 ? 1 : lx < -.55 ? -1 : 0; // le stick encore poussé en fermant : pas de changement de file
     if (appuye(0)) { const a = document.activeElement; if (dedans(p, a)) a.click(); else focaliser(prefere(p)); }
     if (appuye(1)) fermerPanneau(p);
-    if (appuye(9)) { if (p.id === 'jeuPause') $('#jpReprendre').click(); else if (p.id === 'vieHud') $('#vhReprendre').click(); }
+    if (appuye(9)) { if (p.id === 'jeuPause') $('#jpReprendre').click(); else if (p.id === 'vieHud') $('#vhReprendre').click(); else if (p.id === 'choix' && tirEnCours()) $('#chAnnuler').click(); } // Start referme la pause du lance-pierre
   } else if (salonActif() && tirEnCours()) {
     // La partie de lance-pierre prend la manette : passée au salon, A y faisait l'action du moment, « Arrêter la partie ».
-    // Start, Select, Y n'ouvrent rien pendant la minute de jeu (le menu y est caché, « Aller à » finirait la partie).
+    // Start met en pause ; Select et Y n'ouvrent rien pendant la minute de jeu (« Aller à » finirait la partie).
     M.sens = '';
-    if (manetteLancePierre({ dt, lx, ly, rx, ry, tend: !!(enfonce[brut(0)] || enfonce[7]), appui: appuye(0) || appuye(7), b: appuye(1) })) vibrer('piece');
+    manetteLancePierre({ dt, lx, ly, rx, ry, rt, a: !!enfonce[brut(0)], aAppui: appuye(0), b: appuye(1), start: appuye(9) });
   } else if (salonActif()) {
     M.sens = '';
     manetteSalon({ lx, ly, rx, ry, rt, lt, court: !!enfonce[5], lb: appuye(4), a: appuye(0), b: appuye(1), x: appuye(2), y: appuye(3), select: appuye(8), start: appuye(9), ps }); // ps : les boutons s'affichent ✕ □ ○
