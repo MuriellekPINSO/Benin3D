@@ -7,6 +7,7 @@ import { DISC, klaxonner, repondre } from './discussions.js';
 import { interagir } from './interactions.js';
 import { changerMeteo } from './meteo.js';
 import { manetteSalon, salonActif } from './salon.js';
+import { manetteLancePierre, tirEnCours } from './lancepierre.js';
 import { SAISIE, saisieClavier, saisieManette } from './saisie.js';
 
 // ---------- Manettes (Xbox, PlayStation, génériques), API Gamepad ----------
@@ -23,6 +24,8 @@ import { SAISIE, saisieClavier, saisieManette } from './saisie.js';
 // en voiture ou à moto, RT : gaz, LT : frein puis marche arrière, stick gauche : volant ; A : action
 // (entrer, monter, faire le plein, commander…), X : 2e action, B : 3e action ou klaxon, Y : gestes et phrases,
 // Select : aller à (GPS en roulant), Start : le menu (comme Échap).
+// Au stand du lance-pierre, pendant la partie : stick gauche (ou croix) pour viser, stick droit pour viser finement,
+// garder A ou RT pour tendre l'élastique, lâcher pour tirer ; B : relâcher sans tirer, ou arrêter la partie.
 
 const M = { index: null, prec: [], dernier: null, lateral: 0, haut: false, roulement: 0, nom: '', sens: '', repete: 0 };
 const zone = (v, s = .16) => { const a = Math.abs(v); return a <= s ? 0 : Math.sign(v) * Math.min(1, (a - s) / (1 - s)); };
@@ -116,6 +119,11 @@ export function majManette(dt) {
     if (appuye(0)) { const a = document.activeElement; if (dedans(p, a)) a.click(); else focaliser(prefere(p)); }
     if (appuye(1)) fermerPanneau(p);
     if (appuye(9)) { if (p.id === 'jeuPause') $('#jpReprendre').click(); else if (p.id === 'vieHud') $('#vhReprendre').click(); }
+  } else if (salonActif() && tirEnCours()) {
+    // La partie de lance-pierre prend la manette : passée au salon, A y faisait l'action du moment, « Arrêter la partie ».
+    // Start, Select, Y n'ouvrent rien pendant la minute de jeu (le menu y est caché, « Aller à » finirait la partie).
+    M.sens = '';
+    if (manetteLancePierre({ dt, lx, ly, rx, ry, tend: !!(enfonce[brut(0)] || enfonce[7]), appui: appuye(0) || appuye(7), b: appuye(1) })) vibrer('piece');
   } else if (salonActif()) {
     M.sens = '';
     manetteSalon({ lx, ly, rx, ry, rt, lt, court: !!enfonce[5], lb: appuye(4), a: appuye(0), b: appuye(1), x: appuye(2), y: appuye(3), select: appuye(8), start: appuye(9), ps }); // ps : les boutons s'affichent ✕ □ ○

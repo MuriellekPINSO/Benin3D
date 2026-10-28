@@ -11,11 +11,13 @@ import { firebase, joueur } from './firebase.js';
 import { debutDe, finDe, jourDe } from './defi.js';
 import { VIE, depenser } from './vie.js';
 import { filtrer } from './moderation.js';
+import { SAISIE } from './saisie.js';
 
 // ---------- Tir au lance-pierre : le stand de la plage de Fidjrossè ----------
 // « Le 1 et 2 comme dit » (27/10) : le jeu d'adresse d'une minute, entre deux courses de zém. Un stand de fête foraine sur
 // le sable, face à la mer : des boîtes de tomate en pyramide, des bouteilles, des mangues qui se balancent au bout d'une
 // ficelle. On tire le doigt vers l'arrière pour tendre l'élastique (plus loin, plus fort), on vise à l'opposé et on lâche.
+// À la manette (manette.js) : les sticks visent, on garde A (✕) ou RT (R2) pour tendre, on lâche pour tirer, B (○) arrête.
 // Le vent de la plage change à chaque tir : la manche à air et la flèche du haut le disent. 60 secondes.
 // Points : boîte 10, bouteille 20, mangue 30, la boîte du chariot qui passe (les 15 dernières secondes) 40 ; un tir qui
 // touche juste après un autre tir réussi compte double. Une pyramide vidée, le forain la remonte.
@@ -212,7 +214,9 @@ function monterCibles(j) {
 export const tirEnCours = () => !!P;
 /** Le bouton du stand (salon.js), à côté de la ligne de tir. */
 export function actionsLancePierre(S, T) {
-  if (P) return [{ texte: 'Arrêter la partie', f: () => finir(true) }];
+  // À la manette, A tend l'élastique : « Arrêter » passe sur le 3e bouton, qui affiche B (○). Pour toute la partie, une fois
+  // la manette prise : un clic de souris remettrait la saisie au clavier et ferait changer le bouton de place sous le pointeur.
+  if (P) { P.manette ||= SAISIE.manette; const stop = { texte: 'Arrêter la partie', f: () => finir(true) }; return P.manette ? [null, null, stop] : [stop]; }
   if (T.mode !== 'pied' || S.lieu || !L.g || !presDuStand(S.x, S.z)) return [];
   const gratuit = lireLS(CLE_GRATUIT) !== jourDe(maintenant());
   return [{ texte: `Jouer au lance-pierre · ${gratuit ? 'gratuit aujourd’hui' : `${PRIX} F`}`, f: commencer }, { texte: 'Classement du lance-pierre', f: () => montrerClassement() }];
@@ -226,7 +230,7 @@ async function commencer() {
   if (L.jour !== j) monterCibles(j);
   else for (const G of L.groupes) if (G.type !== 'chariot') remplir(G);
   P = { j, phase: 'decompte', t: -3, tirs: 0, recharge: 0, score: 0, comptes: { b: 0, u: 0, g: 0, c: 0, k: 0 }, serie: false, tir: null, vent: ventDu(j, 0), depart: null, tire: null };
-  P.depart = depart(j);
+  P.depart = depart(j); MA.lacet = 0; MA.tangage = .1;
   interface_(true); son('arret');
 }
 /** L'heure du serveur, et le départ noté par lui (les règles comparent la fin de partie à ce départ). */
@@ -258,12 +262,12 @@ function finir(abandon = false) {
 // ---------- Le geste : tendre l'élastique, viser, lâcher ----------
 const D = { id: null, x0: 0, y0: 0, x: 0, y: 0 };
 const rayon = () => .28 * Math.min(innerWidth, innerHeight);
+const direction = (lacet, tangage) => new THREE.Vector3(-Math.sin(lacet) * Math.cos(tangage), Math.sin(tangage), Math.cos(lacet) * Math.cos(tangage));
 /** Le tir que donnerait le doigt là où il est : direction (repère du stand), vitesse, et la tension (0 à 1). */
 function tirDuGeste() {
   const R = rayon(), dx = D.x - D.x0, dy = D.y - D.y0, p = Math.min(1, Math.hypot(dx, dy) / R);
   const lacet = THREE.MathUtils.clamp(-dx / R * .3, -.42, .42), tangage = THREE.MathUtils.clamp(.04 + dy / R * .32, -.15, .45);
-  const dir = new THREE.Vector3(-Math.sin(lacet) * Math.cos(tangage), Math.sin(tangage), Math.cos(lacet) * Math.cos(tangage));
-  return { dir, v: 12 + 12 * p, p };
+  return { dir: direction(lacet, tangage), v: 12 + 12 * p, p };
 }
 function surAppui(e) {
   if (!P || P.phase !== 'jeu' || D.id !== null || e.button > 0) return;
@@ -279,6 +283,30 @@ function surLacher(e) {
   if (!P || P.phase !== 'jeu' || P.recharge > 0) return;
   const t = tirDuGeste(); if (t.p < .12) return; // à peine tendu : on n'a pas tiré
   lancer(t);
+}
+
+// ---------- À la manette : les sticks visent, A (ou RT) tend, on lâche ----------
+// « Je ne peux pas jouer au lance-pierre sur manette » (28/10) : la partie n'écoutait que le doigt et la souris, et la
+// manette allait au salon, où A faisait l'action du moment… « Arrêter la partie ». Le doigt vise et tend d'un même geste ;
+// au pouce, on sépare : la visée reste où on l'a laissée, la force monte tant qu'on garde A. Mêmes bornes, même vitesse de
+// caillou et même début de trajectoire qu'au doigt : le classement du jour reste juste entre les deux.
+const MA = { tend: false, p: 0, lacet: 0, tangage: .1, son: false }, TENSION = 1; // secondes pour tendre à fond
+const tirManette = () => ({ dir: direction(MA.lacet, MA.tangage), v: 12 + 12 * MA.p, p: MA.p });
+/** Appelé par manette.js à chaque image de la partie. Vrai quand un caillou part (la manette vibre). */
+export function manetteLancePierre({ dt, lx, ly, rx, ry, tend, appui, b }) {
+  if (!P) return false;
+  // Le stick gauche (ou la croix) vise franchement, le droit finement ; au carré, un stick à moitié poussé va quatre fois moins vite.
+  const c = v => v * Math.abs(v);
+  MA.lacet = THREE.MathUtils.clamp(MA.lacet + (c(lx) * .55 + c(rx) * .14) * dt, -.42, .42);
+  MA.tangage = THREE.MathUtils.clamp(MA.tangage - (c(ly) * .4 + c(ry) * .1) * dt, -.15, .45);
+  if (b) { if (MA.tend) { MA.tend = false; MA.p = 0; } else finir(true); return false; } // tendu : B relâche sans tirer
+  if (appui && !MA.tend) { MA.tend = true; MA.p = 0; MA.son = false; } // un nouvel appui : le A qui a lancé la partie ne tend rien
+  if (!MA.tend) return false;
+  const pret = P.phase === 'jeu' && P.recharge <= 0 && !L.caillou?.vivant;
+  if (tend) { if (pret) { if (!MA.son) { MA.son = true; son('elastique'); } MA.p = Math.min(1, MA.p + dt / TENSION); } return false; }
+  const t = tirManette(); MA.tend = false; MA.p = 0;
+  if (!pret || t.p < .12) return false;
+  lancer(t); return true;
 }
 /** Le point de départ du caillou : dans la fourche, en bas de l'image, à 90 cm devant l'œil. */
 function bouche() {
@@ -468,8 +496,9 @@ function interface_(oui) {
     document.querySelector('#app')?.append(UI.hud, UI.svg);
   }
   if (UI.hud) { UI.hud.hidden = !oui; UI.svg.style.display = oui ? '' : 'none'; }
-  D.id = null;
+  D.id = null; MA.tend = false; MA.p = 0;
 }
+const AIDE_MANETTE = ['Sticks : viser · garde A ou RT pour tendre, lâche pour tirer · B : arrêter', 'Sticks : viser · garde ✕ ou R2 pour tendre, lâche pour tirer · ○ : arrêter'];
 const ventTexte = w => (w === 0 ? 'Pas de vent' : `Vent ${w > 0 ? '→' : '←'} ${String(Math.abs(w)).replace('.', ',')} m/s`);
 function majInterface() {
   if (!P || !UI.hud) return;
@@ -480,7 +509,10 @@ function majInterface() {
   txt('.lp-vent', ventTexte(P.vent));
   const grand = P.phase === 'decompte' ? String(Math.max(1, Math.ceil(-P.t))) : P.t < .8 ? 'Tire !' : P.message && P.t - P.message.t < .9 ? P.message.txt : P.t >= DUREE - CHARIOT && P.t < DUREE - CHARIOT + 1.4 ? 'Le chariot !' : '';
   const g = h.querySelector('.lp-grand'); if (g.textContent !== grand) { g.textContent = grand; g.classList.toggle('rate', !!P.message?.rate && grand === P.message.txt); }
-  h.querySelector('.lp-aide').hidden = P.tirs > 0 || P.phase !== 'jeu' || D.id !== null;
+  // L'aide du doigt, ou celle de la manette dès qu'on la prend en main (dès le compte à rebours : on a le temps de la lire).
+  const aide = h.querySelector('.lp-aide'); UI.aide ??= aide.textContent;
+  txt('.lp-aide', SAISIE.manette ? AIDE_MANETTE[SAISIE.ps ? 1 : 0] : UI.aide);
+  aide.hidden = P.tirs > 0 || D.id !== null || MA.tend || (P.phase !== 'jeu' && !SAISIE.manette);
   h.querySelector('.lp-temps').classList.toggle('fin', P.phase === 'jeu' && reste <= 10);
   // La manche à air.
   const w = P.vent, a = Math.min(1, Math.abs(w) / 4); L.manche.rotation.set(0, w > 0 ? Math.PI : 0, -(1 - a) * 1.25 + Math.sin(performance.now() / 180) * .05 * a);
@@ -490,23 +522,27 @@ function majInterface() {
 function dessinerFronde() {
   const W = innerWidth, H = innerHeight, s = Math.min(W, H), cx = W / 2, base = H + s * .02;
   const fourche = H - s * .2, ecart = s * .085, haut = H - s * .3;
-  const pret = P.phase === 'jeu' && P.recharge <= 0 && !L.caillou?.vivant, tendu = D.id !== null && pret;
-  const R = rayon(), dx = D.x - D.x0, dy = D.y - D.y0, k = Math.min(1, R / Math.max(1, Math.hypot(dx, dy)));
-  const px = cx + (tendu ? dx * k * .55 : 0), py = haut + s * .015 + (tendu ? dy * k * .55 : 0);
+  const pret = P.phase === 'jeu' && P.recharge <= 0 && !L.caillou?.vivant, doigt = D.id !== null && pret;
+  // À la manette, la visée se voit avant de tendre (en pâle) : le doigt, lui, vise en tendant.
+  const pad = !doigt && pret && SAISIE.manette, tendu = doigt || (pad && MA.tend), t = doigt ? tirDuGeste() : pad ? tirManette() : null;
+  const R = rayon(); let ox = 0, oy = 0;
+  if (doigt) { const dx = D.x - D.x0, dy = D.y - D.y0, k = Math.min(1, R / Math.max(1, Math.hypot(dx, dy))); ox = dx * k * .55; oy = dy * k * .55; }
+  else if (tendu) { const ex = -MA.lacet / .3, ey = Math.max(.25, (MA.tangage - .04) / .32), n = Math.hypot(ex, ey); ox = ex / n * MA.p * R * .55; oy = ey / n * MA.p * R * .55; } // la poche recule à l'opposé du tir, comme sous le doigt
+  const px = cx + ox, py = haut + s * .015 + oy;
   let points = '';
-  if (tendu) { // le début de la trajectoire, sans le vent : un peu moins de la moitié du chemin
-    const t = tirDuGeste(), o = bouche(), p = new THREE.Vector3(), v = t.dir.clone().multiplyScalar(t.v);
+  if (t) { // le début de la trajectoire, sans le vent : un peu moins de la moitié du chemin
+    const o = bouche(), p = new THREE.Vector3(), v = t.dir.clone().multiplyScalar(t.v), pale = tendu ? 1 : .7;
     for (let i = 1; i <= 9; i++) {
       const tt = i * .028; p.set(o.x + v.x * tt, o.y + v.y * tt - G * tt * tt / 2, o.z + v.z * tt);
       p.x += STAND.x; p.z += STAND.z; p.project(camera);
-      points += `<circle cx="${((p.x + 1) / 2 * W).toFixed(1)}" cy="${((1 - p.y) / 2 * H).toFixed(1)}" r="${(5 - i * .3).toFixed(1)}" fill="#fff" fill-opacity="${(.85 - i * .07).toFixed(2)}"/>`;
+      points += `<circle cx="${((p.x + 1) / 2 * W).toFixed(1)}" cy="${((1 - p.y) / 2 * H).toFixed(1)}" r="${(5 - i * .3).toFixed(1)}" fill="#fff" fill-opacity="${((.85 - i * .07) * pale).toFixed(2)}"/>`;
     }
   }
   const caillou = pret ? `<circle cx="${px}" cy="${py}" r="${s * .022}" fill="#6d6a64" stroke="#3f3c38" stroke-width="2"/>` : '';
   UI.svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   UI.svg.innerHTML = `${points}<path d="M${cx} ${base} L${cx} ${fourche} M${cx} ${fourche} Q${cx - ecart * .4} ${fourche - s * .03} ${cx - ecart} ${haut} M${cx} ${fourche} Q${cx + ecart * .4} ${fourche - s * .03} ${cx + ecart} ${haut}" stroke="#7a4f2a" stroke-width="${s * .03}" stroke-linecap="round" fill="none"/>`
     + `<path d="M${cx - ecart} ${haut} L${px} ${py} L${cx + ecart} ${haut}" stroke="#3b2a1e" stroke-width="${tendu ? 4 : 5}" fill="none" stroke-linejoin="round"/>${caillou}`
-    + (tendu ? `<text x="${cx}" y="${H - s * .36}" text-anchor="middle" class="lp-force">${Math.round(tirDuGeste().p * 100)} %</text>` : '');
+    + (tendu ? `<text x="${cx}" y="${H - s * .36}" text-anchor="middle" class="lp-force">${Math.round(t.p * 100)} %</text>` : '');
 }
 
 // ---------- La caméra pendant la partie (salon.js) ----------
@@ -527,5 +563,5 @@ export function initLancePierre(ctx) {
   window.addEventListener('pointermove', surGlisse);
   window.addEventListener('pointerup', surLacher); window.addEventListener('pointercancel', e => { if (e.pointerId === D.id) D.id = null; });
   heureServeur();
-  if (import.meta.env.DEV) window.__lp = { L, get P() { return P; }, STAND, commencer, finir, lancer, tirDuGeste, D, ventDu, rangement, montrerClassement, lireJour }; // pour les tests
+  if (import.meta.env.DEV) window.__lp = { L, get P() { return P; }, STAND, commencer, finir, lancer, tirDuGeste, D, MA, ventDu, rangement, montrerClassement, lireJour }; // pour les tests
 }

@@ -1160,6 +1160,11 @@ button { font: inherit; color: inherit; }
 }
 /* L'argent qui arrive des commerces, à côté du portefeuille */
 .vh-tete { position: relative; }
+/* « + » à côté de l'argent : recharger son compte par Mobile Money (recharge.js), comme dans les jeux sur téléphone. */
+.vh-plus { flex: none; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; cursor: pointer; align-self: center; }
+.vh-plus svg { width: 13px; height: 13px; }
+.vh-plus:hover { filter: brightness(1.1); }
+@media (pointer: coarse) { .vh-plus { width: 26px; height: 26px; margin: -2px 0; } }
 .vh-gain { position: absolute; left: 0; top: -2px; font: 800 14px/1 var(--font-body) !important; color: #1f8a3a; opacity: 0; pointer-events: none; }
 .vh-gain.vu { animation: vh-gain 1.6s ease-out; }
 @keyframes vh-gain { 0% { opacity: 0; transform: translate(70px, 6px); } 15% { opacity: 1; transform: translate(80px, 0); } 100% { opacity: 0; transform: translate(80px, -18px); } }
@@ -1523,6 +1528,10 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
 .salon-hud.lp-tir > :not(.sl-agir) { display: none !important; }
 .salon-hud.lp-tir .sl-agir { top: calc(var(--gutter) + env(safe-area-inset-top)); bottom: auto; left: auto; right: var(--gutter); transform: none; }
 .salon-hud.lp-tir .sl-agir .jouer { font-size: 13px; padding: 8px 14px; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); }
+/* Le fil de discussion ouvert (règle #app:has(.sl-chat.ouvert), plus forte) recentrait « Arrêter » sous la pastille du score ;
+   à la manette, « Arrêter la partie (B) » est le 3e bouton, plus large. */
+#app .salon-hud.lp-tir .sl-agir { left: auto; right: var(--gutter); margin: 0; }
+.salon-hud.lp-tir .sl-agir .sl-agir2 { font-size: 13px; padding: 8px 14px; }
 .lp-hud { position: absolute; inset: 0; z-index: 16; pointer-events: none; display: grid; justify-items: center; align-content: start; padding-top: calc(var(--gutter) + env(safe-area-inset-top)); font-family: var(--font-display); }
 .lp-haut { display: flex; gap: 14px; align-items: center; padding: 8px 16px; border-radius: 999px; font-size: 16px; }
 .lp-temps, .lp-score { font-variant-numeric: tabular-nums; }
