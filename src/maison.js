@@ -40,12 +40,22 @@ const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 
 export function initMaison(ctx) { H.S = ctx.S; H.ligne = ctx.ligne; H.geste = ctx.geste; H.guide = ctx.guide; }
 
-// ---------- La porte : sur une rue de quartier, près du centre du quartier ----------
+// ---------- La porte : sur une rue du quartier, à une adresse propre à chaque joueur ----------
 // Dans un mur de parcelle pour une maison en cour commune (rue.js y bâtit la clôture), sur la façade d'un
 // immeuble pour un appartement. Toujours au même endroit d'une partie à l'autre (bâtiments OSM et rues).
+// Chacun son adresse : tous les joueurs d'un même départ avaient la même porte, se réveillaient dans « la même
+// maison » et sortaient tous au même endroit (Murielle, 28/10). On relève maintenant toutes les portes possibles du
+// quartier (à 30 m au moins l'une de l'autre), et chacun prend la sienne d'après l'instant où il est arrivé en ville
+// (son nom peut changer). La même pour lui d'une partie à l'autre, une autre pour son voisin. Viser un point propre à
+// chacun ne suffisait pas : les portes possibles sont rares, et deux joueurs sur trois tombaient sur la même.
+function numeroDuJoueur() {
+  let h = 2166136261; for (const c of String(VIE.data?.cree || VIE.data?.nom || '')) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0; // FNV-1a
+  return h;
+}
 const TROTTOIR = { 3: 2.2, 4: 1.3, 5: .9 }; // comme rue.js : de la chaussée jusqu'aux murs des parcelles
-function chercherPorte(x0, z0, facade, classes = [4, 5]) {
-  let best = null, bd = 520;
+/** La porte la plus proche de (x0, z0) ; avec `tous` (un tableau), toutes celles à moins de 450 m, à 30 m l'une de l'autre. */
+function chercherPorte(x0, z0, facade, classes = [4, 5], tous = null) {
+  let best = null, bd = tous ? 450 : 520;
   for (const L of roadLines) {
     if (L.bridge || !classes.includes(L.cls) || L.pts.length < 2) continue;
     const front = (L.w ?? ROAD_W[L.cls]) / 2 + TROTTOIR[L.cls];
@@ -57,12 +67,14 @@ function chercherPorte(x0, z0, facade, classes = [4, 5]) {
         const cx = ax + ux * s, cz = az + uz * s, d = Math.hypot(cx - x0, cz - z0); if (d >= bd) continue;
         for (const cote of [1, -1]) {
           const nx = -uz * cote, nz = ux * cote, px = cx + nx * front, pz = cz + nz * front, B = (k, u = 0) => dansBatiment(px + nx * k + ux * u, pz + nz * k + uz * u);
+          if (tous?.some(q => Math.abs(q.x - px) < 30 && Math.abs(q.z - pz) < 30)) continue; // une porte déjà relevée tout près
           let f = 0;
           if (facade) { f = -1; for (let k = 0; k <= 3; k += .25) if (B(k)) { f = k; break; } if (f < 0 || !B(f + .4, 1.2) || !B(f + .4, -1.2)) continue; } // la façade, de part et d'autre de la porte
           else if (B(0) || B(.8) || B(1.6) || B(.5, 1.5) || B(.5, -1.5)) continue; // une parcelle sans bâtiment au bord de la rue : le mur et le portail
           if (B(f - 1.4) || B(f - 3.9) || dansBatiment(cx, cz)) continue; // la rue devant la porte est dégagée
           if (surChaussee(px + nx * (f + 2.5), pz + nz * (f + 2.5), 0) || surChaussee(px + ux * 6 + nx * .6, pz + uz * 6 + nz * .6, 0) || surChaussee(px - ux * 6 + nx * .6, pz - uz * 6 + nz * .6, 0)) continue; // ni carrefour ni autre rue
-          bd = d; best = { x: px + nx * (f - .05), z: pz + nz * (f - .05), nx, nz, facade };
+          const P = { x: px + nx * (f - .05), z: pz + nz * (f - .05), nx, nz, facade };
+          if (tous) tous.push(P); else { bd = d; best = P; }
         }
       }
     }
@@ -93,7 +105,8 @@ function declarer(logement) {
   const id = `maison-${logement}`; if (INTERIEURS.has(id)) return INTERIEURS.get(id);
   const D = LOGIS[logement] || LOGIS.ami, appart = D.plan === 'appart', lieu = D.lieu && PLACES.find(p => p.id === D.lieu), q = QUARTIERS.find(r => r[0] === D.quartier);
   const [x0, z0] = lieu ? toXZ(lieu.lat, lieu.lon) : toXZ(q[1], q[2]);
-  const P = (appart && chercherPorte(x0, z0, true)) || chercherPorte(x0, z0, false) || chercherPorte(x0, z0, false, [3, 4, 5]); if (!P) return null;
+  const sienne = (facade, classes) => { const l = []; chercherPorte(x0, z0, facade, classes, l); l.sort((a, b) => a.x - b.x || a.z - b.z); return l.length ? l[numeroDuJoueur() % l.length] : null; }; // triées : le même rang d'une partie à l'autre
+  const P = (appart && sienne(true)) || sienne(false) || sienne(false, [3, 4, 5]); if (!P) return null;
   const dehors = Math.atan2(-P.nx, -P.nz), g = groupeLieu(`porte-${id}`, P.x, P.z); g.rotation.y = dehors;
   K.into(g, () => (P.facade ? entreeImmeuble : portail)(P));
   const etq = etiquette('Chez toi'); etq.position.set(0, 3.6, .4); etq.visible = false; g.add(etq);
