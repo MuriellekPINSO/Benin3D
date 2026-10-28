@@ -50,13 +50,22 @@ export function zemsDetailles() {
 }
 /** La vitesse visée par z : celle de la rue, ou moins s'il en rattrape un autre devant lui dans sa file (même rue, même
  *  sens). Ils ne se voyaient pas : deux zéms de la même rue passaient l'un dans l'autre. */
-function suivre(z) {
+function suivre(z, dt) {
   let vise = z.v;
   for (const W of z.P.zems) {
     if (W === z || W.dir !== z.dir || Math.abs(W.lane - z.lane) > z.hw + W.hw + .4) continue;
-    const d = (W.s - z.s) * z.dir; if (d <= 0 || d > 16) continue;
-    const ecart = d - z.hl - W.hl; vise = Math.min(vise, ecart < 2 ? 0 : W.vc + (ecart - 2) * .9);
+    const d = (W.s - z.s) * z.dir; if (d <= 0 || d > 20) continue;
+    const ecart = d - z.hl - W.hl; vise = Math.min(vise, ecart < 4 ? 0 : W.vc + (ecart - 4) * .7);
   }
+  // Pas de convoi derrière le plus lent : retenu plus de 2 s, il se décale dans sa moitié de chaussée et double
+  // (« il n'y a pas d'embouteillages sur la voie, les voies respirent », Murielle, 28/10).
+  z.retenu = vise < z.v * .6 ? (z.retenu || 0) + dt : 0;
+  if (z.retenu > 2) {
+    z.retenu = 0;
+    if (z.P.sens) z.laneVise = THREE.MathUtils.clamp(z.lane + (z.lane > 0 ? -1.6 : 1.6), -(z.P.w - 2) / 2, (z.P.w - 2) / 2);
+    else { const max = Math.max(.8, z.P.w / 2 - .5); z.laneVise = z.lane > (.8 + max) / 2 ? Math.max(.6, z.lane - 1.5) : Math.min(max, z.lane + 1.5); }
+  }
+  if (z.laneVise !== undefined) z.lane += (z.laneVise - z.lane) * Math.min(1, dt * 1.5); // le déport se fait en douceur
   return vise;
 }
 // Seuls les véhicules dans le champ et à portée de vue passent par la carte graphique (rangés en tête, `count` réduit) :
@@ -73,7 +82,7 @@ export function updateZems(dt) {
   let nv = 0; const y0 = E.zems.userData.en3D ? .04 : .15; // le modèle 3D est posé au sol ; celui dessiné en code se relève de 15 cm
   for (let i = 0; i < E.zemState.length; i++) {
     const z = E.zemState[i], P = z.P;
-    const vise = cede(z, dt) ? 0 : suivre(z); z.vc += THREE.MathUtils.clamp(vise - z.vc, -9 * dt, 3 * dt); z.s += z.vc * dt * z.dir;
+    const vise = cede(z, dt) ? 0 : suivre(z, dt); z.vc += THREE.MathUtils.clamp(vise - z.vc, -9 * dt, 3 * dt); z.s += z.vc * dt * z.dir;
     if (P.sens) { if (z.s >= P.len) z.s = 0.01; } // sens unique : pas de demi-tour, on repart du début
     else if (z.s >= P.len) { z.s = P.len - 0.01; z.dir = -1; } else if (z.s <= 0) { z.s = 0.01; z.dir = 1; }
     const cum = P.cum; let k = z.seg;

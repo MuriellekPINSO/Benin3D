@@ -16,6 +16,10 @@ import { scene } from './scene.js';
 // 40 au lieu de 110 (18 au lieu de 50 au téléphone) : à 110, ils se rentraient dedans aux carrefours et dans les files
 // (« on a toujours un problème de collision des voitures et motos qui deviennent beaucoup : supprime la majorité »,
 // Murielle, 27/10). Plus de camions ni de vélos dessinés en boîtes : seulement les voitures et les motos qu'on a en 3D.
+// « Il n'y a pas d'embouteillages sur la voie, les voies sont larges et respirent » (Murielle, 28/10, devant Slop New York
+// de mrdoob) : chacun garde 6 m avec celui de devant (au lieu de 2,5), le voit venir de 24 m, ne se pose ni ne tourne à
+// moins de 30 m d'un autre qui va dans son sens, et une file qui se forme loin des yeux du joueur se dissout.
+const ECART = 6, REGARD = 24, PLACE = 30;
 const N = LITE ? 18 : 40, LOIN = 300, CELL = 150, POIDS = c => (c <= 2 ? 5 : c === 3 ? 3 : c === 4 ? 2 : 1); // plus de monde sur les grands axes
 const TYPES = [ // part de la circulation, vitesse (m/s), demi-longueur et demi-largeur (pour les collisions)
   { id: 'voiture', part: .5, v: [8, 13], hl: 2.15, hw: .9 },
@@ -66,7 +70,7 @@ function poser(R, s, dir) {
 }
 function voie(R, type) { // décalage à droite de la direction de marche
   if (R.sens) return (Math.random() - .5) * Math.max(0, R.hw * 2 - 2.4);
-  return type === 'zem' || type === 'moto' ? Math.min(2.4, Math.max(.6, R.hw - 1.1)) : Math.min(2, R.hw * .45); // les motos serrent à droite
+  return type === 'zem' || type === 'moto' ? Math.min(3.6, Math.max(.6, R.hw - 1.1)) : THREE.MathUtils.clamp(R.hw * .5, 1.6, 3.2); // au milieu de sa moitié ; les motos serrent à droite
 }
 /** Le joueur J (un point, rayon r) est-il dans l'emprise d'un véhicule posé en (x, z), orienté cap, de demi-longueur hl
  *  et de demi-largeur hw ? Même boîte que dansCirculation (trafic.js). */
@@ -84,7 +88,7 @@ function placer(V, jx, jz, rMin, rMax) {
     V.R = R; V.dir = R.sens ? 1 : Math.random() < .5 ? 1 : -1; V.s = Math.random() * R.len; V.lane = voie(R, V.type.id);
     const p = poser(R, V.s, V.dir), dj = Math.hypot(p.x - jx, p.z - jz); if (dj < rMin * .7 || dj > rMax * 1.2) continue;
     // Pas sur un autre : posé dans sa carrosserie, il y restait le temps que l'autre s'éloigne.
-    if (C.vehicules.some(W => W !== V && W.R === R && W.dir === V.dir && Math.abs(W.lane - V.lane) < W.hw + V.hw + .3 && Math.abs(W.s - V.s) < W.hl + V.hl + 4)) continue;
+    if (C.vehicules.some(W => W !== V && W.R === R && W.dir === V.dir && Math.abs(W.s - V.s) < PLACE)) continue;
     V.v = hasard(...V.type.v); V.vmax = V.v; return true;
   }
   return false;
@@ -128,7 +132,7 @@ export function majCirculation(dt, J) {
       // la file entière ralentissait de proche en proche — d'où les véhicules « très lents sans raison ». On vise
       // maintenant la vitesse de celui de devant, plus ce que l'écart permet de gagner.
       const ecart = (W.s - V.s) * V.dir - W.hl - V.hl;
-      if ((W.s - V.s) * V.dir > 0 && ecart < 14) vise = Math.min(vise, ecart < 2.5 ? 0 : W.v + (ecart - 2.5) * .9);
+      if ((W.s - V.s) * V.dir > 0 && ecart < REGARD) vise = Math.min(vise, ecart < ECART ? 0 : W.v + (ecart - ECART) * .6);
     }
     // Ceux des autres rues : au carrefour, deux voitures de rues différentes ne se voyaient pas et entraient l'une
     // dans l'autre (« certaines voitures rentrent toujours l'une dans l'autre », un testeur, 26/10). Derrière une
@@ -142,7 +146,7 @@ export function majCirculation(dt, J) {
       if (dv <= 0 || dv > V.hl + lng + 12 || cv > V.hw + lrg + .3) continue;
       const ecart = dv - V.hl - lng;
       if (meme < .7 && W.rang > V.rang && ecart > .8) continue; // il nous coupe la route, mais c'est lui qui cède
-      vise = Math.min(vise, ecart < 2.5 ? 0 : Math.max(0, W.v * meme) + (ecart - 2.5) * .9);
+      vise = Math.min(vise, ecart < ECART ? 0 : Math.max(0, W.v * meme) + (ecart - ECART) * .6);
     }
     // Et derrière les zéms et tokpas de toute la ville (trafic.js), qu'on traversait. Bloqué plus de 4 s par l'un
     // d'eux (un croisement où chacun attend l'autre), on passe.
@@ -150,13 +154,14 @@ export function majCirculation(dt, J) {
       let gene = false;
       for (const W of E.zemsPres) {
         const bx = W.px - V.px, bz = W.pz - V.pz, dv = bx * V.fx + bz * V.fz, cv = Math.abs(bx * V.fz - bz * V.fx);
-        if (dv <= 0 || dv > V.hl + W.hl + 14 || cv > V.hw + W.hw + .3) continue;
-        const ecart = dv - V.hl - W.hl; vise = Math.min(vise, ecart < 2.5 ? 0 : (W.arret ? 0 : W.v) + (ecart - 2.5) * .9); gene ||= ecart < 2.5;
+        if (dv <= 0 || dv > V.hl + W.hl + REGARD || cv > V.hw + W.hw + .3) continue;
+        const ecart = dv - V.hl - W.hl; vise = Math.min(vise, ecart < ECART ? 0 : (W.arret ? 0 : W.v) + (ecart - ECART) * .6); gene ||= ecart < ECART;
       }
       V.attente = gene && V.v < .3 ? (V.attente || 0) + dt : 0; if (V.attente > 4) { V.attente = 0; V.libre = 1.5; }
     } else V.libre -= dt;
     // La Roadster en vol (J.enLair) ne les arrête pas : elles passent dessous. Avant, elles s'arrêtaient sous elle à
     // 110 m de haut, et quand elle se posait, c'était dans la file arrêtée.
+    const viseVeh = vise; // ce que les autres véhicules permettent, sans compter le joueur
     const ax = J.enLair ? 1e4 : J.x - V.px, az = J.enLair ? 1e4 : J.z - V.pz, devant = ax * V.fx + az * V.fz, cote = Math.abs(ax * V.fz - az * V.fx);
     if (devant > 0 && devant < V.hl + Jr + 12 && cote < V.hw + Jr + .7) vise = Math.min(vise, Math.max(0, (devant - V.hl - Jr - 2) * 1.1)); // freine à temps : arrêt à 2 m de son pare-chocs
     const R0 = V.R, s0 = V.s; // pour le garde-fou plus bas
@@ -172,7 +177,7 @@ export function majCirculation(dt, J) {
       for (let essai = 0; essai < 4 && suite.length && !pris; essai++) {
         const b = suite.splice(Math.floor(Math.random() * suite.length), 1)[0];
         const dir = b.R.sens ? 1 : b.s < b.R.len / 2 ? 1 : -1, lane = voie(b.R, V.type.id);
-        const occupe = C.vehicules.some(W => W !== V && W.R === b.R && W.dir === dir && Math.abs(W.lane - lane) < W.hw + V.hw + .3 && Math.abs(W.s - b.s) < W.hl + V.hl + 4);
+        const occupe = C.vehicules.some(W => W !== V && W.R === b.R && W.dir === dir && Math.abs(W.s - b.s) < PLACE * .6);
         if (!occupe) pris = { R: b.R, dir, s: b.s, lane };
       }
       if (pris) { V.R = pris.R; V.dir = pris.dir; V.s = pris.s; V.lane = pris.lane; }
@@ -208,6 +213,9 @@ export function majCirculation(dt, J) {
     // celle que le joueur ne voit pas s'en va ailleurs.
     V.arretT = V.v < .3 ? (V.arretT || 0) + dt : 0;
     if (V.arretT > 12 && !barre && horsDeVue(J, x, z)) { V.arretT = 0; V.R = null; continue; }
+    // Pas de file : celui que les autres ralentissent de moitié plus de 3 s, loin des yeux du joueur, s'en va ailleurs.
+    V.fileT = viseVeh < V.vmax * .5 ? (V.fileT || 0) + dt : 0;
+    if (V.fileT > 3 && !barre && horsDeVue(J, x, z)) { V.fileT = 0; V.R = null; continue; }
     V.px = x; V.pz = z; V.fx = p.dx; V.fz = p.dz; V.cap = Math.atan2(p.dx, p.dz);
     if ((x - J.x) ** 2 + (z - J.z) ** 2 < 1600) E.circulation.push(V); // solide près du joueur (trafic.js, dansCirculation)
   }

@@ -175,8 +175,14 @@ function texMarquageSens(n) {
   for (let k = 1; k < n; k++) { const u = .05 + .9 * k / n; c.fillRect(u * 128 - 1.5, 0, 3, 80); }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
 }
-/** Largeur d'une chaussée : à sens unique, voies × 3,5 m (grands axes) ou 3,3 m + 1,2 m (même formule que scripts/donnees.mjs). */
-export const largeurRoute = L => L.sens && L.cls <= 3 ? Math.max(2, L.voies || 2) * (L.cls <= 1 ? 3.5 : 3.3) + 1.2 : ROAD_W[L.cls];
+/**
+ * Largeur d'une chaussée : à sens unique, voies × 3,5 m (grands axes) ou 3,3 m + 1,2 m (même formule que scripts/donnees.mjs).
+ * À double sens, les grands axes sont un quart plus larges, les routes secondaires 15 % : « les voies sont larges et
+ * respirent » (Murielle, 28/10, devant Slop New York de mrdoob). Ils ont la place : 83 maisons de plus seulement mordent
+ * alors sur la chaussée (chaussee.js les retire), contre 1 000 si l'on élargissait les rues de quartier, qu'on garde.
+ */
+const ELARGI = { 0: 1.25, 1: 1.25, 2: 1.25, 3: 1.15 };
+export const largeurRoute = L => L.sens && L.cls <= 3 ? Math.max(2, L.voies || 2) * (L.cls <= 1 ? 3.5 : 3.3) + 1.2 : ROAD_W[L.cls] * (ELARGI[L.cls] ?? 1);
 function rubanUV(pts, w, pos, uv, idx) {
   const n = pts.length, base = pos.length / 3; let v = 0;
   for (let i = 0; i < n; i++) {
