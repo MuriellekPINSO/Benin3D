@@ -57,6 +57,7 @@ const TYPE = t => {
 const lieux = [];
 for (const e of ['commerces', 'commerces_ouidah', 'poi', 'calavi_poi', 'ouidah_poi'].flatMap(load)) {
   const c = e.center || e, n = e.tags?.name?.trim(); if (!c?.lat || !n || n.length > 60) continue;
+  if (/^(vous [eê]tes ici|you are here)$/i.test(n)) continue; // un « quartier » d’OSM près de l’Étoile Rouge : la carte disait « Église · vous etes ici »
   const ty = TYPE(e.tags); if (!ty) continue;
   const [x, z] = P(c.lat, c.lon);
   if (lieux.some(l => l[0] === n && Math.hypot(l[2] - x, l[3] - z) < 150)) continue; // le même, dans deux fichiers
