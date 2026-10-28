@@ -13,7 +13,7 @@ import { arbitrer } from '../src/faux-frere-arbitre.js';
 import { baseAdmin, uidDuJeton } from './_admin.js';
 
 const BASE = 'https://zem-run-cotonou-default-rtdb.europe-west1.firebasedatabase.app';
-const ORIGINES_EN_LIGNE = /^https:\/\/((www\.)?(xn--kutnuvibes-ghe|kotonuvibes)\.com|tours[\w-]*\.vercel\.app)$/;
+const ORIGINES_EN_LIGNE = /^https:\/\/((www\.|test\.)?(xn--kutnuvibes-ghe|kotonuvibes)\.com|tours[\w-]*\.vercel\.app)$/;
 const ORIGINES_LOCALES = /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|100\.\d+\.\d+\.\d+)(:\d+)?$/;
 const origineAdmise = o => ORIGINES_EN_LIGNE.test(o) || (!process.env.VERCEL && ORIGINES_LOCALES.test(o));
 
