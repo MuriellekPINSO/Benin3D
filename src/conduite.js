@@ -58,21 +58,59 @@ export function chargerVehicules() {
     plusTard(() => ch.loadAsync(urlTripo(id))).then(g => { MODELES[type] = gabaritDe(g.scene, { largeur: LONGUEURS[type] }); }).catch(e => console.warn(`modèle ${id}`, e.message));
   }
 }
-/** Un véhicule : modèle (avant vers +z du groupe) et état de conduite. */
-export function creerVehicule(type, { couleur } = {}) {
+/** Un véhicule : modèle (avant vers +z du groupe) et état de conduite. `peinture` : la couleur choisie par son
+ *  propriétaire (menu « Peindre mon véhicule ») ; sans elle, la couleur d'origine (`couleur`, ou la texture du modèle). */
+export function creerVehicule(type, { couleur, peinture } = {}) {
   const D = VEHICULES[type], g = new THREE.Group();
   const gabarit = type === 'zem' ? ZEMS_3D.moto : MODELES[type];
-  let m;
+  let m, dessin = null;
   if (type === 'tokpa') { m = TOKPA_3D.geo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(mergeColored(partsTokpa({ passagers: false })), matVeh); m.castShadow = true; } // le minibus de Zém Run (Tripo)
   else if (gabarit) m = gabarit.clone();
-  else { m = new THREE.Mesh(mergeColored(type === 'velo' ? partsVelo({}) : type === 'citadine' ? partsCitadine(couleur || '#c9342c') : type === 'bolide' ? partsBolide(couleur || '#eceff2') : type === 'roadster' ? partsRoadster(couleur || '#dfe3e7') : type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : couleur || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: couleur, chemise: '#f2c21b' })), matVeh); m.castShadow = true; m.receiveShadow = true; } // le vélo est vide : c'est le personnage du joueur qu'on voit dessus
+  else {
+    dessin = c => mergeColored(type === 'velo' ? partsVelo({}) : type === 'citadine' ? partsCitadine(c || '#c9342c') : type === 'bolide' ? partsBolide(c || '#eceff2') : type === 'roadster' ? partsRoadster(c || '#dfe3e7') : type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : c || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: c, chemise: '#f2c21b' }));
+    m = new THREE.Mesh(dessin(peinture || couleur), matVeh); m.castShadow = true; m.receiveShadow = true; // le vélo est vide : c'est le personnage du joueur qu'on voit dessus
+  }
   m.rotation.y = -Math.PI / 2 + (gabarit && MODELES[type] && DEMI_TOUR[type] ? Math.PI : 0); g.add(m); // avant +x → +z
   scene.add(g);
   // Roues qui tournent, fumée, poussière (roues.js) : elles se posent dans le repère du véhicule, l'avant vers +x,
   // alors que le groupe a son avant en +z. Sans ce quart de tour, les quatre disques sortaient de chaque côté de la moto.
   let anim = null;
   if (type === 'moto' || type === 'zem') { const axe = new THREE.Group(); axe.rotation.y = -Math.PI / 2; g.add(axe); anim = animerMoto(axe, { parent: scene }); }
-  return { type, D, g, x: 0, z: 0, y: 0, cap: 0, v: 0, km: 0, anim, selle: (gabarit && MODELES[type] && SELLES[type]) || D.selle };
+  const V = { type, D, g, x: 0, z: 0, y: 0, cap: 0, v: 0, km: 0, anim, selle: (gabarit && MODELES[type] && SELLES[type]) || D.selle, modele: m, dessin, couleur, peinture: null };
+  if (peinture && gabarit && type !== 'zem') peindre(V, peinture); else V.peinture = peinture || null;
+  return V;
+}
+
+// ---------- Repeindre son véhicule ----------
+// Un véhicule dessiné en code (citadine, bolide, Roadster) se refait simplement dans la nouvelle couleur. La voiture et
+// la moto Tripo, elles, n'ont qu'une texture : sur l'une comme sur l'autre, la carrosserie est le seul rouge franc
+// (mesuré : vert et bleu sous 16 % du rouge, une fois en couleurs linéaires), quand vitres, pneus et chromes sont
+// gris ou noirs, les feux orange et la peau du pilote tirent vers le jaune. Le nuanceur remplace donc ce rouge-là par
+// la peinture, en gardant ses reflets et ses ombres (sa clarté, rapportée à celle d'un rouge moyen, 0,35).
+const PEINTS = new Map(), ORIGINES = new WeakMap(); // un matériau par (matériau d'origine, couleur) : deux joueurs en bleu roi se le partagent
+function materiauPeint(mat, couleur) {
+  const cle = `${mat.uuid}|${couleur}`; let p = PEINTS.get(cle); if (p) return p;
+  p = mat.clone(); const u = { value: new THREE.Color(couleur) }; // Color() passe le code en couleurs linéaires, comme la texture lue
+  p.onBeforeCompile = sh => {
+    sh.uniforms.uPeinture = u;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uPeinture;').replace('#include <map_fragment>', `#include <map_fragment>
+  { vec3 c = diffuseColor.rgb; float r = max(c.r, 1e-4);
+    float k = (1. - smoothstep(.12, .2, max(c.g, c.b) / r)) * (1. - smoothstep(.06, .1, (c.g - c.b) / r)) * smoothstep(.015, .04, c.r);
+    diffuseColor.rgb = mix(c, min(uPeinture * (c.r / .35), vec3(1.)), k); }`);
+  };
+  p.customProgramCacheKey = () => 'peinture'; // un seul programme pour toutes les couleurs : seule la variable change
+  PEINTS.set(cle, p); return p;
+}
+/** Repeint un véhicule déjà posé ; `couleur` nulle : il retrouve sa couleur d'origine. */
+export function peindre(V, couleur) {
+  if (!V || (V.peinture || null) === (couleur || null)) return;
+  V.peinture = couleur || null;
+  if (V.dessin) { const vieille = V.modele.geometry; V.modele.geometry = V.dessin(couleur || V.couleur); vieille.dispose(); return; }
+  V.modele.traverse(n => {
+    if (!n.isMesh) return;
+    if (!ORIGINES.has(n)) ORIGINES.set(n, n.material);
+    n.material = couleur ? materiauPeint(ORIGINES.get(n), couleur) : ORIGINES.get(n);
+  });
 }
 export function retirerVehicule(V) { if (V) { scene.remove(V.g); V.anim?.liberer(); } } // les géométries sont partagées entre les copies : on ne les libère pas
 export function placer(V, x, z, cap) { V.x = x; V.z = z; V.cap = cap; V.v = 0; V.y = V.sol = hauteur(x, z, 0); V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; }

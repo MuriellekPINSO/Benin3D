@@ -361,6 +361,7 @@ export function rendreVie() {
   // Avec une voiture déjà à soi (le « Fils à papa » en a une dès le départ), le bouton restait caché : on ne
   // pouvait pas passer au Roadster (Murielle, 26/10). La nouvelle remplace l'ancienne ; une location se rend d'abord.
   const a = $('#vhAcheter'); if (a) a.hidden = vehiculeLoue(v) || !!VIE.travail || !!VIE.service;
+  const pe = $('#vhPeindre'); if (pe) { pe.hidden = !v.vehicule || v.vehicule === 'velo' || vehiculeLoue(v) || !!VIE.service; pe.textContent = v.vehicule === 'moto' ? 'Peindre ma moto' : 'Peindre ma voiture'; } // on peint ce qui est à soi, pas ce qu'on loue
   // « Comment j'achète tout ça, où je prends ça ? » (Murielle, 25/10) : le bouton est dans le menu, et rien ne
   // le disait. La première fois qu'on a de quoi, on le dit dans le fil — une seule fois par partie.
   const moinsCher = Math.min(...A_VENDRE.map(x => x.prix));

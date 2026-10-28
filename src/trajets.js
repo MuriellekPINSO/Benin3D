@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $ } from './base.js';
 import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js';
-import { PRIX_LITRE, VEHICULES, atterrir, creerVehicule, decoller, enCroisiere, initStations, peutDecoller, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
+import { PRIX_LITRE, VEHICULES, atterrir, creerVehicule, decoller, peindre, enCroisiere, initStations, peutDecoller, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
 import { dansBatiment, dansObstacleRue, decalee } from './rue.js';
 import { E } from './etat.js';
 import { dansCirculation } from './trafic.js';
@@ -36,12 +36,31 @@ const NOMS = { voiture: ['ta voiture', 'de la voiture'], moto: ['ta moto', 'de l
 const nomDe = V => (V.travail && V.type === 'moto' ? ['la moto du patron', 'de la moto'] : NOMS[V.type] || NOMS.voiture);
 
 // Un point de route libre près de (x, z), pour garer un véhicule ou faire venir un zém.
-function pointDeRoute(x, z, rMin = 0, rMax = 25) {
+export function pointDeRoute(x, z, rMin = 0, rMax = 25) {
   for (let r = rMin; r <= rMax; r += 1.5) for (let a = 0; a < 16; a++) { const px = x + Math.cos(a * Math.PI / 8) * r, pz = z + Math.sin(a * Math.PI / 8) * r; if (surRoute(px, pz)) return [px, pz]; }
   return null;
 }
 /** La couleur de son véhicule à soi : la même chez soi et chez les autres (le bolide rouge passait blanc chez eux). */
 const couleurPerso = type => (['zem', 'tokpa', 'taxi'].includes(type) ? undefined : type === 'voiture' ? '#7a1f2b' : '#a32b26');
+
+// ---------- La peinture de son véhicule (menu « Peindre ma voiture ») ----------
+// Retenue sur l'appareil, type par type : la fiche de vie enregistrée chez Firebase refuse tout champ en plus
+// (database.rules.json, `$autre`). Les autres la reçoivent avec sa position (salon.js, `vc`), garée comme au volant.
+export const PEINTURES = [
+  { nom: 'Couleur d’origine', c: null }, { nom: 'Blanc nacré', c: '#f1f1ec' }, { nom: 'Gris argent', c: '#a6acb2' }, { nom: 'Noir brillant', c: '#16181b' },
+  { nom: 'Bleu roi', c: '#1d4fb8' }, { nom: 'Bleu ciel', c: '#5cb3ea' }, { nom: 'Vert Kutɔnu', c: '#1a7d52' }, { nom: 'Jaune soleil', c: '#f2b705' },
+  { nom: 'Orange', c: '#ef7a1a' }, { nom: 'Rose', c: '#db7093' }, { nom: 'Violet', c: '#6f3fb0' }, { nom: 'Bordeaux', c: '#6b1426' },
+];
+export const PEIGNABLES = ['voiture', 'citadine', 'bolide', 'roadster', 'moto']; // le vélo et les véhicules de travail gardent leurs couleurs
+const CLE_PEINTURE = 'kutonu.peinture';
+/** Une couleur reçue d'un autre joueur : un code « #rrggbb », sinon rien. */
+export const couleurValide = c => (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c.toLowerCase() : null);
+export function peintureDe(type) { try { return couleurValide(JSON.parse(localStorage.getItem(CLE_PEINTURE) || '{}')[type]); } catch { return null; } }
+/** Repeint son véhicule de ce type (garé ou sous soi) et le retient pour la prochaine fois. */
+export function peindreSonVehicule(type, c) {
+  try { const m = JSON.parse(localStorage.getItem(CLE_PEINTURE) || '{}'); if (c) m[type] = c; else delete m[type]; localStorage.setItem(CLE_PEINTURE, JSON.stringify(m)); } catch { /* navigation privée : pour cette partie seulement */ }
+  if (T.veh?.type === type && !T.veh.travail) peindre(T.veh, c);
+}
 /** À l'arrivée dans le salon : son véhicule (Fils à papa : voiture ; moto louée) garé sur la route la plus proche. */
 export function entrerMonde() {
   quitterMonde(); T.mode = 'pied';
@@ -55,7 +74,7 @@ export function garerSonVehicule(ou = null) {
   const type = VIE.data?.vehicule; if (!type || !VEHICULES[type] || T.veh) return;
   const o = S.lieu ? arriveeDehors(S.lieu) : S; // dans un bâtiment (chez soi au réveil) : dans la rue, devant la porte
   const p = ou ? [ou.x, ou.z] : pointDeRoute(o.x + Math.sin(o.cap + Math.PI / 2) * 4, o.z + Math.cos(o.cap + Math.PI / 2) * 4, 0, 150); if (!p) return;
-  T.veh = creerVehicule(type, { couleur: couleurPerso(type) }); placer(T.veh, p[0], p[1], ou ? ou.cap : Math.atan2(p[0] - o.x, p[1] - o.z));
+  T.veh = creerVehicule(type, { couleur: couleurPerso(type), peinture: peintureDe(type) }); placer(T.veh, p[0], p[1], ou ? ou.cap : Math.atan2(p[0] - o.x, p[1] - o.z));
   const nom = type === 'voiture' ? 'Ta voiture' : type === 'velo' ? 'Ton vélo' : type === 'citadine' ? 'Ta citadine' : type === 'bolide' ? 'Ton bolide' : 'Ta moto', e = etiquette(nom); e.position.y = ['voiture', 'citadine', 'bolide'].includes(type) ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
   const d = Math.round(Math.hypot(p[0] - o.x, p[1] - o.z) / 5) * 5;
   if (d > 8 && !S.lieu) ligne(type === 'velo' ? `Ton vélo est posé sur la route, à ${d} m : suis l’étiquette jaune.` : `${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
@@ -356,8 +375,10 @@ function majRepas(dt) {
 // ---------- Fenêtre de choix (zém, menu) ----------
 export function choisir(titre, options, { annuler = 'Annuler' } = {}) {
   const el = $('#choix'); $('#chTitre').textContent = titre; const l = $('#chListe'); l.replaceChildren();
+  l.classList.toggle('ch-pastilles', options.length > 0 && options.every(o => o.couleur)); // des couleurs : une grille de pastilles
   for (const o of options) {
     const b = document.createElement('button'); b.type = 'button'; const t = document.createElement('b'); t.textContent = o.texte; b.append(t);
+    if (o.couleur) { const p = document.createElement('i'); p.className = 'ch-pastille'; p.style.background = o.couleur; p.setAttribute('aria-hidden', 'true'); b.prepend(p); }
     if (o.sous) { const s = document.createElement('small'); s.textContent = o.sous; b.append(s); }
     b.disabled = !!o.desactive; b.addEventListener('click', () => { el.hidden = true; o.f(); }); l.append(b);
   }
@@ -424,17 +445,19 @@ export function asseoirSur(p, V, passager) {
   // tournent à vélo ou posées sur les cale-pieds à moto (personnages.js). Le passager, lui, reste assis.
   p.userData.velo?.(passager || V.D.cache ? null : V.D.pedale ? phaseVelo(V) : 'moto');
 }
-/** Pour les amis : leur véhicule sous eux (créé à la demande). */
-export function vehiculeDe(A, type) {
+/** Pour les amis : leur véhicule sous eux (créé à la demande), dans la couleur qu'ils lui ont choisie (`vc`). */
+export function vehiculeDe(A, type, vc = null) {
   if (!type) { if (A.veh) { retirerVehicule(A.veh); A.veh = null; if (A.g) { A.g.visible = true; porterCasque(A.g, false); } } return null; }
-  if (!A.veh || A.veh.type !== type) { retirerVehicule(A.veh); A.veh = creerVehicule(type, { couleur: couleurPerso(type) }); }
+  if (!A.veh || A.veh.type !== type) { retirerVehicule(A.veh); A.veh = creerVehicule(type, { couleur: couleurPerso(type), peinture: vc }); }
+  else peindre(A.veh, vc);
   return A.veh;
 }
 /** Pour les autres : leur véhicule garé (`gv` = [type, x, z, cap]), qu'on voit dans la rue et où l'on peut monter. */
-export function vehiculeGareDe(A, gv) {
+export function vehiculeGareDe(A, gv, vc = null) {
   if (!gv) { if (A.garee) { retirerVehicule(A.garee); A.garee = null; } return null; }
   const [type, x, z, cap] = gv;
-  if (!A.garee || A.garee.type !== type) { retirerVehicule(A.garee); A.garee = creerVehicule(type, { couleur: couleurPerso(type) }); A.garee.ou = ''; }
+  if (!A.garee || A.garee.type !== type) { retirerVehicule(A.garee); A.garee = creerVehicule(type, { couleur: couleurPerso(type), peinture: vc }); A.garee.ou = ''; }
+  else peindre(A.garee, vc);
   const ou = `${x},${z},${cap}`; if (A.garee.ou !== ou) { placer(A.garee, x, z, cap); A.garee.ou = ou; } // posée sur le sol une fois, pas à chaque image
   return A.garee;
 }

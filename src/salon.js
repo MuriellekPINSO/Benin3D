@@ -18,7 +18,7 @@ import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personna
 import { retirerRuban, stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment, obstaclesPres, profondeurRue } from './rue.js';
 import { hauteurSol } from './sols.js';
-import { actions, appelerZem, asseoir, asseoirSur, choisir, entrerMonde, garerSonVehicule, gps, initTrajets, majTrajets, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe, vehiculeGareDe } from './trajets.js';
+import { PEIGNABLES, PEINTURES, actions, appelerZem, asseoir, asseoirSur, choisir, couleurValide, entrerMonde, garerSonVehicule, gps, pointDeRoute, initTrajets, majTrajets, peindreSonVehicule, peintureDe, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe, vehiculeGareDe } from './trajets.js';
 import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
 import { A_VENDRE, LOGEMENTS, acheterVehicule, ouvertAu, vehiculeLoue, alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
@@ -27,7 +27,8 @@ import { assoirApprenti, basculerPause, finirJournee, menuTravail } from './meti
 import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces, sauverCommerces } from './commerces.js';
 import { majAmbianceSalon } from './ambiance-salon.js';
 import { afficherChapitres, entrerChapitres, initChapitres, majChapitres, quitterChapitres } from './chapitres.js';
-import { basculerCarte, initCarteSalon, majCarteSalon, quitterCarteSalon } from './carte-salon.js';
+import { basculerCarte, initCarteSalon, majCarteSalon, montrerDestination, quitterCarteSalon } from './carte-salon.js';
+import { ouEstCe, texteOu } from './recherche.js';
 import { TENUES, choixGenre, estFemme, grilleTenues, initGarderobe, modeleActuel, ouvrirGarderobe, prechargerVignettes } from './garderobe.js';
 import { AUDIO, audioCtx, moteurMaj, son } from './audio.js';
 import { taire } from './voix.js';
@@ -318,7 +319,7 @@ async function chercherAmi(id, ms) {
 }
 
 // ---------- Chat ----------
-function ligne(texte, { nom = '', lieu = null, moi = false, u = '' } = {}) {
+function ligne(texte, { nom = '', lieu = null, pos = null, moi = false, u = '' } = {}) {
   const ol = $('#slMessages'); if (!ol) return;
   const li = document.createElement('li'); li.className = nom ? (moi ? 'moi' : '') : 'systeme';
   if (nom) {
@@ -327,6 +328,11 @@ function ligne(texte, { nom = '', lieu = null, moi = false, u = '' } = {}) {
   }
   li.append(texte);
   if (lieu && !moi) { const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = 'Y aller'; bt.addEventListener('click', () => aller(lieu, false)); li.append(' ', bt); }
+  else if (pos && !moi) { // une position partagée : la grande carte s'ouvre dessus, avec l'itinéraire
+    const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = 'Y aller';
+    bt.addEventListener('click', () => { if (!montrerDestination({ nom: `Là où est ${nom}`, sous: texteOu(ouEstCe(pos[0], pos[1])), x: pos[0], z: pos[1], type: 'point' })) ligne('Sors d’abord pour y aller.'); });
+    li.append(' ', bt);
+  }
   ol.append(li); while (ol.children.length > 40) ol.firstChild.remove();
   if (nom && !moi && !$('#slChat').classList.contains('ouvert')) { S.nonLus++; const n = $('#slNonLus'); n.textContent = S.nonLus; n.hidden = false; }
   ol.scrollTop = ol.scrollHeight;
@@ -335,18 +341,19 @@ function surMessage(m) {
   if (!m || S.vus.has(m.cle)) return; S.vus.add(m.cle);
   if (MUETS.has(m.u)) return;
   const moi = m.u === S.R?.id, texte = filtrer(nettoyer(m.txt, 140)), lieu = LIEUX.some(l => l[0] === m.lieu) ? m.lieu : null, st = stickerDe(m.st);
+  const pos = Array.isArray(m.pos) && m.pos.length === 2 && m.pos.every(v => Number.isFinite(v) && Math.abs(v) < 80000) ? m.pos : null; // « Partager ma position »
   if (!texte) return;
-  ligne(st ? elementSticker(st) : texte, { nom: filtrer(nettoyer(m.n, 16)) || 'Ami', lieu, moi, u: m.u });
+  ligne(st ? elementSticker(st) : texte, { nom: filtrer(nettoyer(m.n, 16)) || 'Ami', lieu, pos, moi, u: m.u });
   if (typeof m.t === 'number' && Date.now() - m.t > 15000) return; // l'historique ne fait pas de bulles
   if (moi) bulle(S, texte, st); else { const A = S.autres.get(m.u); if (A) bulle(A, texte, st); }
 }
-function dire(texte, st = null) { // st : l'identifiant d'un sticker (stickers.js), `texte` étant alors ce qu'il dit
+function dire(texte, st = null, plus = null) { // st : l'identifiant d'un sticker (stickers.js), `texte` étant alors ce qu'il dit ; plus : { pos }
   texte = filtrer(nettoyer(texte, 140)); if (!texte || !S.canal) return;
   const t = performance.now();
   if (texte === S.dernierMsg && t - S.dernierMsgT < 30000) return; // le même message, encore et encore
   if (t - (S.dernierMsgT || 0) < 2000) { ligne('Doucement : un message toutes les deux secondes.'); return; }
   S.dernierMsg = texte; S.dernierMsgT = t;
-  S.canal.dire({ n: S.nom, txt: texte, ...(st ? { st } : {}) });
+  S.canal.dire({ n: S.nom, txt: texte, ...(st ? { st } : {}), ...plus });
 }
 // « Je vais à la Haie Vive, venez ! » partait tout seul à chaque déplacement : dans la ville publique, la
 // discussion en était noyée et les vrais messages des joueurs s'y perdaient (un testeur, 26/10). Il ne part plus
@@ -536,6 +543,38 @@ function allerVers(x, z, cap, nom) {
   if (Math.hypot(x - S.x, z - S.z) > 12 && gps(x, z, nom)) return;
   S.x = x; S.z = z; S.y = 0; S.cap = cap; S.saut = true; S.geste = 'idle';
 }
+
+// ---------- La grande carte : l'itinéraire, comment y aller, partager sa position (carte-salon.js) ----------
+/** L'itinéraire jusqu'à une destination de la carte, à pied ou au volant ; en route avec quelqu'un, rien à tracer. */
+function tracerVers(D) { return (T.mode === 'pied' || T.mode === 'conduit') && gps(D.x, D.z, D.nom); }
+/** Les boutons de sa fiche : comment y aller, selon qu'on est à pied, au volant ou passager. */
+function moyensVers(D) {
+  const fermer = () => basculerCarte();
+  if (T.mode === 'conduit') return D.route ? [{ texte: 'Y aller', sous: 'Suis la ligne bleue', f: fermer }] : [];
+  if (T.mode === 'ami') { // dans la voiture d'un ami : on lui demande, il reçoit le point avec « Y aller »
+    const A = S.autres.get(S.ami);
+    return [{ texte: `Demander à ${A?.nom || 'ton ami'}`, sous: 'Qu’il t’y emmène', f: () => { dire(`${A ? `${A.nom}, emmène-moi` : 'Emmène-moi'} : ${D.nom} !`, null, { pos: [r2(D.x), r2(D.z)] }); fermer(); } }];
+  }
+  if (T.mode !== 'pied') return [{ texte: 'Termine d’abord ton trajet', desactive: true, f: () => {} }];
+  const out = [], argent = VIE.data?.argent ?? 0;
+  if (D.route) out.push({ texte: 'Y aller à pied', sous: 'Le chemin s’allume au sol', f: fermer });
+  if (D.metres > 150) {
+    const q = D.route && prixZem(S.x, S.z, S.cap, D.x, D.z);
+    if (q) out.push({ texte: 'Prendre un zém', sous: `Environ ${q.prix.toLocaleString('fr-FR')} F, tu négocies`, f: () => { fermer(); negocierZem([D.x, D.z], D.nom); } });
+    out.push({ texte: `Me téléporter · ${TELEPORT} F`, sous: argent < TELEPORT ? 'Tu n’as pas assez d’argent' : 'Tu y es tout de suite', desactive: argent < TELEPORT, f: () => { fermer(); teleporterVers(D); } });
+  }
+  return out;
+}
+/** La téléportation jusqu'à un point de la carte : au bout de l'itinéraire (sur la route, devant), pas dans un mur. */
+async function teleporterVers(D) {
+  const fin = T.gps?.pts?.at(-1), p = fin && Math.hypot(fin[0] - D.x, fin[1] - D.z) < 60 ? fin : pointDeRoute(D.x, D.z, 0, 80) || [D.x, D.z];
+  if (!(await depenser(TELEPORT, `téléportation jusqu’à ${D.nom}`))) { ligne(`Il te faut ${TELEPORT} F pour te téléporter.`); return; }
+  retirerRuban(T.gps?.m); T.gps = null;
+  S.x = p[0]; S.z = p[1]; S.y = 0; S.saut = true; S.geste = 'idle';
+  ligne(`Te voilà : ${D.nom}. −${TELEPORT} F.`);
+}
+/** « Partager ma position » : dans la discussion, avec un bouton « Y aller » chez les autres (sa position dans le jeu, jamais la vraie). */
+function partagerPosition(x, z, ou) { dire(`📍 Je suis ici : ${ou}`, null, { pos: [r2(x), r2(z)] }); }
 
 // ---------- Intérieurs : entrer dans un bâtiment, en sortir ----------
 function dedans(I, parler = true) {
@@ -926,7 +965,7 @@ export function majSalon(dt) {
     const vh = T.mode === 'conduit' ? T.veh.type : T.mode === 'passager' ? 'zem' : T.mode === 'avion' ? 'avion' : T.mode === 'apprenti' ? 'tokpa' : ''; // le véhicule sous soi, pour les amis
     // Son véhicule garé : les autres le voient dans la rue et peuvent s'y installer (« un inconnu ne voit pas ma voiture »).
     const G = T.veh && T.mode !== 'conduit' && T.mode !== 'apprenti' && VEH_GARES.includes(T.veh.type) ? T.veh : null, ex = S.expulse && performance.now() < S.expulse.fin ? [S.expulse.u] : null;
-    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...(T.mode === 'apprenti' ? { ap: 1 } : {}), ...(G ? { gv: [G.type, r2(G.x), r2(G.z), r2(G.cap)] } : {}), ...(ex ? { ex } : {}), ...etatAmis() }, k = JSON.stringify(e);
+    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...(T.mode === 'apprenti' ? { ap: 1 } : {}), ...(G ? { gv: [G.type, r2(G.x), r2(G.z), r2(G.cap)] } : {}), ...(T.veh?.peinture && !T.veh.travail ? { vc: T.veh.peinture } : {}), ...(ex ? { ex } : {}), ...etatAmis() }, k = JSON.stringify(e);
     if (k !== S.dernier || S.depuis > 2.5) { S.dernier = k; S.depuis = 0; S.canal.envoyer(e); }
   }
   // Les autres, lissés entre deux nouvelles.
@@ -944,7 +983,7 @@ export function majSalon(dt) {
     else if (A.avion) { retirerAvion(A.avion); A.avion = null; }
     // Tous les véhicules, ceux qu'on achète aussi : un ami au volant de sa citadine ou de son Roadster marchait à vide
     // au milieu de la route chez les autres.
-    const V = vehiculeDe(A, VEH_AMIS.includes(e.vh) && !(e.i || S.lieu) ? e.vh : null);
+    const V = vehiculeDe(A, VEH_AMIS.includes(e.vh) && !(e.i || S.lieu) ? e.vh : null, PEIGNABLES.includes(e.vh) ? couleurValide(e.vc) : null); // sa peinture : pas sur le zém qu'il a hélé
     if (enAvion) { /* dans l'avion : on ne le voit pas */ }
     else if (V) { V.x = A.x; V.z = A.z; V.cap = A.cap; V.y = typeof e.y === 'number' ? e.y : 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; if (e.ap) assoirApprenti(A.g, V); else asseoirSur(A.g, V, e.vh === 'zem'); } // l'ami apprenti : assis à la porte ouverte du tokpa-tokpa (metiers.js)
     else if (e.sur && A.g && !(e.i || S.lieu)) { // passager d'un ami : assis derrière lui (dans la voiture, on ne le voit pas)
@@ -952,7 +991,7 @@ export function majSalon(dt) {
       if (Vd) asseoirSur(A.g, Vd, true); else { A.g.position.set(A.x, ey, A.z); A.g.rotation.y = A.cap; }
     }
     else if (A.g) { A.g.position.set(A.x, typeof e.y === 'number' ? e.y : 0, A.z); A.g.rotation.y = A.cap; A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? (e.a === 'course' && A.g.userData.peut?.('course') ? 'course' : 'marche') : ANIMS.has(e.a) ? e.a : 'idle'); } // l'ami qui court, court aussi chez soi
-    const G = vehiculeGareDe(A, !S.lieu && Array.isArray(e.gv) && VEH_GARES.includes(e.gv[0]) && e.gv.slice(1, 4).every(Number.isFinite) ? e.gv : null);
+    const G = vehiculeGareDe(A, !S.lieu && Array.isArray(e.gv) && VEH_GARES.includes(e.gv[0]) && e.gv.slice(1, 4).every(Number.isFinite) ? e.gv : null, couleurValide(e.vc));
     if (G) {
       G.g.visible = (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < VU * VU;
       if (!G.etiquette) { G.etiquette = etiquette(ETIQUETTE_GARE[G.type](A.nom)); G.etiquette.position.y = G.D.cache ? 2.2 : 1.7; G.g.add(G.etiquette); }
@@ -1183,17 +1222,19 @@ function helerZem() {
   // Un chemin est déjà tracé : c'est là qu'on veut aller, donc il passe en tête de la liste.
   const vise = T.gps && proches.find(L => { const d = destination(L); return d && Math.hypot(d[0] - T.gps.x, d[1] - T.gps.z) < 25; });
   if (vise) proches.splice(0, 0, ...proches.splice(proches.indexOf(vise), 1));
-  choisir('Zém ! Où vas-tu ?', proches.map(L => ({ texte: L === vise ? `${L[1]} · ta destination` : L[1], f: () => {
-    const d = destination(L); if (!d) return;
-    const q = prixZem(S.x, S.z, S.cap, d[0], d[1]); if (!q) { ligne('Le zém ne connaît pas la route jusque-là.'); return; }
-    if (q.km < .15) { ligne('Tu y es déjà !'); return; }
-    let prix = q.prix; const argent = VIE.data?.argent ?? 0;
-    const proposer = (txt, marchande) => choisir(`${txt} (${q.km.toFixed(1).replace('.', ',')} km)`, [
-      { texte: `D’accord pour ${prix.toLocaleString('fr-FR')} F`, desactive: argent < prix, sous: argent < prix ? 'Tu n’as pas assez d’argent' : '', f: () => appelerZem(d[0], d[1], L[1], prix) },
-      ...(marchande ? [] : [{ texte: 'Marchander', sous: 'Il peut accepter… ou pas', f: () => { if (Math.random() < .55) { prix = Math.max(150, prix - (prix > 500 ? 100 : 50)); proposer(`« Bon, ${prix.toLocaleString('fr-FR')} F, c’est mon dernier prix. »`, true); } else proposer(`« Non non, ${prix.toLocaleString('fr-FR')} F, c’est le prix ! »`, true); } }]),
-    ]);
-    proposer(`« ${L[1]} ? Ça fait ${prix.toLocaleString('fr-FR')} F. »`, false);
-  } })));
+  choisir('Zém ! Où vas-tu ?', proches.map(L => ({ texte: L === vise ? `${L[1]} · ta destination` : L[1], f: () => { const d = destination(L); if (d) negocierZem(d, L[1]); } })));
+}
+/** Le prix du zém jusqu'à (d[0], d[1]), qu'on accepte ou qu'on marchande (« Prendre un zém », et la fiche de la grande carte). */
+function negocierZem(d, nom) {
+  if (T.mode !== 'pied' || S.lieu) { ligne(S.lieu ? 'Sors d’abord pour héler un zém.' : 'Tu es déjà en route.'); return; }
+  const q = prixZem(S.x, S.z, S.cap, d[0], d[1]); if (!q) { ligne('Le zém ne connaît pas la route jusque-là.'); return; }
+  if (q.km < .15) { ligne('Tu y es déjà !'); return; }
+  let prix = q.prix; const argent = VIE.data?.argent ?? 0;
+  const proposer = (txt, marchande) => choisir(`${txt} (${q.km.toFixed(1).replace('.', ',')} km)`, [
+    { texte: `D’accord pour ${prix.toLocaleString('fr-FR')} F`, desactive: argent < prix, sous: argent < prix ? 'Tu n’as pas assez d’argent' : '', f: () => appelerZem(d[0], d[1], nom, prix) },
+    ...(marchande ? [] : [{ texte: 'Marchander', sous: 'Il peut accepter… ou pas', f: () => { if (Math.random() < .55) { prix = Math.max(150, prix - (prix > 500 ? 100 : 50)); proposer(`« Bon, ${prix.toLocaleString('fr-FR')} F, c’est mon dernier prix. »`, true); } else proposer(`« Non non, ${prix.toLocaleString('fr-FR')} F, c’est le prix ! »`, true); } }]),
+  ]);
+  proposer(`« ${nom} ? Ça fait ${prix.toLocaleString('fr-FR')} F. »`, false);
 }
 
 // ---------- Interface ----------
@@ -1258,7 +1299,7 @@ export function initSalon(data) {
   initLancePierre({ S, ligne, choisir }); // le stand de la plage de Fidjrossè (lancepierre.js)
   initFauxFrere({ S, ligne, choisir, bulleDe: (u, t) => { const A = u === S.R?.id ? S : S.autres.get(u); if (A) bulle(A, t); } }); // le maquis de la plage (fauxfrere.js)
   initChapitres({ ligne, guide: () => !$('#slGuide').hidden }); // la prochaine étape, toujours affichée (chapitres.js)
-  initCarteSalon({ S, T, aller, lieux: () => [ // la mini-carte et la grande carte (carte-salon.js) : les lieux, sa maison, ses commerces
+  initCarteSalon({ S, T, tracer: tracerVers, moyens: moyensVers, effacer: () => { retirerRuban(T.gps?.m); T.gps = null; }, partager: partagerPosition, peutPartager: () => !!S.canal, lieux: () => [ // la mini-carte et la grande carte (carte-salon.js) : les lieux, sa maison, ses commerces
     ...LIEUX.filter(L => L[0] !== 'station').map(L => { const d = destination(L); return d && { id: L[0], nom: L[1], x: d[0], z: d[1], type: L[0] === 'maison' ? 'maison' : 'lieu' }; }).filter(Boolean),
     ...lieuxCommerces().map(c => ({ id: c.id, nom: c.nom, x: c.x, z: c.z, type: 'commerce' })),
   ] });
@@ -1313,6 +1354,16 @@ export function initSalon(data) {
       desactive: V.id === a || !ouvertAu(1) || (VIE.data?.argent ?? 0) < V.prix,
       f: () => acheterVehicule(V.id).then(ok => { if (ok) { if (a) reprendreVehicule(); garerSonVehicule(); ligne(`${V.nom} achetée ! Elle t’attend à côté : approche-toi et monte dedans.`); } }),
     })));
+  });
+  // Peindre sa voiture (« je dois pouvoir changer la couleur de ma voiture », Murielle, 28/10) : elle change tout de
+  // suite, garée ou en roulant, et les autres la voient dans la même couleur.
+  $('#vhPeindre')?.addEventListener('click', () => {
+    const type = VIE.data?.vehicule; if (!PEIGNABLES.includes(type)) return;
+    const a = peintureDe(type), nom = type === 'moto' ? 'Ta moto' : 'Ta voiture';
+    choisir(`De quelle couleur peindre ${nom.toLowerCase()} ?`, PEINTURES.map(P => ({
+      texte: P.nom, couleur: P.c || '#a32b26', sous: P.c === a ? 'Sa couleur' : '', desactive: P.c === a,
+      f: () => { peindreSonVehicule(type, P.c); son('piece'); ligne(P.c ? `${nom} est maintenant ${P.nom.toLowerCase()}. Tout le monde la voit comme ça.` : `${nom} a retrouvé sa couleur d’origine.`); },
+    })), { annuler: 'Garder sa couleur' });
   });
   // Louer un logement : on choisit lequel visiter, on y va (à pied, téléporté, en zém ou au volant), on visite, et « Louer »
   // se fait sur place (maison.js). Le logement qu'on a déjà n'est pas proposé.
