@@ -4,8 +4,8 @@ import { initMultijoueur, majMultijoueur } from './multijoueur.js';
 import { construireFeux, majFeuxVille } from './feux.js';
 import { construireTerrePleins, initTerrePleins } from './terre-pleins.js';
 import * as THREE from 'three';
-import { applyMood, sunDir } from './ambiances.js';
-import { $, LITE, reduceMotion } from './base.js';
+import { applyMood, moodCur, sunDir } from './ambiances.js';
+import { $, LITE, SECOURS, reduceMotion } from './base.js';
 import { arreterConseils, conseils, decode, frame, loadTxt, status } from './chargement.js';
 import { surveillerIncidents } from './incidents.js';
 import { envoyerParCarres, preparerGeometries } from './memoire.js';
@@ -21,7 +21,7 @@ import { VEGETATION, animerLieux, construireLieux, portailUAC, prechargerAmazone
 import { COUCHES_SOL, U, camera, controls, renderer, scene, sky, sun } from './scene.js';
 import { buildLamps, buildZems, zemsDetailles, construireTokpas, majTokpas, updateZems } from './trafic.js';
 import { majCirculation } from './circulation.js';
-import { majMondeReel, vueReelleSeule } from './monde-reel.js';
+import { MR, majMondeReel, vueReelleSeule } from './monde-reel.js';
 import { avionsVisibles } from './vol.js';
 import { changerMeteo, majMeteo } from './meteo.js';
 import { majManette } from './manette.js';
@@ -48,10 +48,20 @@ import { initLeger } from './leger.js';
 import { buildBuildings, buildContainers, buildFoam, buildPalms, buildRoads, buildShips, buildSurfaces, buildingMeshes } from './ville.js';
 
 // ---------- Boucle ----------
+// Le rendu soigné (rendu-soigne.js : l'ombre des recoins, les halos), sur ordinateur seulement, une fois la ville montée.
+// Il cède la place au rendu direct en Vue réelle (la 3D de Google passe sous un canevas transparent) et s'arrête de
+// lui-même si l'ordinateur ne suit pas (plus de 45 ms par image pendant 4 s). ?brut : sans lui, pour comparer.
+const Q_RENDU = new URLSearchParams(location.search), SOIGNE = { r: null, voulu: (!LITE && !SECOURS && !Q_RENDU.has('brut')) || Q_RENDU.has('soigne'), force: Q_RENDU.has('soigne'), lent: 0 }; // ?soigne : même sur une machine lente (essais)
+function chargerRenduSoigne() {
+  if (!SOIGNE.voulu || SOIGNE.charge) return; SOIGNE.charge = true;
+  import('./rendu-soigne.js').then(m => { SOIGNE.r = m.creerRenduSoigne(renderer, scene, camera); }).catch(e => { console.warn('rendu soigné', e.message); SOIGNE.voulu = false; });
+}
+if (import.meta.env.DEV) window.__soigne = SOIGNE; // pour les tests
 let W = 1, H = 1;
 function resize() {
   const r = $('#app').getBoundingClientRect(); W = Math.max(1, r.width); H = Math.max(1, r.height);
   renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix();
+  SOIGNE.r?.taille();
 }
 new ResizeObserver(resize).observe($('#app'));
 resize();
@@ -121,13 +131,18 @@ function image(now) {
   majPersonnages(dt);
   const hors = horsDeLaPiece(pieceDuSalon(), camera.position), avant = hors.map(o => o.visible); // dans une pièce : la ville n'est pas dessinée
   for (const o of hors) o.visible = false;
-  renderer.render(scene, camera);
+  if (SOIGNE.r && SOIGNE.voulu && !MR.actif) {
+    SOIGNE.r.rendre(moodCur.night || 0);
+    SOIGNE.lent = dt > .045 ? SOIGNE.lent + dt : Math.max(0, SOIGNE.lent - dt);
+    if (SOIGNE.lent > 4 && !SOIGNE.force) { SOIGNE.voulu = false; console.info('rendu soigné : l’ordinateur ne suit pas, rendu direct'); }
+  } else renderer.render(scene, camera);
   hors.forEach((o, i) => { o.visible = avant[i]; });
   updateLabels(dist, W, H, JEU.actif && JEU.joueur ? JEU.joueur.position : null); // en jeu : les lieux proches du zém, pour se repérer
   if (E.frameN % 6 === 0) updateHud(dist, H);
 }
 function finishRise() {
   E.riseDone = true; U.uRiseT.value = 999;
+  chargerRenduSoigne();
   for (const m of buildingMeshes) m.castShadow = !LITE;
   for (const e of extras) e.visible = true;
 }

@@ -377,7 +377,9 @@
   "Résultats de la recherche": "Search results",
   "Peindre ma voiture": "Paint my car",
   "Fermer la fiche": "Close",
-  "Recharger mon compte": "Top up my account"
+  "Recharger mon compte": "Top up my account",
+  "Fin d’après-midi : soleil bas et doré": "Late afternoon: low, golden sun",
+  "Doré": "Golden"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -2217,7 +2219,8 @@
  "src/interface.js": {
   "'La ville suit l’heure réelle de Cotonou'": "'The city follows the real time in Cotonou'",
   "'Tu as choisi le moment toi-même : touche Jour, Soir ou Nuit pour changer'": "'You picked the moment yourself: tap Day, Evening or Night to change it'",
-  "' · moment choisi'": "' · your choice'"
+  "' · moment choisi'": "' · your choice'",
+  "'Tu as choisi le moment toi-même : touche Jour, Doré, Soir ou Nuit pour changer'": "'You picked the time of day yourself: tap Day, Golden, Evening or Night to change it'"
  },
  "src/defi.js": {
   "'fr-FR'": "'en-US'",

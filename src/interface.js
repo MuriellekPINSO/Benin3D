@@ -108,7 +108,7 @@ suivreLHeure(); setInterval(suivreLHeure, 60000);
 function majEtiquetteHeure() {
   const el = $('#clock'); if (!el) return;
   el.classList.toggle('clock-libre', !heureAutomatique());
-  el.title = heureAutomatique() ? 'La ville suit l’heure réelle de Cotonou' : 'Tu as choisi le moment toi-même : touche Jour, Soir ou Nuit pour changer';
+  el.title = heureAutomatique() ? 'La ville suit l’heure réelle de Cotonou' : 'Tu as choisi le moment toi-même : touche Jour, Doré, Soir ou Nuit pour changer';
 }
 majEtiquetteHeure();
 export const toggle = (id, fn) => { const b = $(id); b.addEventListener('click', () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', String(on)); fn(on); }); };

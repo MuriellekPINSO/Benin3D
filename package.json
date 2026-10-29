@@ -23,6 +23,7 @@
   "dependencies": {
     "@vercel/functions": "^3.10.3",
     "firebase": "^12.19.0",
+    "n8ao": "2.0.1",
     "peerjs": "^1.5.5",
     "three": "0.180.0"
   },
