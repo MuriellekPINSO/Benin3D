@@ -46,6 +46,17 @@ export function partsZem(c = {}) {
 // arrière. Le canard orange de leur logo est peint sur le cadre. Le cycliste est en option : sur un vélo
 // garé il n'y a personne, et celui que le joueur enfourche le montre, lui, avec son propre personnage.
 export const CAI = { cadre: '#f4f6f7', jante: '#0c8fd0', canard: '#f9912b', pneu: '#1c1c1e', acier: '#b9bdc1' };
+/** Le pédalier du vélo qu'on conduit : deux manivelles et leurs pédales, autour de l'axe (repère du vélo, l'avant vers +x).
+ *  La manivelle gauche (côté −z du vélo, la gauche du cycliste) pointe vers +x à l'angle 0 ; on le tourne autour de z. */
+export const PEDALIER = { x: -.02, y: .33, r: .17, z: .12 };
+export function partsPedalier() {
+  const P = [], add = (g, hex) => P.push([g, hex]);
+  for (const k of [1, -1]) { // 1 : gauche (−z), −1 : droite (+z), à l'opposé
+    add(B3(PEDALIER.r, .022, .02).translate(k * PEDALIER.r / 2, 0, -k * .1), CAI.acier);
+    add(B3(.11, .025, .055).translate(k * PEDALIER.r, 0, -k * PEDALIER.z), '#2a2622');
+  }
+  return P;
+}
 export function partsVelo(c = {}) {
   const P = [], add = (g, hex) => P.push([g, hex]);
   const cadre = c.cadre || CAI.cadre, jante = c.jante || CAI.jante;
@@ -68,8 +79,10 @@ export function partsVelo(c = {}) {
   add(C3(.022, .022, .46, 6).rotateX(Math.PI / 2).translate(.45, 1.02, 0), CAI.acier); // guidon relevé
   for (const z of [.23, -.23]) add(C3(.024, .024, .13, 5).rotateZ(Math.PI / 2).translate(.39, 1.02, z), '#2a2622'); // poignées
   add(C3(.09, .09, .03, 10).rotateX(Math.PI / 2).translate(-.02, .33, .06), '#4a4a4c'); // plateau
-  for (const z of [.1, -.1]) add(C3(.016, .016, .34, 5).rotateZ(.5).translate(-.02, .33, z), CAI.acier); // manivelles
-  for (const [x, y, z] of [[.1, .21, .12], [-.12, .5, -.12]]) add(B3(.11, .025, .055).translate(x, y, z), '#2a2622'); // pédales, sous les pieds du cycliste
+  if (c.pedalier !== false) { // le vélo qu'on conduit les a à part, qui tournent sous les pieds (conduite.js, pedalierVelo)
+    for (const z of [.1, -.1]) add(C3(.016, .016, .34, 5).rotateZ(.5).translate(-.02, .33, z), CAI.acier); // manivelles
+    for (const [x, y, z] of [[.1, .21, .12], [-.12, .5, -.12]]) add(B3(.11, .025, .055).translate(x, y, z), '#2a2622'); // pédales, sous les pieds du cycliste
+  }
   add(B3(.3, .025, .22).translate(-.5, .78, 0), CAI.acier); // porte-bagages
   for (const z of [.09, -.09]) tube(-.42, .78, -.55, .36, .015, CAI.acier, z);
   if (c.canard !== false) add(new THREE.SphereGeometry(.055, 7, 5).scale(1.5, 1, .35).translate(.16, .56, .035), CAI.canard); // le canard peint sur le tube diagonal

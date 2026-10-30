@@ -10,7 +10,7 @@ import { dansCirculation } from './trafic.js';
 import { scene } from './scene.js';
 import { plusTard } from './telechargements.js';
 import { TABLIERS, mergeColored, roadLines } from './ville.js';
-import { TOKPA_3D, ZEMS_3D, gabaritDe, matVeh, partsBolide, partsRoadster, partsCitadine, partsTokpa, partsVelo, partsVoiture, partsZem } from './vehicules.js';
+import { PEDALIER, TOKPA_3D, ZEMS_3D, gabaritDe, matVeh, partsBolide, partsPedalier, partsRoadster, partsCitadine, partsTokpa, partsVelo, partsVoiture, partsZem } from './vehicules.js';
 import { chargeurGLB } from './textures.js';
 
 // ---------- Conduire dans la ville (Ma vie, salon entre amis) ----------
@@ -67,7 +67,7 @@ export function creerVehicule(type, { couleur, peinture } = {}) {
   if (type === 'tokpa') { m = TOKPA_3D.geo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(mergeColored(partsTokpa({ passagers: false })), matVeh); m.castShadow = true; } // le minibus de Zém Run (Tripo)
   else if (gabarit) m = gabarit.clone();
   else {
-    dessin = c => mergeColored(type === 'velo' ? partsVelo({}) : type === 'citadine' ? partsCitadine(c || '#c9342c') : type === 'bolide' ? partsBolide(c || '#eceff2') : type === 'roadster' ? partsRoadster(c || '#dfe3e7') : type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : c || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: c, chemise: '#f2c21b' }));
+    dessin = c => mergeColored(type === 'velo' ? partsVelo({ pedalier: false }) : type === 'citadine' ? partsCitadine(c || '#c9342c') : type === 'bolide' ? partsBolide(c || '#eceff2') : type === 'roadster' ? partsRoadster(c || '#dfe3e7') : type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : c || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: c, chemise: '#f2c21b' }));
     m = new THREE.Mesh(dessin(peinture || couleur), matVeh); m.castShadow = true; m.receiveShadow = true; // le vélo est vide : c'est le personnage du joueur qu'on voit dessus
   }
   m.rotation.y = -Math.PI / 2 + (gabarit && MODELES[type] && DEMI_TOUR[type] ? Math.PI : 0); g.add(m); // avant +x → +z
@@ -77,6 +77,8 @@ export function creerVehicule(type, { couleur, peinture } = {}) {
   let anim = null;
   if (type === 'moto' || type === 'zem') { const axe = new THREE.Group(); axe.rotation.y = -Math.PI / 2; g.add(axe); anim = animerMoto(axe, { parent: scene }); }
   const V = { type, D, g, x: 0, z: 0, y: 0, cap: 0, v: 0, km: 0, anim, selle: (gabarit && MODELES[type] && SELLES[type]) || D.selle, modele: m, dessin, couleur, peinture: null };
+  // Le vélo : son pédalier à part, qui tourne sous les pieds du cycliste (trajets.js, asseoirSur ; personnages.js, poserVelo).
+  if (type === 'velo') { V.pedalier = new THREE.Mesh(mergeColored(partsPedalier()), matVeh); V.pedalier.position.set(PEDALIER.x, PEDALIER.y, 0); V.pedalier.castShadow = true; m.add(V.pedalier); }
   if (peinture && gabarit && type !== 'zem') peindre(V, peinture); else V.peinture = peinture || null;
   return V;
 }

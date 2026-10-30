@@ -10,6 +10,7 @@ import { allumerLesPortes, arriveeDehors, comptoirProche, devantChaise, siegePro
 import { payerEtRecevoir, remettre } from './remise.js';
 import { scene } from './scene.js';
 import { porterCasque } from './casque.js';
+import { PEDALIER } from './vehicules.js';
 import { VIE, carburant, consommer, depenser, faireLePlein, manger, reservoir, sauverVie } from './vie.js';
 import { actionsVol, arreterVol, initVol, majAeroports, majVol } from './vol.js';
 import { actionsMetier, chocMetier, enService, initMetiers, majMetiers, quitterMetiers } from './metiers.js';
@@ -441,7 +442,15 @@ export function majTrajets(dt, av, tour) {
 }
 /** Pose un personnage sur la selle (pilote ou passager), ou le cache dans la voiture. */
 // Un tour de pédalier tous les 2,2 m environ : la phase suit la distance, donc les jambes s'arrêtent avec le vélo.
-const phaseVelo = V => V.km * 1000 / 2.2 * Math.PI * 2;
+// Le pédalier fait un tour tous les 2,2 m. L'angle est celui de la manivelle gauche, compté depuis l'avant vers le haut :
+// il décroît, pour que la pédale du haut parte vers l'avant.
+const angleVelo = V => -V.km * 1000 / 2.2 * Math.PI * 2;
+/** Où sont le pédalier et le guidon du vélo, vus du personnage en selle (son repère : l'avant vers +z, la gauche vers +x). */
+function veloSous(V) {
+  const y0 = V.selle[0] - .48, z0 = V.selle[1], a = angleVelo(V);
+  if (V.pedalier) V.pedalier.rotation.z = a;
+  return { a, bb: [0, PEDALIER.y - y0, PEDALIER.x - z0], r: PEDALIER.r, ecart: PEDALIER.z + .01, guidon: [.23, 1.02 - y0, .39 - z0] };
+}
 export function asseoirSur(p, V, passager) {
   if (!p) return;
   const s = siege(V, passager); p.visible = !!s; porterCasque(p, !!s && (V.type === 'moto' || V.type === 'zem')); if (!s) return; // le casque intégral : sur une moto, pas à vélo
@@ -449,7 +458,7 @@ export function asseoirSur(p, V, passager) {
   p.position.set(V.x + v3.x, V.y + v3.y, V.z + v3.z); p.rotation.y = V.cap; p.userData.jouer?.('assis');
   // Au guidon, « assis » ne suffit pas — c'est la pose d'une chaise : bras au guidon, et les jambes qui
   // tournent à vélo ou posées sur les cale-pieds à moto (personnages.js). Le passager, lui, reste assis.
-  p.userData.velo?.(passager || V.D.cache ? null : V.D.pedale ? phaseVelo(V) : 'moto');
+  p.userData.velo?.(passager || V.D.cache ? null : V.D.pedale ? veloSous(V) : 'moto');
 }
 /** Pour les amis : leur véhicule sous eux (créé à la demande), dans la couleur qu'ils lui ont choisie (`vc`). */
 export function vehiculeDe(A, type, vc = null) {

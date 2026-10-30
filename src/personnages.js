@@ -246,8 +246,8 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
     tete: E.tete, main: E.main, femme: M.femme, graine: i, modele: id, haut: 1.15, jouer, peut: nom => !!(actions[nom] || M.clips[nom]), // peut('course') : seuls les modèles des joueurs savent courir
     assise: assise && M.assis?.pieds ? { fesses: M.assis.fesses * ech, pieds: M.assis.pieds * ech, dos: M.assis.dos * ech } : null, // sous le bassin, en mètres (poserAssis)
     maj: dt => { mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); suivre(E); },
-    // `phase` tourne avec les pédales (radians) ; null rend le personnage à son animation.
-    velo: phase => { E.velo = phase; }, // un nombre : la phase du pédalier ; 'moto' : les pieds sur les cale-pieds ; null : rien
+    // null rend le personnage à son animation.
+    velo: v => { E.velo = v; }, // { a, bb, r, ecart, guidon } : à vélo (trajets.js, veloSous) ; 'moto' : les pieds sur les cale-pieds ; null : rien
     anim: (t, parle, signe) => {
       if (assise) return;
       if (signe) jouer('salut');
@@ -262,49 +262,87 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
 
 // ---------- La pose à vélo ----------
 // L'animation « assis » laisse les bras le long du corps et les jambes pendantes : sur un vélo, on a les
-// mains au guidon et les pieds qui tournent. On repose donc quatre paires d'os par-dessus l'animation, à
-// chaque image et APRÈS le mixer — avant, il les réécrivait aussitôt.
-const OS_VELO = ['L_Thigh', 'R_Thigh', 'L_Calf', 'R_Calf', 'L_Upperarm', 'R_Upperarm', 'L_Forearm', 'R_Forearm'];
+// mains au guidon et les pieds qui tournent. On repose donc les os par-dessus l'animation, à chaque image et
+// APRÈS le mixer — avant, il les réécrivait aussitôt.
+const OS_VELO = ['L_Thigh', 'R_Thigh', 'L_Calf', 'R_Calf', 'L_Foot', 'R_Foot', 'L_Upperarm', 'R_Upperarm', 'L_Forearm', 'R_Forearm', 'L_Hand', 'R_Hand', 'Spine01'];
 const vAv = new THREE.Vector3(), vCote = new THREE.Vector3(), vBut = new THREE.Vector3(), vHaut = new THREE.Vector3(0, 1, 0), qTmp = new THREE.Quaternion();
+const iA = new THREE.Vector3(), iB = new THREE.Vector3(), iC = new THREE.Vector3(), iD = new THREE.Vector3(), iK = new THREE.Vector3(), iP = new THREE.Vector3(), iF = new THREE.Vector3();
+const vRacine = new THREE.Vector3(), qRacine = new THREE.Quaternion(), vLoc = new THREE.Vector3(), vPole = new THREE.Vector3();
 /** Oriente un os vers `vBut` (direction, en repère monde). Plutôt que de deviner des angles d'Euler — ce qui
  *  donnait une cycliste les jambes en l'air —, on part de la direction de l'os au repos (vers son premier
  *  enfant) et on calcule la rotation qui l'amène là où on la veut. Marche quel que soit le squelette. */
 function viser(o, x, y, z) {
   if (!o) return;
-  const enfant = o.children.find(c => c.isBone); if (!enfant) return;
+  // L'os suivant du membre, pas un os de torsion (L_ForearmTwist01, posé presque sur l'avant-bras) : l'avant-bras
+  // visait ce petit os au lieu de la main, et la main revenait à l'épaule (bras en l'air, mesuré le 30/10).
+  const enfant = o.userData.suiteVelo ??= o.children.filter(c => c.isBone).sort((m, n) => (/Twist/i.test(m.name) - /Twist/i.test(n.name)) || n.position.length() - m.position.length())[0];
+  if (!enfant) return;
   const repos = o.userData.reposVelo ||= enfant.position.clone().normalize();
   o.parent.getWorldQuaternion(qTmp).invert();
   vBut.set(x, y, z).normalize().applyQuaternion(qTmp);
   o.quaternion.setFromUnitVectors(repos, vBut);
 }
 /**
- * Au guidon. `phase` est l'avancée du pédalier pour un vélo ; 'moto' pour une moto ou un zém, dont le pilote
- * tient le guidon mais garde les pieds sur les cale-pieds. Avant, le pilote d'une moto jouait simplement
- * « assis » — la pose d'une chaise, jambes tendues devant lui : « l'animation du personnage qui conduit n'est
- * pas bien » (Murielle, 25/10).
+ * Deux os d'un membre (cuisse et mollet, bras et avant-bras) : le bout (la cheville, le poignet) va au point `but`
+ * (monde), l'articulation du milieu (le genou, le coude) pliée du côté de `pole`. Les longueurs sont celles du
+ * personnage : un enfant qui n'atteint pas la pédale du bas tend la jambe vers elle.
  */
-function poserVelo(E, phase) {
+function membre(haut, bas, bout, but, pole) {
+  if (!haut || !bas || !bout) return;
+  haut.getWorldPosition(iA); bas.getWorldPosition(iB); bout.getWorldPosition(iC);
+  const l1 = iA.distanceTo(iB), l2 = iB.distanceTo(iC);
+  iD.subVectors(but, iA); let d = iD.length(); if (d < 1e-4 || !l1 || !l2) return; iD.divideScalar(d); d = Math.min(d, (l1 + l2) * .999);
+  const x = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
+  iP.copy(pole).addScaledVector(iD, -pole.dot(iD)); if (iP.lengthSq() < 1e-8) iP.copy(vHaut); iP.normalize();
+  iK.copy(iA).addScaledVector(iD, x).addScaledVector(iP, h); // le genou, le coude
+  viser(haut, iK.x - iA.x, iK.y - iA.y, iK.z - iA.z); haut.updateMatrixWorld(true);
+  bas.getWorldPosition(iB); iF.copy(iA).addScaledVector(iD, d);
+  viser(bas, iF.x - iB.x, iF.y - iB.y, iF.z - iB.z); bas.updateMatrixWorld(true);
+}
+/** Un point donné dans le repère du personnage en selle (l'avant vers +z, la gauche vers +x), en repère monde. */
+const versMonde = (x, y, z, out) => out.set(x, y, z).applyQuaternion(qRacine).add(vRacine);
+/**
+ * Au guidon. Pour un vélo, `velo` dit où sont le pédalier et le guidon sous le personnage (trajets.js, veloSous) et
+ * l'angle des manivelles : chaque pied suit sa pédale, le genou plie vers l'avant, les mains tiennent les poignées, le
+ * buste penché un peu, comme sur un vélo de ville. « L'animation de conduire vélo est bizarre » (Murielle, 30/10) :
+ * avant, les cuisses et les mollets suivaient deux sinus sans rapport avec les pédales, qui ne tournaient pas.
+ * 'moto' : pour une moto ou un zém, dont le pilote tient le guidon mais garde les pieds sur les cale-pieds. Avant, le
+ * pilote d'une moto jouait simplement « assis » — la pose d'une chaise, jambes tendues devant lui : « l'animation du
+ * personnage qui conduit n'est pas bien » (Murielle, 25/10).
+ */
+function poserVelo(E, velo) {
   const os = E.osVelo ||= Object.fromEntries(OS_VELO.map(n => [n, E.corps.getObjectByName(n)]));
   E.g.getWorldDirection(vAv); // l'avant du personnage (+z de son groupe) : il regarde où va le vélo
-  vCote.crossVectors(vAv, vHaut).normalize();
-  const moto = phase === 'moto';
-  for (const c of [1, -1]) { // 1 : la gauche, −1 : la droite
-    const p = c > 0 ? 'L_' : 'R_', t = moto ? 0 : phase + (c > 0 ? 0 : Math.PI); // une jambe pousse pendant que l'autre remonte
-    const a = (kAv, kHaut, kCote = 0) => [vAv.x * kAv + vCote.x * kCote, kHaut, vAv.z * kAv + vCote.z * kCote];
-    // À moto, on ne touche pas aux bras : braqués comme ceux d'un cycliste, ils partaient en l'air sur un
-    // guidon placé autrement (vérifié de profil). L'animation « assis » leur donne une attitude naturelle ;
-    // ce sont les jambes qui étaient fausses, tendues devant comme sur une chaise.
-    if (!moto) {
-      viser(os[p + 'Upperarm'], ...a(.78, -.58, .10 * c)); // l'épaule part vers le guidon
-      viser(os[p + 'Forearm'], ...a(.74, -.62, .04 * c)); // le coude à peine plié
-    }
-    if (moto) { // genou plié, pied posé sur le cale-pied, un peu écarté
+  vCote.crossVectors(vAv, vHaut).normalize(); // sa droite
+  if (velo === 'moto') {
+    // À moto, on ne touche pas aux bras : braqués comme ceux d'un cycliste, ils partaient en l'air sur un guidon placé
+    // autrement (vérifié de profil). L'animation « assis » leur donne une attitude naturelle ; ce sont les jambes qui
+    // étaient fausses, tendues devant comme sur une chaise : genou plié, pied posé sur le cale-pied, un peu écarté.
+    for (const c of [1, -1]) {
+      const p = c > 0 ? 'L_' : 'R_', a = (kAv, kHaut, kCote = 0) => [vAv.x * kAv + vCote.x * kCote, kHaut, vAv.z * kAv + vCote.z * kCote];
       viser(os[p + 'Thigh'], ...a(.34, -.92, .20 * c));
       viser(os[p + 'Calf'], ...a(.04, -.99, .07 * c));
-    } else {
-      viser(os[p + 'Thigh'], ...a(.50 + .22 * Math.sin(t), -.85, .13 * c)); // la cuisse monte et descend
-      viser(os[p + 'Calf'], ...a(.05 + .45 * Math.sin(t + 1), -.95, .05 * c)); // le mollet suit la pédale
     }
+    return;
+  }
+  E.g.updateMatrixWorld(true); E.g.getWorldPosition(vRacine); E.g.getWorldQuaternion(qRacine);
+  // Le buste, penché de 24° vers le guidon : droit, les mains n'arrivaient pas aux poignées.
+  if (os.Spine01) { viser(os.Spine01, vAv.x * .41, .91, vAv.z * .41); os.Spine01.updateMatrixWorld(true); }
+  for (const p of ['L_', 'R_']) {
+    // De quel côté est cette jambe ? On le mesure (le modèle peut être tourné) : +1 à gauche, −1 à droite.
+    const cuisse = os[p + 'Thigh']; if (!cuisse) continue;
+    cuisse.getWorldPosition(vLoc); const s = vLoc.sub(vRacine).dot(vCote) > 0 ? -1 : 1;
+    // La pédale : la manivelle gauche à l'angle a, la droite à l'opposé ; la cheville un peu au-dessus et en arrière de son axe.
+    const a = velo.a + (s > 0 ? 0 : Math.PI), [, by, bz] = velo.bb;
+    versMonde(s * velo.ecart, by + velo.r * Math.sin(a) + .065, bz + velo.r * Math.cos(a) - .04, iC);
+    vPole.copy(vAv).addScaledVector(vCote, -s * .15).addScaledVector(vHaut, .1); // le genou devant, un peu écarté
+    membre(cuisse, os[p + 'Calf'], os[p + 'Foot'], iC.clone(), vPole);
+    viser(os[p + 'Foot'], vAv.x * .95, -.3, vAv.z * .95); // le pied à plat sur la pédale
+    // La main sur sa poignée, le coude plié vers l'extérieur et vers le bas.
+    const [gx, gy, gz] = velo.guidon;
+    versMonde(s * gx, gy, gz, iC);
+    vPole.copy(vCote).multiplyScalar(-s * .6).addScaledVector(vHaut, -.5).addScaledVector(vAv, -.4);
+    membre(os[p + 'Upperarm'], os[p + 'Forearm'], os[p + 'Hand'], iC.clone(), vPole);
   }
 }
 
