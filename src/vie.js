@@ -180,8 +180,8 @@ export async function assurerVie(local, { nom, modele }) {
   }
   payerLoyers(); await versementEchu();
   if (VIE.data.vehiculeFin && Date.now() > VIE.data.vehiculeFin && (VIE.data.vehicule === 'moto' || VIE.data.vehicule === 'velo')) {
-    const velo = VIE.data.vehicule === 'velo'; ecrire({ vehicule: '', carburant: 0, vehiculeFin: 0 });
-    VIE.alerte ||= velo ? 'Ton vélo Caï Caï est rendu : les deux heures sont passées.' : 'Ta location de moto est terminée : tu peux en relouer une.';
+    const velo = VIE.data.vehicule === 'velo', garde = !!VIE.data.garde; ecrire(finLocation());
+    VIE.alerte ||= velo ? `Ton vélo Caï Caï est rendu : les deux heures sont passées.${garde ? ' Ta voiture t’attend.' : ''}` : 'Ta location de moto est terminée : tu peux en relouer une.';
   }
   VIE.faimT = 0; rendreVie();
   return VIE.data;
@@ -256,13 +256,23 @@ export function majVie(dt) {
   VIE.sauveT += dt; if (VIE.sauveT > 30) { VIE.sauveT = 0; sauverVie(); }
 }
 /** Loue un vélo chez Caï Caï Vélo, pour deux heures. */
+// Louer un vélo alors qu'on a sa voiture (ou sa moto) : « je n'arrive pas à louer un vélo Caï Caï » (Murielle, 31/10) —
+// un seul véhicule à la fois, et le bouton n'apparaissait pas. La sienne est mise de côté pendant la location, avec son
+// essence (`garde` : « roadster:7.5 »), et revient quand on rend le vélo ou que les deux heures sont passées.
 export async function louerVelo() {
-  if (!VIE.data || VIE.data.vehicule) return false;
+  if (!VIE.data || VIE.data.vehicule === 'velo') return false;
+  if (vehiculeLoue(VIE.data)) { annonce('Rends d’abord ton véhicule loué.'); return false; }
   if (!(await depenser(LOCATION_VELO, `location d’un vélo Caï Caï (${HEURES_VELO} h)`))) { annonce(`Il te faut ${fmt(LOCATION_VELO)} pour louer un vélo.`); return false; }
-  await ecrire({ vehicule: 'velo', carburant: 0, vehiculeFin: Date.now() + HEURES_VELO * 36e5 }); rendreVie(); return true;
+  const garde = VIE.data.vehicule ? `${VIE.data.vehicule}:${Math.round((VIE.data.carburant || 0) * 100) / 100}` : '';
+  await ecrire({ vehicule: 'velo', carburant: 0, vehiculeFin: Date.now() + HEURES_VELO * 36e5, ...(garde ? { garde } : {}) }); rendreVie(); return true;
+}
+/** La fin d'une location : on retrouve son véhicule mis de côté, s'il y en a un. */
+function finLocation() {
+  const [type, carburant] = String(VIE.data?.garde || '').split(':');
+  return type ? { vehicule: type, carburant: Math.min(10, Math.max(0, Number(carburant) || 0)), vehiculeFin: 0, garde: '' } : { vehicule: '', carburant: 0, vehiculeFin: 0 };
 }
 /** Rend le véhicule loué avant la fin (vélo rapporté au comptoir) : rien n'est remboursé. */
-export async function rendreLocation() { if (!VIE.data?.vehicule) return false; await ecrire({ vehicule: '', carburant: 0, vehiculeFin: 0 }); rendreVie(); return true; }
+export async function rendreLocation() { if (!VIE.data?.vehicule) return false; await ecrire(finLocation()); rendreVie(); return true; }
 /** Loue une moto pour 24 h (réservoir plein). */
 export async function louerMoto() {
   if (!VIE.data || VIE.data.vehicule) return false;

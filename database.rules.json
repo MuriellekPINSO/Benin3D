@@ -75,6 +75,9 @@
         "vehiculeFin": {
           ".validate": "newData.isNumber() && newData.val() >= 0"
         },
+        "garde": {
+          ".validate": "newData.isString() && newData.val().length <= 24"
+        },
         "versement": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
         },

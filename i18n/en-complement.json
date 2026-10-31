@@ -671,7 +671,6 @@
   "'Partir en balade'": "'Start a group ride'",
   "'Rendre le vélo'": "'Return the bike'",
   "'Descends d’abord du vélo.'": "'Get off the bike first.'",
-  "'Vélo rendu. Merci, à bientôt chez Caï Caï !'": "'Bike returned. Thanks, see you at Caï Caï!'",
   "'Quelle balade ?'": "'Which ride?'",
   "'Pas maintenant'": "'Not now'",
   "'Finir la balade'": "'End the ride'",
@@ -862,7 +861,10 @@
   "'Garder sa couleur'": "'Keep its colour'",
   " F : recharger ton compte": " F: top up your account",
   " F la peinture": " F a paint job",
-  "'la peinture'": "'the paint job'"
+  "'la peinture'": "'the paint job'",
+  "Vélo rendu. Merci, à bientôt chez Caï Caï !": "Bike returned. Thanks, see you at Caï Caï!",
+  "' Ta voiture est mise de côté : tu la retrouves en rendant le vélo.'": "' Your car is set aside: you get it back when you return the bike.'",
+  "' Ta voiture est de retour.'": "' Your car is back.'"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -1017,7 +1019,6 @@
   "' Reviens demain, il sera plus gros.'": "' Come back tomorrow, it’ll be bigger.'",
   " jours de suite : cadeau du jour": " days in a row: today’s gift",
   "'Cadeau du jour'": "'Today’s gift'",
-  "'Ton vélo Caï Caï est rendu : les deux heures sont passées.'": "'Your Caï Caï bike is back at the shop: the two hours are up.'",
   "location d’un vélo Caï Caï (": "Caï Caï bike rental (",
   " pour louer un vélo.": " to rent a bike.",
   "'Courte, haute, économe : celle qu’on croise partout'": "'Short, tall, thrifty: the one you see everywhere'",
@@ -1035,7 +1036,9 @@
   " de loyers en retard)": " of overdue rent)",
   " pour emménager": " to move in",
   "'Peindre ma moto'": "'Paint my motorbike'",
-  "'Peindre ma voiture'": "'Paint my car'"
+  "'Peindre ma voiture'": "'Paint my car'",
+  "Ton vélo Caï Caï est rendu : les deux heures sont passées.": "Your Caï Caï bike is back at the shop: the two hours are up.",
+  "' Ta voiture t’attend.'": "' Your car is waiting for you.'"
  },
  "src/trajets.js": {
   "'Ta voiture'": "'Your car'",
@@ -1149,7 +1152,9 @@
   "'Voiture'": "'Car'",
   "'Vélo'": "'Bike'",
   "'Citadine'": "'City car'",
-  "'Bolide électrique'": "'Electric speedster'"
+  "'Bolide électrique'": "'Electric speedster'",
+  "'Ta Roadster'": "'Your Roadster'",
+  "Ton bolide est garé sur la route, à ": "Your sports car is parked on the road, "
  },
  "src/conduite.js": {
   "'zém'": "'zém'",

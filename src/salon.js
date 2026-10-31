@@ -451,17 +451,20 @@ function destination(L) {
 function actionsCaiCai() {
   if (T.mode !== 'pied' || S.lieu || !PRES_DE_CAI(S.x, S.z)) return [];
   if (VIE.data?.vehicule === 'velo') return [...(S.balade ? [] : [{ texte: 'Partir en balade', f: choisirBalade }]), { texte: 'Rendre le vélo', f: rendreVelo }];
-  if (VIE.data?.vehicule) return []; // on a déjà une moto ou une voiture : pas deux véhicules à la fois
-  return [{ texte: `Louer un vélo · ${LOCATION_VELO.toLocaleString('fr-FR')} F`, f: prendreVelo }];
+  if (vehiculeLoue(VIE.data)) return []; // une moto louée : on la rend d'abord (vie.js, louerVelo)
+  return [{ texte: `Louer un vélo · ${LOCATION_VELO.toLocaleString('fr-FR')} F`, f: prendreVelo }]; // sa voiture à soi est mise de côté pendant la location
 }
 async function prendreVelo() {
+  const avait = VIE.data?.vehicule;
   if (!(await louerVelo())) return;
-  garerSonVehicule(POSE_VELO); son('piece');
-  ligne(`Vélo loué pour ${HEURES_VELO} h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ».`);
+  reprendreVehicule(); garerSonVehicule(POSE_VELO); son('piece'); // sa voiture, garée plus loin, est mise de côté
+  ligne(`Vélo loué pour ${HEURES_VELO} h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ».${avait ? ' Ta voiture est mise de côté : tu la retrouves en rendant le vélo.' : ''}`);
 }
 async function rendreVelo() {
   if (!reprendreVehicule()) return ligne('Descends d’abord du vélo.');
-  S.balade = null; await rendreLocation(); ligne('Vélo rendu. Merci, à bientôt chez Caï Caï !');
+  S.balade = null; const garde = !!VIE.data?.garde; await rendreLocation();
+  if (garde) garerSonVehicule(); // sa voiture revient, devant la boutique
+  ligne(`Vélo rendu. Merci, à bientôt chez Caï Caï !${garde ? ' Ta voiture est de retour.' : ''}`);
 }
 // ---------- Les balades en groupe ----------
 // Le meneur annonce chaque étape dans la discussion ; les autres n'ont qu'à cliquer « Y aller ». Rien à

@@ -79,9 +79,10 @@ export function garerSonVehicule(ou = null) {
   const o = S.lieu ? arriveeDehors(S.lieu) : S; // dans un bâtiment (chez soi au réveil) : dans la rue, devant la porte
   const p = ou ? [ou.x, ou.z] : pointDeRoute(o.x + Math.sin(o.cap + Math.PI / 2) * 4, o.z + Math.cos(o.cap + Math.PI / 2) * 4, 0, 150); if (!p) return;
   T.veh = creerVehicule(type, { couleur: couleurPerso(type), peinture: peintureDe(type) }); placer(T.veh, p[0], p[1], ou ? ou.cap : Math.atan2(p[0] - o.x, p[1] - o.z));
-  const nom = type === 'voiture' ? 'Ta voiture' : type === 'velo' ? 'Ton vélo' : type === 'citadine' ? 'Ta citadine' : type === 'bolide' ? 'Ton bolide' : 'Ta moto', e = etiquette(nom); e.position.y = ['voiture', 'citadine', 'bolide'].includes(type) ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
+  // La Roadster s'appelait « Ta moto » (le nom par défaut) ; le bolide est « garé », pas « garée ».
+  const nom = type === 'voiture' ? 'Ta voiture' : type === 'velo' ? 'Ton vélo' : type === 'citadine' ? 'Ta citadine' : type === 'bolide' ? 'Ton bolide' : type === 'roadster' ? 'Ta Roadster' : 'Ta moto', e = etiquette(nom); e.position.y = ['voiture', 'citadine', 'bolide', 'roadster'].includes(type) ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
   const d = Math.round(Math.hypot(p[0] - o.x, p[1] - o.z) / 5) * 5;
-  if (d > 8 && !S.lieu) ligne(type === 'velo' ? `Ton vélo est posé sur la route, à ${d} m : suis l’étiquette jaune.` : `${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
+  if (d > 8 && !S.lieu) ligne(type === 'velo' ? `Ton vélo est posé sur la route, à ${d} m : suis l’étiquette jaune.` : type === 'bolide' ? `Ton bolide est garé sur la route, à ${d} m : suis l’étiquette jaune.` : `${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
 }
 // Étiquette au-dessus de son véhicule, pour le retrouver (cachée quand on est dessus).
 function etiquette(texte) {
