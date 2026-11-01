@@ -941,7 +941,7 @@ button { font: inherit; color: inherit; }
 .sl-ic-touche { display: none; position: absolute; left: -6px; bottom: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; place-items: center; background: var(--ink); color: #fff; font: 800 10px/1 var(--font-body); }
 .manette .sl-ic-touche { display: inline-grid; }
 .vh-tuiles { display: none; }
-.vie-hud.ouvert .vh-tuiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 4px 0 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.vie-hud.ouvert .vh-tuiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 4px 0 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .vh-tuile { position: relative; display: grid; justify-items: center; gap: 6px; border: 0; background: none; padding: 6px 2px 4px; border-radius: var(--r-md); color: var(--ink); font: 700 13px/1.2 var(--font-body); cursor: pointer; }
 .vh-tuile i { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: var(--chip); box-shadow: inset 0 0 0 1px var(--line); transition: transform .12s, background .12s; }
 .vh-tuile svg { width: 25px; height: 25px; }
@@ -1085,7 +1085,7 @@ button { font: inherit; color: inherit; }
 .vh-ic { width: 15px; height: 15px; flex: none; color: var(--ink-2); }
 .vie-hud.ouvert .vh-ic { display: none; }
 .vh-menu-plus, .vh-titre-menu { display: none; }
-.vie-hud.ouvert { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(380px, calc(100vw - 32px)); max-width: none; padding: 18px 20px; gap: 8px; font-size: 14px; z-index: 40; box-shadow: 0 24px 60px rgba(0, 0, 0, .35); }
+.vie-hud.ouvert { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(380px, calc(100vw - 32px)); max-width: none; padding: 18px 20px; gap: 8px; font-size: 14px; z-index: 40; box-shadow: 0 24px 60px rgba(0, 0, 0, .35); max-height: calc(100dvh - 24px); overflow-y: auto; box-sizing: border-box; } /* onze tuiles depuis l'album, le trésor et l'épargne : dans une fenêtre basse, le haut du menu sortait de l'écran */
 .vie-hud.ouvert .vh-titre-menu { display: block; font: 700 11px/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase; }
 .vie-hud.ouvert .vh-menu-plus { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 .vie-hud.ouvert .vh-menu-plus .jouer { flex: 1 1 100%; }
@@ -1239,6 +1239,54 @@ button { font: inherit; color: inherit; }
 .vf-chap li.fait { color: var(--ink); } .vf-chap li.fait::before { content: '✓'; color: #1f8a3a; }
 .vf-chap li.encours { color: var(--ink); background: color-mix(in srgb, #d9a521 18%, var(--panel-solid)); font-weight: 700; } .vf-chap li.encours::before { content: '▸'; color: #9a6b00; }
 .vf-chap li small { color: #9a6b00; font-weight: 700; white-space: nowrap; }
+/* Ma journée (journee.js) : la série, les trois missions, la semaine et son coffre, l'échelle de Cotonou */
+.sl-point.ok { background: #1f8a3a; }
+.jr { display: grid; gap: 12px; }
+.jr-tete { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.jr-tete > span { display: grid; gap: 2px; padding: 10px 12px; border-radius: var(--r-md); background: var(--chip); border: 1px solid var(--line); }
+.jr-tete b { font: 800 22px/1.1 var(--font-display); }
+.jr-tete small { color: var(--ink-2); font-size: 12.5px; }
+.jr-serie { background: color-mix(in srgb, #e2672a 14%, var(--panel-solid)) !important; }
+.jr-serie.eteinte b { filter: grayscale(1); opacity: .6; }
+.jr-rep { background: color-mix(in srgb, #d9a521 16%, var(--panel-solid)) !important; }
+.jr-missions { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.jr-missions li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-md); background: var(--chip); border: 1px solid var(--line); }
+.jr-missions li > span { display: grid; gap: 4px; min-width: 0; }
+.jr-missions li b { font-size: 14px; line-height: 1.35; font-weight: 650; }
+.jr-missions li small { color: var(--ink-2); font-size: 12.5px; }
+.jr-missions li.fait { background: color-mix(in srgb, #1f8a3a 10%, var(--panel-solid)); }
+.jr-missions li.fait b { color: var(--ink-2); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink-2) 50%, transparent); }
+.jr-prime { text-align: right; color: #9a6b00 !important; font-weight: 700; white-space: nowrap; line-height: 1.35; }
+.jr-missions li.fait .jr-prime { color: #1f8a3a !important; }
+.jr-barre { display: block; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink) 10%, transparent); overflow: hidden; }
+.jr-barre::before { content: ''; display: block; width: var(--p, 0%); height: 100%; border-radius: inherit; background: var(--accent); transition: width .4s; }
+.jr-semaine { display: grid; gap: 8px; padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--line); }
+.jr-semaine p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.jr-semaine .jouer { justify-self: start; }
+.jr-jours { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.jr-jours i { display: grid; place-items: center; height: 34px; border-radius: 10px; background: var(--chip); color: var(--ink-2); font: 800 13px/1 var(--font-body); font-style: normal; box-shadow: inset 0 0 0 1px var(--line); }
+.jr-jours i.ok { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+.jr-jours i.auj { box-shadow: inset 0 0 0 2px var(--ink); }
+.jr-jours i.coffre { font-size: 17px; }
+.jr-echelle { display: grid; gap: 6px; padding: 10px 12px; border-radius: var(--r-md); background: var(--chip); border: 1px solid var(--line); }
+.jr-echelle > span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.jr-echelle > span b { font: 800 16px/1.2 var(--font-display); }
+.jr-echelle small { color: var(--ink-2); font-size: 12.5px; line-height: 1.4; }
+.vf-pied > #jrRebours { display: inline; font-size: 13px; color: var(--ink-2); } /* l'heure des nouvelles missions, même sur téléphone (où le bas des fiches cache son texte) */
+/* Le classement (palmares.js) */
+.pm { display: grid; gap: 12px; }
+.pm-onglets { display: flex; gap: 6px; flex-wrap: wrap; }
+.pm-onglet { border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 999px; padding: 9px 14px; min-height: 40px; font: 700 13px/1.2 var(--font-body); cursor: pointer; }
+.pm-onglet[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.pm-liste { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.pm-liste li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--r-md); background: var(--chip); border: 1px solid var(--line); }
+.pm-liste li.moi { background: color-mix(in srgb, #f2b705 22%, var(--panel-solid)); border-color: #d9a521; }
+.pm-liste li > span { display: grid; gap: 1px; min-width: 0; }
+.pm-liste li > span b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-liste li small { color: var(--ink-2); font-size: 12px; }
+.pm-rang { text-align: center; font: 800 15px/1 var(--font-display); }
+.pm-val { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pm-liste li.pm-vide { display: block; color: var(--ink-2); font-size: 13px; line-height: 1.45; background: none; border-style: dashed; }
 @media (max-width: 720px) {
   .vie-fiche[role="dialog"] { place-items: end stretch; padding: 0; }
   .vf-boite { --pad: 14px; width: 100%; max-height: 88vh; border-radius: var(--r-lg) var(--r-lg) 0 0; padding: 16px var(--pad) var(--pad); }
@@ -1696,3 +1744,59 @@ button.ff-ligne:hover { border-color: var(--accent); }
   .ff-face b { font-size: 26px; }
   .ff-messages { max-height: 120px; }
 }
+/* L'album de Cotonou (album.js) : des cartes par page, la photo prise en arrivant */
+.ab { display: grid; gap: 12px; }
+.ab-barre { margin-top: -4px; }
+.ab-page h4 { margin: 4px 0 8px; font: 800 15px/1.2 var(--font-display); display: flex; justify-content: space-between; gap: 8px; }
+.ab-page h4 small { font: 700 12.5px/1.2 var(--font-body); color: var(--ink-2); }
+.ab-cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.ab-carte { display: grid; grid-template-rows: auto 1fr; gap: 0; padding: 0; overflow: hidden; border-radius: 12px; border: 3px solid #fff; background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .18); cursor: pointer; text-align: left; color: #2a2118; font: inherit; }
+.ab-carte img, .ab-carte .ab-ic { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+.ab-carte .ab-ic { display: grid; place-items: center; font-size: 30px; font-style: normal; background: color-mix(in srgb, var(--c) 70%, #fff); }
+.ab-carte b { padding: 5px 6px 6px; font-size: 11.5px; line-height: 1.25; font-weight: 700; }
+.ab-carte.cachee { background: #3b3430; border-color: #3b3430; color: #d8cfc6; box-shadow: none; }
+.ab-carte.cachee .ab-ic { background: repeating-linear-gradient(135deg, #4a423d 0 8px, #433b36 8px 16px); color: #8f857c; font: 800 28px/1 var(--font-display); }
+.ab-carte.cachee b { font-weight: 600; color: #b8aea4; }
+.ab-photo { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 12px; border: 5px solid #fff; box-shadow: 0 2px 8px rgb(0 0 0 / .2); box-sizing: border-box; }
+.ab-photo.vide { display: grid; place-items: center; align-content: center; gap: 6px; background: color-mix(in srgb, var(--c, #8f857c) 60%, #fff); }
+.ab-photo.vide i { font-size: 46px; font-style: normal; }
+.ab-photo.vide small { color: #2a2118; font-size: 12px; }
+.ab-photo.cachee { aspect-ratio: 16 / 6; background: repeating-linear-gradient(135deg, #4a423d 0 10px, #433b36 10px 20px); border-color: #3b3430; color: #8f857c; font: 800 46px/1 var(--font-display); }
+.ab-texte { margin: 0; font-size: 14px; line-height: 1.5; }
+.ab-date { color: var(--ink-2); font-size: 12.5px; }
+/* Le trésor de la semaine (tresor.js) */
+.tz { display: grid; gap: 12px; }
+.tz-indices li.ferme { opacity: .6; }
+.tz-indices li small { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: 11px; }
+.tz-trouve { margin: 0; padding: 10px 12px; border-radius: var(--r-md); background: color-mix(in srgb, #1f8a3a 12%, var(--panel-solid)); font-weight: 700; }
+.tz-primes { margin: 0; font-size: 13px; color: #7a5200; font-weight: 700; }
+.tz-h { margin: 0; font: 800 15px/1.2 var(--font-display); }
+.vf-pied > #tzRebours { display: inline; font-size: 13px; color: var(--ink-2); }
+/* Mon épargne (epargne.js) */
+.ep { display: grid; gap: 12px; }
+.ep-solde { background: color-mix(in srgb, #1f8a3a 12%, var(--panel-solid)) !important; }
+.ep-total { margin: 0; font-size: 13px; color: var(--ink-2); }
+.ep-saisie { display: grid; gap: 8px; }
+.ep-saisie input { width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--chip); color: var(--ink); font: 700 16px/1.2 var(--font-body); }
+.ep-vite { display: flex; flex-wrap: wrap; gap: 6px; }
+.ep-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ep-msg { margin: 0; min-height: 1.4em; font-size: 13.5px; font-weight: 600; }
+/* L'adji (adji.js) : le plateau de bois, sa rangée en bas */
+.ad { display: grid; gap: 10px; }
+.ad-primes { margin: 0; font-size: 13px; color: #7a5200; font-weight: 600; line-height: 1.45; }
+.ad-vide { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+.ad-joueur { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--chip); border: 1px solid var(--line); font-size: 14px; }
+.ad-joueur span { color: var(--ink-2); font-size: 13px; }
+.ad-joueur.actif { background: color-mix(in srgb, #f2b705 22%, var(--panel-solid)); border-color: #d9a521; }
+.ad-plateau { display: grid; gap: 8px; padding: 12px; border-radius: 28px; background: linear-gradient(160deg, #9a5b2e, #6e3c1b 60%, #5a2f14); box-shadow: inset 0 2px 0 rgb(255 255 255 / .18), inset 0 -3px 6px rgb(0 0 0 / .35), 0 4px 12px rgb(0 0 0 / .25); }
+.ad-rang { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.ad-trou { position: relative; aspect-ratio: 1; border-radius: 50%; border: 0; padding: 0; background: radial-gradient(circle at 50% 38%, #3e200d, #2b1608 70%); box-shadow: inset 0 3px 6px rgb(0 0 0 / .6), 0 1px 0 rgb(255 255 255 / .15); cursor: default; overflow: visible; font: inherit; }
+.ad-trou i { position: absolute; width: 18%; aspect-ratio: 1; margin: -9% 0 0 -9%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f4e7c8, #b8a07a 70%); box-shadow: 0 1px 1px rgb(0 0 0 / .5); }
+.ad-trou b { position: absolute; right: -4px; bottom: -4px; min-width: 20px; padding: 1px 5px; border-radius: 999px; background: #f6efe4; color: #3b2412; font: 800 12px/18px var(--font-body); text-align: center; box-shadow: 0 1px 2px rgb(0 0 0 / .35); }
+.ad-trou.jouable { cursor: pointer; box-shadow: inset 0 3px 6px rgb(0 0 0 / .6), 0 0 0 3px #f2b705; }
+.ad-trou.jouable:hover { filter: brightness(1.25); }
+.ad-trou.ici { box-shadow: inset 0 3px 6px rgb(0 0 0 / .6), 0 0 0 3px #fff; }
+.ad-trou.de { box-shadow: inset 0 3px 6px rgb(0 0 0 / .6), 0 0 0 3px rgb(255 255 255 / .45); }
+.ad-trou.prise { box-shadow: inset 0 3px 6px rgb(0 0 0 / .6), 0 0 0 4px #1f8a3a; }
+.ad-etat { margin: 0; font-weight: 700; font-size: 14px; }
+#adAttente:empty { display: none; }

@@ -80,6 +80,8 @@ let X = null; // le salon : { S, T, ligne, choisir, allerVers }
 const CM = { liste: [], charge: false, attente: 0, depotT: 0, enVol: false, sauveT: 0, verifT: 0, lots: new Map(), choix: '', fiche: null, paie: false, etatPaie: null };
 export const nbCommerces = () => CM.liste.length;
 export const commerceDe = id => CM.liste.find(c => c.e === id);
+/** Ce que valent ses commerces, au prix de l'installation : la fortune de l'échelle de Cotonou (echelle.js). */
+export const valeurCommerces = () => CM.liste.reduce((s, c) => s + (TYPES[c.t]?.install || 0), 0);
 const lot = id => EMPLACEMENTS.find(E => E.id === id);
 const jour = () => new Date().toLocaleDateString('fr-CA');
 const vitesse = (c, E = lot(c.e)) => (E?.affluence || 1) * (E?.atout?.[c.t] || 1);

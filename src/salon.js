@@ -21,12 +21,19 @@ import { hauteurSol } from './sols.js';
 import { PEIGNABLES, PEINTURES, PRIX_PEINTURE, actions, appelerZem, asseoir, asseoirSur, choisir, couleurValide, entrerMonde, garerSonVehicule, gps, pointDeRoute, initTrajets, majTrajets, peindreSonVehicule, peintureDe, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe, vehiculeGareDe } from './trajets.js';
 import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
-import { A_VENDRE, LOGEMENTS, acheterVehicule, ouvertAu, vehiculeLoue, alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
+import { A_VENDRE, LOGEMENTS, acheterVehicule, ouvertAu, vehiculeLoue, alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, signaler as signalerVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
 import { assoirApprenti, basculerPause, finirJournee, menuTravail } from './metiers.js';
 import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces, sauverCommerces } from './commerces.js';
 import { majAmbianceSalon } from './ambiance-salon.js';
 import { afficherChapitres, entrerChapitres, initChapitres, majChapitres, quitterChapitres } from './chapitres.js';
+import { entrerJournee, initJournee, majJournee, quitterJournee, serieActuelle, visitesVoulues } from './journee.js';
+import { fortune, rangDe, titreRang } from './echelle.js';
+import { entrerDeco, initDeco, majDeco, quitterDeco, surAllerChezMoi } from './deco.js';
+import { entrerAlbum, initAlbum, majAlbum, quitterAlbum } from './album.js';
+import { entrerTresor, initTresor, majTresor, quitterTresor } from './tresor.js';
+import { entrerEpargne, initEpargne, majEpargne, quitterEpargne } from './epargne.js';
+import { entrerAdji, initAdji, majAdji, quitterAdji } from './adji.js';
 import { basculerCarte, initCarteSalon, majCarteSalon, montrerDestination, quitterCarteSalon } from './carte-salon.js';
 import { ouEstCe, texteOu } from './recherche.js';
 import { TENUES, choixGenre, estFemme, grilleTenues, initGarderobe, modeleActuel, ouvrirGarderobe, prechargerVignettes } from './garderobe.js';
@@ -152,15 +159,30 @@ async function creerAvatar(modele, i) {
 }
 // Son nom en jaune, celui d'un ami venu avec soi (son lien, ou le nôtre) en vert : dans une ville de trente,
 // on le repère d'un coup d'œil.
-function etiquette(texte, moi = false, ami = false) {
-  const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const c = cv.getContext('2d');
-  c.font = '700 30px system-ui, sans-serif'; const w = Math.min(300, c.measureText(texte).width + 44);
-  c.fillStyle = moi ? '#f2b705' : ami ? '#1a7d52' : 'rgba(20, 24, 32, .84)'; c.beginPath(); c.roundRect(160 - w / 2, 8, w, 54, 27); c.fill();
-  c.fillStyle = moi ? '#17130c' : '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(texte, 160, 36);
+// Dessous, en plus petit (`sous`) : son titre à Cotonou et sa série de journées réussies (echelle.js, journee.js), ce que
+// les autres voient de sa réussite, comme sur Lagos Life.
+function etiquette(texte, moi = false, ami = false, sous = '') {
+  const h = sous ? 100 : 72, cv = document.createElement('canvas'); cv.width = 320; cv.height = h; const c = cv.getContext('2d');
+  const NOM = '700 30px system-ui, sans-serif', SOUS = '600 23px system-ui, sans-serif';
+  c.font = NOM; let w = c.measureText(texte).width; if (sous) { c.font = SOUS; w = Math.max(w, c.measureText(sous).width); } w = Math.min(300, w + 44);
+  c.fillStyle = moi ? '#f2b705' : ami ? '#1a7d52' : 'rgba(20, 24, 32, .84)'; c.beginPath(); c.roundRect(160 - w / 2, 8, w, h - 18, 27); c.fill();
+  c.fillStyle = moi ? '#17130c' : '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = NOM; c.fillText(texte, 160, sous ? 33 : 36);
+  if (sous) { c.font = SOUS; c.globalAlpha = .82; c.fillText(sous, 160, 66, 290); c.globalAlpha = 1; }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
   // Taille fixe à l'écran (comme dans les jeux) : lisible de loin, pas envahissant de près ni sur un téléphone en hauteur.
   // Ancrée par le bas (center), juste au-dessus du crâne : centrée à 36 cm, elle flottait loin de la tête vue de près et la couvrait vue de haut.
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); s.scale.set(.145, .033, 1); s.center.set(.5, .05); s.position.y = .08; s.renderOrder = 30; return s;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); s.scale.set(.145, .033 * h / 72, 1); s.center.set(.5, .05 * 72 / h); s.position.y = .08; s.renderOrder = 30; return s;
+}
+const oterEtiquette = s => { if (!s) return; s.parent?.remove(s); s.material.map.dispose(); s.material.dispose(); };
+/** Le titre et la série sous un nom ; rien pour un joueur d'avant ces champs (ti : barreau de l'échelle, sr : série). */
+const sousTitre = (ti, sr, femme) => (typeof ti === 'number' ? `${titreRang(ti, femme)}${sr > 0 ? ` · 🔥${sr | 0}` : ''}` : '');
+function poserMonEtiquette(g) { S.etiqMoi = etiquette(S.nom, true, false, S.sousMoi || ''); g.userData.tete.add(S.etiqMoi); }
+/** Mon titre ou ma série a changé : mon étiquette est redessinée (toutes les deux secondes au plus). */
+function majMonEtiquette(dt) {
+  S.etiqT = (S.etiqT || 0) - dt; if (S.etiqT > 0 || !S.moi) return; S.etiqT = 2;
+  const sous = VIE.data ? sousTitre(rangDe(fortune()), serieActuelle(), VIE.femme) : '';
+  if (sous === (S.sousMoi || '')) return;
+  S.sousMoi = sous; oterEtiquette(S.etiqMoi); poserMonEtiquette(S.moi);
 }
 // Bulle de discussion au-dessus de la tête, six secondes ; un sticker s'y montre tel quel, sans la bulle.
 function bulle(qui, texte, st = null) {
@@ -193,7 +215,7 @@ const elle = A => estFemme(nettoyer(A?.etat?.m, 40) || A?.modele || 'jeune');
 const accord = (A, f, h) => (elle(A) ? f : h);
 /** Un ami : quelqu'un venu par notre lien, ou dont on a suivi le lien ; dans un salon privé, tout le monde. */
 const estAmi = A => !S.public || !!A.ami;
-function majEtiquette(A) { if (!A.g) return; if (A.etiquette) A.g.userData.tete.remove(A.etiquette); A.etiquette = etiquette(A.nom, false, S.public && A.ami); A.g.userData.tete.add(A.etiquette); }
+function majEtiquette(A) { if (!A.g) return; oterEtiquette(A.etiquette); A.etiquette = etiquette(A.nom, false, S.public && A.ami, A.sous || ''); A.g.userData.tete.add(A.etiquette); }
 function surEtat(id, e) {
   let A = S.autres.get(id);
   if (!e) { if (A) { oublier(A); S.autres.delete(id); majListe(); if (A.nom) ligne(S.public ? `${A.nom} a quitté la ville.` : `${A.nom} a quitté le salon.`); } return; }
@@ -218,6 +240,7 @@ function surEtat(id, e) {
     // navigateur en veille) : dès qu'il revient, on propose de le rejoindre.
     if (nouveau && id === S.inviteur && S.actif && !S.aRejoint) { S.aRejoint = true; choisir(`${nom} est en ville`, [{ texte: `Rejoindre ${nom}`, sous: 'Tu arrives juste à côté', f: () => retrouver(A) }], { annuler: 'Plus tard' }); }
   }
+  const sous = sousTitre(e.ti, e.sr, elle(A)); if (sous !== (A.sous || '')) { A.sous = sous; majEtiquette(A); }
   const moi = S.R?.id; if (moi && (e.sur === moi) !== (avant === moi)) ligne(e.sur !== moi ? `${nom} descend.` : T.mode === 'conduit' ? `${nom} monte avec toi : roule, tu l’emmènes.` : `${nom} s’installe dans ${T.veh?.D.cache ? 'ta voiture' : 'ton véhicule'} : prends le volant, tu l’emmènes.`);
   if (e.m !== A.modele && !A.enCours) habiller(A);
 }
@@ -355,6 +378,7 @@ function dire(texte, st = null, plus = null) { // st : l'identifiant d'un sticke
   if (t - (S.dernierMsgT || 0) < 2000) { ligne('Doucement : un message toutes les deux secondes.'); return; }
   S.dernierMsg = texte; S.dernierMsgT = t;
   S.canal.dire({ n: S.nom, txt: texte, ...(st ? { st } : {}), ...plus });
+  signalerVie('message'); // les missions du jour (journee.js)
 }
 // « Je vais à la Haie Vive, venez ! » partait tout seul à chaque déplacement : dans la ville publique, la
 // discussion en était noyée et les vrais messages des joueurs s'y perdaient (un testeur, 26/10). Il ne part plus
@@ -529,6 +553,15 @@ function poser(id, L, p, I) {
   else { const [x, z] = toXZ(p.lat, p.lon); S.x = x + L[3] + (Math.random() - .5) * 4; S.z = z + L[4] + (Math.random() - .5) * 4; S.cap = L[5]; }
   S.saut = true; S.geste = 'idle'; return true;
 }
+// Les lieux que demandent les missions du jour (journee.js) : on y est à moins de 30 m, ou dans son intérieur (la Cité).
+function majVisites(dt) {
+  S.visiteT = (S.visiteT || 0) - dt; if (S.visiteT > 0) return; S.visiteT = .5;
+  for (const id of visitesVoulues()) {
+    const L = LIEUX.find(l => l[0] === id); if (!L) continue;
+    const d = !L[6] && destination(L);
+    if (L[6] ? S.lieu?.id === L[6] : d && Math.hypot(d[0] - S.x, d[1] - S.z) < 30) signalerVie(`visite:${id}`);
+  }
+}
 /** Se téléporter à un lieu contre 200 F : on arrive là où « Aller à » déposerait de toute façon. */
 const TELEPORT = 200;
 async function teleporter(id, L, p, I, nom0, proposer) {
@@ -697,11 +730,15 @@ async function entrerSalon(code, { ami = '', nouveau = false } = {}) {
   bonjourDuJour().then(b => { if (b && S.actif) { ligne(b); son('piece'); } }).catch(() => { });
   for (const m of entrerCommerces()) ligne(m); // ce que les commerces ont vendu pendant l'absence (commerces.js)
   entrerChapitres(); // la prochaine étape (chapitres.js)
+  entrerAlbum(); // les lieux déjà découverts (album.js), avant les missions : l'une d'elles demande une carte nouvelle
+  entrerJournee(); // les trois missions du jour, la série, le coffre du dimanche (journee.js)
+  entrerDeco(); // les objets de sa maison (deco.js)
+  entrerTresor(); entrerEpargne(); entrerAdji(); // le trésor de la semaine (tresor.js), les intérêts de l'épargne (epargne.js), les défis d'adji (adji.js)
   setTimeout(() => { if (S.actif) verifierRecharges(); }, 5000); // une recharge payée pas encore créditée (recharge.js), après le bonjour du jour
   if (personnagesPrets()) chargerDanses();
   const g = await creerAvatar(S.modele, graine(S.canal.id));
   if (!S.actif) { g.userData.liberer?.(); return; }
-  S.moi = g; S.g = g; g.userData.tete.add(etiquette(S.nom, true)); scene.add(g);
+  S.moi = g; S.g = g; poserMonEtiquette(g); scene.add(g);
   entrerMonde(); // son véhicule garé à côté (Fils à papa, moto louée)
   if (!personnagesPrets()) personnagesCharges().then(ok => { // arrivés après nous : le personnage animé remplace le dessiné, le sien et ceux des amis
     if (!ok || !S.actif) return;
@@ -712,19 +749,20 @@ async function entrerSalon(code, { ami = '', nouveau = false } = {}) {
 /** Change de tenue pendant le salon : le nouveau personnage remplace l'ancien, là où il est ; les amis le voient. */
 async function porter(modele, forcer = false) {
   if (!S.actif || modele === S.modele && S.moi && !forcer) return;
+  if (S.moi && modele !== S.modele) signalerVie('tenue'); // une nouvelle tenue : les missions du jour (journee.js)
   S.modele = modele; VIE.femme = estFemme(modele); rendreVie(); try { localStorage.setItem(CLE, JSON.stringify({ nom: S.nom, modele })); } catch { /* navigation privée */ }
   if (VIE.data && VIE.data.modele !== modele) ecrireModele(modele);
   const g = await creerAvatar(modele, graine(S.canal?.id || S.nom));
   if (!S.actif || S.modele !== modele) { g.userData.liberer?.(); return; }
   if (S.moi) { retirerBulle(S); scene.remove(S.moi); S.moi.userData.liberer?.(); }
   g.position.set(S.x, S.y, S.z); g.rotation.y = S.cap; g.visible = S.moi?.visible ?? true;
-  S.moi = S.g = g; g.userData.tete.add(etiquette(S.nom, true)); scene.add(g);
+  S.moi = S.g = g; poserMonEtiquette(g); scene.add(g);
   if (!forcer) ligne('Nouvelle tenue !');
 }
 function quitter() {
   if (!S.actif) return;
   lieuStats('carte');
-  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
+  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterJournee(); quitterDeco(); quitterAlbum(); quitterTresor(); quitterEpargne(); quitterAdji(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
   S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
   for (const A of S.autres.values()) oublier(A); S.autres.clear();
@@ -857,7 +895,7 @@ export function majSalon(dt) {
   const pad = S.pad && performance.now() - S.padT < 250 ? S.pad : null; // manette (voir manette.js), si elle vient de parler : débranchée ou menu ouvert, on n'avance plus
   const av = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
   const tour = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) - (j ? j.x : 0) - (pad ? pad.lx : 0), -1, 1);
-  majVie(dt); majCommerces(dt); majChapitres(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
+  majVie(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
   for (const A of S.autres.values()) { const G = A.garee; if (G?.g.visible && (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < 1600) E.circulation.push({ px: G.x, pz: G.z, cap: G.cap, hl: G.D.long / 2, hw: G.D.larg / 2, v: 0, type: G.type }); } // vidée à chaque image (main.js)
   let suivi = majTrajets(dt, av, tour); // en voiture, à moto, derrière un zém : c'est le véhicule qui bouge
   if (T.mode === 'ami') suivi = majAmi(); // derrière un ami : c'est lui qui conduit
@@ -970,7 +1008,7 @@ export function majSalon(dt) {
     const vh = T.mode === 'conduit' ? T.veh.type : T.mode === 'passager' ? 'zem' : T.mode === 'avion' ? 'avion' : T.mode === 'apprenti' ? 'tokpa' : ''; // le véhicule sous soi, pour les amis
     // Son véhicule garé : les autres le voient dans la rue et peuvent s'y installer (« un inconnu ne voit pas ma voiture »).
     const G = T.veh && T.mode !== 'conduit' && T.mode !== 'apprenti' && VEH_GARES.includes(T.veh.type) ? T.veh : null, ex = S.expulse && performance.now() < S.expulse.fin ? [S.expulse.u] : null;
-    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...(T.mode === 'apprenti' ? { ap: 1 } : {}), ...(G ? { gv: [G.type, r2(G.x), r2(G.z), r2(G.cap)] } : {}), ...(T.veh?.peinture && !T.veh.travail ? { vc: T.veh.peinture } : {}), ...(ex ? { ex } : {}), ...etatAmis() }, k = JSON.stringify(e);
+    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...(T.mode === 'apprenti' ? { ap: 1 } : {}), ...(G ? { gv: [G.type, r2(G.x), r2(G.z), r2(G.cap)] } : {}), ...(T.veh?.peinture && !T.veh.travail ? { vc: T.veh.peinture } : {}), ...(ex ? { ex } : {}), ...(VIE.data ? { ti: rangDe(fortune()), sr: serieActuelle() } : {}), ...etatAmis() }, k = JSON.stringify(e);
     if (k !== S.dernier || S.depuis > 2.5) { S.dernier = k; S.depuis = 0; S.canal.envoyer(e); }
   }
   // Les autres, lissés entre deux nouvelles.
@@ -1306,11 +1344,19 @@ export function initSalon(data) {
   initLancePierre({ S, ligne, choisir }); // le stand de la plage de Fidjrossè (lancepierre.js)
   initFauxFrere({ S, ligne, choisir, dehors, bulleDe: (u, t) => { const A = u === S.R?.id ? S : S.autres.get(u); if (A) bulle(A, t); } }); // le maquis de la plage (fauxfrere.js)
   initChapitres({ ligne, guide: () => !$('#slGuide').hidden }); // la prochaine étape, toujours affichée (chapitres.js)
+  initJournee({ ligne }); // les missions du jour et le classement (journee.js, palmares.js)
+  initDeco({ ligne }); surAllerChezMoi(() => aller('maison', false)); // meubler et décorer son logement (deco.js)
+  // Où est le joueur dans la ville (à pied ou ce qui le porte) ; dans une salle, nulle part : l'album regarde alors la salle.
+  const position = () => { const J = E.joueur; return J ? [J.x, J.z, J === S ? S.y : hauteurSol(J.x, J.z)] : null; }, libre = (x, z) => gene(x, z) <= 0;
+  initAlbum({ ligne, position, salle: () => S.lieu?.id || '', libre }); // l'album de Cotonou (album.js)
+  initTresor({ ligne, position, libre, aPied: () => T.mode === 'pied' && !S.lieu }); // le trésor de la semaine (tresor.js)
+  initEpargne({ ligne }); // l'argent mis de côté (epargne.js)
+  initAdji({ ligne, autres: () => [...S.autres.values()].map(A => ({ id: A.id, nom: A.nom })) }); // l'adji, contre un joueur de la ville ou l'ordinateur (adji.js)
   initCarteSalon({ S, T, tracer: tracerVers, moyens: moyensVers, effacer: () => { retirerRuban(T.gps?.m); T.gps = null; }, partager: partagerPosition, peutPartager: () => !!S.canal, lieux: () => [ // la mini-carte et la grande carte (carte-salon.js) : les lieux, sa maison, ses commerces
     ...LIEUX.filter(L => L[0] !== 'station').map(L => { const d = destination(L); return d && { id: L[0], nom: L[1], x: d[0], z: d[1], type: L[0] === 'maison' ? 'maison' : 'lieu' }; }).filter(Boolean),
     ...lieuxCommerces().map(c => ({ id: c.id, nom: c.nom, x: c.x, z: c.z, type: 'commerce' })),
   ] });
-  if (import.meta.env.DEV) window.__salon = { S, T, VIE, LIEUX, surRoute, profondeurRue, dansBatiment, profondeurInterieur, obstaclesPres, porter, destination, menuAller, garerSonVehicule }; // pour les tests (console, scripts)
+  if (import.meta.env.DEV) window.__salon = { S, T, VIE, LIEUX, surRoute, profondeurRue, dansBatiment, profondeurInterieur, obstaclesPres, porter, destination, menuAller, garerSonVehicule, aller, dehors, gene }; // pour les tests (console, scripts)
   S.local = new URLSearchParams(location.search).has('salon-local');
   prechargerVignettes(); // la fenêtre « Vivre à Cotonou » les montre tout de suite
   // L'appli fermée, le téléphone verrouillé : sur iPhone, rien ne prévient la page qu'on la quitte. On enregistre dès

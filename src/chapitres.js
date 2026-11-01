@@ -2,6 +2,7 @@ import { $ } from './base.js';
 import { son } from './audio.js';
 import { fermerFiche, listeCommerces, nbCommerces } from './commerces.js';
 import { VIE, ecrireEnPlus, gagner, lireEnPlus, surSignal } from './vie.js';
+import { ECHELLE, fortune, rangDe, titreRang } from './echelle.js';
 
 // ---------- Les chapitres de « Ma vie » : toujours une prochaine étape ----------
 // De la débrouille jusqu'à patron de trois commerces, en quatre chapitres. La prochaine étape reste affichée en bas de
@@ -81,18 +82,13 @@ function reussir() {
   CH.fete = 3.2;
   if (finChapitre) CH.ligne(CH.i < ETAPES.length ? `Chapitre ${e.c + 1} terminé : « ${CHAPITRES[e.c].titre} ». Place au chapitre ${e.c + 2} : « ${CHAPITRES[e.c + 1].titre} ».` : 'Tu as fini tous les chapitres : bravo, tu es quelqu’un à Cotonou !');
 }
-// Après les quatre chapitres : des paliers de fortune, chacun avec son titre (un but de long terme, au lieu de « continue »).
-const PALIERS = [[50000, 'Petit patron', 'Petite patronne'], [150000, 'Commerçant reconnu', 'Commerçante reconnue'], [400000, 'Magnat de Dantokpa', 'Magnate de Dantokpa'], [1000000, 'Roi de Cotonou', 'Reine de Cotonou']];
-let palierVu = null; // le palier déjà montré : seul un nouveau palier pendant la partie est annoncé
+// Après les quatre chapitres : les titres de l'échelle de Cotonou (echelle.js), un but de long terme au lieu de « continue ».
+// Le nouveau titre s'annonce dans journee.js, à tout moment de la partie.
 function afficherPaliers() {
-  const argent = VIE.data?.argent || 0, titre = i => PALIERS[i][VIE.femme ? 2 : 1];
-  const atteint = PALIERS.reduce((r, [seuil], i) => (argent >= seuil ? i : r), -1), suivant = PALIERS[atteint + 1];
-  if (palierVu !== null && atteint > palierVu) { CH.ligne(`Nouveau titre : ${titre(atteint)} ! Ta fortune dépasse ${fmt(PALIERS[atteint][0])}.`); son('piece'); }
-  palierVu = atteint;
-  $('#chapTitre').textContent = atteint >= 0 ? titre(atteint) : 'Tous les chapitres terminés'; $('#chapCompte').textContent = '';
-  const bas = atteint >= 0 ? PALIERS[atteint][0] : 0;
-  $('#chapBarre').style.setProperty('--p', `${suivant ? Math.round(Math.min(1, (argent - bas) / (suivant[0] - bas)) * 100) : 100}%`);
-  $('#chapEtape').textContent = suivant ? `Prochain titre : « ${titre(atteint + 1)} » à ${fmt(suivant[0])} (tu as ${fmt(argent)}). Tes commerces travaillent pour toi : ${nbCommerces()} ouvert${nbCommerces() > 1 ? 's' : ''}.` : `Tu es au sommet de Cotonou avec ${fmt(argent)}.`;
+  const f = fortune(), atteint = rangDe(f), suivant = ECHELLE[atteint + 1], bas = ECHELLE[atteint][0];
+  $('#chapTitre').textContent = titreRang(atteint); $('#chapCompte').textContent = '';
+  $('#chapBarre').style.setProperty('--p', `${suivant ? Math.round(Math.min(1, (f - bas) / (suivant[0] - bas)) * 100) : 100}%`);
+  $('#chapEtape').textContent = suivant ? `Prochain titre : « ${titreRang(atteint + 1)} » à ${fmt(suivant[0])} de fortune (tu as ${fmt(f)}). Tes commerces travaillent pour toi : ${nbCommerces()} ouvert${nbCommerces() > 1 ? 's' : ''}.` : `Tu es au sommet de Cotonou avec ${fmt(f)}.`;
   $('#chapPrime').textContent = '';
 }
 /** Une nouvelle étape à lire : la pastille rouge s'allume, tant qu'on n'a pas ouvert la fenêtre. Depuis le menu unique (26/10),

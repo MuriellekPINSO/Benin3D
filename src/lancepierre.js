@@ -8,7 +8,7 @@ import { MAX_DECOR, reduireImage } from './textures.js';
 import { personne } from './discussions.js';
 import { AUDIO, son } from './audio.js';
 import { firebase, joueur } from './firebase.js';
-import { VIE, depenser } from './vie.js';
+import { VIE, depenser, signaler } from './vie.js';
 import { filtrer } from './moderation.js';
 import { SAISIE } from './saisie.js';
 import { moodCur } from './ambiances.js';
@@ -345,7 +345,7 @@ function finir(abandon = false) {
   L.vitrine = creerPartie(jourDe(maintenant()), { vitrine: true }); afficher(L.vitrine);
   X.S.saut = true;
   if (abandon || fin.phase !== 'jeu') { X.ligne(fin.phase === 'tuto' ? 'Entraînement arrêté.' : 'Partie de lance-pierre arrêtée.'); return; }
-  son('arret');
+  son('arret'); signaler('lancePierre'); // une partie jouée jusqu'au bout : les missions du jour (journee.js)
   bilan(fin);
 }
 

@@ -201,7 +201,14 @@ export async function gagner(montant, raison = '', { source = 'travail', silenci
   if (Date.now() - VIE.tArgent < 3100) await new Promise(r => setTimeout(r, 3200 - (Date.now() - VIE.tArgent))); // une dépense entre-temps
   const m = Math.min(5000, montant);
   let ok = await ecrire({ argent: VIE.data.argent + m });
-  if (!ok && !VIE.local) { await new Promise(r => setTimeout(r, 3500)); ok = await ecrire({ argent: VIE.data.argent + m }); } // la base l'a trouvé trop près du précédent : il repasse
+  // La base l'a trouvé trop près du précédent (juste après la création du compte, ou un autre gain) : il reprend une place
+  // dans la file, deux fois au plus. Avant, il repassait 3,5 s plus tard sans regarder la file et pouvait retomber sur un
+  // autre gain : le cadeau du jour d'un nouveau joueur se perdait.
+  for (let essai = 0; !ok && !VIE.local && essai < 2; essai++) {
+    const q = Math.max(Date.now() + 3500, VIE.prochainGain); VIE.prochainGain = q + 3200;
+    await new Promise(r => setTimeout(r, q - Date.now()));
+    ok = await ecrire({ argent: VIE.data.argent + m });
+  }
   if (ok && !silencieux) annonce(`+${fmt(m)}${raison ? ` · ${raison}` : ''}`);
   if (ok) signaler(source, m); // chapitres.js : 'travail', 'commerce'…
   rendreVie(); return ok;
@@ -264,7 +271,7 @@ export async function louerVelo() {
   if (vehiculeLoue(VIE.data)) { annonce('Rends d’abord ton véhicule loué.'); return false; }
   if (!(await depenser(LOCATION_VELO, `location d’un vélo Caï Caï (${HEURES_VELO} h)`))) { annonce(`Il te faut ${fmt(LOCATION_VELO)} pour louer un vélo.`); return false; }
   const garde = VIE.data.vehicule ? `${VIE.data.vehicule}:${Math.round((VIE.data.carburant || 0) * 100) / 100}` : '';
-  await ecrire({ vehicule: 'velo', carburant: 0, vehiculeFin: Date.now() + HEURES_VELO * 36e5, ...(garde ? { garde } : {}) }); rendreVie(); return true;
+  await ecrire({ vehicule: 'velo', carburant: 0, vehiculeFin: Date.now() + HEURES_VELO * 36e5, ...(garde ? { garde } : {}) }); signaler('velo'); rendreVie(); return true;
 }
 /** La fin d'une location : on retrouve son véhicule mis de côté, s'il y en a un. */
 function finLocation() {
@@ -305,7 +312,7 @@ export async function acheterBillet(vers, prix, nom) {
 export const billet = () => VIE.data?.billet || '';
 export const premierVol = () => !(VIE.data?.vols > 0);
 /** Le billet est composté à la montée dans l'avion. */
-export function composterBillet() { if (VIE.data) ecrire({ billet: '', vols: (VIE.data.vols || 0) + 1 }); }
+export function composterBillet() { if (VIE.data) { ecrire({ billet: '', vols: (VIE.data.vols || 0) + 1 }); signaler('vol'); } }
 export function sauverVie() { if (VIE.data) ecrire({ faim: Math.round(VIE.data.faim), carburant: Math.round((VIE.data.carburant || 0) * 100) / 100 }); }
 
 // ---------- Ce qui se passe dans la vie du joueur (chapitres.js compte les étapes) ----------
