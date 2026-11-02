@@ -4,9 +4,9 @@ import { moteurStop, son } from './audio.js';
 import { construireReseau, noeudsPres, relie } from './carrefours.js';
 import { VEHICULES, creerVehicule, itineraire, longueur, placer, pontPres, retirerRuban, retirerVehicule, ruban, suivreChemin, surRoute } from './conduite.js';
 import { PLACES, QUARTIERS } from './donnees-lieux.js';
+import { chemiseZem } from './chemise-zem.js';
 import { personne } from './discussions.js';
 import { JEU } from './jeu.js';
-import { texteToile } from './lieux.js';
 import { remettre } from './remise.js';
 import { dansBatiment, pietonOk } from './rue.js';
 import { renderer, scene } from './scene.js';
@@ -25,7 +25,7 @@ import { actionsVille, arreterVille, demarrerVille, initVille, majVille, mission
 
 const JOUR = 864e5, PLACES_TOKPA = 14, PRIX_TOKPA = 200, PART_APPRENTI = 50;
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
-const W = { id: '', pause: false, patron: false, client: null, attente: 3, n: 0, gilet: null, ligne: null, tk: null, marcheurs: [], dests: [], mission: '' };
+const W = { id: '', pause: false, patron: false, client: null, attente: 3, n: 0, chemise: null, ligne: null, tk: null, marcheurs: [], dests: [], mission: '' };
 let S = null, T = null, X = {}; // salon, trajets et leurs fonctions (ligne, bulle, gps, choisir…)
 export const enService = () => (W.pause ? '' : W.id); // en pause : on n'est plus « en service » (on peut commander au food court)
 
@@ -144,8 +144,8 @@ async function commencer(id) {
       const Vp = T.veh; X.bulle?.(S, `${M.veh === 'moto' ? 'La moto' : 'Le taxi'} du patron : suis la lumière jaune !`);
       if (Vp && Math.hypot(Vp.x - S.x, Vp.z - S.z) > 5) X.gps?.(Vp.x, Vp.z, `${M.veh === 'moto' ? 'la moto' : 'le taxi'} du patron`);
     } else if (!T.veh) X.garerSonVehicule();
-    if (id === 'zem') enfilerGilet();
-    X.ligne(id === 'zem' ? `Tu es zémidjan, gilet n° ${numero()} sur le dos. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux pour discuter le prix.` : 'Tu fais le taxi. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux.');
+    if (id === 'zem') enfilerChemise();
+    X.ligne(id === 'zem' ? `Tu es zémidjan, chemise jaune n° ${numero()} sur le dos. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux pour discuter le prix.` : 'Tu fais le taxi. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux.');
   } else allerGare(id, reprise);
   expliquerMetier(id);
   rendreVie();
@@ -191,9 +191,9 @@ async function finirJournee() {
   } else X.ligne('Journée finie. Bonne soirée !');
   W.id = ''; VIE.service = ''; W.patron = false; rendreVie();
 }
-/** Arrête tout ce que le service a mis en place : clients, passagers, gilet, véhicule du patron, minibus. */
+/** Arrête tout ce que le service a mis en place : clients, passagers, chemise, véhicule du patron, minibus. */
 function arreterService() {
-  arreterVille(); retirerClient(); retirerGilet(); for (const m of W.marcheurs) retirerPerso(m.p); W.marcheurs = [];
+  arreterVille(); retirerClient(); retirerChemise(); for (const m of W.marcheurs) retirerPerso(m.p); W.marcheurs = [];
   const tk = W.tk;
   if (tk) {
     if (T.mode === 'apprenti') pieds(tk.V, -2.4); // côté porte
@@ -241,33 +241,17 @@ function vehiculeDuPatron(type) {
 function descendreDe(V) { V.v = 0; moteurStop(); T.mode = 'pied'; pieds(V, V.D.cache ? 1.6 : 1); }
 function pieds(V, cote) { S.x = V.x + Math.sin(V.cap + Math.PI / 2) * cote; S.z = V.z + Math.cos(V.cap + Math.PI / 2) * cote; S.cap = V.cap; S.y = 0; T.mode = 'pied'; if (S.moi) S.moi.visible = true; }
 
-// ---------- Le gilet jaune numéroté du zémidjan ----------
-// Posé chaque image entre le bas du dos et le cou du personnage (os Spine01 et NeckTwist01) : il suit la pose,
-// debout comme assis sur la moto. Le numéro est celui de Zém Run (menu du jeu).
-function enfilerGilet() {
-  retirerGilet(); const p = S.moi, bas = p?.getObjectByName?.('Spine01'), haut = p?.getObjectByName?.('NeckTwist01'); if (!bas || !haut) return;
-  // La chasuble jaune des zémidjans : plus étroite aux épaules, deux bretelles, le numéro derrière et devant.
-  const jaune = new THREE.MeshLambertMaterial({ color: '#f2c21b', side: THREE.DoubleSide }), g = new THREE.Group(), corps = new THREE.Mesh(new THREE.CylinderGeometry(.4, .5, 1, 20, 1, true), jaune);
-  for (const s of [-1, 1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(.16, .07, 1.02), jaune); b.position.set(s * .25, .5, 0); corps.add(b); } // bretelles, par-dessus les épaules
-  const ourlet = new THREE.Mesh(new THREE.CylinderGeometry(.505, .505, .07, 20, 1, true), new THREE.MeshLambertMaterial({ color: '#1d5a2e', side: THREE.DoubleSide })); ourlet.position.y = -.47; corps.add(ourlet); // bande verte du bas
-  const num = texteToile([numero()], 256, 160, '#f2c21b', '#1d5a2e', '900 120px system-ui, sans-serif');
-  const dos = new THREE.Mesh(new THREE.PlaneGeometry(1, .62), new THREE.MeshBasicMaterial({ map: num })), face = new THREE.Mesh(new THREE.PlaneGeometry(1, .62), new THREE.MeshBasicMaterial({ map: num }));
-  dos.rotation.y = Math.PI; g.add(corps, dos, face); scene.add(g);
-  W.gilet = { p, g, corps, dos, face, bas, haut, a: new THREE.Vector3(), b: new THREE.Vector3(), q: new THREE.Quaternion(), qy: new THREE.Quaternion() };
+// ---------- La chemise jaune numérotée du zémidjan ----------
+// Taillée dans le corps du personnage (chemise-zem.js) et liée à son squelette : elle suit la pose, debout comme assis sur
+// la moto. Le numéro est celui de Zém Run (menu du jeu).
+function enfilerChemise() {
+  retirerChemise(); const p = S.moi; let corps = null; p?.traverse?.(o => { if (o.isSkinnedMesh && !corps && o.name !== 'chemise-zem') corps = o; });
+  const C = chemiseZem(corps, numero()); if (!C) return;
+  for (const m of C.morceaux) corps.parent.add(m);
+  W.chemise = { p, ...C };
 }
-function retirerGilet() { if (W.gilet) { scene.remove(W.gilet.g); W.gilet.g.traverse(o => o.geometry?.dispose()); W.gilet.dos.material.map?.dispose(); W.gilet = null; } }
-const HAUT = new THREE.Vector3(0, 1, 0);
-function majGilet() {
-  const G = W.gilet; if (!G) return;
-  if (G.p !== S.moi) { enfilerGilet(); return; } // il vient de changer de tenue : on lui remet son gilet
-  G.g.visible = !!S.moi?.visible; if (!G.g.visible) return;
-  G.bas.getWorldPosition(G.a); G.haut.getWorldPosition(G.b);
-  const d = G.a.distanceTo(G.b) || .4, w = d * 1.2;
-  G.g.position.copy(G.a).lerp(G.b, .46);
-  G.q.setFromUnitVectors(HAUT, G.b.clone().sub(G.a).normalize()); G.qy.setFromAxisAngle(HAUT, S.moi.rotation.y); G.g.quaternion.copy(G.q).multiply(G.qy);
-  G.corps.scale.set(w, d * 1.3, w * .7); G.dos.scale.setScalar(w * .62); G.dos.position.set(0, d * .1, -w * .35 - .012);
-  G.face.scale.setScalar(w * .42); G.face.position.set(0, -d * .05, w * .33 + .012); // devant, plus petit
-}
+function retirerChemise() { if (W.chemise) { for (const m of W.chemise.morceaux) m.removeFromParent(); W.chemise.liberer(); W.chemise = null; } }
+function majChemise() { if (W.chemise && W.chemise.p !== S.moi) enfilerChemise(); } // il vient de changer de tenue : on lui remet sa chemise
 
 // ---------- Zémidjan et taxi : les clients ----------
 const PHRASES_CLIENT = ['Il fait chaud aujourd’hui !', 'Doucement aux carrefours, hein.', 'Tu connais bien le chemin ?', 'On arrive bientôt ?', 'Tu supportes quelle équipe ?', 'Cotonou a changé, dis donc.'];
@@ -756,7 +740,7 @@ export function actionsMetier() {
 /** À chaque image du salon. En apprenti, renvoie ce que la caméra suit (le minibus). */
 export function majMetiers(dt) {
   if (!W.id) return null;
-  majGilet(); majMarcheurs(dt);
+  majChemise(); majMarcheurs(dt);
   if (T.veh?.balise) T.veh.balise.visible = T.mode !== 'conduit'; // la colonne de lumière s'éteint quand on est dessus
   if (W.pause) { // rien n'avance au poste
     W.mission = `${METIERS[W.id].entreprise || nomMetier(METIERS[W.id])} · en pause`; // « Moov · en pause » : le titre (superviseure…) reste dans « Ma vie »

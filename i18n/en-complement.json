@@ -1266,7 +1266,6 @@
   " du patron t’attend sur la route, à côté de toi (étiquette jaune). ": " from your boss is waiting on the road next to you (yellow label). ",
   "'Ta journée continue.'": "'Your day goes on.'",
   "Ce soir, tu lui dois ": "Tonight you owe him ",
-  "Tu es zémidjan, gilet n° ": "You’re a zémidjan, vest no. ",
   " sur le dos. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux pour discuter le prix.": " on your back. Drive around: customers wave at you from the roadside. Stop next to them to agree on the fare.",
   "'Tu fais le taxi. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux.'": "'You’re driving a taxi. Drive around: customers wave at you from the roadside. Stop next to them.'",
   "'versement au patron'": "'payment to the boss'",
@@ -1440,7 +1439,8 @@
   "'Tu sors pour aller travailler.'": "'You head out to work.'",
   " du patron t’attend sur la route, sous la colonne de lumière jaune. ": " from your boss is waiting on the road, under the yellow column of light. ",
   " du patron : suis la lumière jaune !": " from your boss: follow the yellow light!",
-  "'C’est la pause ! Va manger : le food court de la Cité (« Aller »), un maquis, ou chez toi. Puis « Reprendre le travail ».'": "'Break time! Go and eat: the Cité food court (“Go”), a maquis, or at home. Then “Back to work”.'"
+  "'C’est la pause ! Va manger : le food court de la Cité (« Aller »), un maquis, ou chez toi. Puis « Reprendre le travail ».'": "'Break time! Go and eat: the Cité food court (“Go”), a maquis, or at home. Then “Back to work”.'",
+  "Tu es zémidjan, chemise jaune n° ": "You’re a zémidjan, yellow shirt no. "
  },
  "src/metiers-ville.js": {
   "'fr-FR'": "'en-US'",
