@@ -261,6 +261,13 @@ export function majVie(dt) {
     if (v.faim <= 0) annonce('Tu as trop faim : tu marches au ralenti tant que tu n’as pas mangé.');
   }
   VIE.sauveT += dt; if (VIE.sauveT > 30) { VIE.sauveT = 0; sauverVie(); }
+  majHeure();
+}
+// L'heure de Cotonou à côté de l'argent (« affiche l'heure dedans », Murielle, 01/11) : celle du ciel et des
+// journées du jeu, qui changent à 20 h. Le texte n'est réécrit que quand la minute change.
+function majHeure() {
+  const h = new Date(Date.now() + 36e5).toISOString().slice(11, 16); if (h === VIE.heure) return;
+  VIE.heure = h; const el = $('#vhHeure'); if (el) el.textContent = h;
 }
 /** Loue un vélo chez Caï Caï Vélo, pour deux heures. */
 // Louer un vélo alors qu'on a sa voiture (ou sa moto) : « je n'arrive pas à louer un vélo Caï Caï » (Murielle, 31/10) —

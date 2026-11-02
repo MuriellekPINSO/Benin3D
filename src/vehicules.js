@@ -349,7 +349,11 @@ export function chargerTrafic() {
     const url = f => import.meta.env.BASE_URL + 'modeles/trafic/' + f;
     try {
       const [voiture, taxi, moto, loin] = await Promise.all(['voiture.glb', 'taxi.glb', 'moto.glb', 'moto-loin.glb'].map(f => chargeur.loadAsync(url(f)).then(g => g.scene)));
-      const V = geometrieDe(gabaritDe(voiture, { largeur: 4.3 })), T = geometrieDe(gabaritDe(taxi, { largeur: 4.3 }));
+      // Le redressement aligne l'axe long sans savoir où est l'avant (comme DEMI_TOUR dans conduite.js) : la voiture
+      // finissait les phares vers −x et roulait en marche arrière (« les voitures roulent à l'envers », Murielle, 01/11).
+      // Vérifié modèle par modèle, vus de flanc : seule la voiture est à retourner ; taxi, motos et tokpa sont à l'endroit.
+      const gv = gabaritDe(voiture, { largeur: 4.3 }); gv.rotation.y = Math.PI;
+      const V = geometrieDe(gv), T = geometrieDe(gabaritDe(taxi, { largeur: 4.3 }));
       const M = geometrieDe(gabaritDe(moto, { largeur: 1.95 })), L = geometrieDe(gabaritDe(loin, { largeur: 1.95 }));
       TRAFIC_3D.voitures = CARROSSERIES.map(h => ({ geo: V.geo, mat: matTrafic(h ? repeindre(V.mat.map, rouge, h, 330) : V.mat.map) }));
       TRAFIC_3D.taxi = { geo: T.geo, mat: matTrafic(T.mat.map) };

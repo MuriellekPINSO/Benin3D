@@ -386,7 +386,8 @@
   "Ma maison": "My home",
   "Trésor": "Treasure",
   "Épargne": "Savings",
-  "Adji": "Adji"
+  "Adji": "Adji",
+  "L’heure à Cotonou : la journée du jeu change à 20 h": "The time in Cotonou: the game day changes at 8 pm"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
