@@ -12,6 +12,7 @@ import { scene } from './scene.js';
 import { porterCasque } from './casque.js';
 import { PEDALIER } from './vehicules.js';
 import { VIE, carburant, consommer, depenser, faireLePlein, manger, reservoir, sauverVie } from './vie.js';
+import { actionsNuit, arreterNuit, initNuit, majNuit } from './nuit.js';
 import { actionsVol, arreterVol, initVol, majAeroports, majVol } from './vol.js';
 import { actionsMetier, chocMetier, enService, initMetiers, majMetiers, quitterMetiers } from './metiers.js';
 // Le nom du véhicule sur le compteur (des mots, traduits en anglais ; V.type reste le code).
@@ -30,7 +31,7 @@ const v3 = new THREE.Vector3();
 let S = null, ligne = () => { }, bulleLocale = null;
 
 export function initTrajets(data, ctx) {
-  initStations(data.L.stations); S = ctx.S; ligne = ctx.ligne; bulleLocale = ctx.bulle; initVol(data, { ...ctx, T });
+  initStations(data.L.stations); S = ctx.S; ligne = ctx.ligne; bulleLocale = ctx.bulle; initVol(data, { ...ctx, T }); initNuit({ ...ctx, T, astuce });
   initMetiers(data, { ...ctx, T, gps, choisir, asseoirSur, garerSonVehicule, etiquette }); // zém, taxi, tokpa-tokpa (metiers.js)
   allumerLesPortes(); // toutes les portes sont déclarées : on pose l'ampoule du soir au-dessus de chacune
 }
@@ -93,7 +94,7 @@ function etiquette(texte) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); sp.scale.set(.145, .033, 1); sp.renderOrder = 30; return sp;
 }
 export function quitterMonde() {
-  quitterMetiers(); arreterVol(); moteurStop(); S.moi?.userData.velo?.(null); retirerVehicule(T.veh); T.veh = null; if (T.zem) retirerVehicule(T.zem.V); T.zem = null;
+  quitterMetiers(); arreterVol(); arreterNuit(); moteurStop(); S.moi?.userData.velo?.(null); retirerVehicule(T.veh); T.veh = null; if (T.zem) retirerVehicule(T.zem.V); T.zem = null;
   retirerRuban(T.gps?.m); T.gps = null; jeterPlat(); T.repas = null; T.trans = null; T.mode = 'pied';
   if (S?.moi) S.moi.visible = true;
   cacherAide();
@@ -144,6 +145,7 @@ export function actions() {
   if (V && !S.lieu && Math.hypot(V.x - S.x, V.z - S.z) < (V.type === 'tokpa' ? 4.8 : 3.2)) out.push({ texte: `Monter ${V.D.cache ? 'dans' : 'sur'} ${nomDe(V)[0]}`, f: monter });
   if (S.lieu && !['serveur', 'cuisinier'].includes(enService())) { const c = comptoirProche(S.lieu, S.x, S.z); if (c && !T.plat) out.push({ texte: `Commander · ${c.nom}`, f: () => commander(c) }); } // en service au food court, on ne commande pas
   out.push(...actionsVol()); // billetterie, porte d'embarquement, monter dans l'avion
+  out.push(...actionsNuit()); // après la remise des prix : aller voir le DJ ; devant sa scène : lancer le son
   return out;
 }
 
@@ -447,7 +449,7 @@ export function choisir(titre, options, { annuler = 'Annuler', puis = null } = {
  * caméra { x, y, z, cap, dist, haut }.
  */
 export function majTrajets(dt, av, tour) {
-  majStations(S.x, S.z); majZem(dt); majRepas(dt); majAeroports();
+  majStations(S.x, S.z); majZem(dt); majRepas(dt); majAeroports(); majNuit(dt); // La Nuit Kutɔnu Vibes : la remise des prix au Dôme, le DJ de l'Amazone (nuit.js)
   const metier = majMetiers(dt); // apprenti de tokpa-tokpa : la caméra suit le minibus
   if (T.plat && !T.repas && S.anim === 'assis') { // l'assiette arrive alors qu'on est déjà assis (à une table, ou sur son tabouret dans la rue)
     const c = S.lieu ? siegeProche(S.lieu, S.x, S.z) : S.tabouret && { x: S.tabouret.x, z: S.tabouret.z, cap: S.cap };

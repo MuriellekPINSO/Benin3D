@@ -26,7 +26,10 @@ export function creerRenduSoigne(renderer, scene, camera) {
   const taille = () => { composer.setPixelRatio(renderer.getPixelRatio()); const s = renderer.getSize(new THREE.Vector2()); composer.setSize(s.x, s.y); };
   taille();
   /** `nuit` : 0 le jour, 1 la nuit (ambiances.js) ; la nuit, les lumières font des halos plus francs. */
+  // Dans la cabine du jet (caméra à 10 cm : vol.js), un rayon de 3 m assombrissait tout, en taches : on le réduit.
+  let proche = false;
   const rendre = nuit => {
+    if (proche !== camera.near < .2) { proche = !proche; Object.assign(ao.configuration, proche ? { aoRadius: .35, distanceFalloff: .3, intensity: 1.6 } : { aoRadius: 3, distanceFalloff: 1.2, intensity: 3.2 }); }
     halo.threshold = THREE.MathUtils.lerp(3.2, .8, nuit); halo.strength = THREE.MathUtils.lerp(.18, .5, nuit);
     composer.render();
   };

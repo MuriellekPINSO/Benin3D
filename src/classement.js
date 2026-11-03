@@ -73,6 +73,11 @@ export async function envoyerScore(ligne, s) {
 }
 /** Les records gardés dans ce navigateur (faits avant le classement, ou hors ligne) partent au classement. */
 export async function synchroniser(meilleurs) { for (const [l, s] of Object.entries(meilleurs || {})) await envoyerScore(l, s); }
+/** Le meilleur score de Zém Run de la semaine (remise des prix, nuit.js) : { n, s } ou null. Jamais le classement d'essai. */
+export async function premierZemRun() {
+  if (LOCAL) return null;
+  return (await lireLigne('score', depuis('semaine'))).filter(e => e.s > 0).sort((a, b) => b.s - a.s || (a.t || 0) - (b.t || 0))[0] || null;
+}
 /** Sa place sur une ligne : { rang (null au-delà des 50 premiers), nb (joueurs lus), liste }. */
 export async function place(ligne) {
   const liste = (await lireLigne(ligne, depuis(C.periode))).filter(e => e.s > 0).sort((a, b) => b.s - a.s || (a.t || 0) - (b.t || 0)).slice(0, TOP), id = await moi();

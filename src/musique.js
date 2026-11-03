@@ -15,6 +15,10 @@ const AMB = {
   plage:  { bpm: 96, gamme: [0, 2, 4, 7, 9], tonique: 233, kick: '1000000010000000', shaker: '0101010101010101', cloche: '0000100000001000', basse: [0, null, null, 4, null, null, 3, null], lead: 'sine', densite: .25, pad: true },
   calavi: { bpm: 116, gamme: [0, 2, 4, 5, 7, 9], tonique: 208, kick: '1000100010001000', shaker: '0010001000100010', cloche: '1010110101101010', basse: [0, null, 2, null, 4, null, 5, null], lead: 'triangle', densite: .4, pad: false },
   concert: { bpm: 118, gamme: [0, 2, 3, 5, 7, 10], tonique: 196, kick: '1000100010001000', shaker: '0110011101100111', cloche: '1001010010010100', basse: [0, null, 0, 3, null, 5, null, 3], lead: 'square', densite: .5, pad: true },
+  // Les sons du DJ de La Nuit Kutɔnu Vibes, à l'Amazone (nuit.js) : trois styles qui font danser Cotonou, joués par le jeu.
+  afrobeat: { bpm: 104, gamme: [0, 3, 5, 7, 10], tonique: 220, kick: '1000001010000010', shaker: '1011101110111011', cloche: '1010010100100101', basse: [0, null, 3, null, null, 5, 3, null], lead: 'triangle', densite: .38, pad: true },
+  coupe: { bpm: 128, gamme: [0, 2, 4, 7, 9], tonique: 247, kick: '1000100010001000', shaker: '0010001000100010', cloche: '1101101011011010', basse: [0, 0, null, 4, null, 4, 3, null], lead: 'square', densite: .45, pad: false },
+  amapiano: { bpm: 112, gamme: [0, 2, 3, 5, 7, 8, 10], tonique: 174, kick: '1000000010000000', shaker: '0101010101010101', cloche: '0000001000000100', tom: '0010000100100010', basse: [0, null, null, 3, null, null, 5, null], lead: 'sine', densite: .3, pad: true },
   ouidah: { bpm: 100, gamme: [0, 3, 5, 7, 10], tonique: 165, kick: '1001001010010010', shaker: '0000000000000000', cloche: '1010110101101010', basse: [0, null, null, null, null, null, null, null], lead: null, densite: 0, pad: false, tom: '0010010001001001' },
 };
 const ZONES = [

@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { toXZ } from './base.js';
 import { fresque, kobra } from './fresques.js';
+import { declarerDome } from './dome-interieur.js';
 import { porteFoodCourt } from './interieurs.js';
-import { K, bake, barrieres, centroide, groupeLieu, mursPoly, obb, ruban, solPoly } from './lieux.js';
+import { K, bake, barrieres, centroide, groupeLieu, mursPoly, obb, panneauTexte, ruban, solPoly } from './lieux.js';
 import { ajouterEmprise, ajouterZoneLibre } from './rue.js';
 import { reduireImage } from './textures.js';
 
@@ -295,9 +296,17 @@ function dome() {
     for (let i = 0; i < 10; i++) K.drapeauBenin(ux * 42 + (-uz) * (i - 4.5) * 5, uz * 42 + ux * (i - 4.5) * 5, 8);
     // Guirlandes de lumière le long des pentes.
     if (dessine) for (let i = 0; i < 14; i++) pente(i / 14 * Math.PI * 2 + .2, 24.5, .3, 2.9, 22, .14, K.mat('#fff3d6', { emissif: '#a8874a' })).castShadow = false;
+    // L'entrée de la grande salle (dome-interieur.js) : portes vitrées au pied du cône, côté boulevard.
+    const pr = PORTE_DOME, rot = Math.atan2(ux, uz);
+    const portes = K.boite(4.2, 3, .15, K.mat('#2c4a57', { rugosite: .15, metal: .2 }), ux * pr, 1.5, uz * pr); portes.rotation.y = rot;
+    const auvent = K.boite(6.5, .3, 2.6, '#f2efe8', ux * (pr + 1), 3.35, uz * (pr + 1)); auvent.rotation.y = rot;
+    panneauTexte(['LE DÔME'], 3.6, .7, ux * (pr + .2), 3.95, uz * (pr + .2), rot, { fond: '#1d1a16', encre: '#e6c77a', px: 1024, py: 199, police: '400 130px Georgia, "Times New Roman", serif' });
   });
   bake(g);
+  const cap = 25 * Math.PI / 180, ux = Math.sin(cap), uz = -Math.cos(cap);
+  declarerDome([x + ux * (PORTE_DOME + 2), z + uz * (PORTE_DOME + 2)], Math.atan2(ux, uz));
 }
+const PORTE_DOME = 24.6; // rayon du pied du cône, côté boulevard
 
 // ---------- Le Pavillon : ailettes bronze en vague, verrière bleue courbe ----------
 function pavillon() {

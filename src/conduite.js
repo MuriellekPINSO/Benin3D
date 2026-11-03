@@ -24,7 +24,7 @@ import { chargeurGLB } from './textures.js';
 // baisser en roulant, mais assez de kilomètres par litre pour qu'une course de zém ou de taxi rapporte plus que
 // l'essence qu'elle coûte (metiers.js).
 export const VEHICULES = {
-  moto: { nom: 'moto', long: 2, larg: .8, vmax: 22, accel: 5.5, frein: 9, recul: 2.5, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.62 },
+  moto: { nom: 'moto', long: 2, larg: .8, vmax: 22, accel: 5.5, frein: 9, recul: 2.5, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.8 }, // le passager au fond de la selle, derrière la pilote reculée (03/11)
   voiture: { nom: 'voiture', long: 4.4, larg: 1.8, vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
   taxi: { nom: 'taxi', long: 4.3, larg: 1.8, vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
   tokpa: { nom: 'tokpa-tokpa', long: 5, larg: 1.9, vmax: 20, accel: 3.8, frein: 7.5, recul: 2.5, braquage: 1.05, reservoir: 10, kmParLitre: 4, cache: true }, // l'apprenti se tient à la porte latérale, à droite (metiers.js)
@@ -50,7 +50,9 @@ const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote aut
 const MODELES = { voiture: null, moto: null, taxi: null };
 const LONGUEURS = { voiture: 4.4, moto: 2, taxi: 4.3 };
 const DEMI_TOUR = { voiture: true, moto: true, taxi: false }; // le redressement aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu (phare devant)
-const SELLES = { moto: [.86, -.27] }; // selle du modèle Tripo, mesurée : dessus à 0,78 m, 0,2 à 0,3 m derrière le centre (avec [1,02 ; −0,08] du zém, on s'asseyait sur le réservoir)
+// Selle du modèle Tripo, mesurée : avec [1,02 ; −0,08] du zém, on s'asseyait sur le réservoir ; avec [0,86 ; −0,27], encore
+// au bord du réservoir, les hanches 15 cm au-dessus de la selle (profil relevé le 03/11). Le bassin au milieu de la selle.
+const SELLES = { moto: [.83, -.43] };
 export function chargerVehicules() {
   const ch = chargeurGLB({ liberer: true });
   for (const [type, id] of [['voiture', 'voiture-perso'], ['moto', 'moto-perso'], ['taxi', 'voiture']]) { // taxi : celui de Zém Run

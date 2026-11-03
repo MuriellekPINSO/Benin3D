@@ -53,13 +53,36 @@ export async function musiqueVisite(on) {
 export function moteur(type) {
   const ctx = audioCtx(); if (!ctx) return;
   moteurStop();
+  if (type === 'jet') { // un souffle (bruit filtré) et le sifflement des turbines, qui montent avec la vitesse
+    const n = ctx.createBufferSource(), b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const f = ctx.createBiquadFilter(), g = ctx.createGain(), o = ctx.createOscillator(), gs = ctx.createGain();
+    n.buffer = b; n.loop = true; f.type = 'lowpass'; f.frequency.value = 300; g.gain.value = 0; o.type = 'sine'; o.frequency.value = 1500; gs.gain.value = 0;
+    n.connect(f).connect(g).connect(ctx.destination); o.connect(gs).connect(ctx.destination); n.start(); o.start();
+    AUDIO.moteur = { jet: true, n, f, g, o, gs }; return;
+  }
   const o = ctx.createOscillator(), o2 = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
   o.type = 'sawtooth'; o2.type = 'square'; f.type = 'lowpass'; f.frequency.value = type === 'tokpa' ? 420 : type === 'avion' ? 520 : 700; g.gain.value = 0;
   o.connect(f); o2.connect(f); f.connect(g).connect(ctx.destination); o.start(); o2.start();
   AUDIO.moteur = { o, o2, g, base: type === 'tokpa' ? 42 : type === 'avion' ? 74 : 68, k: type === 'tokpa' ? 2.4 : type === 'avion' ? .9 : 4.2 }; // avion : le bourdonnement de l'hélice, plus grave à vitesse égale
 }
-export function moteurMaj(v, actif) { const m = AUDIO.moteur; if (!m) return; const t = AUDIO.ctx.currentTime; m.o.frequency.setTargetAtTime(m.base + v * m.k, t, .08); m.o2.frequency.setTargetAtTime((m.base + v * m.k) * .5, t, .08); m.g.gain.setTargetAtTime(actif ? .045 : 0, t, .1); }
-export function moteurStop() { const m = AUDIO.moteur; if (!m) return; try { m.g.gain.value = 0; m.o.stop(); m.o2.stop(); } catch (e) { } AUDIO.moteur = null; }
+export function moteurMaj(v, actif) {
+  const m = AUDIO.moteur; if (!m) return; const t = AUDIO.ctx.currentTime;
+  if (m.jet) { m.f.frequency.setTargetAtTime(260 + v * 9, t, .2); m.o.frequency.setTargetAtTime(1400 + v * 14, t, .3); m.g.gain.setTargetAtTime(actif ? .09 : 0, t, .3); m.gs.gain.setTargetAtTime(actif ? .006 : 0, t, .3); return; }
+  m.o.frequency.setTargetAtTime(m.base + v * m.k, t, .08); m.o2.frequency.setTargetAtTime((m.base + v * m.k) * .5, t, .08); m.g.gain.setTargetAtTime(actif ? .045 : 0, t, .1); }
+export function moteurStop() { const m = AUDIO.moteur; if (!m) return; try { m.g.gain.value = 0; m.o.stop(); if (m.jet) { m.gs.gain.value = 0; m.n.stop(); } else m.o2.stop(); } catch (e) { } AUDIO.moteur = null; }
+/** Des applaudissements pendant `duree` secondes : des centaines de claquements de mains, plus nourris au début. */
+export function applaudir(duree = 3.5) {
+  const ctx = AUDIO.ctx; if (!ctx || AUDIO.muet) return;
+  if (!AUDIO.claque) { const b = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * .03), ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (d.length * .18)); AUDIO.claque = b; }
+  const t0 = ctx.currentTime + .05, sortie = ctx.createGain(); sortie.gain.value = .5; sortie.connect(ctx.destination);
+  for (let i = 0; i < duree * 70; i++) {
+    const t = t0 + duree * Math.pow(Math.random(), 1.6), n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    n.buffer = AUDIO.claque; f.type = 'bandpass'; f.frequency.value = 900 + Math.random() * 1800; f.Q.value = 1.2; g.gain.value = .25 + Math.random() * .5;
+    n.connect(f).connect(g).connect(sortie); n.start(t);
+  }
+  setTimeout(() => sortie.disconnect(), (duree + 1) * 1000);
+}
 /** Bruit continu (douche, friture) pendant `duree` secondes ; renvoie de quoi l'arrêter plus tôt. */
 export function bruit(type, duree) {
   const ctx = AUDIO.ctx; if (!ctx || AUDIO.muet) return () => { };

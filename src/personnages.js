@@ -310,36 +310,36 @@ const versMonde = (x, y, z, out) => out.set(x, y, z).applyQuaternion(qRacine).ad
  * pilote d'une moto jouait simplement « assis » — la pose d'une chaise, jambes tendues devant lui : « l'animation du
  * personnage qui conduit n'est pas bien » (Murielle, 25/10).
  */
+// À moto, les mêmes os qu'à vélo, mais le pied reste sur son cale-pied et les mains tiennent les poignées. Points mesurés
+// sur la moto du jeu, dans le repère du pilote assis au milieu de la selle (conduite.js SELLES : l'avant vers +z, la
+// gauche vers +x) : « elle n'est pas bien assise… qu'elle garde bien le guidon » (Murielle, 03/11). Avant, la pilote
+// était assise au bord du réservoir, les jambes droites dans le moteur et les mains posées sur le réservoir (« assis »).
+const MOTO = { pied: [.2, -.06, .1], guidon: [.36, .73, .76], buste: [.56, .83] };
 function poserVelo(E, velo) {
   const os = E.osVelo ||= Object.fromEntries(OS_VELO.map(n => [n, E.corps.getObjectByName(n)]));
   E.g.getWorldDirection(vAv); // l'avant du personnage (+z de son groupe) : il regarde où va le vélo
   vCote.crossVectors(vAv, vHaut).normalize(); // sa droite
-  if (velo === 'moto') {
-    // À moto, on ne touche pas aux bras : braqués comme ceux d'un cycliste, ils partaient en l'air sur un guidon placé
-    // autrement (vérifié de profil). L'animation « assis » leur donne une attitude naturelle ; ce sont les jambes qui
-    // étaient fausses, tendues devant comme sur une chaise : genou plié, pied posé sur le cale-pied, un peu écarté.
-    for (const c of [1, -1]) {
-      const p = c > 0 ? 'L_' : 'R_', a = (kAv, kHaut, kCote = 0) => [vAv.x * kAv + vCote.x * kCote, kHaut, vAv.z * kAv + vCote.z * kCote];
-      viser(os[p + 'Thigh'], ...a(.34, -.92, .20 * c));
-      viser(os[p + 'Calf'], ...a(.04, -.99, .07 * c));
-    }
-    return;
-  }
+  const moto = velo === 'moto';
   E.g.updateMatrixWorld(true); E.g.getWorldPosition(vRacine); E.g.getWorldQuaternion(qRacine);
-  // Le buste, penché de 24° vers le guidon : droit, les mains n'arrivaient pas aux poignées.
-  if (os.Spine01) { viser(os.Spine01, vAv.x * .41, .91, vAv.z * .41); os.Spine01.updateMatrixWorld(true); }
+  // Le buste penché vers le guidon : de 24° à vélo, un peu plus à moto, où les poignées sont plus loin. Droit, les mains
+  // n'arrivaient pas aux poignées.
+  const [bAv, bHaut] = moto ? MOTO.buste : [.41, .91];
+  if (os.Spine01) { viser(os.Spine01, vAv.x * bAv, bHaut, vAv.z * bAv); os.Spine01.updateMatrixWorld(true); }
   for (const p of ['L_', 'R_']) {
     // De quel côté est cette jambe ? On le mesure (le modèle peut être tourné) : +1 à gauche, −1 à droite.
     const cuisse = os[p + 'Thigh']; if (!cuisse) continue;
     cuisse.getWorldPosition(vLoc); const s = vLoc.sub(vRacine).dot(vCote) > 0 ? -1 : 1;
-    // La pédale : la manivelle gauche à l'angle a, la droite à l'opposé ; la cheville un peu au-dessus et en arrière de son axe.
-    const a = velo.a + (s > 0 ? 0 : Math.PI), [, by, bz] = velo.bb;
-    versMonde(s * velo.ecart, by + velo.r * Math.sin(a) + .065, bz + velo.r * Math.cos(a) - .04, iC);
+    if (moto) versMonde(s * MOTO.pied[0], MOTO.pied[1], MOTO.pied[2], iC); // le pied sur son cale-pied
+    else {
+      // La pédale : la manivelle gauche à l'angle a, la droite à l'opposé ; la cheville un peu au-dessus et en arrière de son axe.
+      const a = velo.a + (s > 0 ? 0 : Math.PI), [, by, bz] = velo.bb;
+      versMonde(s * velo.ecart, by + velo.r * Math.sin(a) + .065, bz + velo.r * Math.cos(a) - .04, iC);
+    }
     vPole.copy(vAv).addScaledVector(vCote, -s * .15).addScaledVector(vHaut, .1); // le genou devant, un peu écarté
     membre(cuisse, os[p + 'Calf'], os[p + 'Foot'], iC.clone(), vPole);
     viser(os[p + 'Foot'], vAv.x * .95, -.3, vAv.z * .95); // le pied à plat sur la pédale
     // La main sur sa poignée, le coude plié vers l'extérieur et vers le bas.
-    const [gx, gy, gz] = velo.guidon;
+    const [gx, gy, gz] = moto ? MOTO.guidon : velo.guidon;
     versMonde(s * gx, gy, gz, iC);
     vPole.copy(vCote).multiplyScalar(-s * .6).addScaledVector(vHaut, -.5).addScaledVector(vAv, -.4);
     membre(os[p + 'Upperarm'], os[p + 'Forearm'], os[p + 'Hand'], iC.clone(), vPole);

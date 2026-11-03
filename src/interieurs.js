@@ -48,8 +48,13 @@ LAMPE.visible = false; scene.add(LAMPE);
 function allumer(I) {
   LAMPE.position.set(I.centre[0], ALT + (I.plafond ? I.plafond - .45 : 2.3), I.centre[1]);
   LAMPE.distance = Math.max(I.w, I.d) * 1.6;
-  LAMPE.intensity = Math.max(I.w, I.d) * 1.1; // décroissance en 1/d² : une grande pièce demande une lampe plus forte
+  LAMPE.intensity = Math.max(I.w, I.d) * (I.lampe ?? 1.1); // décroissance en 1/d² : une grande pièce demande une lampe plus forte (I.lampe : plus encore)
   LAMPE.visible = true;
+}
+/** La même lampe, ailleurs (la cabine du jet : vol.js) ; sans position, elle s'éteint. */
+export function lampeIci(p, portee = 4, intensite = 3) {
+  if (!p) { LAMPE.visible = false; return; }
+  LAMPE.position.copy(p); LAMPE.distance = portee; LAMPE.intensity = intensite; LAMPE.visible = true;
 }
 export function cacherInterieurs() { LAMPE.visible = false; for (const I of INTERIEURS.values()) if (I.g) I.g.visible = false; }
 

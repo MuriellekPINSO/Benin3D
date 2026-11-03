@@ -73,7 +73,7 @@ const PHRASES = ['Salut !', 'Ça va ?', 'On y va !', 'On mange où ?', 'Attends-
 // Lieux de rendez-vous : id dans PLACES, nom dans le menu, « je vais … », décalage du point d'arrivée (mètres,
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
-const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['caicai', 'Caï Caï Vélo (location)', 'chez Caï Caï Vélo', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0]]; // 7e : intérieur dont on arrive devant la porte
+const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['dome', 'Le Dôme du Sofitel (La Nuit Kutɔnu Vibes)', 'au Dôme du Sofitel', 0, 0, 0, 'dome-sofitel'], ['caicai', 'Caï Caï Vélo (location)', 'chez Caï Caï Vélo', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0]]; // 7e : intérieur dont on arrive devant la porte
 const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
 const S = { orbite: 0, orbiteT: 0, actif: false, public: false, balade: null, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 't:top-f', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, bras: 1, autres: new Map(), vus: new Set() };
@@ -971,7 +971,7 @@ export function majSalon(dt) {
   const bouge = Math.abs(av) > .05 || Math.abs(tour) > .05 || (Math.abs(suivi?.v ?? T.veh?.v ?? 0) > 1 && T.mode !== 'pied');
   if (S.lieu) { // dans une pièce : on marche vers le fond de l'écran, la caméra n'a pas à revenir dans le dos ; à l'arrêt, elle glisse vers l'angle qui laisse le plus de recul
     if (!bouge && performance.now() - S.orbiteT > 1200) { const d = angleDedans(O, dist, inc); S.orbite += Math.atan2(Math.sin(d - S.orbite), Math.cos(d - S.orbite)) * (1 - Math.exp(-dt * 1.6)); }
-  } else if (bouge && performance.now() - S.orbiteT > 1200) S.orbite *= Math.exp(-dt * 2.2);
+  } else if (bouge && performance.now() - S.orbiteT > 1200) { const o = suivi?.orbite ?? 0; S.orbite = o + Math.atan2(Math.sin(S.orbite - o), Math.cos(S.orbite - o)) * Math.exp(-dt * 2.2); } // en avion, elle revient sur le côté (vol.js)
   const lacet = P.cap + S.orbite;
   voulue.set(O.x - Math.sin(lacet) * dist * Math.cos(inc), O.y + hc + dist * Math.sin(inc), O.z - Math.cos(lacet) * dist * Math.cos(inc));
   if (S.lieu) { // la caméra reste dans la pièce, sous le plafond, et ne passe pas au travers des cloisons
@@ -997,16 +997,17 @@ export function majSalon(dt) {
   } else S.bras = 1;
   if (S.saut || suivi?.libre) { camera.position.copy(voulue); S.saut = false; } else camera.position.lerp(voulue, 1 - Math.exp(-dt * (suivi ? 6.5 : 7))); // en avion (temps accéléré), la caméra reste collée derrière
   controls.target.copy(cible);
+  if (suivi?.oeil) { camera.position.copy(suivi.oeil); controls.target.copy(suivi.vise); } // en avion, la vue du hublot
   if (tir) { cameraTir(controls); if (S.moi) S.moi.visible = false; } // à la place de ses yeux : on ne voit que le lance-pierre
   for (const b of [$('#slVue'), $('#slVue2')]) if (b && b.disabled !== !!S.lieu) { b.disabled = !!S.lieu; b.title = S.lieu ? 'La vue change une fois dehors' : 'Changer de vue (V)'; } // dedans, la caméra reste près de soi : le premier clic ne faisait rien
-  const near = S.lieu || tir ? .3 : .6; if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); } // dehors : deux fois plus de précision de profondeur au loin
+  const near = suivi?.near ?? (S.lieu || tir ? .3 : .6); if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); } // dehors : deux fois plus de précision de profondeur au loin
   // Dans une pièce, téléphone en hauteur : à 45°, l'image ne fait que 21° de large et le personnage la remplit ; les murs
   // empêchent de reculer, alors on ouvre l'angle (jusqu'à 70°, ~60° de large visés). Ordinateur, paysage : 45°, inchangé.
-  const fov = tir ? fovTir() : S.lieu ? THREE.MathUtils.clamp(2 * Math.atan(Math.tan(Math.PI / 6) / camera.aspect) * 180 / Math.PI, 45, 70) : 45;
+  const fov = tir ? fovTir() : suivi?.fov ? suivi.fov : S.lieu ? THREE.MathUtils.clamp(2 * Math.atan(Math.tan(Math.PI / 6) / camera.aspect) * 180 / Math.PI, 45, 70) : 45;
   if (Math.abs(camera.fov - fov) > .1) { camera.fov = fov; camera.updateProjectionMatrix(); }
   // Téléphone en hauteur : le bas de l'écran est pris par le joystick, les boutons et le guide. On remonte l'image de 12 %
   // (le personnage passe au tiers supérieur) au lieu de le laisser au milieu, derrière la carte du guide.
-  const haut = !tir && coarse && innerHeight > innerWidth * 1.2;
+  const haut = !tir && coarse && innerHeight > innerWidth * 1.2 && T.mode !== 'avion'; // en avion : l'avion au milieu, l'horizon au-dessus
   // setViewOffset fixe aussi camera.aspect (largeur / hauteur données) : avec (1, 1…), l'image devenait carrée, étirée deux fois en hauteur.
   if (haut !== !!camera.view?.enabled) { if (haut) camera.setViewOffset(camera.aspect, 1, 0, .12, camera.aspect, 1); else camera.clearViewOffset(); }
   majAmbianceSalon(dt, { x: P.x, z: P.z, dedans: !!S.lieu, public: !!S.lieu && !S.lieu.prive, clients: S.lieu ? 0 : genteCommerces(S.x, S.z) }); // les bruits de la ville (ambiance-salon.js)
@@ -1032,7 +1033,7 @@ export function majSalon(dt) {
     let da = (e.h || 0) - A.cap; da = Math.atan2(Math.sin(da), Math.cos(da)); A.cap += da * kk;
     const pres = (A.x - S.x) ** 2 + (A.z - S.z) ** 2 < VU * VU;
     if (A.g) A.g.visible = pres && (e.i || '') === (S.lieu?.id || '') && !enAvion; // dans la même pièce (ou dehors) et assez près ; en avion, on voit l'avion
-    if (enAvion) { A.avion ??= creerAvion(); poserAvion(A.avion, A.x, A.y, A.z, A.cap, e.ta || 0, e.ro || 0); A.avion.helice.visible = true; }
+    if (enAvion) { A.avion ??= creerAvion(); poserAvion(A.avion, A.x, A.y, A.z, A.cap, e.ta || 0, e.ro || 0); }
     else if (A.avion) { retirerAvion(A.avion); A.avion = null; }
     // Tous les véhicules, ceux qu'on achète aussi : un ami au volant de sa citadine ou de son Roadster marchait à vide
     // au milieu de la route chez les autres.
@@ -1344,7 +1345,7 @@ function ouvrir() {
 }
 export function initSalon(data) {
   surAnnonce(t => ligne(t)); // argent gagné ou dépensé, faim : dans le fil du salon
-  S.dire = dire; initTrajets(data, { S, ligne, dedans, dehors, bulle, retirerBulle });
+  S.dire = dire; initTrajets(data, { S, ligne, dedans, dehors, bulle, retirerBulle, aller });
   initMaison({ S, ligne, geste, guide: () => !!guideSalon?.actif() }); // chez soi : se lever, se doucher, cuisiner (maison.js)
   initRecharge({ ligne, son }); // recharger son compte par Mobile Money (recharge.js)
   $('#vhRecharger')?.addEventListener('click', e => { e.stopPropagation(); proposerRecharge(); });

@@ -55,6 +55,13 @@ async function lire(onglet) {
   const cle = { semaine: 's', riches: 'f', series: 'q', album: 'a' }[onglet];
   return garder.sort((a, b) => b[cle] - a[cle] || a.t - b.t).slice(0, TOP);
 }
+/** Les premiers de chaque classement, pour la remise des prix de La Nuit Kutɔnu Vibes (nuit.js) : { riche, serie, album }, null s'il n'y a personne. */
+export async function gagnants() {
+  if (VIE.local) return {};
+  const premier = async id => (await lire(id).catch(() => []))[0] || null;
+  const [riche, serie, album] = await Promise.all(['riches', 'series', 'album'].map(premier));
+  return { riche, serie, album };
+}
 export function ouvrirClassement() {
   const el = $('#vieFiche'); if (!el) return;
   fermerFiche();

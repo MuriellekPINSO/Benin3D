@@ -1,21 +1,20 @@
 import * as THREE from 'three';
 import { moteur, moteurMaj, moteurStop, son } from './audio.js';
+import { moodCur } from './ambiances.js';
 import { $ } from './base.js';
-import { TRIPO, urlTripo } from './batiments-tripo.js';
-import { plusTard } from './telechargements.js';
 import { personne } from './discussions.js';
-import { INTERIEURS, dansLaPiece, declarerAeroport, guichetProche } from './interieurs.js';
+import { INTERIEURS, dansLaPiece, declarerAeroport, guichetProche, lampeIci } from './interieurs.js';
 import { K, groupeLieu, panneauTexte } from './lieux.js';
 import { payerEtRecevoir, remettre } from './remise.js';
 import { scene } from './scene.js';
 import { oceanRing } from './ville.js';
 import { VIE, acheterBillet, billet, composterBillet, premierVol } from './vie.js';
 import { pisteOuidah } from './zones.js';
-import { chargeurGLB } from './textures.js';
+import { CAMERA_CABINE, HUBLOT_JET, LAMPE_CABINE, LONGUEUR_JET, PIED_ESCALIER, PLACE_CABINE, PORTE_JET, SOL_CABINE, cabine, jet, majJet } from './jet.js';
 
-// ---------- Vol découverte : Cotonou → Ouidah en petit avion (salon entre amis) ----------
+// ---------- Vol découverte : Cotonou → Ouidah en jet (salon entre amis) ----------
 // On achète son billet à la billetterie du hall de l'aéroport, on passe la porte 2, le minibus de l'aéroport
-// dépose au pied de l'avion (poste 12, aviation générale) et l'on monte par l'aile. Le pilote fait le reste :
+// dépose au pied de l'avion (poste 12, aviation générale) et l'on monte par l'escalier. Le pilote fait le reste :
 // roulage jusqu'à la piste, décollage vers l'ouest, vol à 250 m le long de la côte (Fidjrossè, la Route des
 // Pêches), descente et atterrissage à Ouidah. On voit l'avion de dehors pendant tout le vol ; en l'air, le temps
 // passe plus vite (×10, ×20 sur demande), sinon le trajet durerait dix minutes. Ouidah n'a pas d'aéroport : la piste en latérite près de la Porte du Non-Retour est
@@ -23,11 +22,10 @@ import { chargeurGLB } from './textures.js';
 // Deux avions font la navette : il y en a toujours un à chaque bout.
 
 export const PRIX_VOL = 12000;
-const LONGUEUR = 8.4; // mètres, du cône d'hélice à la queue (avion de tourisme quatre places)
 const NOMS = { cotonou: 'Cotonou', ouidah: 'Ouidah' };
 const AUTRE = { cotonou: 'ouidah', ouidah: 'cotonou' };
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
-const VOL = { avions: {}, pilotes: {}, gabarit: null, attendent: [], achat: false, chemin: null, de: '', vers: '', phase: '', s: 0, v: 0, i: 0, arret: 0, attente: 0, accel: 10, echelle: 1, cap: 0, tangage: 0, roulis: 0, fini: false };
+const VOL = { avions: {}, pilotes: {}, achat: false, vue: 'dehors', pilote: '', tangageAvant: null, carteT: 0, chemin: null, de: '', vers: '', phase: '', s: 0, v: 0, i: 0, arret: 0, attente: 0, accel: 10, echelle: 1, cap: 0, tangage: 0, roulis: 0, fini: false };
 let S = null, T = null, ligne = () => { }, ctx = {};
 const AD = { cotonou: null, ouidah: null };
 
@@ -116,57 +114,18 @@ function chemin(n) {
   return C;
 }
 
-// ---------- L'avion : modèle Tripo (sans logo ni immatriculation), en attendant un avion dessiné en code ----------
-function avionDessine() {
-  const g = new THREE.Group(), mat = c => new THREE.MeshLambertMaterial({ color: c }), blanc = mat('#f2f2ee'), bleu = mat('#1f5fa8'), noir = mat('#222428'), vitre = mat('#3d5866');
-  const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
-  add(new THREE.CylinderGeometry(.55, .38, 7.4, 14), blanc, 0, 1.35, 0).rotation.x = Math.PI / 2; // fuselage, nez vers +z
-  add(new THREE.SphereGeometry(.42, 12, 8), blanc, 0, 1.35, 3.7).scale.set(1, 1, 1.3);
-  add(new THREE.BoxGeometry(1.12, .1, 7.2), bleu, 0, 1.1, 0); // bande bleue
-  add(new THREE.BoxGeometry(1, .5, 1.5), vitre, 0, 1.85, 1.2); // verrière
-  add(new THREE.BoxGeometry(9.8, .16, 1.5), blanc, 0, .9, .7); // aile basse
-  add(new THREE.BoxGeometry(3.4, .1, .9), blanc, 0, 1.45, -3.3);
-  add(new THREE.BoxGeometry(.1, 1.5, 1.1), blanc, 0, 2.15, -3.35);
-  for (const [x, z] of [[-1.3, .5], [1.3, .5], [0, 2.7]]) add(new THREE.CylinderGeometry(.24, .24, .16, 12), noir, x, .24, z).rotation.z = Math.PI / 2;
-  g.userData.helice = new THREE.Vector3(0, 1.35, 4.3);
-  return g;
-}
-/** Modèle Tripo ramené à LONGUEUR m, roues au sol, nez vers +z ; l'axe de l'hélice est cherché dans le nez. */
-function gabaritAvion(obj) {
-  obj.updateMatrixWorld(true);
-  const b = new THREE.Box3().setFromObject(obj), s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3()), k = LONGUEUR / s.x;
-  let ny = 0, nz = 0, nn = 0; const v = new THREE.Vector3();
-  obj.traverse(o => { if (!o.isMesh) return; const p = o.geometry.getAttribute('position'); for (let i = 0; i < p.count; i += 3) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); if (v.x > b.max.x - s.x * .03) { ny += v.y; nz += v.z; nn++; } } });
-  obj.scale.multiplyScalar(k); obj.position.set(-c.x * k, -b.min.y * k, -c.z * k);
-  obj.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  const tourne = new THREE.Group(); tourne.rotation.y = -Math.PI / 2; tourne.add(obj); // nez +x → +z
-  const g = new THREE.Group(); g.add(tourne);
-  g.userData.helice = new THREE.Vector3(nn ? -(nz / nn - c.z) * k : 0, nn ? (ny / nn - b.min.y) * k : 1.3, (b.max.x - c.x) * k + .06);
-  return g;
-}
-function chargerAvion() {
-  if (!TRIPO.info['avion-tourisme']) return;
-  plusTard(() => chargeurGLB({ liberer: true }).loadAsync(urlTripo('avion-tourisme')))
-    .then(g => { VOL.gabarit = gabaritAvion(g.scene); for (const A of VOL.attendent) habiller(A); VOL.attendent.length = 0; })
-    .catch(e => console.warn('modèle avion-tourisme', e.message));
-}
-/** Un avion : groupe orienté (cap, tangage, roulis), modèle, disque de l'hélice qui tourne. */
+// ---------- L'avion : le jet de Kutɔnu Vibes (jet.js) ----------
+/** Un avion : groupe orienté (cap, tangage, roulis) autour du modèle. */
 export function creerAvion() {
-  const A = { g: new THREE.Group(), modele: null, helice: null, x: 0, y: 0, z: 0, cap: 0, tangage: 0, roulis: 0 };
-  habiller(A); if (!VOL.gabarit) VOL.attendent.push(A);
-  scene.add(A.g); return A;
-}
-function habiller(A) {
-  if (A.modele) A.g.remove(A.modele);
-  A.modele = VOL.gabarit ? VOL.gabarit.clone() : avionDessine(); A.g.add(A.modele);
-  if (!A.helice) { A.helice = new THREE.Mesh(new THREE.CircleGeometry(1, 28), new THREE.MeshBasicMaterial({ color: '#d5d9dc', transparent: true, opacity: .22, side: THREE.DoubleSide, depthWrite: false })); A.helice.visible = false; A.g.add(A.helice); }
-  A.helice.position.copy(A.modele.userData.helice);
+  const A = { g: new THREE.Group(), modele: jet(), x: 0, y: 0, z: 0, cap: 0, tangage: 0, roulis: 0 };
+  A.g.add(A.modele); scene.add(A.g); return A;
 }
 export function retirerAvion(A) { if (A) scene.remove(A.g); }
 /** Place l'avion ; tangage > 0 : nez en haut ; roulis > 0 : penché à gauche (virage à gauche). */
 export function poserAvion(A, x, y, z, cap, tangage = 0, roulis = 0) {
   Object.assign(A, { x, y, z, cap, tangage, roulis });
   A.g.position.set(x, y, z); A.g.rotation.set(-tangage, cap, -roulis, 'YXZ');
+  A.modele.userData.train.visible = y < 45; // le train sort pour l'approche
 }
 function etiquette(texte) {
   const cv = document.createElement('canvas'); cv.width = 420; cv.height = 72; const c = cv.getContext('2d');
@@ -208,23 +167,24 @@ function aerodromeOuidah() {
 // ---------- Ce que voit le joueur : où sont les avions et les pilotes ----------
 function garer(k) {
   const A = VOL.avions[k], D = AD[k]; if (!A) return;
-  poserAvion(A, D.parking[0], 0, D.parking[1], D.cap); A.helice.visible = false;
+  poserAvion(A, D.parking[0], 0, D.parking[1], D.cap); A.modele.userData.escalier.visible = true;
   etiqueter(k); placerPilote(k);
 }
 // Étiquette au-dessus de l'avion garé (montrée quand on est à pied, à moins de 250 m : voir majPilotes).
 function etiqueter(k) {
   const A = VOL.avions[k];
   if (A.etiquette) { A.g.remove(A.etiquette); A.etiquette.material.map.dispose(); A.etiquette.material.dispose(); }
-  A.etiquette = etiquette(k === 'cotonou' ? 'Vol pour Ouidah' : 'Vol retour pour Cotonou'); A.etiquette.position.y = 4.2; A.etiquette.visible = false; A.g.add(A.etiquette);
+  A.etiquette = etiquette(k === 'cotonou' ? 'Vol pour Ouidah' : 'Vol retour pour Cotonou'); A.etiquette.position.y = 6.4; A.etiquette.visible = false; A.g.add(A.etiquette);
 }
-// Le pilote attend au bout de l'aile droite (côté porte), face à ceux qui arrivent.
+// Le pilote attend à côté de l'escalier, un peu devant, face à ceux qui arrivent.
 function placerPilote(k) {
   const A = VOL.avions[k], p = VOL.pilotes[k]; if (!A || !p) return;
-  const d = droite(A.cap); p.position.set(A.x + d[0] * 6.2 + Math.sin(A.cap) * 1.5, 0, A.z + d[1] * 6.2 + Math.cos(A.cap) * 1.5); p.rotation.y = Math.atan2(d[0], d[1]); p.visible = true;
+  const [x, z] = local(A, -3.4, PIED_ESCALIER[2] + 1.6), d = droite(A.cap); p.position.set(x, 0, z); p.rotation.y = Math.atan2(d[0], d[1]); p.visible = true;
 }
 const droite = cap => [-Math.cos(cap), Math.sin(cap)]; // à droite de l'avion qui regarde vers `cap`
-const porte = A => { const d = droite(A.cap); return [A.x + d[0] * 1.5 + Math.sin(A.cap) * .2, A.z + d[1] * 1.5 + Math.cos(A.cap) * .2]; }; // la porte, sur l'aile droite
-const piedAile = A => { const d = droite(A.cap); return [A.x + d[0] * 3.4 - Math.sin(A.cap) * 1.1, A.z + d[1] * 3.4 - Math.cos(A.cap) * 1.1]; }; // on monte sur l'aile par l'arrière
+const local = (A, lx, lz) => [A.x + lx * Math.cos(A.cap) + lz * Math.sin(A.cap), A.z - lx * Math.sin(A.cap) + lz * Math.cos(A.cap)]; // lx > 0 : à gauche de l'avion
+const porte = A => local(A, PORTE_JET[0] + .3, PORTE_JET[2]); // la porte, à droite derrière le poste de pilotage
+const piedEscalier = A => local(A, PIED_ESCALIER[0] - .3, PIED_ESCALIER[2]);
 
 export function initVol(data, c) {
   ctx = c; S = c.S; T = c.T; ligne = c.ligne;
@@ -232,16 +192,19 @@ export function initVol(data, c) {
   if (!definir(data.L) || !oceanRing) return;
   aerodromeOuidah();
   for (const k of ['cotonou', 'ouidah']) { VOL.avions[k] = creerAvion(); garer(k); }
-  chargerAvion();
+  $('#volArriver')?.addEventListener('click', arriverMaintenant);
+  $('#volVue')?.addEventListener('click', e => { const b = e.target.closest('[data-vue]'); if (b) choisirVue(b.dataset.vue); });
   if (import.meta.env.DEV) window.__vol = { VOL, AD, sauter: s => { const C = VOL.chemin; VOL.s = s; VOL.arret = C.arrets.findIndex(k => C[k].s >= s); VOL.attente = 0; let i = 0; while (i < C.length - 2 && C[i + 1].s <= s) i++; VOL.i = i; VOL.v = C[i].v; VOL.phase = C.slice(0, i + 1).reverse().find(c => c.phase)?.phase || ''; } }; // essais : sauter à un point du vol
 }
-/** De combien (x, z), avec un rayon r, entre dans le fuselage d'un avion garé (0 : libre). On monte par l'aile droite. */
+/** De combien (x, z), avec un rayon r, entre dans un avion garé (0 : libre) : le fuselage, les réacteurs, les ailes (à hauteur de tête). */
 export function obstacleAvions(x, z, r = .3) {
   let p = 0;
+  const dans = (u, v, u1, u2, v2) => Math.min(u - u1, u2 - u, v2 - v); // > 0 : dedans, et de combien il faut sortir
   for (const A of Object.values(VOL.avions)) {
     if (!A?.g?.visible || A === VOL.avion) continue;
-    const dx = x - A.x, dz = z - A.z, u = dx * Math.sin(A.cap) + dz * Math.cos(A.cap), v = dx * Math.cos(A.cap) - dz * Math.sin(A.cap);
-    if (Math.abs(u) < 4.2 + r && Math.abs(v) < .75 + r) p = Math.max(p, Math.min(4.2 + r - Math.abs(u), .75 + r - Math.abs(v)));
+    const dx = x - A.x, dz = z - A.z, u = dx * Math.sin(A.cap) + dz * Math.cos(A.cap), v = Math.abs(dx * Math.cos(A.cap) - dz * Math.sin(A.cap)), L = LONGUEUR_JET / 2;
+    p = Math.max(p, dans(u, v, -L - r, L - .3 + r, 1.06 + r), dans(u, v, -6 - r, -3.2 + r, 2.15 + r)); // fuselage, réacteurs
+    const e = Math.max(0, v - .55), ba = 1.05 - e * .3; p = Math.max(p, dans(u, v, ba - (3 - e * .26) - r, ba + r, 8.1 + r)); // l'aile, en flèche
   }
   return p;
 }
@@ -266,10 +229,7 @@ function majPilotes() {
 // ---------- Actions : billet, embarquement, accélérer la croisière ----------
 export function actionsVol() {
   const out = []; if (!AD.cotonou) return out;
-  if (T.mode === 'avion') {
-    if (VOL.avion?.y > 15 && !VOL.fini) out.push({ texte: VOL.accel > 10 ? 'Moins vite (×10)' : 'Encore plus vite (×20)', f: () => { VOL.accel = VOL.accel > 10 ? 10 : 20; ligne(VOL.accel > 10 ? 'Le temps passe vingt fois plus vite en vol.' : 'Le temps passe dix fois plus vite en vol.'); } });
-    return out;
-  }
+  if (T.mode === 'avion') return out; // en vol : « Arriver maintenant » est sur la carte du vol
   if (T.mode !== 'pied') return out;
   if (S.lieu?.id === 'aeroport-hall') {
     const g = guichetProche(S.lieu, S.x, S.z);
@@ -279,7 +239,7 @@ export function actionsVol() {
   }
   if (S.lieu) return out;
   for (const k of ['cotonou', 'ouidah']) {
-    const A = VOL.avions[k]; if (!A || Math.hypot(A.x - S.x, A.z - S.z) > 8) continue;
+    const A = VOL.avions[k]; if (!A || Math.hypot(A.x - S.x, A.z - S.z) > 10) continue;
     const vers = AUTRE[k];
     if (billet() === vers) out.push({ texte: `Monter dans l’avion · vol pour ${NOMS[vers]}`, f: () => monter(k) });
     else if (VOL.pilotes[k]) out.push({ texte: `Billet pour ${NOMS[vers]} au pilote · ${premierVol() ? 'offert' : fmt(PRIX_VOL)}`, f: () => vendre(vers, VOL.pilotes[k]) });
@@ -309,15 +269,15 @@ function embarquer(g) {
     VOL.minibus = null; g.agent.userData.jouer?.('idle');
     if (!S.lieu || T.mode !== 'pied') return;
     const A = VOL.avions.cotonou, d = droite(A.cap); ctx.dehors(false);
-    S.x = A.x + d[0] * 14 + Math.sin(A.cap) * 4; S.z = A.z + d[1] * 14 + Math.cos(A.cap) * 4; S.cap = Math.atan2(A.x - S.x, A.z - S.z); S.saut = true;
-    ligne('Le minibus de l’aéroport te dépose au pied de l’avion, au poste 12. Approche-toi et monte : la porte est sur l’aile droite.');
+    S.x = A.x + d[0] * 12 + Math.sin(A.cap) * 8; S.z = A.z + d[1] * 12 + Math.cos(A.cap) * 8; S.cap = Math.atan2(A.x - S.x, A.z - S.z); S.saut = true;
+    ligne('Le minibus de l’aéroport te dépose au pied du jet, au poste 12. Approche-toi et monte par l’escalier, à droite de l’avion.');
   }, 2600);
 }
-// On marche jusqu'à l'aile, on y monte par l'arrière, on entre par la porte ; le pilote est déjà à bord.
+// On marche jusqu'au pied de l'escalier, on le monte, on entre par la porte ; le pilote est déjà à bord.
 function monter(k) {
-  const A = VOL.avions[k], pied = piedAile(A), p = porte(A);
+  const A = VOL.avions[k], pied = piedEscalier(A), p = porte(A);
   T.trans = { t: 0, duree: Math.max(.6, Math.hypot(pied[0] - S.x, pied[1] - S.z) / 1.7), de: [S.x, S.z], vers: pied, fin: () => {
-    T.trans = { t: 0, duree: 1.1, de: pied, vers: p, ya: 0, yb: .75, fin: () => {
+    T.trans = { t: 0, duree: 1.3, de: pied, vers: p, ya: 0, yb: PORTE_JET[1], fin: () => {
       composterBillet(); if (S.moi) S.moi.visible = false;
       if (VOL.pilotes[k]) VOL.pilotes[k].visible = false;
       T.mode = 'avion'; decoller(k);
@@ -328,9 +288,54 @@ function decoller(k) {
   const A = VOL.avions[k];
   Object.assign(VOL, { de: k, vers: AUTRE[k], chemin: plan(k), s: 0, v: 0, i: 0, arret: 0, attente: 2, accel: 10, echelle: 1, phase: 'roulage', fini: false, cap: A.cap, tangage: 0, roulis: 0, avion: A });
   if (A.etiquette) A.etiquette.visible = false;
-  A.helice.visible = true; moteur('avion'); son('bosse');
-  ligne(`Tu montes à bord. Le pilote démarre le moteur… (vol pour ${NOMS[VOL.vers]} : env. ${Math.round(VOL.chemin.at(-1).s / 1000)} km, environ 2 minutes et demie : en l’air, le temps passe dix fois plus vite)`);
+  A.modele.userData.escalier.visible = false; moteur('jet'); son('bosse');
+  ligne(`Tu montes à bord. Le pilote démarre les réacteurs… (vol pour ${NOMS[VOL.vers]} : env. ${Math.round(VOL.chemin.at(-1).s / 1000)} km, environ 2 minutes et demie : en l’air, le temps passe dix fois plus vite)`);
+  // La caméra se met de côté, presque à l'horizontale, comme on filme un avion en vol ; on retrouve la sienne à l'arrivée.
+  VOL.tangageAvant = S.tangage; S.tangage = .1; S.orbite = cote(); S.saut = true;
+  VOL.pilote = ''; VOL.carteT = 0; choisirVue('dehors'); montrerCarte(true);
   passer(VOL.chemin[0]);
+}
+// La caméra de côté : du côté de la mer, l'avion devant la côte et la ville (vers Ouidah, la mer est à gauche).
+const cote = () => (VOL.vers === 'ouidah' ? -1.2 : 1.2);
+const PHASES = { roulage: 'Roulage vers la piste', decollage: 'Décollage', montee: 'Montée', croisiere: 'En croisière', descente: 'Descente', atterrissage: 'Atterrissage' };
+/** La carte du vol (en haut à gauche), « Arriver maintenant » et le choix de la vue ; le reste de l'écran s'efface (style.css, .en-vol). */
+function montrerCarte(on) {
+  $('#app')?.classList.toggle('en-vol', on); $('#volPile').hidden = !on; $('#volVue').hidden = !on;
+  if (!on) choisirVue('dehors');
+}
+function choisirVue(v) {
+  VOL.vue = v; $('#app')?.classList.toggle('vue-hublot', v === 'hublot'); $('#volHublot').hidden = v !== 'hublot';
+  const C = cabine(); if (v === 'cabine' && VOL.avion) VOL.avion.modele.add(C); else { C.removeFromParent(); if (C.lampe) { lampeIci(null); C.lampe = false; } } // l'intérieur, seulement quand on le regarde
+  if (v !== 'cabine' && S?.moi && T?.mode === 'avion') { S.moi.visible = false; S.moi.rotation.set(0, S.cap, 0); } // hors de la cabine, on ne se voit pas
+  for (const b of document.querySelectorAll('#volVue [data-vue]')) b.setAttribute('aria-checked', String(b.dataset.vue === v));
+  if (S) S.saut = true;
+}
+// Combien de secondes (vraies) avant d'arriver : le reste du chemin, à la vitesse prévue et au temps accéléré prévu.
+function resteSecondes() {
+  const C = VOL.chemin; let t = VOL.attente > 0 ? VOL.attente : 0;
+  for (let k = VOL.i + 1; k < C.length; k++) {
+    const a = C[k - 1], b = C[k], ds = b.s - Math.max(a.s, VOL.s); if (ds <= 0) continue;
+    const v = Math.max(6, (a.v + b.v) / 2); t += ds / (v * echelle((a.y + b.y) / 2, v));
+  }
+  return t + C.arrets.slice(VOL.arret).reduce((n, k) => n + (C[k].arret || 0), 0) + 2;
+}
+function majCarte() {
+  const C = VOL.chemin, A = VOL.avion, t = performance.now(); if (!C || !A || t - VOL.carteT < 250) return; VOL.carteT = t;
+  $('#vcDe').textContent = NOMS[VOL.de]; $('#vcVers').textContent = NOMS[VOL.vers];
+  $('#vcBarre').style.width = `${Math.min(100, VOL.s / C.at(-1).s * 100).toFixed(1)}%`;
+  const alt = Math.round(A.y / 10) * 10, kmh = Math.round(VOL.v * 3.6 / 5) * 5;
+  $('#vcEtat').textContent = VOL.fini ? `Arrivé à ${NOMS[VOL.vers]}` : [PHASES[VOL.phase] || '', alt > 15 ? `${alt} m` : '', kmh > 0 ? `${kmh} km/h` : ''].filter(Boolean).join(' · ');
+  const r = Math.round(VOL.fini ? 0 : resteSecondes()); $('#vcReste').textContent = VOL.fini ? '' : `${Math.floor(r / 60)}:${String(r % 60).padStart(2, '0')}`;
+  $('#vcPilote').textContent = VOL.pilote;
+  $('#volArriver').hidden = !(A.y > 15 && !VOL.fini && VOL.phase !== 'atterrissage');
+}
+// « Arriver maintenant » (comme dans les jeux de vie) : on saute le reste du vol, l'avion est garé à destination.
+function arriverMaintenant() {
+  const C = VOL.chemin; if (!C || VOL.fini || !VOL.avion) return;
+  libererPlace(); // l'avion qui attendait là-bas part se garer à l'autre bout
+  const n = C.length - 1;
+  Object.assign(VOL, { s: C[n].s, i: n - 1, v: 0, arret: C.arrets.length - 1, attente: 0, phase: 'atterrissage', cap: Math.atan2(C[n].x - C[n - 1].x, C[n].z - C[n - 1].z), tangage: 0, roulis: 0 });
+  S.saut = true; son('bosse');
 }
 
 // ---------- À chaque image, pendant le vol ----------
@@ -354,7 +359,7 @@ export function majVol(dt) {
     while (VOL.i < C.length - 2 && VOL.s >= C[VOL.i + 1].s) { VOL.i++; passer(C[VOL.i]); }
     if (C[stop].s - VOL.s < .05) { // arrêt : alignement sur la piste, ou fin du roulage
       VOL.v = 0; VOL.arret++;
-      if (stop === C.length - 1) { VOL.fini = true; VOL.attente = 2; moteurMaj(0, false); ligne(`Le pilote coupe le moteur. « Bienvenue à ${NOMS[VOL.vers]} ! »`); }
+      if (stop === C.length - 1) { VOL.fini = true; VOL.attente = 2; moteurMaj(0, false); VOL.pilote = `Le pilote coupe les réacteurs. « Bienvenue à ${NOMS[VOL.vers]} ! »`; VOL.carteT = 0; ligne(VOL.pilote); }
       else VOL.attente = C[stop].arret;
     }
   }
@@ -369,18 +374,34 @@ export function majVol(dt) {
   const omega = dtv > 0 ? angle(VOL.cap - capAvant) / dtv : 0, rouVise = sol ? 0 : THREE.MathUtils.clamp(Math.atan(VOL.v * omega / 9.81), -.55, .55);
   VOL.roulis += (rouVise - VOL.roulis) * (1 - Math.exp(-dt * 2.5));
   poserAvion(A, x, y, z, VOL.cap, VOL.tangage, VOL.roulis);
-  A.helice.rotation.z += dt * 40;
+  if (VOL.fini && VOL.attente <= 0) A.modele.userData.escalier.visible = true;
+  majJet(moodCur.night);
   moteurMaj(VOL.fini ? 0 : Math.max(18, VOL.v), !VOL.fini || VOL.attente > 0);
   S.x = x; S.z = z; S.y = y; S.cap = VOL.cap; S.anim = 'assis';
-  // Tableau de bord : vitesse, altitude, distance restante.
-  const kmh = Math.round(VOL.v * 3.6), alt = Math.round(y / 5) * 5, km = (C.at(-1).s - VOL.s) / 1000;
-  $('#vhVitesse').hidden = false; $('#vhVitesse').textContent = `${kmh} km/h${alt > 2 ? ` · ${alt} m d’altitude` : ''}${VOL.echelle >= 1.5 ? ` · temps ×${Math.round(VOL.echelle)}` : ''}`;
-  $('#vhGps').hidden = false; $('#vhGps').textContent = VOL.fini ? `Arrivé à ${NOMS[VOL.vers]}` : `→ ${NOMS[VOL.vers]} · ${km > .95 ? `${km.toFixed(1).replace('.', ',')} km` : `${Math.round(km * 100) * 10} m`}`;
-  return { x, y, z, cap: VOL.cap, dist: 24, haut: 3, libre: true };
+  majCarte();
+  // Dehors, l'avion entier dans l'image : de plus loin sur un téléphone en hauteur, où l'image est étroite.
+  const dist = Math.max(32, 8.5 / (Math.tan(Math.PI / 8) * innerWidth / innerHeight));
+  if (VOL.vue === 'cabine') { // assis dans son fauteuil, côté terre, et la caméra de l'autre côté de l'allée
+    const k = VOL.vers === 'ouidah' ? -1 : 1, P = PLACE_CABINE, [ox, oy, oz] = CAMERA_CABINE.oeil, [vx, vy, vz] = CAMERA_CABINE.vise; A.g.updateMatrixWorld(true);
+    if (S.moi) {
+      PLACE.makeRotationY(P.cap).setPosition(P.x * k, SOL_CABINE, P.z).premultiply(A.g.matrixWorld);
+      S.moi.visible = true; S.moi.position.setFromMatrixPosition(PLACE); S.moi.quaternion.setFromRotationMatrix(PLACE); S.moi.userData.jouer?.('assis');
+    }
+    OEIL.set(ox * k, oy, oz).applyMatrix4(A.g.matrixWorld); VISE.set(vx * k, vy, vz).applyMatrix4(A.g.matrixWorld);
+    lampeIci(LAMPE.set(...LAMPE_CABINE).applyMatrix4(A.g.matrixWorld), 4.5, 2.6); cabine().lampe = true; // la lampe des intérieurs, au plafond de la cabine
+    return { x, y, z, cap: VOL.cap, dist, haut: 3, libre: true, oeil: OEIL, vise: VISE, fov: innerHeight > innerWidth ? 74 : 60, near: .1 };
+  }
+  if (VOL.vue === 'hublot') { // assis côté terre, devant l'aile : on regarde dehors, vers l'arrière et un peu vers le bas (l'aile, la côte)
+    const k = VOL.vers === 'ouidah' ? -1 : 1, [hx, hy, hz] = HUBLOT_JET; A.g.updateMatrixWorld(true);
+    OEIL.set(hx * k, hy, hz).applyMatrix4(A.g.matrixWorld); VISE.set((hx + 10) * k, hy - .7, hz - 5.5).applyMatrix4(A.g.matrixWorld);
+    return { x, y, z, cap: VOL.cap, dist, haut: 3, libre: true, oeil: OEIL, vise: VISE };
+  }
+  return { x, y, z, cap: VOL.cap, dist, haut: 3, libre: true, orbite: cote() };
 }
+const OEIL = new THREE.Vector3(), VISE = new THREE.Vector3(), LAMPE = new THREE.Vector3(), PLACE = new THREE.Matrix4();
 function passer(c) {
   if (c.phase) { VOL.phase = c.phase; if (c.phase === 'croisiere') libererPlace(); }
-  if (c.dit) ligne(c.dit);
+  if (c.dit) { ligne(c.dit); VOL.pilote = c.dit; VOL.carteT = 0; }
   if (c.touche) { son('bosse'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); }
 }
 // En croisière (loin des deux pistes), l'avion qui attendait à destination part se garer à l'autre bout : sinon, on
@@ -392,16 +413,16 @@ function libererPlace() {
 // Moteur coupé : on descend par l'aile ; à Cotonou, le minibus ramène dans le hall de l'aérogare.
 function arrivee() {
   const A = VOL.avion, k = VOL.vers, autre = VOL.avions[k];
-  moteurStop(); A.helice.visible = false;
+  moteurStop(); montrerCarte(false); finCamera();
   // La navette : l'avion qui attendait ici part se garer à l'autre bout, celui-ci prend sa place.
   VOL.avions[k] = A; VOL.avions[VOL.de] = autre; garer(VOL.de); etiqueter(k); // celui-ci reste où il s'est arrêté
   VOL.avion = null; VOL.chemin = null; VOL.phase = '';
-  $('#vhVitesse').hidden = true; $('#vhGps').hidden = true;
-  const p = porte(A), pied = piedAile(A);
-  S.x = p[0]; S.z = p[1]; S.y = .75; if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); }
+  A.modele.userData.escalier.visible = true;
+  const p = porte(A), pied = piedEscalier(A);
+  S.x = p[0]; S.z = p[1]; S.y = PORTE_JET[1]; if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); }
   if (VOL.pilotes[k]) VOL.pilotes[k].visible = false;
   T.mode = 'pied';
-  T.trans = { t: 0, duree: 1.1, de: p, vers: pied, ya: .75, yb: 0, fin: () => {
+  T.trans = { t: 0, duree: 1.3, de: p, vers: pied, ya: PORTE_JET[1], yb: 0, fin: () => {
     S.y = 0; placerPilote(k);
     if (k === 'ouidah') {
       const P = AD.ouidah.porte;
@@ -417,10 +438,12 @@ function arrivee() {
 /** Quitter le salon en plein vol : l'avion retourne à son poste. */
 export function arreterVol() {
   clearTimeout(VOL.minibus); VOL.minibus = null;
-  if (VOL.avion) { VOL.avion.helice.visible = false; garer(VOL.de); garer(VOL.vers); VOL.avion = null; VOL.chemin = null; VOL.phase = ''; } // chacun à sa place
+  if (VOL.avion) { garer(VOL.de); garer(VOL.vers); VOL.avion = null; VOL.chemin = null; VOL.phase = ''; moteurStop(); montrerCarte(false); finCamera(); } // chacun à sa place
   for (const k of Object.keys(VOL.avions)) { placerPilote(k); if (VOL.avions[k].etiquette) VOL.avions[k].etiquette.visible = false; }
 }
-/** Hors du vol : pilotes et étiquettes près de soi. */
-export function majAeroports() { if (AD.cotonou && S) majPilotes(); }
+/** Hors du vol : pilotes et étiquettes près de soi, hublots allumés la nuit. */
+export function majAeroports() { if (AD.cotonou && S) { majPilotes(); majJet(moodCur.night); } }
+// La caméra d'avant le vol (son inclinaison) ; elle revient derrière soi.
+function finCamera() { if (VOL.tangageAvant !== null) { S.tangage = VOL.tangageAvant; VOL.tangageAvant = null; } S.orbite = 0; S.saut = true; }
 /** Pour les amis : leur avion, à leur altitude. */
 export const etatVol = () => ({ ta: Math.round(VOL.tangage * 100) / 100, ro: Math.round(VOL.roulis * 100) / 100 });

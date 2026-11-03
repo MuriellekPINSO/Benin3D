@@ -395,7 +395,15 @@
   "Étape suivante": "Next leg",
   "Boutique de mode": "Fashion shop",
   "Boutique de mode : essaie des tenues et porte-les dans le jeu": "Fashion shop: try outfits on and wear them in the game",
-  "Des tenues à porter dans le jeu, avec l’argent de ta cagnotte. Bientôt, les créations de vrais stylistes de Cotonou.": "Outfits to wear in the game, paid with your kitty. Coming soon: creations by real Cotonou designers."
+  "Des tenues à porter dans le jeu, avec l’argent de ta cagnotte. Bientôt, les créations de vrais stylistes de Cotonou.": "Outfits to wear in the game, paid with your kitty. Coming soon: creations by real Cotonou designers.",
+  "Ton vol": "Your flight",
+  "Temps avant l’arrivée": "Time to arrival",
+  "La vue pendant le vol": "View during the flight",
+  "Jet Kutɔnu Vibes": "Kutɔnu Vibes jet",
+  "Arriver maintenant": "Arrive now",
+  "Dehors": "Outside",
+  "Hublot": "Window",
+  "Cabine": "Cabin"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -881,7 +889,9 @@
   "'la peinture'": "'the paint job'",
   "Vélo rendu. Merci, à bientôt chez Caï Caï !": "Bike returned. Thanks, see you at Caï Caï!",
   "' Ta voiture est mise de côté : tu la retrouves en rendant le vélo.'": "' Your car is set aside: you get it back when you return the bike.'",
-  "' Ta voiture est de retour.'": "' Your car is back.'"
+  "' Ta voiture est de retour.'": "' Your car is back.'",
+  "'Le Dôme du Sofitel (La Nuit Kutɔnu Vibes)'": "'The Sofitel Dôme (La Nuit Kutɔnu Vibes)'",
+  "'au Dôme du Sofitel'": "'to the Sofitel Dôme'"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -1236,7 +1246,16 @@
   "'Le temps passe dix fois plus vite en vol.'": "'Time runs ten times faster in flight.'",
   " km, environ 2 minutes et demie : en l’air, le temps passe dix fois plus vite)": " km, about two and a half minutes: in the air, time runs ten times faster)",
   " · temps ×": " · time ×",
-  "'Il te faut un billet pour passer : la billetterie est à gauche en entrant dans le hall, sous l’étiquette jaune.'": "'You need a ticket to get through: the ticket desk is on the left as you come into the hall, under the yellow label.'"
+  "'Il te faut un billet pour passer : la billetterie est à gauche en entrant dans le hall, sous l’étiquette jaune.'": "'You need a ticket to get through: the ticket desk is on the left as you come into the hall, under the yellow label.'",
+  "'Le minibus de l’aéroport te dépose au pied du jet, au poste 12. Approche-toi et monte par l’escalier, à droite de l’avion.'": "'The airport minibus drops you right by the jet, at stand 12. Walk up and climb the stairs, on the right side of the plane.'",
+  "Tu montes à bord. Le pilote démarre les réacteurs… (vol pour ": "You climb aboard. The pilot starts the engines… (flight to ",
+  "'Roulage vers la piste'": "'Taxiing to the runway'",
+  "'Décollage'": "'Take-off'",
+  "'Montée'": "'Climbing'",
+  "'En croisière'": "'Cruising'",
+  "'Descente'": "'Descent'",
+  "'Atterrissage'": "'Landing'",
+  "Le pilote coupe les réacteurs. « Bienvenue à ": "The pilot shuts down the engines. “Welcome to "
  },
  "src/metiers.js": {
   "'fr-FR'": "'en-US'",
@@ -3399,5 +3418,54 @@
   "'ne jouait plus'": "'stopped playing'",
   "'a quitté la partie'": "'left the game'",
   " : tu gagnes.": ": you win."
+ },
+ "src/dome-interieur.js": {
+  "'Accueil des invités'": "'Guest reception'",
+  "'Remise des prix'": "'Awards ceremony'",
+  "'Les meilleurs joueurs récompensés'": "'Celebrating the best players'",
+  "'Roi ou Reine de Zém Run'": "'King or Queen of Zém Run'",
+  "'La plus longue série'": "'Longest streak'",
+  "'Le plus riche de Cotonou'": "'Richest in Cotonou'",
+  "'Le meilleur explorateur'": "'Best explorer'",
+  "'Les prix'": "'The awards'",
+  "'le Dôme du Sofitel'": "'the Sofitel Dôme'",
+  "'Entrer au Dôme'": "'Enter the Dôme'"
+ },
+ "src/nuit.js": {
+  "'Roi ou Reine de Zém Run'": "'King or Queen of Zém Run'",
+  "'Le plus riche de Cotonou'": "'Richest in Cotonou'",
+  "'La plus longue série'": "'Longest streak'",
+  " journées réussies de suite": " successful days in a row",
+  "'Le meilleur explorateur'": "'Best explorer'",
+  " cartes de l’album": " album cards",
+  "La présentatrice : « ": "The host: “",
+  "Le prix « ": "The “",
+  " »… revient à…": "” award goes to…",
+  "'Le prix'": "'The award'",
+  " ! C’est toi ! Bravo !": "! It’s you! Well done!",
+  "Tu gagnes le prix « ": "You win the “",
+  " » de La Nuit Kutɔnu Vibes !": "” award at La Nuit Kutɔnu Vibes!",
+  "'Personne encore cette semaine : à toi de le gagner !'": "'Nobody yet this week: it’s yours to win!'",
+  "'À gagner cette semaine'": "'Up for grabs this week'",
+  "'Bonsoir Cotonou ! Bienvenue à La Nuit Kutɔnu Vibes !'": "'Good evening, Cotonou! Welcome to La Nuit Kutɔnu Vibes!'",
+  "'Ce soir, on récompense les meilleurs joueurs de la semaine.'": "'Tonight we celebrate the best players of the week.'",
+  "'Bravo à tous ! La fête continue à l’Amazone : le DJ vous attend !'": "'Well done, everyone! The party goes on at the Amazon: the DJ is waiting for you!'",
+  "'La fête continue'": "'The party goes on'",
+  "'à l’Amazone'": "'at the Amazon'",
+  "'Le DJ lance le son'": "'The DJ drops the beat'",
+  "'La remise des prix est finie : la fête continue à l’Amazone, où le DJ t’attend (« Aller à l’Amazone »).'": "'The awards ceremony is over: the party goes on at the Amazon, where the DJ is waiting for you (“Go to the Amazon”).'",
+  "'Mix de la Nuit'": "'Night Mix'",
+  "'La radio s’arrête : c’est le DJ qui met l’ambiance.'": "'The radio stops: the DJ is setting the mood now.'",
+  "'C’est parti, Cotonou ! On met l’ambiance !'": "'Here we go, Cotonou! Let’s get this party started!'",
+  "Et maintenant… ": "And now… ",
+  "Le DJ lance le son : ": "The DJ drops the beat: ",
+  ". Danse avec la foule (Gestes → Danser) !": ". Dance with the crowd (Gestures → Dance)!",
+  "'Le DJ coupe le son. Reviens quand tu veux : il relance la fête.'": "'The DJ cuts the music. Come back anytime: he’ll start the party again.'",
+  "'Tu t’éloignes de l’Amazone : le son du DJ s’éteint derrière toi.'": "'You walk away from the Amazon: the DJ’s music fades behind you.'",
+  "'Le DJ de La Nuit Kutɔnu Vibes est sur la scène : approche-toi et demande-lui de lancer le son.'": "'The La Nuit Kutɔnu Vibes DJ is on stage: walk up and ask him to drop the beat.'",
+  "'Aller à l’Amazone · le DJ t’attend'": "'Go to the Amazon · the DJ is waiting'",
+  "'Demander au DJ de lancer le son'": "'Ask the DJ to drop the beat'",
+  "Un autre son · ": "Another track · ",
+  "'Couper le son'": "'Cut the music'"
  }
 }

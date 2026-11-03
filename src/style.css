@@ -1834,3 +1834,57 @@ button.ff-ligne:hover { border-color: var(--accent); }
 .mode-jeu .osm-mini, .mode-salon .osm-mini, .mode-pres .osm-mini { display: block; }
 @media (max-width: 720px) { .mode-accueil .osm-mini { display: block; } }
 @media (pointer: fine) { .mode-salon .osm-mini { left: auto; right: 10px; transform: none; } } /* à la souris, la barre des touches du clavier occupe le bas, au milieu */
+
+/* ---------- En vol (03/11) ----------
+   Devant le jet de Lagos Life : « regarde comment la version mobile est épurée » (Murielle). En l'air, on ne pilote pas :
+   joystick, « Courir », guide, mini-carte et actions s'effacent. Il reste une carte du vol en haut à gauche (trajet,
+   avancement, phase, temps restant, ce que dit le pilote), « Arriver maintenant » dessous, et à droite la vue :
+   dehors (l'avion de côté) ou par le hublot. */
+.vol-pile { position: absolute; left: var(--gutter); top: calc(var(--sl-bandeau, 120px) + 12px); z-index: 6; display: grid; gap: 10px; justify-items: start; width: min(320px, calc(100% - 2 * var(--gutter) - 76px)); }
+.vol-pile[hidden], .vol-vue[hidden], .vol-hublot[hidden], .vol-arriver[hidden] { display: none; }
+.vol-carte { display: grid; gap: 7px; width: 100%; box-sizing: border-box; padding: 12px 15px 13px; border-radius: 22px; background: rgba(38, 44, 50, .66); color: #fff; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
+.vc-type { display: flex; align-items: center; gap: 6px; font: 600 12px/1 var(--font-body); color: rgba(255, 255, 255, .78); }
+.vc-type svg, .vc-etat svg { width: 15px; height: 15px; flex: none; }
+.vc-route { display: flex; align-items: center; gap: 10px; font: 800 17px/1.1 var(--font-display); }
+.vc-route svg { flex: 1; min-width: 24px; height: 12px; color: rgba(255, 255, 255, .6); }
+.vc-barre { display: block; height: 5px; border-radius: 999px; background: rgba(255, 255, 255, .22); overflow: hidden; }
+.vc-barre i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--zem); transition: width .25s linear; }
+.vc-etat { display: flex; align-items: center; gap: 6px; font: 600 12.5px/1.25 var(--font-body); color: rgba(255, 255, 255, .86); }
+.vc-etat b { margin-left: auto; padding-left: 8px; font-variant-numeric: tabular-nums; color: #fff; }
+.vc-pilote { margin: 0; font: 500 13px/1.38 var(--font-body); color: #fff; }
+.vc-pilote:empty { display: none; }
+.vol-arriver { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; border: 0; border-radius: 999px; padding: 10px 18px 10px 14px; background: var(--zem); color: #17130c; font: 800 15px/1 var(--font-body); box-shadow: 0 6px 18px rgba(0, 0, 0, .2); cursor: pointer; touch-action: manipulation; }
+.vol-arriver svg { width: 20px; height: 20px; }
+.vol-vue { position: absolute; right: 8px; top: var(--sl-pop, 200px); z-index: 6; display: flex; flex-direction: column; gap: 4px; padding: 4px; border-radius: 32px; background: rgba(38, 44, 50, .55); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.vol-vue button { display: grid; place-items: center; align-content: center; gap: 3px; width: 54px; height: 54px; border: 0; border-radius: 50%; background: transparent; color: #fff; font: 700 10px/1 var(--font-body); cursor: pointer; touch-action: manipulation; }
+.vol-vue button[aria-checked="true"] { background: #fff; color: #17130c; }
+.vol-vue svg { width: 20px; height: 20px; }
+#app.en-vol :is(.sl-joy, .sl-courir, .sl-guide, .chap-hud, .mini-carte, .sl-agir, .sl-astuce, .sl-actions, #vhVitesse, #vhGps) { display: none !important; }
+#app.en-vol .sl-bulle { left: 16px !important; bottom: 20px !important; }
+@media (max-width: 720px), (pointer: coarse) and (orientation: landscape) and (max-height: 540px) {
+  .vol-pile { top: calc(var(--sl-bandeau, 120px) + 38px); } /* sous la pastille de l'heure, rangée sous l'argent */
+}
+/* Le hublot : la paroi crème de la cabine autour d'une fenêtre ovale, son cadre et un peu d'ombre. */
+.vol-hublot { position: absolute; inset: 0; pointer-events: none; overflow: hidden; } /* premier de l'écran du salon : tout le reste passe devant */
+.vol-hublot::before { content: ''; position: absolute; left: 50%; top: 52%; width: min(72vw, 46vh); aspect-ratio: 3 / 4; transform: translate(-50%, -50%); border-radius: 46% / 36%; box-shadow: 0 0 0 200vmax #e6e0d3, inset 0 0 0 14px #d8d1c2, inset 0 0 0 17px #c3bba9, inset 0 14px 38px rgba(0, 0, 0, .38); }
+.vol-hublot::after { content: ''; position: absolute; left: 50%; top: 52%; width: min(72vw, 46vh); aspect-ratio: 3 / 4; transform: translate(-50%, -50%); border-radius: 46% / 36%; background: linear-gradient(160deg, rgba(255, 255, 255, .16), transparent 38%); }
+
+/* ---------- Téléphone épuré (03/11) ----------
+   La barre du salon (« En ville », inviter, copier le lien, quitter) quitte le haut de l'écran : Inviter et Quitter
+   sont dans le menu. L'argent et la mini-carte remontent tout en haut. « Courir » devient un rond, à côté de la bulle
+   de discussion, au-dessus du joystick, qui s'éclaircit pour laisser voir la ville. */
+@media (max-width: 720px), (pointer: coarse) and (orientation: landscape) and (max-height: 540px) {
+  .salon-hud .sl-haut { display: none; }
+  .salon-hud .sl-courir { display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border-radius: 50%; left: 20px; bottom: 146px; }
+  .salon-hud .sl-courir[hidden] { display: none; }
+  .salon-hud .sl-courir svg { width: 24px; height: 24px; }
+  #app:has(.sl-joy:not([hidden])) .sl-bulle { left: 78px; bottom: 146px; }
+  #app:has(.sl-joy:not([hidden])) .sl-chat.ouvert { bottom: calc(var(--clavier, 0px) + 204px); }
+  .salon-hud .sl-joy { background: rgba(255, 255, 255, .32); border-color: rgba(255, 255, 255, .6); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  .vie-hud:not(.ouvert) #vhEssenceTxt { display: none; } /* la jauge suffit : « 6,0 L / 6 L » passait sur deux lignes */
+  .vie-hud:not(.ouvert) :is(#vhFaimTxt, .vh-tete b) { white-space: nowrap; }
+}
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 540px) {
+  .salon-hud .sl-courir { left: 14px; bottom: 112px; width: 44px; height: 44px; }
+  #app:has(.sl-joy:not([hidden])) .sl-bulle { left: 66px; bottom: 112px; }
+}
