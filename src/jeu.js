@@ -957,7 +957,8 @@ export function finJeu(arrive, quitte = false) {
   const duo = arriveeDuo(arrive); if (duo) stats.push(['Course à deux', duo]); // qui est arrivé le premier au terminus
   el.querySelector('.jf-stats').innerHTML = stats.map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('');
   finDefi(st); // une course du défi du jour : son score, envoyé au classement du jour
-  const qz = el.querySelector('.jf-quiz'), Q = QUIZ[L.id] || []; let i = 0, bonus = 0;
+  // Le quiz de la ligne vient à la fin de sa dernière étape, pas après chaque étape de 3 minutes.
+  const qz = el.querySelector('.jf-quiz'), Q = (L.etape ? (L.etape.n === L.etape.sur ? QUIZ[L.etape.de] : null) : QUIZ[L.id]) || []; let i = 0, bonus = 0;
   $('#jfPartager').hidden = true; // il apparaît avec le total, après le quiz
   const finir = () => {
     const total = st.argent + bonus, prev = JEU.meilleur[L.id] || 0, record = arrive && total > prev; if (record) JEU.meilleur[L.id] = total; // un record se fait au terminus
@@ -987,24 +988,54 @@ export function finJeu(arrive, quitte = false) {
   // Terminus près d'un marché artisanal (la Porte du Non-Retour…) : on peut y passer.
   const fin = L.arretsJ[L.arretsJ.length - 1], pf = pose(JEU.chemin, fin.s, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), et = arrive ? etalPres(pf.x, pf.z) : null;
   $('#jfMarche').hidden = !et; $('#jfMarche').onclick = et ? () => ouvrirBoutique(et, () => rendreProgression()) : null;
+  const ensuite = arrive ? etapeSuivante(L) : null; // on enchaîne l'étape d'après, depuis ce terminus
+  $('#jfSuivante').hidden = !ensuite; $('#jfSuivante').onclick = ensuite ? () => { JEU.fini = false; lancerLigne(ensuite, JEU.veh); annoncerDepart(ensuite.id, JEU.veh); } : null;
   el.hidden = false; $('#jeuHud').hidden = true;
 }
 export function remplirLignes() {
   rendreProgression();
   const el = $('#jmLignes'); el.innerHTML = '';
+  const P = JEU.prog, choisi = P?.vehicule; // le véhicule débloqué au garage remplace le zém sur ses lignes
+  const vehDe = L => (L.veh === 'zem' && ((choisi === 'voiture' && P.voiture) || (choisi === 'bolide' && P.bolide)) ? choisi : L.veh);
+  const nomVeh = veh => (veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : veh === 'bolide' ? 'Bolide' : 'Tokpa');
+  const partir = (L, veh) => { JEU.numero = ($('#jmNumero').value || '1234').slice(0, 5); sauver(); JEU.fini = false; lancerLigne(L, veh); annoncerDepart(L.id, veh); }; // à deux : l'autre part sur la même ligne
+  const minutes = L => Math.max(2, Math.round((L.arrets[L.arrets.length - 1].s / 1000) * 2.6));
+  // Une ligne en étapes : une carte, ses étapes en pastilles numérotées (la prochaine à faire en avant, celles qui ont
+  // un record cochées) ; sous les pastilles, d'où à où va l'étape montrée.
+  const groupes = new Map();
   for (const L of JEU.lignes) {
+    if (!L.etape) continue;
+    let G = groupes.get(L.etape.de);
+    if (!G) {
+      const veh = vehDe(L), c = document.createElement('div'); c.className = 'jm-ligne jm-groupe';
+      c.innerHTML = `<span class="jm-veh ${veh}">${nomVeh(veh)}</span><b>${L.etape.ligne}</b><span class="jm-meta">${L.etape.sur} étapes · ${minutes(L)} min environ chacune</span><div class="jm-etapes" role="group"></div><small class="jm-etape-txt"></small>`;
+      G = { c, veh, liste: [] }; groupes.set(L.etape.de, G); el.appendChild(c);
+    }
+    G.liste.push(L);
+  }
+  for (const G of groupes.values()) {
+    const rang = G.c.querySelector('.jm-etapes'), txt = G.c.querySelector('.jm-etape-txt'), suivante = G.liste.find(L => !JEU.meilleur[L.id]) || G.liste[0];
+    const dire = L => { txt.textContent = `Étape ${L.etape.n} : ${L.arrets[0].nom} → ${L.arrets[L.arrets.length - 1].nom}${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}`; };
+    for (const L of G.liste) {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = L.etape.n; b.title = `${L.arrets[0].nom} → ${L.arrets[L.arrets.length - 1].nom}`;
+      b.classList.toggle('fait', !!JEU.meilleur[L.id]); b.classList.toggle('suivante', L === suivante);
+      b.addEventListener('pointerenter', () => dire(L)); b.addEventListener('focus', () => dire(L)); b.addEventListener('pointerleave', () => dire(suivante));
+      b.addEventListener('click', () => partir(L, G.veh)); rang.appendChild(b);
+    }
+    dire(suivante);
+  }
+  for (const L of JEU.lignes) {
+    if (L.etape) continue;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'jm-ligne';
-    const km = (L.arrets[L.arrets.length - 1].s / 1000).toFixed(1), court = L === JEU.lignes.reduce((m, l) => l.arrets[l.arrets.length - 1].s < m.arrets[m.arrets.length - 1].s ? l : m, JEU.lignes[0]);
-    const P = JEU.prog, choisi = P?.vehicule; // le véhicule débloqué au garage remplace le zém sur ses lignes
-    const veh = L.veh === 'zem' && ((choisi === 'voiture' && P.voiture) || (choisi === 'bolide' && P.bolide)) ? choisi : L.veh;
+    const court = !!L.express, veh = vehDe(L);
     // Seulement de quoi choisir : d'où à où, et combien de temps. Le trajet complet, la distance et le nombre
     // d'arrêts se lisent pendant la course — le bandeau du haut donne le prochain arrêt et sa distance, et la
     // barre de progression a un point par arrêt. Les remettre ici, c'était dire deux fois la même chose avant
     // même de partir.
     const bouts = `${L.arrets[0].nom} → ${L.arrets[L.arrets.length - 1].nom}`;
-    b.innerHTML = `<span class="jm-veh ${veh}">${veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : veh === 'bolide' ? 'Bolide' : 'Tokpa'}</span><b>${L.nom}</b>${court ? '<em class="jm-debut">Pour commencer</em>' : ''}<small>${bouts}</small><span class="jm-meta">${Math.max(5, Math.round(km * 2.6))} min environ${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
-    b.addEventListener('click', () => { JEU.numero = ($('#jmNumero').value || '1234').slice(0, 5); sauver(); JEU.fini = false; lancerLigne(L, veh); annoncerDepart(L.id, veh); }); // à deux : l'autre part sur la même ligne
-    el.appendChild(b);
+    b.innerHTML = `<span class="jm-veh ${veh}">${nomVeh(veh)}</span><b>${L.nom}</b>${court ? '<em class="jm-debut">Pour commencer</em>' : ''}<small>${bouts}</small><span class="jm-meta">${minutes(L)} min environ${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
+    b.addEventListener('click', () => partir(L, veh));
+    el.prepend(b); // la ligne express reste en tête, avant les lignes en étapes
   }
 }
 export function ouvrirJeu() {
@@ -1018,24 +1049,68 @@ export function ouvrirJeu() {
  *  Sur cette ligne, et tant qu'on n'a fini aucune course, la police est indulgente (voir `police`). */
 function ligneExpress(lignes) {
   const M = lignes.find(l => l.id === 'marina'), fin = M?.arrets[1]; if (!fin) return null;
-  const pts = [M.pts[0]]; let cum = 0;
-  for (let i = 1; i < M.pts.length && cum < fin.s; i++) {
-    const a = M.pts[i - 1], b = M.pts[i], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    if (cum + l <= fin.s) pts.push(b); else { const t = (fin.s - cum) / l; pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+  return { ...M, id: 'express', nom: 'Ligne express', express: true, pts: morceau(M.pts, 0, fin.s), arrets: M.arrets.slice(0, 2) };
+}
+/** Le bout du tracé `pts` entre les distances s0 et s1 (en m depuis le départ), coupé au bon endroit aux deux bouts. */
+function morceau(pts, s0, s1) {
+  const out = [], sur = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; let cum = 0;
+  for (let i = 1; i < pts.length && cum < s1; i++) {
+    const a = pts[i - 1], b = pts[i], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1e-6;
+    if (cum <= s0 && cum + l > s0) out.push(sur(a, b, (s0 - cum) / l));
+    if (cum + l > s0) out.push(cum + l <= s1 ? b : sur(a, b, (s1 - cum) / l));
     cum += l;
   }
-  return { ...M, id: 'express', nom: 'Ligne express', express: true, pts, arrets: M.arrets.slice(0, 2) };
+  return out;
 }
+// ---------- Les lignes en étapes d'environ 3 minutes ----------
+// Une ligne entière prenait 12 à 25 minutes ; « ramène toutes les courses à 3 min » (Murielle, 03/11). Chaque ligne
+// est découpée en étapes d'environ 1,3 km, qu'on enchaîne : la coupure tombe sur un arrêt de la ligne s'il y en a un
+// tout près, sinon sur un arrêt nommé comme les arrêts intermédiaires (un repère au bord de la route, le quartier, la rue).
+const ETAPE = 1300;
+function arretA(L, s, pris) {
+  const pts = L.pts; let cum = 0, x = pts[0][0], z = pts[0][1];
+  for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (cum + l >= s) { const t = (s - cum) / (l || 1); x = a[0] + (b[0] - a[0]) * t; z = a[1] + (b[1] - a[1]) * t; break; } cum += l; }
+  const repere = (L.commerces || []).filter(c => c.t !== 'poste' && c.t !== 'bureau' && nomPropre(c.nom) && !pris.has(nomRepere(c)))
+    .reduce((m, c) => { const d = Math.hypot(c.x - x, c.z - z) + (REPERES.includes(c.t) ? 0 : 60); return d < m.d ? { c, d } : m; }, { c: null, d: 180 }).c;
+  // le quartier le plus proche qui ne nomme pas déjà un arrêt de la ligne (sinon « Fidjrossè → Fidjrossè »)
+  const quartier = QUARTIERS_J.reduce((m, [nq, qx, qz]) => { const d = Math.hypot(qx - x, qz - z); return d < m.d && !pris.has(nq) ? { nom: nq, d } : m; }, { nom: '', d: 2500 }).nom;
+  const rue = (L.rues || []).reduce((m, r) => { const d = Math.hypot(r.x - x, r.z - z); return d < m.d && !pris.has(r.nom) ? { nom: r.nom, d } : m; }, { nom: '', d: 900 }).nom;
+  if (repere) { const nom = nomRepere(repere); return { nom, fait: `Un arrêt de zém devant ${nom}${quartier ? `, à ${quartier}` : ''}.`, s }; }
+  if (quartier) return { nom: quartier, fait: `Un arrêt de quartier, à ${quartier}${rue ? `, sur ${rue}` : ''}.`, s };
+  if (rue) return { nom: rue, fait: `Un arrêt sur ${rue}${quartier ? `, à ${quartier}` : ''}.`, s };
+  return null;
+}
+function etapesDe(L) {
+  const fin = L.arrets[L.arrets.length - 1], tot = fin.s, k = Math.round(tot / ETAPE);
+  if (k < 2) return [L];
+  const pris = new Set(L.arrets.map(a => a.nom)), bornes = [L.arrets[0]];
+  for (let i = 1; i < k; i++) {
+    const s = (tot * i) / k, prec = bornes[bornes.length - 1].s;
+    const proche = L.arrets.slice(1, -1).filter(a => a.s > prec + 600 && a.s < tot - 600).reduce((m, a) => (Math.abs(a.s - s) < Math.abs(m.s - s) ? a : m), { s: Infinity });
+    const b = Math.abs(proche.s - s) < 350 ? proche : arretA(L, s, pris);
+    if (b && b.s > prec + 600) { pris.add(b.nom); bornes.push(b); }
+  }
+  bornes.push(fin);
+  const n = bornes.length - 1;
+  return bornes.slice(1).map((b, i) => {
+    const a = bornes[i];
+    return { ...L, id: `${L.id}-${i + 1}`, nom: `${L.nom} · étape ${i + 1}`, etape: { de: L.id, ligne: L.nom, n: i + 1, sur: n },
+      pts: morceau(L.pts, a.s, b.s), arrets: [a, ...L.arrets.filter(x => x.s > a.s && x.s < b.s), b].map(x => ({ ...x, s: x.s - a.s })) };
+  });
+}
+/** L'étape qui suit `L` sur sa ligne, s'il y en a une. */
+export const etapeSuivante = L => (L?.etape && L.etape.n < L.etape.sur ? JEU.lignes.find(l => l.id === `${L.etape.de}-${L.etape.n + 1}`) : null);
 // Les trois classements de toutes les lignes (classement.js GLOBAUX) : meilleure course, kilomètres roulés, quartiers tamponnés.
 const totauxGlobaux = () => ({ score: Math.max(0, ...Object.values(JEU.meilleur)), km: Math.round((JEU.prog?.km || 0) * 10), quartiers: Object.keys(JEU.prog?.tampons || {}).length });
-const voirClassement = (ligne = 'score') => ouvrirClassement(JEU.lignes.map(l => ({ id: l.id, nom: l.nom })), ligne, { ...JEU.meilleur, ...totauxGlobaux() });
+// Une quarantaine d'étapes : le classement ne montre que la ligne express, celles où l'on a un record et celle qu'on vient de jouer.
+const voirClassement = (ligne = 'score') => ouvrirClassement(JEU.lignes.filter(l => !l.etape || JEU.meilleur[l.id] || l === JEU.ligne).map(l => ({ id: l.id, nom: l.nom })), ligne, { ...JEU.meilleur, ...totauxGlobaux() });
 export function initJeu(data) {
   initClassement(); initDefi(); $('#jmClassement')?.addEventListener('click', () => voirClassement()); $('#jfClassement')?.addEventListener('click', () => voirClassement());
-  const ex = ligneExpress(data.L.lignes || []);
-  JEU.lignes = ex ? [ex, ...data.L.lignes] : data.L.lignes || []; JEU.data = data;
-  JEU.prog = Object.assign(progDefaut(), JEU.progSauve || {}); assurerMissions();
   QUARTIERS_J = [...QUARTIERS, ['Abomey-Calavi', 6.448, 2.355], ['Zogbadjè', 6.4236, 2.3348], ['Godomey', 6.3870, 2.3420], ['Togoudo', 6.4071, 2.3345]].map(([n, la, lo]) => { const [x, z] = toXZ(la, lo); return [n, x, z]; });
   JEU.quartiersNoms = [...new Set(QUARTIERS_J.map(q => q[0]))];
+  const ex = ligneExpress(data.L.lignes || []), etapes = (data.L.lignes || []).flatMap(etapesDe); // les étapes ont besoin des quartiers pour nommer leurs arrêts
+  JEU.lignes = ex ? [ex, ...etapes] : etapes; JEU.data = data;
+  JEU.prog = Object.assign(progDefaut(), JEU.progSauve || {}); assurerMissions();
   $('#btnJouer').addEventListener('click', ouvrirJeu);
   const retourCarte = () => { $('#jeu').hidden = true; document.getElementById('app').classList.remove('mode-jeu'); };
   $('#jmRetour').addEventListener('click', retourCarte); $('#jmFermer').addEventListener('click', retourCarte); // la croix en haut : le bouton du bas sortait de l'écran

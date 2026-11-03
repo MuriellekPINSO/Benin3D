@@ -394,7 +394,9 @@ export function rendreVie() {
   $('#vhPause').hidden = $('#vhFinir').hidden = !VIE.service; $('#vhPause').textContent = VIE.pause ? 'Reprendre le travail' : 'Pause'; // en service : la pause et la fin de journée en vue
   const R = reservoir(), c = carburant();
   $('#vhEssenceLigne').hidden = !R;
-  if (R) { $('#vhEssence').style.setProperty('--faim', `${Math.round(c / R * 100)}%`); $('#vhEssence').classList.toggle('bas', c / R <= .2); $('#vhEssenceTxt').textContent = `${c.toFixed(1).replace('.', ',')} L / ${R} L`; }
+  // Une moto fait 12 km au litre : il faut 600 m pour que « 3,0 L » passe à « 2,9 L », et l'on croyait que l'essence ne
+  // baissait pas (testeur, 03/11). Sous 1 L, deux décimales : la réserve se voit fondre.
+  if (R) { $('#vhEssence').style.setProperty('--faim', `${Math.round(c / R * 100)}%`); $('#vhEssence').classList.toggle('bas', c / R <= .2); $('#vhEssenceTxt').textContent = `${c.toFixed(c < 1 ? 2 : 1).replace('.', ',')} L / ${R} L`; }
   $('#vhLouer').hidden = !!v.vehicule || !!VIE.travail || !!VIE.service; $('#vhLouer').textContent = `Louer une moto · ${fmt(LOCATION_MOTO)} / jour`;
   // « Acheter une voiture » reste affiché même sans l'argent. Il ne s'affichait qu'une fois qu'on pouvait payer,
   // pour éviter un écran de lignes grisées — mais on ne savait alors même pas que les voitures existaient :

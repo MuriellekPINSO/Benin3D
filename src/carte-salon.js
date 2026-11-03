@@ -277,6 +277,7 @@ export function initCarteSalon(ctx) {
     else if (ruesAutour(x, z, 300)) choisirDestination({ nom: 'Point choisi', sous: texteOu(ouEstCe(x, z)), x, z, type: 'point' });
   });
   cv?.addEventListener('wheel', e => { e.preventDefault(); M.echelle = Math.min(40, Math.max(1.2, M.echelle * (e.deltaY > 0 ? 1.15 : 1 / 1.15))); dessinerGrande(); }, { passive: false });
-  window.addEventListener('keydown', e => { if (e.key === 'Escape' && M.grande) { fermerGrande(); e.stopPropagation(); } }, true);
+  // Pas plus loin : le salon, qui écoute aussi Échap, aurait ouvert son menu sur la carte qu'on vient de fermer (03/11).
+  window.addEventListener('keydown', e => { if (e.key === 'Escape' && M.grande) { fermerGrande(); e.stopImmediatePropagation(); } }, true);
   if (import.meta.env.DEV) window.__carte = { M, ouvrirGrande, fermerGrande, choisirDestination, ficheMoi };
 }

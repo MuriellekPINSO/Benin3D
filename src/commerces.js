@@ -240,7 +240,9 @@ export function initCommerces(ctx) {
   $('#vfFermer')?.addEventListener('click', fermerFiche);
   $('#vieFiche')?.addEventListener('click', e => { if (e.target === e.currentTarget) fermerFiche(); });
   $('#vieFiche')?.addEventListener('click', e => { const b = e.target.closest('[data-cm]'); if (b) actionFiche(b.dataset.cm, b.dataset.v); });
-  window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#vieFiche')?.hidden) { fermerFiche(); e.stopPropagation(); } }, true);
+  // stopImmediatePropagation : le salon écoute aussi Échap sur window ; la fiche fermée, il ne voyait plus rien d'ouvert et
+  // ouvrait le menu par-dessus l'adji qu'on venait de quitter (testeur, 03/11).
+  window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#vieFiche')?.hidden) { fermerFiche(); e.stopImmediatePropagation(); } }, true);
   $('#vhCommerces')?.addEventListener('click', listeCommerces);
   if (import.meta.env.DEV) window.__commerces = { CM, TYPES, EMPLACEMENTS, ouvrir: (id, t) => ouvrir(lot(id), t), vendre: id => vendre(commerceDe(id)), rattraper, listeCommerces, ficheCommerce, choixCommerce: id => choixCommerce(lot(id)) }; // pour les tests
 }

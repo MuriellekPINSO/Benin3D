@@ -92,6 +92,11 @@ function deplacerFocus(p, dx, dy) {
   if (best || dy) focaliser(best || l[(i + dy + l.length) % l.length]);
 }
 function fermerPanneau(p) { const f = [...p.querySelectorAll(FERMER)].find(vu) || (p.id === 'metierFiche' ? p.querySelector('button') : null); f?.click(); }
+/**
+ * Échap au clavier, dans le salon (salon.js) : la fenêtre du dessus se ferme comme avec B, par son propre bouton. Vrai s'il
+ * y en avait une ouverte — le tirage du départ, qui n'a pas de croix, reste alors ouvert et le menu ne s'ouvre pas dessus.
+ */
+export function fermerFenetreDuDessus() { const p = panneauOuvert(); if (p) fermerPanneau(p); return !!p; }
 
 const sph = new THREE.Spherical(), off = new THREE.Vector3(), avant = new THREE.Vector3();
 /** À appeler à chaque image. */

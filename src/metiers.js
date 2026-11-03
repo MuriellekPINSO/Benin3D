@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { $, toXZ } from './base.js';
 import { moteurStop, son } from './audio.js';
 import { construireReseau, noeudsPres, relie } from './carrefours.js';
-import { VEHICULES, creerVehicule, itineraire, longueur, placer, pontPres, retirerRuban, retirerVehicule, ruban, suivreChemin, surRoute } from './conduite.js';
+import { VEHICULES, creerVehicule, departLibre, itineraire, longueur, placer, pontPres, retirerRuban, retirerVehicule, ruban, suivreChemin, surRoute } from './conduite.js';
 import { PLACES, QUARTIERS } from './donnees-lieux.js';
 import { chemiseZem } from './chemise-zem.js';
 import { personne } from './discussions.js';
@@ -111,7 +111,8 @@ function expliquerMetier(id) {
 const CHAPITRE_DE = { taxi: 1, chauffeur: 1, mtn: 1, moov: 1, cite: 1 }; // le chapitre (0 : le premier) qui ouvre ce métier
 /** Un refus se voit : au-dessus de son personnage, pas seulement dans la discussion (repliée sur téléphone). */
 const refus = t => { X.ligne(t); X.bulle?.(S, t); };
-async function commencer(id) {
+/** `auto` : la journée reprise toute seule après un rechargement (reprendreJournee) ; une seule ligne dans le fil. */
+async function commencer(id, auto = false) {
   const v = VIE.data, M = METIERS[id];
   if (M.famille !== 'transport') { // commerce, restauration, entreprises : metiers-ville.js
     if (T.mode !== 'pied') { refus('Gare-toi et descends d’abord.'); return; }
@@ -136,19 +137,35 @@ async function commencer(id) {
   } else if (v.metier !== id) await ecrire({ metier: id });
   W.id = id; VIE.service = id; W.attente = 3;
   if (id === 'zem' || id === 'taxi') {
+    if (auto) X.ligne(M.veh === 'moto' ? 'Ta journée de zémidjan continue : la moto du patron t’attend sur la route, sous la lumière jaune.' : 'Ta journée de taxi continue : le taxi du patron t’attend sur la route, sous la lumière jaune.');
     if (W.patron) {
       if (T.mode === 'conduit') descendreDe(T.veh);
       vehiculeDuPatron(M.veh);
-      X.ligne(`${M.veh === 'moto' ? 'La moto' : 'Le taxi'} du patron t’attend sur la route, sous la colonne de lumière jaune. ${reprise ? 'Ta journée continue.' : `Ce soir, tu lui dois ${fmt(M.versement)}.`}`);
+      if (!auto) X.ligne(`${M.veh === 'moto' ? 'La moto' : 'Le taxi'} du patron t’attend sur la route, sous la colonne de lumière jaune. ${reprise ? 'Ta journée continue.' : `Ce soir, tu lui dois ${fmt(M.versement)}.`}`);
       // La consigne n'était que dans la discussion, souvent cachée : une bulle au-dessus de soi, et le GPS si le véhicule est loin.
       const Vp = T.veh; X.bulle?.(S, `${M.veh === 'moto' ? 'La moto' : 'Le taxi'} du patron : suis la lumière jaune !`);
       if (Vp && Math.hypot(Vp.x - S.x, Vp.z - S.z) > 5) X.gps?.(Vp.x, Vp.z, `${M.veh === 'moto' ? 'la moto' : 'le taxi'} du patron`);
     } else if (!T.veh) X.garerSonVehicule();
     if (id === 'zem') enfilerChemise();
-    X.ligne(id === 'zem' ? `Tu es zémidjan, chemise jaune n° ${numero()} sur le dos. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux pour discuter le prix.` : 'Tu fais le taxi. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux.');
+    if (!auto) X.ligne(id === 'zem' ? `Tu es zémidjan, chemise jaune n° ${numero()} sur le dos. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux pour discuter le prix.` : 'Tu fais le taxi. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux.');
   } else allerGare(id, reprise);
   expliquerMetier(id);
   rendreVie();
+}
+/**
+ * Après un rechargement, la journée chez le patron était perdue : réveillé chez soi, plus de moto, plus de jauge d'essence
+ * ni de lumière jaune, alors que le versement restait dû et que « Ma vie » disait encore « Zémidjan » (testeur, 03/11).
+ * Seuls le métier, le versement et la fin de journée sont enregistrés (vie.js) ; le service, lui, ne vivait que le temps de
+ * la partie. Le salon appelle donc ceci à la première sortie après le chargement, jamais dans une pièce : la moto ou le
+ * taxi du patron revient sur la route, plein fait, comme avec « Reprendre ta journée ». Le tokpa-tokpa attend à la gare de
+ * Godomey : on le rappelle, sans y emmener d'office celui qui vient de sortir de chez lui.
+ */
+export function reprendreJournee() {
+  const v = VIE.data, id = v?.metier, M = METIERS[id];
+  if (!M || M.famille !== 'transport' || W.id || !(v.versement > 0) || !(v.journeeFin > Date.now())) return;
+  if (M.propre && v.vehicule === M.propre) return; // sa moto (ou sa voiture) à soi est déjà garée devant : rien n'a disparu
+  if (id === 'zem' || id === 'taxi') commencer(id, true);
+  else X.ligne('Ta journée continue : ton tokpa-tokpa t’attend à la gare de Godomey (« Travailler », puis « Transport »).');
 }
 const numero = () => String(JEU.numero || '1234').slice(0, 5);
 async function payerPatron() {
@@ -226,16 +243,37 @@ function capRoute(x, z) {
   }
   return best;
 }
+/**
+ * Où poser le véhicule du patron : le point de route le plus proche de (x, z) d'où il peut partir, dans le sens de la rue.
+ * La première route venue suffisait, et la moto apparaissait collée à un taxi jaune arrêté devant chez soi : gaz à fond,
+ * 0 km/h pendant 2,5 s, seule la marche arrière la sortait de là (testeur, 03/11). On exige 6 m libres devant et 1,2 m de
+ * chaque côté (conduite.js, departLibre), dans un sens de la rue ou dans l'autre ; sinon on cherche plus loin, jusqu'à
+ * 60 m (au-delà, chaque point essayé coûte des centaines de tests de chaussée : la route la plus proche fera l'affaire).
+ */
+function placeDeDepart(D, x, z, rMax = 60) {
+  const gares = [...S.autres.values()].map(A => A.garee).filter(G => G?.g.visible); // les motos et voitures garées des autres joueurs
+  for (let r = 0; r <= rMax; r += 1.5) for (let a = 0; a < (r ? 16 : 1); a++) {
+    const px = x + Math.cos(a * Math.PI / 8) * r, pz = z + Math.sin(a * Math.PI / 8) * r; if (!surRoute(px, pz)) continue;
+    const c = capRoute(px, pz);
+    for (const cap of [c, c + Math.PI]) if (departLibre(D, px, pz, cap, { gares })) return [px, pz, cap];
+  }
+  return null;
+}
 function vehiculeDuPatron(type) {
   if (T.veh) { retirerVehicule(T.veh); T.veh = null; } // ton véhicule à toi reste à la maison
-  const p = routeProche(S.x + Math.sin(S.cap + Math.PI / 2) * 4, S.z + Math.cos(S.cap + Math.PI / 2) * 4, 0, 150) || [S.x, S.z];
-  const V = creerVehicule(type); placer(V, p[0], p[1], capRoute(p[0], p[1])); V.travail = true;
+  const ox = S.x + Math.sin(S.cap + Math.PI / 2) * 4, oz = S.z + Math.cos(S.cap + Math.PI / 2) * 4;
+  // Nulle part assez de place à 60 m (une ruelle bouchée, ou loin de toute rue) : la route la plus proche, comme avant.
+  const p = placeDeDepart(VEHICULES[type], ox, oz) || [...(routeProche(ox, oz, 0, 150) || [S.x, S.z]), null];
+  const V = creerVehicule(type); placer(V, p[0], p[1], p[2] ?? capRoute(p[0], p[1])); V.travail = true;
   const e = X.etiquette(type === 'moto' ? 'Moto du patron' : 'Taxi du patron'); e.position.y = type === 'moto' ? 1.7 : 2.2; V.g.add(e); V.etiquette = e;
   // « Le soir, je n'ai pas trouvé la moto du patron, étiquette jaune » (un testeur, 26/10) : une colonne de
   // lumière jaune au-dessus d'elle, qu'on voit de loin et de nuit, jusqu'à ce qu'on monte dessus.
   const b = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 40, 12, 1, true), new THREE.MeshBasicMaterial({ color: '#ffd23a', transparent: true, opacity: .32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
   b.position.y = 20.5; b.renderOrder = 12; V.g.add(b); V.balise = b;
   T.veh = V; VIE.travail = { type, carburant: VEHICULES[type].reservoir }; // le patron le confie avec le plein
+  // La route la plus proche est cherchée tout autour de soi : « la moto était derrière moi, la lumière jaune n'est apparue
+  // qu'en tournant la caméra » (testeur, 03/11). On se tourne vers elle, et la caméra se replace dans son dos.
+  S.cap = Math.atan2(V.x - S.x, V.z - S.z); S.orbite = 0; S.saut = true;
 }
 /** On descend du véhicule (fin de service, départ pour la gare). */
 function descendreDe(V) { V.v = 0; moteurStop(); T.mode = 'pied'; pieds(V, V.D.cache ? 1.6 : 1); }
@@ -287,7 +325,9 @@ function destinationDe(x, z) {
 }
 function perso(graine, role) { const p = personne(graine, role ? { role } : {}); p.userData.jouer ??= () => { }; return p; }
 function retirerPerso(p) { if (p) { scene.remove(p); p.userData.liberer?.(); } }
-function retirerClient() { const C = W.client; if (!C) return; X.retirerBulle(C); retirerPerso(C.p); W.client = null; }
+function retirerClient() { const C = W.client; if (!C) return; oublierGuide(C); X.retirerBulle(C); retirerPerso(C.p); W.client = null; }
+/** Efface le chemin bleu vers le client qui faisait signe, s'il est encore celui qu'on suit. */
+function oublierGuide(C) { if (C.guide && T.gps === C.guide) { retirerRuban(T.gps.m); T.gps = null; } C.guide = null; }
 function dire(qui, texte) { if (qui?.g) X.bulle(qui, texte); }
 
 /** Parler au client arrêté à côté de lui : il annonce sa destination et son prix, on peut demander plus. */
@@ -312,7 +352,7 @@ function accepter(prix) {
   C.prix = prix; C.etat = 'monte'; C.t = 0; C.marque.visible = false;
   C.vers = [V.x + Math.sin(V.cap - Math.PI / 2) * (V.D.cache ? 1.3 : .6), V.z + Math.cos(V.cap - Math.PI / 2) * (V.D.cache ? 1.3 : .6)];
 }
-function partir(C) { C.etat = 'part'; C.t = 0; C.marque.visible = false; W.attente = 6 + Math.random() * 6; }
+function partir(C) { oublierGuide(C); C.etat = 'part'; C.t = 0; C.marque.visible = false; W.attente = 6 + Math.random() * 6; }
 /** Le choc compte pendant une course : au troisième, le client descend sans payer. */
 export function chocMetier() {
   const C = W.client; if (!C || C.etat !== 'course') return;
@@ -350,6 +390,10 @@ function majClient(dt) {
   if (C.bulle && performance.now() > C.bulleFin) X.retirerBulle(C);
   const d = V ? Math.hypot(C.x - V.x, C.z - V.z) : Infinity;
   if (C.etat === 'signe') {
+    // « Un client te fait signe · 25 m », face au mur d'un carrefour en T, sans flèche (testeur, 03/11) : la distance est à
+    // vol d'oiseau et il attend souvent dans la rue d'à côté. Le chemin bleu mène à sa rue, sans remplacer un itinéraire
+    // déjà tracé (la station-service) ; une fois arrivé près de lui (majGps l'efface), il ne revient pas.
+    if (C.guide === undefined && !T.gps && T.mode === 'conduit') C.guide = X.gps(C.route[0], C.route[1], 'ton client', { muet: true }) ? T.gps : null;
     if (d < 32 && !C.appele) { C.appele = true; dire(C, W.id === 'taxi' ? 'Taxi ! Taxi !' : 'Zém ! Zém !'); }
     if (d > 260 || C.t > 90) { retirerClient(); W.attente = 2; }
   } else if (C.etat === 'monte') { // il marche jusqu'au véhicule puis s'assoit derrière (ou disparaît dans la voiture)

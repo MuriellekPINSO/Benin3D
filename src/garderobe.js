@@ -57,18 +57,24 @@ const G = { femme: true, porter: null, ligne: () => { } };
 export function initGarderobe({ porter, ligne }) {
   G.porter = porter; G.ligne = ligne;
   $('#grFermer')?.addEventListener('click', () => { $('#garderobe').hidden = true; });
+  // Une prime de mission arrivée pendant qu'on choisissait sa tenue : la garde-robe disait encore « Tu as 2 600 F » quand on
+  // en avait 2 800 (testeur, 03/11). Le montant du haut de l'écran est réécrit à chaque changement d'argent (vie.js,
+  // rendreVie) : on le suit tant que la garde-robe est ouverte et qu'elle montre le solde, pas un « Il te faut… ».
+  const haut = $('#vhArgent');
+  if (haut) new MutationObserver(() => { if (G.solde && !$('#garderobe').hidden) solde(); }).observe(haut, { childList: true, characterData: true, subtree: true });
 }
 export function ouvrirGarderobe(modele) {
   G.femme = estFemme(modele); G.modele = modele; rendre(); $('#garderobe').hidden = false;
 }
+function solde() { const t = VIE.data ? `Tu as ${fmt(VIE.data.argent)}` : ''; if ($('#grArgent').textContent !== t) $('#grArgent').textContent = t; G.solde = true; }
 function rendre() {
-  $('#grArgent').textContent = VIE.data ? `Tu as ${fmt(VIE.data.argent)}` : '';
+  solde();
   choixGenre($('#grGenre'), G.femme, f => { G.femme = f; rendre(); });
   grilleTenues($('#grTenues'), { femme: G.femme, choisi: G.modele, choisir });
 }
 async function choisir(t) {
   if (!possede(t)) {
-    if (!VIE.data || VIE.data.argent < t.prix) { $('#grArgent').textContent = `Il te faut ${fmt(t.prix)} pour « ${t.nom} » : travaille un peu !`; return; }
+    if (!VIE.data || VIE.data.argent < t.prix) { G.solde = false; $('#grArgent').textContent = `Il te faut ${fmt(t.prix)} pour « ${t.nom} » : travaille un peu !`; return; }
     if (!(await depenser(t.prix, `tenue « ${t.nom} »`))) return;
     await ecrire({ garderobe: [...achetees()].filter(id => TENUES.some(x => x.id === id)).concat(t.id).join(',').slice(0, 200) });
   }

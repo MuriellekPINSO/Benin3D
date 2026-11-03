@@ -59,17 +59,18 @@ function heureServeur() {
 // ---------- La mission du jour, la même pour tous ----------
 /** La mission du jour `j` : ligne, nombre de clients, argent à rapporter, et une condition. Tirée du jour lui-même. */
 export function missionDu(j) {
-  const lignes = LIGNES_DEFI.map(id => JEU.lignes.find(l => l.id === id)).filter(Boolean); if (!lignes.length) return null;
-  const n = Math.round(Date.parse(`${j}T12:00:00Z`) / JOUR), L = lignes[n % lignes.length];
+  // Les lignes sont en étapes d'environ 3 minutes (jeu.js etapesDe) : le défi tombe sur une étape de la ligne du jour.
+  const lignes = LIGNES_DEFI.map(id => JEU.lignes.filter(l => l.etape?.de === id || l.id === id)).filter(l => l.length); if (!lignes.length) return null;
+  const n = Math.round(Date.parse(`${j}T12:00:00Z`) / JOUR), E = lignes[n % lignes.length], L = E[Math.floor(hash(n, 3) * E.length) % E.length];
   // Un client par tronçon entre deux arrêts, arrêts intermédiaires compris (jeu.js) : la mission en demande la moitié
-  // aux deux tiers, jamais tous (un client raté ne doit pas tout ruiner).
+  // aux deux tiers ; sur une étape courte, il n'y a que deux ou trois tronçons : un ou deux clients.
   const ecarts = L.arrets.slice(1).map((a, i) => a.s - L.arrets[i].s), depots = ecarts.length + ecarts.reduce((s, g) => s + nbIntermediaires(g), 0);
-  const clients = Math.max(3, Math.min(depots - 1, Math.round(depots * (.5 + .2 * hash(n, 1)))));
-  const argent = Math.max(1000, Math.round(clients * 375 / 500) * 500); // 8 clients : 3 000 F
+  const clients = Math.max(1, Math.min(depots, Math.round(depots * (.5 + .2 * hash(n, 1)))));
+  const argent = Math.max(500, Math.round(clients * 375 / 500) * 500); // 2 clients : 500 F
   const cond = Object.keys(CONDITIONS)[Math.floor(hash(n, 2) * 3) % 3];
   return { j, ligne: L.id, nom: L.nom, clients, argent, cond, code: `${L.id}|${clients}|${argent}|${cond}` };
 }
-export const texteMission = M => `Sur « ${M.nom} » : dépose ${M.clients} clients, rapporte ${fmtF(M.argent)} au patron, ${CONDITIONS[M.cond].txt}.`;
+export const texteMission = M => `Sur « ${M.nom} » : dépose ${M.clients} ${M.clients > 1 ? 'clients' : 'client'}, rapporte ${fmtF(M.argent)} au patron, ${CONDITIONS[M.cond].txt}.`;
 
 /** Le score d'une course du défi, et ce qui le compose. */
 export function resultat(st, M) {

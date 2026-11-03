@@ -91,7 +91,7 @@
     <div class="radio-menu panel" id="radioMenu" role="menu" aria-label="Radios" hidden></div>
     <div class="plus-menu panel" id="plusMenu" role="menu" aria-label="Plus" hidden>
       <button class="tog" type="button" id="btnPres" title="Lancer la visite de présentation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><span class="t-long">Visite en musique</span></button>
-      <button class="tog" type="button" id="btnMode" title="Boutique de mode : essaie des tenues, porte-les dans le jeu ou achète-les pour de vrai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6a2 2 0 1 1 3 1.7c-.6.4-1 .9-1 1.6V10"/><path d="M12 10 3.6 16.2A1.6 1.6 0 0 0 4.6 19h14.8a1.6 1.6 0 0 0 1-2.8z"/></svg><span class="t-long">Boutique</span></button>
+      <button class="tog" type="button" id="btnMode" title="Boutique de mode : essaie des tenues et porte-les dans le jeu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6a2 2 0 1 1 3 1.7c-.6.4-1 .9-1 1.6V10"/><path d="M12 10 3.6 16.2A1.6 1.6 0 0 0 4.6 19h14.8a1.6 1.6 0 0 0 1-2.8z"/></svg><span class="t-long">Boutique</span></button>
       <button class="tog" type="button" id="togMeteo" aria-pressed="false" title="Changer le temps : soleil, nuages, pluie, orage (touche M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17a4.5 4.5 0 1 1 1.2-8.8A5.5 5.5 0 0 1 18.5 10 3.5 3.5 0 0 1 18 17Z"/><path d="M9 20l-1 2M13 20l-1 2M17 20l-1 2"/></svg><span class="t-long">Soleil</span></button>
       <button class="tog" type="button" id="togTour" aria-pressed="false" title="Faire tourner la caméra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4.5h-4.5"/></svg><span class="t-long">Survol</span></button>
       <button class="tog" type="button" id="togLeger" aria-pressed="false" title="Mode léger : moins de détails pour que le jeu tourne mieux (recharge la page)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20c0-8 5-14 15-16-1 10-7 15-15 16Z"/><path d="M5 20 13 12"/></svg><span class="t-long">Mode léger</span></button>
@@ -109,6 +109,7 @@
     <div class="credits-detail" id="creditsDetail" hidden><p>Bâtiments : <a href="https://sites.research.google/open-buildings/" target="_blank" rel="noopener">Google Open Buildings</a> et OpenStreetMap · façades d'après photos : Erevan <a href="https://commons.wikimedia.org/wiki/File:Centre_commercial_Erevan_de_Cotonou_08.jpg" target="_blank" rel="noopener">Alex Ahdn</a>, Cathédrale <a href="https://commons.wikimedia.org/wiki/File:Cath%C3%A9drale_Notre-Dame-de-misericordes_%C3%A0_Cotonou.jpg" target="_blank" rel="noopener">Saliousoft</a> (CC BY-SA 4.0), Dantokpa <a href="https://commons.wikimedia.org/wiki/File:March%C3%A9_Dantokpa_(vue_arri%C3%A8re).jpg" target="_blank" rel="noopener">jbdodane</a> (CC BY 2.0), Porte du Non-Retour <a href="https://commons.wikimedia.org/wiki/File:Porte_du_non-retour_au_Benin.jpg" target="_blank" rel="noopener">Borisghost</a> (CC0), BCEAO, Palais de la Marina et Stade <a href="https://commons.wikimedia.org/wiki/User:Adoscam" target="_blank" rel="noopener">Adoscam</a>, Sofitel <a href="https://commons.wikimedia.org/wiki/File:Sofitel_Cotonou_Marina_H%C3%B4tel_%26_Spa.jpg" target="_blank" rel="noopener">Freed Armel</a> (CC BY-SA 4.0) · modèles 3D générés (Tripo) d'après des photos de Yendifa (CC BY), Saliousoft, houaito affo daniel, Zounmabejosue, Fawaz.tairou (CC BY-SA), Step may (CC0), jbdodane (CC BY 2.0), Adoscam, Freed Armel (CC BY-SA) · rues © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">contributeurs OpenStreetMap</a> · monuments reconstitués d'après photos</p></div>
   </div>
 
+  <p class="osm-mini">© OpenStreetMap · Google</p>
   <p class="google-erreur" id="googleErreur" hidden></p>
   <div class="manette-info" id="manetteInfo" role="status"></div>
   <div class="reel" id="reel" hidden role="dialog" aria-modal="true" aria-labelledby="reelTitre">
@@ -195,7 +196,7 @@
       <div class="jf-stats"></div>
       <div class="jf-defi" id="jfDefi" hidden></div>
       <div class="jf-quiz"></div>
-      <div class="jf-actions"><button type="button" class="jouer jf-partager" id="jfPartager" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg><span>Partager mon billet</span></button><button type="button" class="jouer" id="jfRejouer">Rejouer</button><button type="button" class="btn-ghost" id="jfClassement">Classement</button><button type="button" class="btn-ghost" id="jfMarche" hidden>Marché artisanal</button><button type="button" class="btn-ghost" id="jfLignes">Autre ligne</button><button type="button" class="btn-ghost" id="jfCarte">Revenir à la carte</button></div>
+      <div class="jf-actions"><button type="button" class="jouer jf-partager" id="jfPartager" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg><span>Partager mon billet</span></button><button type="button" class="jouer" id="jfSuivante" hidden>Étape suivante</button><button type="button" class="jouer" id="jfRejouer">Rejouer</button><button type="button" class="btn-ghost" id="jfClassement">Classement</button><button type="button" class="btn-ghost" id="jfMarche" hidden>Marché artisanal</button><button type="button" class="btn-ghost" id="jfLignes">Autre ligne</button><button type="button" class="btn-ghost" id="jfCarte">Revenir à la carte</button></div>
     </div>
     <div class="jeu-classement panel" id="jeuClassement" hidden role="dialog" aria-modal="true" aria-labelledby="jcTitre">
       <button type="button" class="jm-fermer" id="jcFermer" aria-label="Fermer le classement">×</button>
@@ -282,9 +283,9 @@
 
   <div class="mode panel" id="mode" hidden role="dialog" aria-labelledby="modeTitre" tabindex="-1">
     <button type="button" class="bq-x" id="modeFermer" aria-label="Fermer la boutique">×</button>
-    <small class="md-sur">Boutique de mode · version de test</small>
+    <small class="md-sur">Boutique de mode</small>
     <h3 id="modeTitre">Trouve ton style</h3>
-    <p class="md-test">Tenues, pagnes et ateliers de démonstration : les vrais créateurs arrivent bientôt.</p>
+    <p class="md-test">Des tenues à porter dans le jeu, avec l’argent de ta cagnotte. Bientôt, les créations de vrais stylistes de Cotonou.</p>
     <div class="md-corps">
       <div class="md-cabine">
         <canvas id="modeVue" tabindex="0" aria-label="Cabine d’essayage : fais glisser pour faire tourner"></canvas>

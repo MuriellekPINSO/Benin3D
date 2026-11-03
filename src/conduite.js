@@ -327,6 +327,22 @@ function assezDePlace(V, x, z, cap) {
   for (const [a, b] of [[0, 0], [L, W], [L, -W], [-L, W], [-L, -W]]) { const px = x + sx * a + cz * b, pz = z + cz * a - sx * b; if (!surRoute(px, pz) || hauteurSol(px, pz) >= .25) return false; }
   return true;
 }
+/**
+ * Peut-on partir d'ici, au cap `cap`, avec un véhicule de gabarit D : sa caisse et `devant` mètres droit devant, sur
+ * `cote` mètres de chaque côté, tout sur la route, sans mur, bâtiment, voiture garée de la rue ni marche (horsMur), ni
+ * véhicule de la circulation (dansCirculation) — les épreuves mêmes de passe(), quand on roule. `gares` : les véhicules
+ * garés des autres joueurs, qui ne sont dans E.circulation que pendant l'image du salon, pas lors d'un clic sur un menu.
+ * Pour poser le véhicule du patron (metiers.js) ailleurs que contre un taxi arrêté (testeur, 03/11).
+ */
+export function departLibre(D, x, z, cap, { devant = 6, cote = 1.2, gares = [] } = {}) {
+  const s = Math.sin(cap), c = Math.cos(cap), L = (D.long ?? 2) / 2;
+  const garee = (px, pz) => gares.some(G => { const dx = px - G.x, dz = pz - G.z, gs = Math.sin(G.cap), gc = Math.cos(G.cap); return Math.abs(dx * gs + dz * gc) < G.D.long / 2 + .05 && Math.abs(dx * gc - dz * gs) < G.D.larg / 2 + .05; });
+  for (let a = -L; a <= L + devant; a += .5) for (const b of [-cote, 0, cote]) {
+    const px = x + s * a + c * b, pz = z + c * a - s * b;
+    if (!surRoute(px, pz) || !horsMur(px, pz) || dansCirculation(px, pz, .05) > 0 || garee(px, pz)) return false;
+  }
+  return true;
+}
 // Quatre jets bleus sous la caisse, créés au premier vol.
 const FLAMME = { geo: null, mat: null };
 function flammes(V) {
@@ -496,5 +512,10 @@ export function stationLaPlusProche(x, z) {
   let best = null, bd = Infinity; for (const st of ST.liste) { const d = Math.hypot(st[0] - x, st[1] - z); if (d < bd) { bd = d; best = st; } }
   return best;
 }
-/** La station à moins de 25 m (on s'y arrête pour faire le plein), sinon null. */
-export function stationProche(x, z) { for (const f of ST.faites.values()) if (Math.hypot(f.s[0] - x, f.s[1] - z) < 25) return f; return null; }
+/**
+ * La station à moins de 35 m (on s'y arrête pour faire le plein), sinon null. Son point est le centre de son emprise dans
+ * OpenStreetMap, pas un point de la route : à 25 m, une station Ewell restait hors d'atteinte (27,6 m entre son centre et
+ * le bord de la chaussée la plus proche) et six autres se jouaient à quelques mètres près, murs comptés (mesure du 03/11).
+ * Un « Vendeur d'essence » perdu à 3 km de toute route reste, lui, inaccessible.
+ */
+export function stationProche(x, z) { for (const f of ST.faites.values()) if (Math.hypot(f.s[0] - x, f.s[1] - z) < 35) return f; return null; }

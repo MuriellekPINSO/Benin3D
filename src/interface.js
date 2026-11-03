@@ -40,14 +40,20 @@ export function measureObstacles() {
   if (small) { const pl = $('#placeList').getBoundingClientRect(); obstacles.push([0, pl.top - app.top, app.width, pl.bottom - app.top]); }
 }
 const avantCam = new THREE.Vector3();
+// En course, les étiquettes de lieux jusqu'à 1,6 km tombaient au milieu de la route (l'aéroport dès le départ de
+// Haie Vive, revue du 03/11) : seulement les deux lieux les plus proches, à moins de 450 m.
+let proches = new Set();
 export function updateLabels(dist, W, H, joueur = null) {
-  if (E.frameN % 20 === 1) measureObstacles();
+  if (E.frameN % 20 === 1) {
+    measureObstacles();
+    if (joueur) proches = new Set(labels.filter(L => L.kind === 'p').map(L => [L, L.pos.distanceTo(joueur)]).filter(([, d]) => d < 450).sort((a, b) => a[1] - b[1]).slice(0, 2).map(([L]) => L));
+  }
   if (joueur) camera.getWorldDirection(avantCam);
   const placed = obstacles.slice();
   const dbg = import.meta.env.DEV && joueur ? { total: 0, loin: 0, derriere: 0, hors: 0, cache: 0, ok: [] } : null;
   for (const L of labels) {
     let show = true;
-    if (joueur) { show = L.kind === 'p' && L.pos.distanceTo(joueur) < 1600; if (dbg && L.kind === 'p') { dbg.total++; if (!show) dbg.loin++; } } // en jeu : seulement les lieux à moins de 1,6 km
+    if (joueur) { show = proches.has(L); if (dbg && L.kind === 'p') { dbg.total++; if (!show) dbg.loin++; } } // en jeu : les deux lieux les plus proches
     if (L.kind === 'q' && (!E.showQ || dist > 6500)) show = false;
     if (L.kind === 'w' && dist < 900) show = false;
     let sx = 0, sy = 0;

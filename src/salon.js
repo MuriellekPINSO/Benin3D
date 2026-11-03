@@ -23,7 +23,7 @@ import { dansCirculation } from './trafic.js';
 import { creerAvion, etatVol, obstacleAvions, poserAvion, retirerAvion } from './vol.js';
 import { A_VENDRE, LOGEMENTS, acheterVehicule, ouvertAu, vehiculeLoue, alerteDuJour, assurerVie, bonjourDuJour, depenser, ecrire as ecrireVie, HEURES_VELO, LOCATION_VELO, louerMoto, louerVelo, majVie, prechargerVie, rendreLocation, rendreVie, sauverVie, signaler as signalerVie, surAnnonce, VIE, vitesseFaim } from './vie.js';
 const ecrireModele = modele => ecrireVie({ modele });
-import { assoirApprenti, basculerPause, finirJournee, menuTravail } from './metiers.js';
+import { assoirApprenti, basculerPause, finirJournee, menuTravail, reprendreJournee } from './metiers.js';
 import { actionsCommerces, corpsCommerces, entrerCommerces, genteCommerces, initCommerces, lieuxCommerces, listeCommerces, majCommerces, quitterCommerces, sauverCommerces } from './commerces.js';
 import { majAmbianceSalon } from './ambiance-salon.js';
 import { afficherChapitres, entrerChapitres, initChapitres, majChapitres, quitterChapitres } from './chapitres.js';
@@ -45,6 +45,7 @@ import { actionsLancePierre, cameraTir, fovTir, initLancePierre, majLancePierre,
 import { STICKERS, elementSticker, stickerDe, texteSticker, toileSticker } from './stickers.js';
 import { actionsFauxFrere, initFauxFrere, majFauxFrere, quitterFauxFrere } from './fauxfrere.js';
 import { SAISIE } from './saisie.js';
+import { fermerFenetreDuDessus } from './manette.js';
 import { initRecharge, proposerRecharge, verifierRecharges } from './recharge.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
@@ -614,8 +615,11 @@ async function teleporterVers(D) {
 function partagerPosition(x, z, ou) { dire(`📍 Je suis ici : ${ou}`, null, { pos: [r2(x), r2(z)] }); }
 
 // ---------- Intérieurs : entrer dans un bâtiment, en sortir ----------
+// La caméra se rapproche dans une pièce (3,6 m chez soi) : on retient son recul du dehors pour le lui rendre en sortant.
+// Au réveil, elle restait à 3,6 m toute la partie, et sur téléphone (pas de molette) rien ne l'éloignait (testeur, 03/11).
 function dedans(I, parler = true) {
   ouvrirInterieur(I); const a = arriveeDedans(I);
+  if (!S.lieu) S.distDehors = S.dist;
   S.lieu = I; S.y = a.y; S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; S.geste = 'idle'; S.dist = Math.min(S.dist, I.prive ? 3.6 : 4.5);
   document.getElementById('app').classList.add('dedans');
   if (!I.prive && parler) annoncer(`Je suis dans ${I.nom}, venez !`, LIEUX.find(l => l[6] === I.id)?.[0]); // chez soi : on ne l'annonce pas
@@ -624,6 +628,7 @@ function dehors(replacer = true) {
   const I = S.lieu; if (!I) return;
   quitterMaison(); // plus couché ni sous la douche
   S.lieu = null; S.y = 0; S.geste = 'idle'; // assis à table dedans : debout dans la rue
+  if (S.distDehors) { S.dist = S.distDehors; S.distDehors = 0; }
   cacherInterieurs(); document.getElementById('app').classList.remove('dedans');
   if (replacer) { const a = arriveeDehors(I); S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; }
 }
@@ -740,6 +745,7 @@ async function entrerSalon(code, { ami = '', nouveau = false } = {}) {
   if (!S.actif) { g.userData.liberer?.(); return; }
   S.moi = g; S.g = g; poserMonEtiquette(g); scene.add(g);
   entrerMonde(); // son véhicule garé à côté (Fils à papa, moto louée)
+  S.reprise = true; // la journée chez le patron reprend à la première sortie (majSalon, metiers.js reprendreJournee)
   if (!personnagesPrets()) personnagesCharges().then(ok => { // arrivés après nous : le personnage animé remplace le dessiné, le sien et ceux des amis
     if (!ok || !S.actif) return;
     porter(S.modele, true);
@@ -761,6 +767,7 @@ async function porter(modele, forcer = false) {
 }
 function quitter() {
   if (!S.actif) return;
+  S.reprise = false; // pas avant que la prochaine entrée ait garé son monde (entrerSalon)
   lieuStats('carte');
   menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterJournee(); quitterDeco(); quitterAlbum(); quitterTresor(); quitterEpargne(); quitterAdji(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
@@ -897,6 +904,9 @@ export function majSalon(dt) {
   const tour = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) - (j ? j.x : 0) - (pad ? pad.lx : 0), -1, 1);
   majVie(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
   for (const A of S.autres.values()) { const G = A.garee; if (G?.g.visible && (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < 1600) E.circulation.push({ px: G.x, pz: G.z, cap: G.cap, hl: G.D.long / 2, hw: G.D.larg / 2, v: 0, type: G.type }); } // vidée à chaque image (main.js)
+  // Après un rechargement, la moto du patron revient dès qu'on est dehors et à pied (au réveil, en sortant de chez soi ;
+  // tout de suite si l'on arrive dans la rue, à côté d'un ami) : jamais dans une pièce (testeur, 03/11).
+  if (S.reprise && !S.lieu && T.mode === 'pied' && !T.trans) { S.reprise = false; reprendreJournee(); }
   let suivi = majTrajets(dt, av, tour); // en voiture, à moto, derrière un zém : c'est le véhicule qui bouge
   if (T.mode === 'ami') suivi = majAmi(); // derrière un ami : c'est lui qui conduit
   // La circulation s'arrête devant lui (trafic.js, circulation.js) ; dedans, elle l'ignore. Elle doit connaître sa taille :
@@ -1475,7 +1485,10 @@ export function initSalon(data) {
   $('#slGestesBtn')?.addEventListener('click', () => gestes(!$('#slActions').classList.contains('ouvert')));
   $('#slGestesFermer')?.addEventListener('click', () => gestes(false));
   document.addEventListener('saisie', majAide); majAide(); // l'aide du bas : clavier ou manette
-  $('#slForm')?.addEventListener('submit', e => { e.preventDefault(); dire($('#slTexte').value); $('#slTexte').value = ''; });
+  // Le message parti, le clavier revient au jeu : le champ gardait la main, et les flèches déplaçaient le curseur au lieu de
+  // la moto — « la moto ne bouge pas », écrit justement dans la discussion (deux joueurs, 03/11). Sur téléphone, le clavier
+  // se referme et rend le joystick qu'il recouvrait. Échap fait de même (plus bas, dans le clavier du salon).
+  $('#slForm')?.addEventListener('submit', e => { e.preventDefault(); dire($('#slTexte').value); $('#slTexte').value = ''; $('#slTexte').blur(); });
   const tiroir = $('#slStickers'), btSt = $('#slStickersBtn'), montrerStickers = v => { tiroir.hidden = !v; btSt.setAttribute('aria-expanded', String(v)); };
   if (tiroir && btSt) {
     for (const s of STICKERS) { const b = document.createElement('button'); b.type = 'button'; b.title = s.t; b.append(elementSticker(s)); b.addEventListener('click', () => { dire(texteSticker(s), s.id); montrerStickers(false); b.blur(); }); tiroir.append(b); } // sans rendre la main au champ : au doigt, le clavier s'ouvrirait
@@ -1489,8 +1502,18 @@ export function initSalon(data) {
     const champ = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     if (champ) { if (e.key === 'Escape') e.target.blur(); e.stopPropagation(); return; }
     if (e.key === 'Escape' && (document.pointerLockElement || performance.now() - (S.verrouT || 0) < 300)) { document.exitPointerLock?.(); e.preventDefault(); e.stopPropagation(); return; } // Échap libère d'abord la souris
-    if (e.key === 'Escape') { // le menu ; si une autre fenêtre est ouverte, c'est elle qu'Échap ferme
-      if (S.menu) menu(false); else if (['#choix', '#carteGrande', '#vieFiche', '#boutique'].some(s => $(s) && !$(s).hidden)) return; else menu(true);
+    // Échap ferme la fenêtre du dessus par son propre bouton, dans l'ordre que suit déjà le bouton B de la manette ; le menu
+    // ne s'ouvre que si rien n'est ouvert. Avant, quatre fenêtres seulement étaient reconnues : sur la garde-robe, la boutique
+    // de mode ou la fiche d'un métier, Échap ouvrait le menu par-dessus (testeur, 03/11). La fiche (adji, épargne…) et la
+    // grande carte ont leur propre Échap, qui passe avant celui-ci. Les objectifs se replient ; la table du Faux Frère se
+    // réduit, sans quitter la partie.
+    if (e.key === 'Escape') {
+      if (!fermerFenetreDuDessus()) {
+        const ff = $('.ff-panneau');
+        if (document.getElementById('app').classList.contains('obj-ouvert')) $('#slObjectifs')?.click();
+        else if (ff && !ff.hidden && !ff.classList.contains('reduit')) ff.querySelector('.ff-reduire')?.click();
+        else menu(true);
+      }
       e.preventDefault(); e.stopPropagation(); return;
     }
     if (e.key === 'Enter') { if (document.pointerLockElement) document.exitPointerLock(); S.ouvrirChat?.(); $('#slTexte').focus(); e.preventDefault(); e.stopPropagation(); return; }

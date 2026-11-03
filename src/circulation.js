@@ -109,7 +109,17 @@ function horsDeVue(J, x, z) {
   if (dx * dx + dz * dz > 70 * 70) return true;
   return typeof J.cap === 'number' && dx * Math.sin(J.cap) + dz * Math.cos(J.cap) < -8;
 }
-const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), pos = new THREE.Vector3(), un = new THREE.Vector3(1, 1, 1), zero = new THREE.Vector3(0, 0, 0);
+const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), pos = new THREE.Vector3(), un = new THREE.Vector3(1, 1, 1), zero = new THREE.Vector3(0, 0, 0), echelle = new THREE.Vector3();
+/**
+ * Un véhicule qui cède la place au joueur s'en va : tout de suite s'il est hors de vue, sinon il se rétracte en une
+ * demi-seconde (plus solide pendant ce temps) au lieu de s'évaporer d'une image à l'autre. Il réapparaît ensuite loin,
+ * à 150 m au moins (`ailleurs`), et non à 20 m, sous les yeux du joueur.
+ */
+const FONDU = .5;
+function partir(V, J) {
+  V.bloque = 0;
+  if (horsDeVue(J, V.px, V.pz)) { V.R = null; V.ailleurs = true; } else V.part = FONDU;
+}
 
 /** À chaque image du salon : `J` la position du joueur (à pied ou en véhicule), ou null (dedans : rien à montrer). */
 export function majCirculation(dt, J) {
@@ -119,7 +129,8 @@ export function majCirculation(dt, J) {
   if (!visible) return;
   const Jr = Math.max(J.hl ?? .3, J.hw ?? .3); // rayon du joueur : un piéton, ou la voiture qu'il conduit
   for (const V of C.vehicules) {
-    if (!V.R || Math.hypot(V.px - J.x, V.pz - J.z) > LOIN) { if (!placer(V, J.x, J.z, V.R ? 150 : 20, V.R ? 260 : 240)) { V.R = null; continue; } } // réapparaît hors de vue
+    if (V.part > 0) { V.part -= dt; if (V.part <= 0) { V.part = 0; V.R = null; V.ailleurs = true; } continue; } // il s'efface (partir) : ni avance, ni obstacle
+    if (!V.R || Math.hypot(V.px - J.x, V.pz - J.z) > LOIN) { const loin = !!V.R || V.ailleurs; if (!placer(V, J.x, J.z, loin ? 150 : 20, loin ? 260 : 240)) { V.R = null; continue; } V.ailleurs = false; } // réapparaît hors de vue
     // Garder ses distances : celui de devant, sur la même rue et dans le même sens ; et le joueur devant soi.
     let vise = V.vmax;
     for (const W of C.vehicules) {
@@ -204,10 +215,11 @@ export function majCirculation(dt, J) {
     const barre = V.v < .3 && devant > 0 && devant < V.hl + Jr + 4 && cote < V.hw + Jr + .7;
     if (barre) {
       V.bloque = (V.bloque || 0) + dt;
-      // De dos ou de loin, on l'enlève au bout de 8 s. Sous les yeux du joueur, on attend : il finira par
-      // s'écarter. Mais s'il est lui-même coincé entre deux voitures, personne ne bougerait plus — au bout de
-      // 20 s on en retire une quand même, c'est le moindre mal.
-      if (V.bloque > (horsDeVue(J, x, z) ? 8 : 20)) { V.bloque = 0; V.R = null; continue; }
+      // On attendait 8 s de dos, 20 s sous ses yeux, qu'il s'écarte. Mais le joueur qui vient de monter sur sa moto
+      // l'a juste devant lui : elle attend qu'il bouge, il ne peut pas avancer à cause d'elle, et personne ne cède
+      // (testeur, 03/11, sur la moto du patron). Au bout de 3 s, elle s'en va : hors de vue d'un coup, sous ses yeux
+      // en se rétractant (partir), et elle réapparaît loin.
+      if (V.bloque > 3) { partir(V, J); continue; }
     } else V.bloque = 0;
     // Deux voitures qui s'attendent au milieu d'un carrefour (chacune croit l'autre devant elle) : au bout de 12 s,
     // celle que le joueur ne voit pas s'en va ailleurs.
@@ -223,7 +235,7 @@ export function majCirculation(dt, J) {
   // Les matrices : chacun à sa place, ceux qui n'ont pas de rue cachés.
   for (const V of C.vehicules) {
     if (!V.R) { m4.compose(pos.set(0, -50, 0), q.identity(), zero); V.mesh.setMatrixAt(V.idx, m4); continue; }
-    q.setFromAxisAngle(Y, Math.atan2(-V.fz, V.fx)); m4.compose(pos.set(V.px, .04, V.pz), q, un); V.mesh.setMatrixAt(V.idx, m4);
+    q.setFromAxisAngle(Y, Math.atan2(-V.fz, V.fx)); m4.compose(pos.set(V.px, .04, V.pz), q, V.part > 0 ? echelle.setScalar(V.part / FONDU) : un); V.mesh.setMatrixAt(V.idx, m4);
   }
   for (const ms of C.meshes.values()) for (const m of ms) m.instanceMatrix.needsUpdate = true;
 }
@@ -249,7 +261,7 @@ function desserrer(dt, J) {
   const s = Math.sin(J.cap ?? 0), c = Math.cos(J.cap ?? 0);
   let pris = null, score = -1;
   for (const V of C.vehicules) {
-    if (!V.R || V.v > .5) continue;
+    if (!V.R || V.part > 0 || V.v > .5) continue; // pas celui qui s'en va déjà
     const ax = V.px - J.x, az = V.pz - J.z, d = Math.hypot(ax, az); if (d > 50) continue;
     // Ceux qui barrent vraiment la route d'abord : devant lui, dans son axe. Puis, de préférence, hors de vue —
     // la file se vide par la tête, là où il ne regarde pas. Passé 10 s, on prend le plus proche même visible :
@@ -260,7 +272,7 @@ function desserrer(dt, J) {
     const note = barre + (horsDeVue(J, V.px, V.pz) ? 500 : 0) + (t > 10 ? 50 - d : d);
     if (note > score) { score = note; pris = V; }
   }
-  if (pris) pris.R = null;
+  if (pris) partir(pris, J); // sous les yeux du joueur, il se rétracte au lieu de s'évaporer, et revient loin
 }
 export function cacherCirculation() { C.actif = false; for (const ms of C.meshes.values()) for (const m of ms) m.visible = false; for (const V of C.vehicules) V.R = null; }
 /** Combien de véhicules roulent à moins de r mètres de (x, z) (pour le bruit de la circulation, ambiance-salon.js). */

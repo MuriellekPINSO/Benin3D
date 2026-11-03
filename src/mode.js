@@ -171,7 +171,7 @@ function rendreListe() {
   for (const id of ids) {
     const A = ARTICLES[id], b = document.createElement('button'); b.type = 'button'; b.className = 'md-carte' + (MD.choisi === id ? ' actif' : '');
     const etat = p.tenue === id ? '<i class="md-badge">Portée</i>' : p.garderobe.includes(id) ? '<i class="md-badge">À toi</i>' : '';
-    b.innerHTML = `<img src="${vignette(id, A)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><b>${A.nom}</b><small>${fmtR(A.prix)}</small>${etat}`;
+    b.innerHTML = `<img src="${vignette(id, A)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><b>${A.nom}</b><small>${venteOuverte() || !A.prixJeu ? fmtR(A.prix) : fmtF(A.prixJeu)}</small>${etat}`; // sur le site officiel : le prix dans le jeu
     b.addEventListener('click', () => choisir(id)); box.append(b);
   }
   $('#modeBourse').textContent = `Ta cagnotte : ${fmtF(p.cagnotte)}${p.commandes.length ? ` · ${p.commandes.length} commande${p.commandes.length > 1 ? 's' : ''}` : ''}`;
@@ -189,18 +189,19 @@ const venteOuverte = () => !paiementReel() || paiementTest();
 function rendreFiche() {
   const id = MD.choisi, A = ARTICLES[id], p = prog(), el = $('#modeFiche'); if (!A) { el.innerHTML = ''; return; }
   if (MD.etape === 'commande' && venteOuverte()) return rendreCommande();
-  const aMoi = p.garderobe.includes(id), portee = p.tenue === id;
-  el.innerHTML = `<small class="md-atelier">${A.atelier}</small><h4>${A.nom}</h4><p class="md-desc">${A.desc}</p>
-    <p class="md-prix"><b>${fmtR(A.prix)}</b> en vrai${A.prixJeu ? ` · ou <b>${fmtF(A.prixJeu)}</b> de cagnotte pour la porter dans le jeu` : ''}</p>
+  const aMoi = p.garderobe.includes(id), portee = p.tenue === id, vente = venteOuverte();
+  // Sur le site officiel, l'achat réel n'est pas ouvert : plus d'atelier « démo », de prix « en vrai » ni de bouton
+  // « bientôt disponible » grisé, qui faisaient boutique abandonnée (revue du 03/11). Il reste les tenues du jeu.
+  el.innerHTML = `${vente ? `<small class="md-atelier">${A.atelier}</small>` : ''}<h4>${A.nom}</h4><p class="md-desc">${A.desc}</p>
+    <p class="md-prix">${vente ? `<b>${fmtR(A.prix)}</b> en vrai${A.prixJeu ? ` · ou <b>${fmtF(A.prixJeu)}</b> de cagnotte pour la porter dans le jeu` : ''}` : A.prixJeu ? `<b>${fmtF(A.prixJeu)}</b> de cagnotte pour la porter dans le jeu` : ''}</p>
     <div class="md-actions">
       ${A.type === 'tenue' ? `<button type="button" class="jouer" id="mdPorter" ${portee ? 'disabled' : ''}>${portee ? 'Tu la portes' : aMoi ? 'La porter' : `La porter en jeu · ${fmtF(A.prixJeu)}`}</button>` : ''}
-      <button type="button" class="jouer ev-btn-momo" id="mdAcheter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg><span>Acheter pour de vrai</span></button>
+      ${vente ? '<button type="button" class="jouer ev-btn-momo" id="mdAcheter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg><span>Acheter pour de vrai</span></button>' : ''}
     </div>
     <p class="ev-etat" id="modeMsg" role="status" aria-live="polite" hidden></p>`;
-  if (!venteOuverte()) { const b = $('#mdAcheter'); b.disabled = true; b.querySelector('span').textContent = 'Achat réel : bientôt disponible'; }
   message(...MD.msg);
   $('#mdPorter')?.addEventListener('click', () => porter(id));
-  $('#mdAcheter').addEventListener('click', () => { MD.etape = 'commande'; MD.msg = ['', '']; rendreFiche(); });
+  $('#mdAcheter')?.addEventListener('click', () => { MD.etape = 'commande'; MD.msg = ['', '']; rendreFiche(); });
 }
 function porter(id) {
   const A = ARTICLES[id], p = prog();
@@ -287,6 +288,10 @@ export async function ouvrirMode() {
   const p = prog();
   if (!MD.attente) { MD.attente = lireAttente(); if (MD.attente && ARTICLES[MD.attente.article]) { reprendreAttente(); MD.etape = 'commande'; MD.onglet = ARTICLES[MD.choisi].type; } else MD.attente = null; }
   if (!MD.choisi) { MD.choisi = p.tenue || 'robe-wax'; MD.onglet = ARTICLES[MD.choisi].type; }
+  // Pagnes et chaussures ne s'achètent qu'en vrai : tant que la vente n'est pas ouverte, seulement les tenues du jeu.
+  const vente = venteOuverte();
+  document.querySelectorAll('#modeOnglets [data-onglet]').forEach(b => { b.hidden = !vente && b.dataset.onglet !== 'tenue'; });
+  if (!vente && ARTICLES[MD.choisi].type !== 'tenue') { MD.choisi = ARTICLES[p.tenue] ? p.tenue : 'robe-wax'; MD.onglet = 'tenue'; MD.etape = 'fiche'; }
   rendreListe(); rendreFiche(); cadrer(ARTICLES[MD.choisi].type); exposer(MD.choisi);
   if (!MD.raf) { MD.dernier = 0; MD.raf = requestAnimationFrame(tourner); }
 }

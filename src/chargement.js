@@ -26,7 +26,18 @@ export function conseils() {
   poser(); conseilT = setInterval(poser, 4500);
 }
 export function arreterConseils() { clearInterval(conseilT); conseilT = 0; }
-export const frame = () => new Promise(r => requestAnimationFrame(() => r()));
+// Une pause d'une image entre deux étapes du chargement. Dans un onglet caché (un lien ouvert depuis WhatsApp arrive
+// souvent en arrière-plan), le navigateur ne lance plus requestAnimationFrame : le chargement s'arrêtait net jusqu'au
+// retour sur l'onglet (revue du 03/11). Caché, on cède la main par un message, qui n'est pas ralenti comme setTimeout ;
+// et si l'onglet est caché pendant qu'on attend l'image, on n'attend plus.
+const ceder = r => { const c = new MessageChannel(); c.port1.onmessage = () => { c.port1.close(); r(); }; c.port2.postMessage(0); };
+export const frame = () => new Promise(r => {
+  if (document.hidden) { ceder(r); return; }
+  let fait = false;
+  const fin = () => { if (fait) return; fait = true; document.removeEventListener('visibilitychange', vis); r(); };
+  const vis = () => { if (document.hidden) ceder(fin); };
+  document.addEventListener('visibilitychange', vis); requestAnimationFrame(fin);
+});
 // Données de la ville : JSON gzippé produit par `npm run donnees`. Certains hébergeurs
 // le décompressent déjà en route ; on ne décompresse que si l'en-tête gzip est là.
 // Sur une connexion mobile faible, une requête coupée tuait tout le chargement. On réessaie le téléchargement en

@@ -199,7 +199,11 @@
   "'À gauche'": "'Left'",
   "'À droite'": "'Right'",
   " dans ": " in ",
-  "'Ton client demande le prix : appuie sur [1], [2] ou [3], le bouton écrit sur la réponse.'": "'Your passenger is asking the fare: press [1], [2] or [3], the button shown on the answer.'"
+  "'Ton client demande le prix : appuie sur [1], [2] ou [3], le bouton écrit sur la réponse.'": "'Your passenger is asking the fare: press [1], [2] or [3], the button shown on the answer.'",
+  " étapes · ": " legs · ",
+  " min environ chacune</span><div class=\"jm-etapes\" role=\"group\"></div><small class=\"jm-etape-txt\"></small>": " min each, approx.</span><div class=\"jm-etapes\" role=\"group\"></div><small class=\"jm-etape-txt\"></small>",
+  "Étape ": "Leg ",
+  " · étape ": " · leg "
  },
  "index.html": {
   "Crédits": "Credits",
@@ -387,7 +391,11 @@
   "Trésor": "Treasure",
   "Épargne": "Savings",
   "Adji": "Adji",
-  "L’heure à Cotonou : la journée du jeu change à 20 h": "The time in Cotonou: the game day changes at 8 pm"
+  "L’heure à Cotonou : la journée du jeu change à 20 h": "The time in Cotonou: the game day changes at 8 pm",
+  "Étape suivante": "Next leg",
+  "Boutique de mode": "Fashion shop",
+  "Boutique de mode : essaie des tenues et porte-les dans le jeu": "Fashion shop: try outfits on and wear them in the game",
+  "Des tenues à porter dans le jeu, avec l’argent de ta cagnotte. Bientôt, les créations de vrais stylistes de Cotonou.": "Outfits to wear in the game, paid with your kitty. Coming soon: creations by real Cotonou designers."
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -491,7 +499,8 @@
   "'Ton paiement n’a pas encore pu être vérifié. Ne repaie pas : si ton compte MoMo a été débité, touche « Vérifier mon paiement » dans un moment.'": "'Your payment couldn’t be checked yet. Don’t pay again: if your MoMo account was charged, tap “Check my payment” in a moment.'",
   "'<p class=\"ev-test-momo\">Mode test : choisis MTN et le numéro 0164000001. Aucun vrai argent n’est débité.</p>'": "'<p class=\"ev-test-momo\">Test mode: choose MTN and the number 0164000001. No real money is taken.</p>'",
   "'Paiement Mobile Money…'": "'Mobile Money payment…'",
-  "'Un paiement attend encore d’être vérifié pour cette commande : touche « Vérifier mon paiement » avant d’en passer une autre.'": "'A payment for this order is still waiting to be checked: tap “Check my payment” before placing another one.'"
+  "'Un paiement attend encore d’être vérifié pour cette commande : touche « Vérifier mon paiement » avant d’en passer une autre.'": "'A payment for this order is still waiting to be checked: tap “Check my payment” before placing another one.'",
+  "'<button type=\"button\" class=\"jouer ev-btn-momo\" id=\"mdAcheter\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 7h12l-1 13H7z\"/><path d=\"M9 7a3 3 0 0 1 6 0\"/></svg><span>Acheter pour de vrai</span></button>'": "'<button type=\"button\" class=\"jouer ev-btn-momo\" id=\"mdAcheter\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 7h12l-1 13H7z\"/><path d=\"M9 7a3 3 0 0 1 6 0\"/></svg><span>Buy it for real</span></button>'"
  },
  "src/donnees-lieux.js": {
   "'Siège de Moov Africa Bénin'": "'Moov Africa Bénin headquarters'",
@@ -1162,7 +1171,15 @@
   "'Citadine'": "'City car'",
   "'Bolide électrique'": "'Electric speedster'",
   "'Ta Roadster'": "'Your Roadster'",
-  "Ton bolide est garé sur la route, à ": "Your sports car is parked on the road, "
+  "Ton bolide est garé sur la route, à ": "Your sports car is parked on the road, ",
+  "'Faire le plein · réservoir déjà plein, 0 F'": "'Fill up · tank already full, 0 F'",
+  "Essence : il te faut ": "Fuel: you need ",
+  " pour un litre": " for a litre",
+  "'Ton réservoir est déjà plein : le pompiste vérifie et te laisse repartir, c’est gratuit.'": "'Your tank is already full: the pump attendant checks it and lets you go, free of charge.'",
+  "'Pousse le rond vers le haut pour avancer, vers le bas pour freiner et reculer ; tourne en roulant'": "'Push the round stick up to move forward, down to brake and reverse; steer while moving'",
+  "'Maintiens ↑ pour avancer, ↓ pour freiner et reculer, ← → pour tourner en roulant, E pour descendre'": "'Hold ↑ to move forward, ↓ to brake and reverse, ← → to steer while moving, E to get off'",
+  "'Bloqué ? Tire le rond vers le bas pour reculer, puis tourne'": "'Stuck? Pull the round stick down to back up, then turn'",
+  "'Bloqué ? Recule avec ↓, puis tourne'": "'Stuck? Back up with ↓, then turn'"
  },
  "src/conduite.js": {
   "'zém'": "'zém'",
@@ -1440,7 +1457,11 @@
   " du patron t’attend sur la route, sous la colonne de lumière jaune. ": " from your boss is waiting on the road, under the yellow column of light. ",
   " du patron : suis la lumière jaune !": " from your boss: follow the yellow light!",
   "'C’est la pause ! Va manger : le food court de la Cité (« Aller »), un maquis, ou chez toi. Puis « Reprendre le travail ».'": "'Break time! Go and eat: the Cité food court (“Go”), a maquis, or at home. Then “Back to work”.'",
-  "Tu es zémidjan, chemise jaune n° ": "You’re a zémidjan, yellow shirt no. "
+  "Tu es zémidjan, chemise jaune n° ": "You’re a zémidjan, yellow shirt no. ",
+  "'Ta journée de zémidjan continue : la moto du patron t’attend sur la route, sous la lumière jaune.'": "'Your zémidjan day goes on: your boss’s moto is waiting on the road, under the yellow light.'",
+  "'Ta journée de taxi continue : le taxi du patron t’attend sur la route, sous la lumière jaune.'": "'Your taxi day goes on: your boss’s taxi is waiting on the road, under the yellow light.'",
+  "'Ta journée continue : ton tokpa-tokpa t’attend à la gare de Godomey (« Travailler », puis « Transport »).'": "'Your day goes on: your tokpa-tokpa is waiting at the Godomey bus station (“Work”, then “Transport”).'",
+  "'ton client'": "'your customer'"
  },
  "src/metiers-ville.js": {
   "'fr-FR'": "'en-US'",

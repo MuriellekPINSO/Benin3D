@@ -115,16 +115,22 @@ export function updateZems(dt) {
 // Personne ne traverse personne : un zém ou un tokpa qui a le joueur juste devant lui s'arrête (cede), et ceux qui
 // roulent près de lui (retenir → E.circulation) bloquent sa marche et sa conduite (dansCirculation).
 function cede(z, dt) {
-  const J = E.joueur; z.arret = false; if (!J || J.enLair || z.px === undefined) return false; // la Roadster en vol : on passe dessous
+  const J = E.joueur; z.arret = false; if (!J || J.enLair || z.px === undefined) { z.cedeT = 0; return false; } // la Roadster en vol : on passe dessous
   const Jr = Math.max(J.hl ?? .3, J.hw ?? .3); // un piéton, ou la voiture qu'il conduit
   const ax = J.x - z.px, az = J.z - z.pz, d2 = ax * ax + az * az;
-  if (d2 > PRES2) return false;
+  if (d2 > PRES2) { z.cedeT = 0; return false; }
   if (d2 < (8 + Jr) ** 2) {
     const devant = ax * z.fx + az * z.fz, cote = Math.abs(ax * z.fz - az * z.fx);
     // Devant lui, mais aussi à hauteur de sa caisse : sans ça, un joueur à côté de l'arrière du véhicule
     // le voyait repartir, et la moitié arrière lui passait au travers.
-    if (devant > -z.hl - Jr && devant < z.hl + Jr + 3 && cote < z.hw + Jr + .6) return (z.arret = true);
+    // Retenu plus de 3 s par le joueur, il passe son chemin (40 m plus loin, comme degagerAutourDuJoueur) : sinon,
+    // devant la moto où l'on vient de monter, chacun attendait l'autre et la moto ne bougeait pas (testeur, 03/11).
+    if (devant > -z.hl - Jr && devant < z.hl + Jr + 3 && cote < z.hw + Jr + .6) {
+      z.cedeT = (z.cedeT || 0) + dt; if (z.cedeT <= 3) return (z.arret = true);
+      z.cedeT = 0; ecarter(z); return false;
+    }
   }
+  z.cedeT = 0;
   // Les voitures, taxis et camions de la circulation dense (circulation.js) sont un autre système : un zém qui en
   // avait un devant lui passait au travers (« les zéms traversent les camions »). Près du joueur — là où on le
   // voit —, il s'arrête derrière. S'ils s'attendent l'un l'autre (un croisement), il finit par passer : 4 s.
@@ -172,12 +178,15 @@ export function degagerAutourDuJoueur(J) {
     for (const z of liste || []) {
       if (z.px === undefined) continue;
       const dx = z.px - J.x, dz = z.pz - J.z; if (dx * dx + dz * dz > Jr * Jr) continue;
-      z.s += 40 * z.dir; // plus loin sur sa rue ; le demi-tour en bout de chemin est géré par la boucle
-      if (z.s >= z.P.len) { z.s = z.P.len - .01; z.dir = -1; } else if (z.s <= 0) { z.s = .01; z.dir = 1; }
-      n++;
+      ecarter(z); n++;
     }
   }
   return n;
+}
+/** Le zém (ou le tokpa) z, quarante mètres plus loin sur sa rue ; le demi-tour en bout de chemin est géré par la boucle. */
+function ecarter(z) {
+  z.s += 40 * z.dir;
+  if (z.s >= z.P.len) { z.s = z.P.len - .01; z.dir = -1; } else if (z.s <= 0) { z.s = .01; z.dir = 1; }
 }
 /** De combien un corps de rayon r posé en (x, z) entre dans un zém ou un tokpa de la circulation (0 : il est libre). */
 export function dansCirculation(x, z, r = .3) {

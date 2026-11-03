@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { moteur, moteurMaj, moteurStop, son } from './audio.js';
-import { $ } from './base.js';
+import { $, coarse } from './base.js';
 import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js';
 import { PRIX_LITRE, VEHICULES, atterrir, creerVehicule, decoller, peindre, enCroisiere, initStations, peutDecoller, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
 import { dansBatiment, dansObstacleRue, decalee } from './rue.js';
@@ -96,6 +96,7 @@ export function quitterMonde() {
   quitterMetiers(); arreterVol(); moteurStop(); S.moi?.userData.velo?.(null); retirerVehicule(T.veh); T.veh = null; if (T.zem) retirerVehicule(T.zem.V); T.zem = null;
   retirerRuban(T.gps?.m); T.gps = null; jeterPlat(); T.repas = null; T.trans = null; T.mode = 'pied';
   if (S?.moi) S.moi.visible = true;
+  cacherAide();
 }
 
 // ---------- Actions possibles (bouton principal et secondaire, touche E) ----------
@@ -107,10 +108,17 @@ export function actions() {
   if (T.mode === 'apprenti') return out;
   if (T.mode === 'conduit') {
     const st = stationProche(V.x, V.z), R = reservoir(), manque = Math.round((R - carburant()) * 10) / 10;
-    if (st && Math.abs(V.v) < .6 && manque > .05) {
-      const prix = Math.ceil(manque * PRIX_LITRE / 25) * 25, un = Math.min(manque, 1);
-      if (D.argent >= prix) out.push({ texte: `Faire le plein · ${manque.toLocaleString('fr-FR')} L · ${fmt(prix)}`, f: () => plein(st, manque, prix) });
-      else if (D.argent >= Math.ceil(un * PRIX_LITRE / 25) * 25) out.push({ texte: `Mettre ${un.toLocaleString('fr-FR')} L · ${fmt(Math.ceil(un * PRIX_LITRE / 25) * 25)}`, f: () => plein(st, un, Math.ceil(un * PRIX_LITRE / 25) * 25) });
+    // Arrêté à la pompe, il y a toujours un bouton : le plein, un litre, ou ce qui manque pour payer. Un véhicule loué,
+    // acheté ou confié par le patron arrive le réservoir plein, et l'objectif « Fais le plein » (chapitres.js) vient juste
+    // après « Louer une moto » : tant qu'on n'avait pas brûlé 0,05 L (600 m à moto, 3 km en bolide), rien ne s'affichait,
+    // sans un mot — « je n'arrive pas à faire le plein » (un joueur, 03/11). Plein ou presque : le pompiste complète pour
+    // 0 F, et l'objectif comme la mission du jour comptent (faireLePlein, signal « plein »). Le vélo, lui, ne boit rien.
+    if (st && Math.abs(V.v) < .6 && R > 0) {
+      const prix = Math.ceil(manque * PRIX_LITRE / 25) * 25, un = Math.min(manque, 1), prixUn = Math.ceil(un * PRIX_LITRE / 25) * 25;
+      if (manque <= .05) out.push({ texte: 'Faire le plein · réservoir déjà plein, 0 F', f: () => pleinOffert(st) });
+      else if (D.argent >= prix) out.push({ texte: `Faire le plein · ${manque.toLocaleString('fr-FR')} L · ${fmt(prix)}`, f: () => plein(st, manque, prix) });
+      else if (D.argent >= prixUn) out.push({ texte: `Mettre ${un.toLocaleString('fr-FR')} L · ${fmt(prixUn)}`, f: () => plein(st, un, prixUn) });
+      else out.push({ texte: un >= 1 ? `Essence : il te faut ${fmt(prixUn)} pour un litre` : `Essence : il te faut ${fmt(prixUn)}`, f: () => ligne('Pas assez d’argent pour l’essence.') });
     }
     // La Roadster décolle sur ses propulseurs et vole à 110 m (conduite.js) ; on choisit où se poser.
     if (V.vol) {
@@ -147,12 +155,45 @@ function monter() {
   const cote = V.type === 'tokpa' ? 1.5 : V.D.cache ? 1.3 : .55, bx = V.x + Math.sin(V.cap + Math.PI / 2) * cote, bz = V.z + Math.cos(V.cap + Math.PI / 2) * cote;
   // Un vélo n'a pas de moteur : pas de ronflement quand on l'enfourche, et rien à faire monter en régime.
   T.trans = { t: 0, duree: .9, de: [S.x, S.z], vers: [bx, bz], fin: () => {
-    T.mode = 'conduit'; S.cap = V.cap; if (!V.D.pedale) moteur(V.type === 'tokpa' || V.type === 'taxi' ? 'voiture' : V.type); son('bosse');
+    T.mode = 'conduit'; T.bloque = 0; S.cap = V.cap; if (!V.D.pedale) moteur(V.type === 'tokpa' || V.type === 'taxi' ? 'voiture' : V.type); son('bosse');
     ligne(V.D.pedale ? `Tu montes sur ${nomDe(V)[0]}. Flèches ou ZQSD : pédaler, freiner, tourner.` : `Tu montes ${V.D.cache ? 'dans' : 'sur'} ${nomDe(V)[0]}. Flèches ou ZQSD : accélérer, freiner puis reculer, tourner.`);
+    aideConduite();
   } };
+}
+// « La moto ne bouge pas » (deux joueurs dans la discussion de la ville, et un testeur à 0 km/h, 03/11). La consigne
+// n'était qu'une ligne du fil, replié sur téléphone, et elle parlait de flèches à ceux qui jouent au doigt. Dans Zém Run la
+// moto avance toute seule ; ici il faut garder la flèche enfoncée (un appui bref ne la pousse que de 15 cm) et l'on ne
+// tourne qu'en roulant (conduite.js, piloter). Un bandeau en haut de l'écran le dit, au clavier ou au doigt, les trois
+// premières fois qu'on monte sur un véhicule (compté sur l'appareil), puis s'efface.
+// Le frein et la marche arrière s'y ajoutent : contre un mur, personne ne pensait à reculer (testeur, 03/11).
+const CLE_AIDE = 'kutonu.conduite.aide';
+let aideT = 0;
+function aideConduite() {
+  let n = 0; try { n = Number(localStorage.getItem(CLE_AIDE)) || 0; } catch { /* navigation privée */ }
+  if (n >= 3) return;
+  try { localStorage.setItem(CLE_AIDE, String(n + 1)); } catch { /* navigation privée : on le redira */ }
+  astuce(coarse ? 'Pousse le rond vers le haut pour avancer, vers le bas pour freiner et reculer ; tourne en roulant' : 'Maintiens ↑ pour avancer, ↓ pour freiner et reculer, ← → pour tourner en roulant, E pour descendre', 9000);
+}
+/** Le bandeau du haut de l'écran (#slAstuce), pour `duree` ms. */
+function astuce(texte, duree) {
+  let el = $('#slAstuce');
+  if (!el) { el = document.createElement('p'); el.id = 'slAstuce'; el.className = 'sl-astuce panel'; el.setAttribute('role', 'status'); ($('#salonHud') || document.body).append(el); }
+  el.textContent = texte; el.hidden = false; clearTimeout(aideT); aideT = setTimeout(cacherAide, duree);
+}
+function cacherAide() { clearTimeout(aideT); T.bloqueDit = false; const el = $('#slAstuce'); if (el) el.hidden = true; }
+// Contre un mur ou un taxi, la moto restait à 0 km/h, gaz enfoncé, jusqu'à 4 s, sans que rien dise de reculer (testeur,
+// 03/11) : on ne tourne pas à l'arrêt (conduite.js, piloter). Après 1,5 s de gaz sans avancer, le bandeau le dit, au plus
+// une fois toutes les 20 s, et s'efface dès que le véhicule bouge.
+function majBloque(V, av, dt) {
+  T.bloque = av > .2 && Math.abs(V.v) < .3 && !V.vol ? (T.bloque || 0) + dt : 0;
+  if (T.bloque > 1.5 && performance.now() > (T.bloqueT || 0)) {
+    T.bloqueT = performance.now() + 20000;
+    astuce(coarse ? 'Bloqué ? Tire le rond vers le bas pour reculer, puis tourne' : 'Bloqué ? Recule avec ↓, puis tourne', 8000); T.bloqueDit = true;
+  } else if (T.bloqueDit && Math.abs(V.v) > .8) cacherAide();
 }
 function descendre() {
   const V = T.veh; if (!V || Math.abs(V.v) > .8) return;
+  cacherAide();
   V.v = 0; moteurStop(); T.mode = 'pied'; S.moi?.userData.velo?.(null); // sinon il marche les bras tendus
   const cote = V.type === 'tokpa' ? 1.9 : V.D.cache ? 1.6 : 1; S.x = V.x + Math.sin(V.cap + Math.PI / 2) * cote; S.z = V.z + Math.cos(V.cap + Math.PI / 2) * cote; S.cap = V.cap; S.y = 0;
   if (S.moi) S.moi.visible = true;
@@ -167,14 +208,22 @@ async function plein(st, litres, prix) {
   st.p.userData.jouer?.('salut'); setTimeout(() => st.p.userData.jouer?.('idle'), 2500);
   setTimeout(() => { faireLePlein(litres); son('piece'); T.panneDite = false; }, 1600);
 }
+/** Le réservoir est déjà plein (ou presque) : le pompiste vérifie, complète les quelques gouttes et ne demande rien. */
+function pleinOffert(st) {
+  st.p.userData.jouer?.('salut'); setTimeout(() => st.p.userData.jouer?.('idle'), 2500);
+  faireLePlein(Math.max(0, reservoir() - carburant())); T.panneDite = false;
+  ligne('Ton réservoir est déjà plein : le pompiste vérifie et te laisse repartir, c’est gratuit.');
+}
 
 // ---------- GPS : itinéraire par les routes jusqu'à la destination ----------
-/** Trace l'itinéraire depuis le véhicule (ou d'où l'on est) jusqu'à (x, z). */
-export function gps(x, z, nom) {
+/** Trace l'itinéraire depuis le véhicule (ou d'où l'on est) jusqu'à (x, z). `muet` : rien dans le fil, ni au départ ni à
+ *  l'arrivée (le chemin vers chaque client qui fait signe, metiers.js : une ligne par client noyait la discussion). */
+export function gps(x, z, nom, { muet = false } = {}) {
   const from = T.mode === 'conduit' ? T.veh : S, pts = itineraire(from.x, from.z, from.cap, x, z);
   retirerRuban(T.gps?.m); T.gps = null;
-  if (!pts || pts.length < 2) { ligne(`Pas d’itinéraire trouvé jusqu’à ${nom}.`); return false; }
-  T.gps = { pts, m: ruban(pts), nom, x, z }; T.gpsT = 0;
+  if (!pts || pts.length < 2) { if (!muet) ligne(`Pas d’itinéraire trouvé jusqu’à ${nom}.`); return false; }
+  T.gps = { pts, m: ruban(pts), nom, x, z, muet }; T.gpsT = 0;
+  if (muet) return true;
   const km = longueur(pts) / 1000;
   // À pied, au-delà de 800 m, la marche n'est plus raisonnable : on dit tout de suite quoi faire.
   ligne(`${nom} · ${km < .95 ? `${Math.round(km * 100) * 10} m` : `${km.toFixed(1).replace('.', ',')} km`} · ${T.mode === 'pied' && km > .8 ? 'loin à pied : prends un zém.' : 'suis les chevrons.'}`);
@@ -194,7 +243,7 @@ function majGps(dt, x, z, cap, vol = false) {
   if (vol) { $('#vhGps').hidden = false; $('#vhGps').textContent = `→ ${G.nom} · ${distance(Math.hypot(G.x - x, G.z - z))} à vol d’oiseau`; return; }
   const r = reste(G.pts, x, z);
   // À pied on arrive sur le pas de la porte ; au volant, 22 m suffisent (on se gare au bord).
-  if (Math.hypot(G.x - x, G.z - z) < (T.mode === 'pied' ? 7 : 22)) { ligne(`Tu es arrivé : ${G.nom}.`); son('arret'); retirerRuban(G.m); T.gps = null; $('#vhGps').hidden = true; return; }
+  if (Math.hypot(G.x - x, G.z - z) < (T.mode === 'pied' ? 7 : 22)) { if (!G.muet) ligne(`Tu es arrivé : ${G.nom}.`); son('arret'); retirerRuban(G.m); T.gps = null; $('#vhGps').hidden = true; return; }
   T.gpsT += dt;
   // L'écart est maintenant mesuré au segment, pas au sommet : on peut redescendre le seuil de 35 m à 12, donc
   // recalculer dès qu'on a pris la mauvaise rue au lieu d'attendre d'être à un demi-pâté de maisons.
@@ -419,6 +468,7 @@ export function majTrajets(dt, av, tour) {
     if (panne && !T.panneDite) { T.panneDite = true; ligne(V.vol ? 'Panne sèche en plein vol ! La Roadster descend se poser.' : 'Panne sèche ! Tu avances au pas : « Aller » → « Station-service la plus proche » pour le GPS.'); }
     if (panne && V.vol?.phase === 'croisiere' && performance.now() > (T.poseT || 0)) { T.poseT = performance.now() + 1000; atterrir(V); } // plus d'essence : elle va se poser sur la route la plus proche
     const vol = V.vol, km0 = V.km, choc = piloter(V, av, tour, dt, { panne }); if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
+    majBloque(V, av, dt);
     if (vol && !V.vol) { son('bosse'); ligne(vol.vers ? `Posée près de ${vol.vers}.` : 'La Roadster est posée.'); }
     if (!V.D.pedale) { T.conso += (V.km - km0) / V.D.kmParLitre; if (T.conso > .01) { consommer(T.conso); T.conso = 0; } }
     if (!V.D.pedale) moteurMaj(Math.abs(V.v), true);
