@@ -5,7 +5,7 @@ import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js
 import { PRIX_LITRE, VEHICULES, atterrir, bondir, creerVehicule, decoller, degager, departLibre, sensRoute, peindre, enCroisiere, initStations, peutDecoller, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
 import { dansBatiment, dansObstacleRue, decalee } from './rue.js';
 import { E } from './etat.js';
-import { dansCirculation } from './trafic.js';
+import { chevauchement, dansCirculation } from './trafic.js';
 import { allumerLesPortes, arriveeDehors, comptoirProche, devantChaise, siegeProche } from './interieurs.js';
 import { payerEtRecevoir, remettre } from './remise.js';
 import { scene } from './scene.js';
@@ -32,7 +32,7 @@ let S = null, ligne = () => { }, bulleLocale = null;
 
 export function initTrajets(data, ctx) {
   initStations(data.L.stations); S = ctx.S; ligne = ctx.ligne; bulleLocale = ctx.bulle; initVol(data, { ...ctx, T }); initNuit({ ...ctx, T, astuce });
-  initMetiers(data, { ...ctx, T, gps, choisir, asseoirSur, garerSonVehicule, etiquette }); // zém, taxi, tokpa-tokpa (metiers.js)
+  initMetiers(data, { ...ctx, T, gps, choisir, asseoirSur, garerSonVehicule, etiquette, vehiculesDesAutres }); // zém, taxi, tokpa-tokpa (metiers.js)
   allumerLesPortes(); // toutes les portes sont déclarées : on pose l'ampoule du soir au-dessus de chacune
 }
 // Comment on nomme le véhicule : monter dans…, descendre de…
@@ -95,13 +95,24 @@ function saPlace(type, q) {
   const r = sensRoute(q[0], q[1]); if (!r) return null;
   const id = String(S.canal?.id || S.nom || ''); let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const D = VEHICULES[type], pas = Math.max(5, (D.long ?? 2) + 1.4), k0 = h % 7 - 3, ux = Math.sin(r.cap), uz = Math.cos(r.cap);
-  const gares = [...S.autres.values()].map(A => A.garee).filter(G => G?.g.visible); // les motos et voitures garées des autres joueurs
+  // Les motos et voitures garées des autres joueurs, et celles qu'ils conduisent : un joueur arrêté au volant de son taxi
+  // ne comptait pas, et la voiture de celui qui arrivait apparaissait dans son taxi (testeur, 04/11). Les points testés
+  // couvraient 1 m de large ; la caisse fait 1,8 m : on regarde maintenant toute sa largeur, et son rectangle.
+  const gares = vehiculesDesAutres();
   for (let i = 0; i < 17; i++) {
     const k = k0 + (i % 2 ? (i + 1) / 2 : -i / 2), x = q[0] + ux * k * pas, z = q[1] + uz * k * pas;
-    for (const cap of [r.cap, r.cap + Math.PI]) if (departLibre(D, x, z, cap, { devant: .5, cote: .5, gares })) return [x, z, cap];
+    for (const cap of [r.cap, r.cap + Math.PI]) if (departLibre(D, x, z, cap, { devant: .5, cote: D.larg / 2 + .1, gares }) && !gares.some(G => chevauche(G, x, z, cap, D))) return [x, z, cap];
   }
   return null;
 }
+/** Les véhicules des autres joueurs qu'on voit : garés, ou sous eux. `sauf` : un joueur à ne pas compter. */
+export function vehiculesDesAutres(sauf = null) {
+  const out = [];
+  for (const A of S.autres.values()) if (A !== sauf) for (const G of [A.garee, A.veh]) if (G?.D && G.g?.visible !== false) out.push(G);
+  return out;
+}
+/** Le véhicule G (garé, ou conduit) et une caisse de gabarit D posée en (x, z) au cap `cap` se touchent-ils (à 20 cm près) ? */
+const chevauche = (G, x, z, cap, D) => Math.abs(G.x - x) < 9 && Math.abs(G.z - z) < 9 && chevauchement(x, z, cap, D.long / 2 + .2, D.larg / 2 + .2, G.x, G.z, G.cap, G.D.long / 2, G.D.larg / 2) > 0;
 // Étiquette au-dessus de son véhicule, pour le retrouver (cachée quand on est dessus).
 function etiquette(texte) {
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const c = cv.getContext('2d');
@@ -245,7 +256,7 @@ function pleinOffert(st) {
 /** Trace l'itinéraire depuis le véhicule (ou d'où l'on est) jusqu'à (x, z). `muet` : rien dans le fil, ni au départ ni à
  *  l'arrivée (le chemin vers chaque client qui fait signe, metiers.js : une ligne par client noyait la discussion). */
 export function gps(x, z, nom, { muet = false } = {}) {
-  const from = T.mode === 'conduit' ? T.veh : S, pts = itineraire(from.x, from.z, from.cap, x, z);
+  const from = T.mode === 'conduit' ? T.veh : S, pts = itineraire(from.x, from.z, T.mode === 'conduit' ? from.cap : null, x, z); // à pied, pas de sens de marche ni de demi-tour
   retirerRuban(T.gps?.m); T.gps = null;
   if (!pts || pts.length < 2) { if (!muet) ligne(`Pas d’itinéraire trouvé jusqu’à ${nom}.`); return false; }
   T.gps = { pts, m: ruban(pts), nom, x, z, muet }; T.gpsT = 0;
@@ -273,7 +284,7 @@ function majGps(dt, x, z, cap, vol = false) {
   T.gpsT += dt;
   // L'écart est maintenant mesuré au segment, pas au sommet : on peut redescendre le seuil de 35 m à 12, donc
   // recalculer dès qu'on a pris la mauvaise rue au lieu d'attendre d'être à un demi-pâté de maisons.
-  if (r.ecart > 12 && T.gpsT > 1.5) { T.gpsT = 0; const pts = itineraire(x, z, cap, G.x, G.z); if (pts) { retirerRuban(G.m); G.pts = pts; G.m = ruban(pts); } } // on s'est écarté : nouvel itinéraire
+  if (r.ecart > 12 && T.gpsT > 1.5) { T.gpsT = 0; const pts = itineraire(x, z, T.mode === 'pied' ? null : cap, G.x, G.z); if (pts) { retirerRuban(G.m); G.pts = pts; G.m = ruban(pts); } } // on s'est écarté : nouvel itinéraire
   $('#vhGps').hidden = false; $('#vhGps').textContent = `→ ${G.nom} · ${distance(r.m)}`;
 }
 
@@ -553,6 +564,20 @@ export function vehiculeGareDe(A, gv, vc = null) {
   const [type, x, z, cap] = gv;
   if (!A.garee || A.garee.type !== type) { retirerVehicule(A.garee); A.garee = creerVehicule(type, { couleur: couleurPerso(type), peinture: vc }); A.garee.ou = ''; }
   else peindre(A.garee, vc);
-  const ou = `${x},${z},${cap}`; if (A.garee.ou !== ou) { placer(A.garee, x, z, cap); A.garee.ou = ou; } // posée sur le sol une fois, pas à chaque image
+  const ou = `${x},${z},${cap}`; if (A.garee.ou !== ou) { const [px, pz] = placeAffichee(A, A.garee, x, z, cap); placer(A.garee, px, pz, cap); A.garee.ou = ou; } // posée sur le sol une fois, pas à chaque image
   return A.garee;
+}
+/**
+ * Où montrer la voiture garée qu'un autre joueur nous annonce : à sa place, si rien ne l'occupe chez nous ; sinon à la place
+ * libre la plus proche le long de la rue (son axe, `cap`), à 6 longueurs au plus. Chaque joueur gare la sienne sans voir
+ * forcément les autres (deux qui arrivent en même temps, un taxi arrêté au volant) : chez nous, elle apparaissait dans
+ * notre véhicule ou dans une autre voiture garée (« à fixer », capture d'un testeur, 04/11, au Stade de l'Amitié).
+ */
+function placeAffichee(A, G, x, z, cap) {
+  const autres = [T.veh, T.zem?.V, ...vehiculesDesAutres(A)].filter(V => V?.D && V !== G);
+  const libre = (px, pz) => !autres.some(V => chevauche(V, px, pz, cap, G.D));
+  if (libre(x, z)) return [x, z];
+  const ux = Math.sin(cap), uz = Math.cos(cap), pas = G.D.long + .8;
+  for (let k = 1; k <= 6; k++) for (const sg of [1, -1]) { const px = x + ux * pas * k * sg, pz = z + uz * pas * k * sg; if (surRoute(px, pz) && libre(px, pz)) return [px, pz]; }
+  return [x, z];
 }
