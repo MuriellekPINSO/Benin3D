@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $, coarse } from './base.js';
 import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js';
-import { PRIX_LITRE, VEHICULES, atterrir, creerVehicule, decoller, peindre, enCroisiere, initStations, peutDecoller, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
+import { PRIX_LITRE, VEHICULES, atterrir, creerVehicule, decoller, degager, departLibre, sensRoute, peindre, enCroisiere, initStations, peutDecoller, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
 import { dansBatiment, dansObstacleRue, decalee } from './rue.js';
 import { E } from './etat.js';
 import { dansCirculation } from './trafic.js';
@@ -78,12 +78,29 @@ export function reprendreVehicule() { if (T.mode !== 'pied') return false; retir
 export function garerSonVehicule(ou = null) {
   const type = VIE.data?.vehicule; if (!type || !VEHICULES[type] || T.veh) return;
   const o = S.lieu ? arriveeDehors(S.lieu) : S; // dans un bâtiment (chez soi au réveil) : dans la rue, devant la porte
-  const p = ou ? [ou.x, ou.z] : pointDeRoute(o.x + Math.sin(o.cap + Math.PI / 2) * 4, o.z + Math.cos(o.cap + Math.PI / 2) * 4, 0, 150); if (!p) return;
-  T.veh = creerVehicule(type, { couleur: couleurPerso(type), peinture: peintureDe(type) }); placer(T.veh, p[0], p[1], ou ? ou.cap : Math.atan2(p[0] - o.x, p[1] - o.z));
+  const q = ou ? [ou.x, ou.z] : pointDeRoute(o.x + Math.sin(o.cap + Math.PI / 2) * 4, o.z + Math.cos(o.cap + Math.PI / 2) * 4, 0, 150); if (!q) return;
+  const p = ou ? [ou.x, ou.z, ou.cap] : saPlace(type, q) || [q[0], q[1], Math.atan2(q[0] - o.x, q[1] - o.z)];
+  T.veh = creerVehicule(type, { couleur: couleurPerso(type), peinture: peintureDe(type) }); placer(T.veh, p[0], p[1], p[2]);
   // La Roadster s'appelait « Ta moto » (le nom par défaut) ; le bolide est « garé », pas « garée ».
   const nom = type === 'voiture' ? 'Ta voiture' : type === 'velo' ? 'Ton vélo' : type === 'citadine' ? 'Ta citadine' : type === 'bolide' ? 'Ton bolide' : type === 'roadster' ? 'Ta Roadster' : 'Ta moto', e = etiquette(nom); e.position.y = ['voiture', 'citadine', 'bolide', 'roadster'].includes(type) ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
   const d = Math.round(Math.hypot(p[0] - o.x, p[1] - o.z) / 5) * 5;
   if (d > 8 && !S.lieu) ligne(type === 'velo' ? `Ton vélo est posé sur la route, à ${d} m : suis l’étiquette jaune.` : type === 'bolide' ? `Ton bolide est garé sur la route, à ${d} m : suis l’étiquette jaune.` : `${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
+}
+// « Pourquoi chez moi c'est épuré et chez lui ça se casse » (Murielle, 04/11, capture de Carlos) : quatre voitures
+// encastrées les unes dans les autres devant l'immeuble de Haie Vive. Tous ceux qui louent le même appartement garaient la
+// leur au même point de la rue, devant la porte, sans regarder si la place était prise. Chacun a maintenant sa place le
+// long de la rue, tirée de son identifiant (deux joueurs qui arrivent en même temps ne voient pas encore la voiture de
+// l'autre), et si elle est prise — un véhicule garé d'un autre joueur, la circulation, un mur —, la suivante.
+function saPlace(type, q) {
+  const r = sensRoute(q[0], q[1]); if (!r) return null;
+  const id = String(S.canal?.id || S.nom || ''); let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const D = VEHICULES[type], pas = Math.max(5, (D.long ?? 2) + 1.4), k0 = h % 7 - 3, ux = Math.sin(r.cap), uz = Math.cos(r.cap);
+  const gares = [...S.autres.values()].map(A => A.garee).filter(G => G?.g.visible); // les motos et voitures garées des autres joueurs
+  for (let i = 0; i < 17; i++) {
+    const k = k0 + (i % 2 ? (i + 1) / 2 : -i / 2), x = q[0] + ux * k * pas, z = q[1] + uz * k * pas;
+    for (const cap of [r.cap, r.cap + Math.PI]) if (departLibre(D, x, z, cap, { devant: .5, cote: .5, gares })) return [x, z, cap];
+  }
+  return null;
 }
 // Étiquette au-dessus de son véhicule, pour le retrouver (cachée quand on est dessus).
 function etiquette(texte) {
@@ -187,7 +204,10 @@ function cacherAide() { clearTimeout(aideT); T.bloqueDit = false; const el = $('
 // 03/11) : on ne tourne pas à l'arrêt (conduite.js, piloter). Après 1,5 s de gaz sans avancer, le bandeau le dit, au plus
 // une fois toutes les 20 s, et s'efface dès que le véhicule bouge.
 function majBloque(V, av, dt) {
-  T.bloque = av > .2 && Math.abs(V.v) < .3 && !V.vol ? (T.bloque || 0) + dt : 0;
+  T.bloque = av > .2 && Math.abs(V.v) < .3 && !V.vol && V.redresse === undefined ? (T.bloque || 0) + dt : 0;
+  // « La moto bouge plus » (Honey, 03/11) : contre un mur, gaz ouvert, rien ne bougeait tant qu'on ne pensait pas à reculer.
+  // Au bout d'un instant, le véhicule pivote de lui-même vers la rue libre (conduite.js) ; l'astuce, si même ça échoue.
+  if (T.bloque > .9 && degager(V)) { T.bloque = 0; return; }
   if (T.bloque > 1.5 && performance.now() > (T.bloqueT || 0)) {
     T.bloqueT = performance.now() + 20000;
     astuce(coarse ? 'Bloqué ? Tire le rond vers le bas pour reculer, puis tourne' : 'Bloqué ? Recule avec ↓, puis tourne', 8000); T.bloqueDit = true;
@@ -196,7 +216,7 @@ function majBloque(V, av, dt) {
 function descendre() {
   const V = T.veh; if (!V || Math.abs(V.v) > .8) return;
   cacherAide();
-  V.v = 0; moteurStop(); T.mode = 'pied'; S.moi?.userData.velo?.(null); // sinon il marche les bras tendus
+  V.v = 0; delete V.redresse; moteurStop(); T.mode = 'pied'; S.moi?.userData.velo?.(null); // sinon il marche les bras tendus
   const cote = V.type === 'tokpa' ? 1.9 : V.D.cache ? 1.6 : 1; S.x = V.x + Math.sin(V.cap + Math.PI / 2) * cote; S.z = V.z + Math.cos(V.cap + Math.PI / 2) * cote; S.cap = V.cap; S.y = 0;
   if (S.moi) S.moi.visible = true;
   sauverVie();
@@ -469,7 +489,7 @@ export function majTrajets(dt, av, tour) {
     const V = T.veh, panne = !V.D.pedale && !(carburant() > 0); // un vélo ne tombe jamais en panne sèche
     if (panne && !T.panneDite) { T.panneDite = true; ligne(V.vol ? 'Panne sèche en plein vol ! La Roadster descend se poser.' : 'Panne sèche ! Tu avances au pas : « Aller » → « Station-service la plus proche » pour le GPS.'); }
     if (panne && V.vol?.phase === 'croisiere' && performance.now() > (T.poseT || 0)) { T.poseT = performance.now() + 1000; atterrir(V); } // plus d'essence : elle va se poser sur la route la plus proche
-    const vol = V.vol, km0 = V.km, choc = piloter(V, av, tour, dt, { panne }); if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
+    const vol = V.vol, km0 = V.km, choc = piloter(V, av, tour, dt, { panne, aide: coarse }); // au doigt, la moto suit la rue (conduite.js) if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
     majBloque(V, av, dt);
     if (vol && !V.vol) { son('bosse'); ligne(vol.vers ? `Posée près de ${vol.vers}.` : 'La Roadster est posée.'); }
     if (!V.D.pedale) { T.conso += (V.km - km0) / V.D.kmParLitre; if (T.conso > .01) { consommer(T.conso); T.conso = 0; } }

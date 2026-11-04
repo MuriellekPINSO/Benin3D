@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { dansTerrePlein } from './terre-pleins.js';
 import { LITE, hash, toXZ } from './base.js';
 import { camera, controls, scene } from './scene.js';
-import { rectSansConstruction, sansConstruction, zoneBoutique } from './zones.js';
+import { dansParc, rectSansConstruction, sansConstruction, zoneBoutique } from './zones.js';
 import { ilesDesRondsPoints, ROAD_W, roadLines } from './ville.js';
 import { texFacades } from './facades.js';
 import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
@@ -132,7 +132,7 @@ function surTrajet(x, z) {
   for (let k = 0; k < l.length; k += 3) if ((x - l[k]) ** 2 + (z - l[k + 1]) ** 2 < l[k + 2]) return true;
   return false;
 }
-const zoneLibre = (x, z) => sansConstruction(x, z) || zoneBoutique(x, z) || dansTerrePlein(x, z, .6) || R.zonesLibres.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || R.rectsLibres.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1) || R.zonesJeu.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || surTrajet(x, z);
+const zoneLibre = (x, z) => sansConstruction(x, z) || dansParc(x, z) || zoneBoutique(x, z) || dansTerrePlein(x, z, .6) || R.zonesLibres.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || R.rectsLibres.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1) || R.zonesJeu.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || surTrajet(x, z);
 
 // ---------- Matières ----------
 function toile(w, h, f) { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; f(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; }

@@ -28,7 +28,10 @@ export function urlTripo(id) {
 export const tripoDispo = id => TRIPO.dispo.has(id);
 
 // Réglages fins par bâtiment (rotation en radians, ajoutée à celle du lieu ; décalage local en mètres).
-export const REGLAGES = { congres: {}, cathedrale: { rot: -Math.PI / 2 }, porte: {}, etoile: {}, bioguera: {}, dome: { dy: -6, mat: { couleur: '#b7bbbe', rugosite: .5, metal: .25 } }, dantokpa: { rot: Math.PI / 2 }, bceao: {}, sofitel: { rot: Math.PI / 2 }, moov: { rot: Math.PI / 2, dz: -5 } }; // moov : façade (verre bleu, logo) vers l'avenue Jean-Paul II, alignée sur le bord nord de l'emprise // sofitel : façade courbe et auvent vers le boulevard // dantokpa : enseigne et étals vers la lagune // dome : photo de nuit, on garde le volume et une teinte argent // dome : le socle (parvis photographié) s'enfonce dans le sol
+// congres : « le Palais des Congrès fait face à la rue, et non face à l'Amazone » (Murielle, 04/11). Le modèle avait ses
+// deux petits tambours et son hall d'entrée à l'est, vers l'Amazone ; sur l'image satellite, ils sont au nord, le long du
+// boulevard et de son parking, et le grand tambour au sud. Un quart de tour, et 16 m vers l'ouest pour tomber sur l'emprise.
+export const REGLAGES = { congres: { rot: Math.PI / 2, dx: -16, dz: -2 }, cathedrale: { rot: -Math.PI / 2 }, porte: {}, etoile: {}, bioguera: {}, dome: { dy: -6, mat: { couleur: '#b7bbbe', rugosite: .5, metal: .25 } }, dantokpa: { rot: Math.PI / 2 }, bceao: {}, sofitel: { rot: Math.PI / 2 }, moov: { rot: Math.PI / 2, dz: -5 } }; // moov : façade (verre bleu, logo) vers l'avenue Jean-Paul II, alignée sur le bord nord de l'emprise // sofitel : façade courbe et auvent vers le boulevard // dantokpa : enseigne et étals vers la lagune // dome : photo de nuit, on garde le volume et une teinte argent // dome : le socle (parvis photographié) s'enfonce dans le sol
 // Images rendues après l'envoi à la carte graphique (textures.js). Couleur en 1024 sur ordinateur aussi : en 2048, chaque
 // monument occupe 22 Mo de mémoire vidéo (mipmaps comprises), 6 en 1024 ; vus de la rue, on ne voit pas la différence.
 const chargeur = chargeurGLB({ liberer: true, max: 1024 });
@@ -41,7 +44,8 @@ export function poserTripo(id, parent, opts = {}) {
   const pivot = new THREE.Group(); pivot.name = `tripo-${id}`; pivot.position.set(x, y, z); pivot.rotation.y = rot; parent.add(pivot);
   // La taille du fichier sert de version : un modèle refait n'est pas repris du cache du navigateur. Téléchargé une fois
   // la ville affichée (telechargements.js) : en attendant, le monument dessiné en code reste en place.
-  plusTard(() => chargeur.loadAsync(urlTripo(id))).then(gltf => {
+  const ou = () => { pivot.updateWorldMatrix(true, false); const v = pivot.getWorldPosition(new THREE.Vector3()); return [v.x, v.z]; }; // le plus proche d'abord (telechargements.js)
+  plusTard(() => chargeur.loadAsync(urlTripo(id)), { ou }).then(gltf => {
     const obj = gltf.scene, boite = new THREE.Box3().setFromObject(obj), t = boite.getSize(new THREE.Vector3());
     const k = hauteur ? hauteur / t.y : largeur / Math.max(t.x, t.z);
     obj.scale.setScalar(k);

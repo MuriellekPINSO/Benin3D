@@ -1,3 +1,4 @@
+import { toXZ } from './base.js';
 import { EMPLACEMENTS } from './emplacements.js';
 
 // ---------- Zones où rien ne se construit ----------
@@ -21,8 +22,48 @@ function bande(A, B, tMin, tMax, bout) {
 function disque(x, z, r) { Z.push({ disque: true, x, z, r, bb: [x - r, z - r, x + r, z + r] }); }
 /** Le centre de l'arène de Ouidah (ouidah.js la pose là). */
 export const centreArene = A => [A[0] + 1.4, A[1]];
+// ---------- Parcs : ni maison générée, ni bâtiment détecté par Google ----------
+// « Il n'y a pas de maison aux alentours de l'Amazone, ni dans le Sofitel » (Murielle, 04/11). Vérifié sur l'image
+// satellite (Esri World Imagery, 2025) : l'esplanade de l'Amazone, sa pelouse et le terrain de sable jusqu'à la plage
+// sont vides, et à l'est, c'est le port ; le domaine du Sofitel n'est qu'un parc (l'hôtel, le Pavillon, le Dôme, un lac, une zone humide jusqu'à la
+// plage) ; l'enclos du Palais des Congrès n'a que le palais et son parking. Les maisons qu'on y voyait étaient celles que
+// rue.js invente le long des rues, et des emprises Google Open Buildings. Les bâtiments OpenStreetMap, eux, restent :
+// ce sont les vrais (l'annexe du Sofitel, les bâtiments du personnel). Contours relevés en latitude, longitude.
+const PARCS = [];
+const PARCS_LATLON = [
+  // Esplanade de l'Amazone, sa pelouse et le sable jusqu'à la plage : de la rue du Palais des Congrès à la clôture du port.
+  [[6.34997, 2.40640], [6.34997, 2.40818], [6.34460, 2.40818], [6.34460, 2.40640]],
+  // Le port, à l'est de l'Amazone : parcs à voitures et à camions, conteneurs, hangars, chantiers. Google y « voit » des
+  // bâtiments dans les piles de conteneurs et les camions, rue.js y inventait des maisons le long des voies du port.
+  [[6.34997, 2.40835], [6.34997, 2.41400], [6.34450, 2.41400], [6.34450, 2.40835]],
+  // Enclos du Palais des Congrès, du boulevard à la rue du sud.
+  [[6.34997, 2.40385], [6.34997, 2.40610], [6.34710, 2.40610], [6.34710, 2.40385]],
+  // Domaine du Sofitel : le long du boulevard, de la rue des résidences (ouest) à la rue à l'est du Dôme, puis la rive sud
+  // du lac et la zone humide jusqu'à la plage. Le bord nord passe une dizaine de mètres dans le boulevard : rue.js pose ses
+  // maisons à quelques mètres de la bordure, juste au bord du parc.
+  [[6.35130, 2.39198], [6.35131, 2.39360], [6.35123, 2.39506], [6.35094, 2.39604], [6.35052, 2.39679], [6.35018, 2.39754], [6.35005, 2.39796],
+    [6.34876, 2.39796], [6.34869, 2.39604], [6.34570, 2.39604], [6.34570, 2.39198]],
+];
+function parc(latlon) {
+  const r = latlon.map(([la, lo]) => toXZ(la, lo)), xs = r.map(p => p[0]), zs = r.map(p => p[1]);
+  PARCS.push({ r, bb: [Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)] });
+}
+/** (x, z) est-il dans un parc (Amazone, Palais des Congrès, Sofitel) ? */
+export function dansParc(x, z) {
+  for (const P of PARCS) {
+    if (x < P.bb[0] || x > P.bb[2] || z < P.bb[1] || z > P.bb[3]) continue;
+    const r = P.r; let d = false;
+    for (let a = 0, j = r.length - 1; a < r.length; j = a++) { const [xa, za] = r[a], [xj, zj] = r[j]; if ((za > z) !== (zj > z) && x < (xj - xa) * (z - za) / (zj - za) + xa) d = !d; }
+    if (d) return true;
+  }
+  return false;
+}
+/** Un rectangle touche-t-il un parc (son centre ou un de ses coins) ? */
+export const rectDansParc = (x0, z0, x1, z1) => dansParc((x0 + x1) / 2, (z0 + z1) / 2) || dansParc(x0, z0) || dansParc(x1, z0) || dansParc(x0, z1) || dansParc(x1, z1);
+
 /** À appeler avant de construire la ville (données des lieux : `data.L`). */
 export function initZones(L) {
+  if (!PARCS.length) for (const p of PARCS_LATLON) parc(p);
   const P = L?.ouidah?.porte; if (!P) return;
   const { A, B } = pisteOuidah(P); bande(A, B, -25, 55, 35); // piste, bas-côtés, aire de stationnement, paillote, panneaux
   if (L.ouidah.arene) { const [x, z] = centreArene(L.ouidah.arene); disque(x, z, 80); } // jusqu'au mur d'enceinte (77 m)

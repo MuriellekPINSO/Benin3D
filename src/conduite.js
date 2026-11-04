@@ -183,8 +183,13 @@ export function pontPres(x, z, r = 20) {
  * Une image de conduite. av : accélérateur (+1) ou frein puis marche arrière (−1) ; tour : volant (+1 à gauche).
  * Renvoie 'choc' si l'on vient de buter contre un mur ou un trottoir haut, sinon null.
  */
-export function piloter(V, av, tour, dt, { panne = false } = {}) {
+export function piloter(V, av, tour, dt, { panne = false, aide = false } = {}) {
   if (V.vol) return voler(V, av, tour, dt);
+  if (V.redresse !== undefined) { // remis dans le sens de la rue (degager) : il pivote sur place, puis on reprend la main
+    const e = angle(V.redresse - V.cap); V.cap += Math.sign(e) * Math.min(Math.abs(e), 3.5 * dt); V.v = 0;
+    if (Math.abs(e) < .02) delete V.redresse;
+    return avancer(V, dt, true);
+  }
   const D = V.D, vmax = panne ? 1.2 : D.vmax;
   if (av > .05) V.v = V.v < -.2 ? Math.min(0, V.v + D.frein * dt) : Math.min(vmax, V.v + D.accel * av * dt * Math.max(.15, 1 - V.v / (vmax * 1.05)));
   else if (av < -.05) V.v = V.v > .2 ? Math.max(0, V.v - D.frein * -av * dt) : Math.max(-D.recul, V.v - D.accel * .6 * -av * dt);
@@ -193,7 +198,47 @@ export function piloter(V, av, tour, dt, { panne = false } = {}) {
   // Volant : sans effet à l'arrêt, plus doux à pleine vitesse ; en marche arrière, l'avant part de l'autre côté.
   const a = Math.abs(V.v), k = Math.min(1, a / 3) * (1 - .45 * Math.min(1, a / D.vmax));
   V.cap += tour * D.braquage * k * Math.sign(V.v || 1) * dt;
+  if (aide && Math.abs(tour) < .35 && V.v > 1.5) suivreRue(V, dt);
   return avancer(V, dt, true);
+}
+/** Le tronçon de route le plus proche sous (x, z) : son sens (cap), la distance à son axe, sa demi-largeur avec le trottoir, le point de l'axe le plus proche. */
+export function sensRoute(x, z) {
+  indexer();
+  const l = G.cases.get(cle(x, z)); if (!l) return null;
+  const S = G.seg; let best = null;
+  for (const n of l) {
+    const o = n * 5, ax = S[o], az = S[o + 1], bx = S[o + 2], bz = S[o + 3], [d, t] = projeter(x, z, ax, az, bx, bz);
+    if (d <= S[o + 4] && (!best || d < best.d)) best = { cap: Math.atan2(bx - ax, bz - az), d, hw: S[o + 4], px: ax + (bx - ax) * t, pz: az + (bz - az) * t };
+  }
+  return best;
+}
+// Au doigt, la moto suit la rue d'elle-même tant qu'on ne tourne pas franchement : « la moto bouge plus ou c'est dur de
+// guider » (Honey, 03/11) — mesuré au doigt : 82° de virage en 3 s dans une ruelle, puis le mur. Elle se remet dans l'axe
+// de la rue (dans un sens ou dans l'autre) et s'écarte du trottoir quand elle le frôle. En travers d'un carrefour, ou dès
+// qu'on pousse le rond sur le côté, c'est le joueur qui tourne.
+function suivreRue(V, dt) {
+  const r = sensRoute(V.x, V.z); if (!r) return;
+  let e = angle(r.cap - V.cap); if (Math.abs(e) > Math.PI / 2) e = angle(e + Math.PI);
+  if (Math.abs(e) > .6) return;
+  let cible = V.cap + e;
+  if (r.d > r.hw - 1.6) cible += Math.max(-.25, Math.min(.25, angle(Math.atan2(r.px - V.x, r.pz - V.z) - cible))); // contre le trottoir : un peu vers le milieu
+  V.cap += angle(cible - V.cap) * Math.min(1, dt * 2.5);
+}
+/**
+ * Bloqué contre un mur ou un trottoir, gaz ouvert : le véhicule pivote sur place vers la direction libre la plus proche,
+ * le sens de la rue d'abord. Il fallait penser à tirer le rond vers le bas pour reculer, puis tourner ; mesuré au doigt :
+ * 10 s gaz à fond contre le mur, 0 m parcouru. Faux s'il n'y a nulle part où repartir.
+ */
+export function degager(V) {
+  if (V.vol || V.redresse !== undefined) return false;
+  const c0 = V.cap, v0 = V.v, r = sensRoute(V.x, V.z), rue = r ? [r.cap, r.cap + Math.PI].sort((a, b) => Math.abs(angle(a - c0)) - Math.abs(angle(b - c0))) : [];
+  const autour = []; for (let k = 1; k <= 12; k++) autour.push(c0 + k * Math.PI / 12, c0 - k * Math.PI / 12);
+  V.v = 1; // passe() regarde l'avant
+  const libre = cap => { V.cap = cap; for (const d of [1.5, 3, 4.5]) if (!passe(V, V.x + Math.sin(cap) * d, V.z + Math.cos(cap) * d)) return false; return true; };
+  let ok = null; for (const cap of [...rue, ...autour]) if (Math.abs(angle(cap - c0)) > .05 && libre(cap)) { ok = cap; break; }
+  V.cap = c0; V.v = v0;
+  if (ok === null) return false;
+  V.redresse = c0 + angle(ok - c0); return true;
 }
 // Le centre sur la route, et l'avant (l'arrière en marche arrière) avec ses deux coins hors des murs et des
 // bâtiments : avant, seul le centre comptait, et tout le capot rentrait dans la clôture.

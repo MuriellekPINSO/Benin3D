@@ -76,8 +76,24 @@ export function libererImages(racine) {
 export function chargeurGLB({ liberer = false, max = MAX_TEX } = {}) {
   const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   max = Math.min(max, MAX_TEX);
-  if (max === Infinity && !liberer) return L;
-  const charger = L.loadAsync.bind(L);
-  L.loadAsync = (...a) => charger(...a).then(g => { reduireTextures(g.scene, max); if (liberer) libererImages(g.scene); return g; });
+  const charger = L.loadAsync.bind(L), brut = max === Infinity && !liberer;
+  L.loadAsync = (...a) => avecReprises(() => charger(...a)).then(g => { if (!brut) { reduireTextures(g.scene, max); if (liberer) libererImages(g.scene); } return g; });
   return L;
+}
+// « Quand la connexion est faible, on n'arrive pas à voir tous les modèles » (Murielle, 04/11). Mesuré en 1,5 Mb/s avec
+// une coupure de 6 s au mauvais moment : les 34 modèles de la file (personnages, monuments, tenue) échouaient en quelques
+// millisecondes, 0 octet reçu, et aucun n'était retenté — la partie entière se jouait avec les versions dessinées en code.
+// Un téléchargement qui échoue attend que le réseau revienne, puis réessaie (2 s, 4 s, 8 s… 30 s au plus, sept fois) ;
+// un fichier absent (404) n'est pas retenté.
+const enLigne = () => navigator.onLine !== false;
+const reseauRevenu = () => new Promise(ok => addEventListener('online', ok, { once: true }));
+export async function avecReprises(f, essais = 7) {
+  for (let i = 0; ; i++) {
+    if (!enLigne()) await reseauRevenu();
+    try { return await f(); } catch (e) {
+      const st = e?.response?.status;
+      if (i >= essais - 1 || (st >= 400 && st < 500)) throw e;
+      await Promise.race([new Promise(ok => setTimeout(ok, Math.min(30000, 2000 * 2 ** i))), enLigne() ? new Promise(() => { }) : reseauRevenu()]);
+    }
+  }
 }

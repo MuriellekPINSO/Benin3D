@@ -47,6 +47,7 @@ import { actionsFauxFrere, initFauxFrere, majFauxFrere, quitterFauxFrere } from 
 import { SAISIE } from './saisie.js';
 import { fermerFenetreDuDessus } from './manette.js';
 import { initRecharge, proposerRecharge, verifierRecharges } from './recharge.js';
+import { plusTard } from './telechargements.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
 // Jusqu'à 8 amis dans la même ville : chacun se promène à pied avec son personnage, voit les autres,
@@ -409,6 +410,15 @@ function poserTabouret() {
   g.position.set(S.x, S.y, S.z); g.rotation.y = S.cap; scene.add(g); S.tabouret = { g, x: S.x, z: S.z };
 }
 function retirerTabouret() { if (!S.tabouret) return; scene.remove(S.tabouret.g); S.tabouret.g.traverse(o => o.geometry?.dispose()); S.tabouret = null; }
+// Le rond, au volant : sur le côté seul, il ne donnait que le guidon, sans gaz — à l'arrêt, la moto ne bougeait pas d'un
+// centimètre (mesuré : 0 km/h, 0°), et il fallait viser en diagonale (« la moto bouge plus ou c'est dur de guider », Honey,
+// 03/11). Maintenant on le pousse vers où l'on veut aller : vers le haut ou sur le côté, on avance en tournant de ce côté
+// (à fond dès 60°) ; vers le bas, on freine puis on recule.
+function joyConduite(j) {
+  const m = Math.min(1, Math.hypot(j.x, j.y)); if (m < .12) return { av: 0, tour: 0 };
+  const a = Math.atan2(j.x, j.y); // 0 : vers le haut ; positif : à droite
+  return Math.abs(a) < 2.1 ? { av: m, tour: -THREE.MathUtils.clamp(a / 1.05, -1, 1) } : { av: -m, tour: -j.x };
+}
 function geste(nom) {
   if (nom === 'telephone') { // l'animation du téléphone est une pose assise : sur une chaise s'il y en a une, sinon sur son tabouret dehors
     const c = S.lieu && siegeProche(S.lieu, S.x, S.z);
@@ -736,7 +746,9 @@ async function entrerSalon(code, { ami = '', nouveau = false } = {}) {
   entrerDeco(); // les objets de sa maison (deco.js)
   entrerTresor(); entrerEpargne(); entrerAdji(); // le trésor de la semaine (tresor.js), les intérêts de l'épargne (epargne.js), les défis d'adji (adji.js)
   setTimeout(() => { if (S.actif) verifierRecharges(); }, 5000); // une recharge payée pas encore créditée (recharge.js), après le bonjour du jour
-  if (personnagesPrets()) chargerDanses();
+  // Les danses (dix fichiers, 4,3 Mo) partaient à l'entrée, avant les monuments : en fond, après le reste. Danser, le concert
+  // ou la fête de l'entreprise les demandent tout de suite (chargerDanses).
+  plusTard(async () => { if (S.actif && personnagesPrets()) await chargerDanses(); }, { apres: true }).catch(() => { });
   const g = await creerAvatar(S.modele, graine(S.canal.id));
   if (!S.actif) { g.userData.liberer?.(); return; }
   S.moi = g; S.g = g; poserMonEtiquette(g); scene.add(g);
@@ -896,8 +908,9 @@ export function majSalon(dt) {
   majGuideSalon(dt);
   const t = S.touches, j = S.joy, tir = tirEnCours(); // au stand du lance-pierre : on ne marche plus, la caméra vise les cibles
   const pad = S.pad && performance.now() - S.padT < 250 ? S.pad : null; // manette (voir manette.js), si elle vient de parler : débranchée ou menu ouvert, on n'avance plus
-  const av = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
-  const tour = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) - (j ? j.x : 0) - (pad ? pad.lx : 0), -1, 1);
+  const jc = j && T.mode === 'conduit' && !T.veh?.vol ? joyConduite(j) : null; // au doigt, sur la route : on pousse le rond vers où l'on veut aller
+  const av = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (jc ? jc.av : j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
+  const tour = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) + (jc ? jc.tour : j ? -j.x : 0) - (pad ? pad.lx : 0), -1, 1);
   majVie(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
   for (const A of S.autres.values()) { const G = A.garee; if (G?.g.visible && (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < 1600) E.circulation.push({ px: G.x, pz: G.z, cap: G.cap, hl: G.D.long / 2, hw: G.D.larg / 2, v: 0, type: G.type }); } // vidée à chaque image (main.js)
   // Après un rechargement, la moto du patron revient dès qu'on est dehors et à pied (au réveil, en sortant de chez soi ;
