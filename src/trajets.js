@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $, coarse } from './base.js';
 import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js';
-import { PRIX_LITRE, VEHICULES, atterrir, creerVehicule, decoller, degager, departLibre, sensRoute, peindre, enCroisiere, initStations, peutDecoller, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
+import { PRIX_LITRE, VEHICULES, atterrir, bondir, creerVehicule, decoller, degager, departLibre, sensRoute, peindre, enCroisiere, initStations, peutDecoller, itineraire, longueur, majRuban, majStations, piloter, placer, reste, retirerRuban, retirerVehicule, ruban, siege, stationProche, suivreChemin, surRoute } from './conduite.js';
 import { dansBatiment, dansObstacleRue, decalee } from './rue.js';
 import { E } from './etat.js';
 import { dansCirculation } from './trafic.js';
@@ -143,11 +143,14 @@ export function actions() {
       if (enCroisiere(V)) {
         const G = T.gps;
         if (G && !(V.vol.phase === 'approche' && V.vol.vers === G.nom)) out.push({ texte: `Voler jusqu’à ${G.nom}`, f: () => volerVers(G) });
-        out.push({ texte: 'Atterrir ici', f: () => { if (atterrir(V)) { V.vol.vers = null; ligne('Tu descends sur la route la plus proche.'); } else ligne('Pas de route où se poser ici : vole un peu plus loin.'); } });
+        out.push({ texte: 'Atterrir ici', f: () => { if (atterrir(V)) { V.vol.vers = null; ligne(V.vol.ici ? 'Tu descends te poser juste en dessous. Touche les commandes pour te poser ailleurs.' : 'Pas de place juste en dessous : tu descends sur la route la plus proche.'); } else ligne('Pas de place où se poser ici : vole un peu plus loin.'); } });
       }
       return out;
     }
-    if (peutDecoller(V)) out.push({ texte: 'Décoller · propulseurs', f: () => { if (decoller(V)) { son('saut'); ligne(T.gps ? `Tu montes à 110 m. Puis « Voler jusqu’à ${T.gps.nom} », ou pilote toi-même.` : 'Tu montes à 110 m. Pilote comme au sol, puis « Aller » pour choisir où te poser, ou « Atterrir ici ».'); } } });
+    // Appui court : un bond par-dessus les voitures ; tenu 5 s : le vol à 110 m (testeur, 04/11). `tenir` : salon.js.
+    if (peutDecoller(V)) out.push({ texte: 'Propulseurs · tiens 5 s pour voler', cle: 'propulseurs', tenir: 5,
+      f: () => { if (bondir(V)) son('saut'); },
+      long: () => { if (decoller(V)) { son('saut'); ligne(T.gps ? `Tu montes à 110 m. Puis « Voler jusqu’à ${T.gps.nom} », ou pilote toi-même.` : 'Tu montes à 110 m. Pilote comme au sol, puis « Atterrir ici » au-dessus de l’endroit où tu veux te poser.'); } } });
     if (Math.abs(V.v) < .8) out.push({ texte: `Descendre ${nomDe(V)[1]}`, f: descendre });
     return out;
   }
@@ -210,7 +213,8 @@ function majBloque(V, av, dt) {
   if (T.bloque > .9 && degager(V)) { T.bloque = 0; return; }
   if (T.bloque > 1.5 && performance.now() > (T.bloqueT || 0)) {
     T.bloqueT = performance.now() + 20000;
-    astuce(coarse ? 'Bloqué ? Tire le rond vers le bas pour reculer, puis tourne' : 'Bloqué ? Recule avec ↓, puis tourne', 8000); T.bloqueDit = true;
+    // La Roadster a toujours une sortie : un bond par-dessus ce qui la coince (posée hors de la route, entre deux murets).
+    astuce(V.D.propulseurs ? 'Coincée ? Appuie un instant sur « Propulseurs » : elle saute par-dessus' : coarse ? 'Bloqué ? Tire le rond vers le bas pour reculer, puis tourne' : 'Bloqué ? Recule avec ↓, puis tourne', 8000); T.bloqueDit = true;
   } else if (T.bloqueDit && Math.abs(V.v) > .8) cacherAide();
 }
 function descendre() {
@@ -428,7 +432,7 @@ export function tenirPlat(nom, points) {
   jeterPlat();
   const g = assiette(); (S.moi?.userData.main || scene).add(g); g.position.set(0, .05, .05);
   T.plat = { g, nom, points, reste: 1 };
-  ligne(`Tu as ton ${nom.toLowerCase()} : assieds-toi pour manger, à une table ou sur ton tabouret.`);
+  ligne(`Tu as ton ${nom.toLowerCase()} : assieds-toi pour manger, à une table ou sur un banc.`);
 }
 function jeterPlat() { if (T.plat) { T.plat.g.parent?.remove(T.plat.g); T.plat = null; } }
 /**
@@ -489,9 +493,12 @@ export function majTrajets(dt, av, tour) {
     const V = T.veh, panne = !V.D.pedale && !(carburant() > 0); // un vélo ne tombe jamais en panne sèche
     if (panne && !T.panneDite) { T.panneDite = true; ligne(V.vol ? 'Panne sèche en plein vol ! La Roadster descend se poser.' : 'Panne sèche ! Tu avances au pas : « Aller » → « Station-service la plus proche » pour le GPS.'); }
     if (panne && V.vol?.phase === 'croisiere' && performance.now() > (T.poseT || 0)) { T.poseT = performance.now() + 1000; atterrir(V); } // plus d'essence : elle va se poser sur la route la plus proche
-    const vol = V.vol, km0 = V.km, choc = piloter(V, av, tour, dt, { panne, aide: coarse }); // au doigt, la moto suit la rue (conduite.js) if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
+    // Au doigt, la moto suit la rue (conduite.js). Le 04/11, ce commentaire avait avalé la suite de la ligne : plus de
+    // bruit ni de vibration aux chocs, et les clients ne les comptaient plus.
+    const vol = V.vol, km0 = V.km, choc = piloter(V, av, tour, dt, { panne, aide: coarse });
+    if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
     majBloque(V, av, dt);
-    if (vol && !V.vol) { son('bosse'); ligne(vol.vers ? `Posée près de ${vol.vers}.` : 'La Roadster est posée.'); }
+    if (vol && !V.vol) { son('bosse'); if (!vol.court) ligne(vol.vers ? `Posée près de ${vol.vers}.` : vol.ici ? 'La Roadster est posée là où tu voulais.' : 'La Roadster est posée.'); } // un bond : pas de message à chaque saut
     if (!V.D.pedale) { T.conso += (V.km - km0) / V.D.kmParLitre; if (T.conso > .01) { consommer(T.conso); T.conso = 0; } }
     if (!V.D.pedale) moteurMaj(Math.abs(V.v), true);
     S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; S.anim = 'assis';

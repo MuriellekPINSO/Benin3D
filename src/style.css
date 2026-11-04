@@ -874,6 +874,7 @@ button { font: inherit; color: inherit; }
 .mode-salon #labels .lbl-q, .mode-salon #labels .lbl-water, .mode-salon.dedans #labels { display: none !important; }
 .sl-agir { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; max-width: calc(100% - 2 * var(--gutter)); }
 .sl-agir .jouer { font-size: 15px; padding: 12px 22px; }
+.sl-agir button { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; } /* les propulseurs se tiennent 5 s : ni sélection ni menu du doigt */
 .sl-agir2 { border: 0; border-radius: 999px; padding: 11px 18px; font-weight: 800; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); cursor: pointer; }
 .vh-gps { color: #2e8fd6 !important; font-weight: 700; }
 .fondu { position: fixed; inset: 0; z-index: 60; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s ease; }

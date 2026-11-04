@@ -132,7 +132,7 @@ export function majManette(dt) {
     manetteLancePierre({ dt, lx, ly, rx, ry, rt, a: !!enfonce[brut(0)], aAppui: appuye(0), b: appuye(1), start: appuye(9) });
   } else if (salonActif()) {
     M.sens = '';
-    manetteSalon({ lx, ly, rx, ry, rt, lt, court: !!enfonce[5], lb: appuye(4), a: appuye(0), b: appuye(1), x: appuye(2), y: appuye(3), select: appuye(8), start: appuye(9), ps }); // ps : les boutons s'affichent ✕ □ ○
+    manetteSalon({ lx, ly, rx, ry, rt, lt, court: !!enfonce[5], tenus: [!!enfonce[brut(0)], !!enfonce[brut(2)], !!enfonce[brut(1)]], lb: appuye(4), a: appuye(0), b: appuye(1), x: appuye(2), y: appuye(3), select: appuye(8), start: appuye(9), ps }); // ps : les boutons s'affichent ✕ □ ○
   } else if (JEU.actif && JEU.etat && !JEU.fini) {
     M.sens = '';
     const st = JEU.etat;

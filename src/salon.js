@@ -5,7 +5,7 @@ import { creerGuide } from './guide.js';
 import { BALADES, DEVANT_CAI, POSE_VELO, PRES_DE_CAI } from './caicai.js';
 import { compterUneFois, lieuStats } from './statistiques.js';
 import { obstacleArene, retirerVoisins, siegeGradins, voisinsDeGradin } from './ouidah.js';
-import { dansArbre, dansFoule } from './lieux.js';
+import { BANCS, dansArbre, dansFoule } from './lieux.js';
 import { personne } from './discussions.js';
 import { INTERIEURS, arriveeDedans, arriveeDehors, cacherInterieurs, limiter, murEntre, ouvrirInterieur, porteProche, profondeurInterieur, siegeProche } from './interieurs.js';
 import { A_LOUER, actionsMaison, initMaison, logement, maisonActuelle, majMaison, occupe, quitterMaison, reveil } from './maison.js';
@@ -43,7 +43,7 @@ import { camera, canvas, controls, scene } from './scene.js';
 import { filtrer } from './moderation.js';
 import { actionsLancePierre, cameraTir, fovTir, initLancePierre, majLancePierre, tirEnCours } from './lancepierre.js';
 import { STICKERS, elementSticker, stickerDe, texteSticker, toileSticker } from './stickers.js';
-import { actionsFauxFrere, initFauxFrere, majFauxFrere, quitterFauxFrere } from './fauxfrere.js';
+import { SIEGES as SIEGES_MAQUIS, actionsFauxFrere, initFauxFrere, majFauxFrere, quitterFauxFrere } from './fauxfrere.js';
 import { SAISIE } from './saisie.js';
 import { fermerFenetreDuDessus } from './manette.js';
 import { initRecharge, proposerRecharge, verifierRecharges } from './recharge.js';
@@ -75,6 +75,7 @@ const PHRASES = ['Salut !', 'Ça va ?', 'On y va !', 'On mange où ?', 'Attends-
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
 const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['dome', 'Le Dôme du Sofitel (La Nuit Kutɔnu Vibes)', 'au Dôme du Sofitel', 0, 0, 0, 'dome-sofitel'], ['caicai', 'Caï Caï Vélo (location)', 'chez Caï Caï Vélo', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0]]; // 7e : intérieur dont on arrive devant la porte
+const ACTION_DE = { porte: 0, action2: 1, action3: 2 }; // les touches des trois boutons d'action (E, R, F)
 const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
 const S = { orbite: 0, orbiteT: 0, actif: false, public: false, balade: null, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 't:top-f', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, bras: 1, autres: new Map(), vus: new Set() };
@@ -220,7 +221,7 @@ const estAmi = A => !S.public || !!A.ami;
 function majEtiquette(A) { if (!A.g) return; oterEtiquette(A.etiquette); A.etiquette = etiquette(A.nom, false, S.public && A.ami, A.sous || ''); A.g.userData.tete.add(A.etiquette); }
 function surEtat(id, e) {
   let A = S.autres.get(id);
-  if (!e) { if (A) { oublier(A); S.autres.delete(id); majListe(); if (A.nom) ligne(S.public ? `${A.nom} a quitté la ville.` : `${A.nom} a quitté le salon.`); } return; }
+  if (!e) { if (A) { if (S.appel?.avec === id) { ligne(`${A.nom || 'Ton correspondant'} a quitté la ville : l’appel est coupé.`); finAppel(); } oublier(A); S.autres.delete(id); majListe(); if (A.nom) ligne(S.public ? `${A.nom} a quitté la ville.` : `${A.nom} a quitté le salon.`); } return; }
   if (typeof e.x !== 'number' || typeof e.z !== 'number') return;
   if (!A) { A = { id, x: e.x, z: e.z, cap: e.h || 0, nom: '', modele: '', g: null, enCours: false, bulle: null, bulleFin: 0, ami: id === S.inviteur }; S.autres.set(id, A); }
   const avant = A.etat?.sur; A.etat = e;
@@ -366,6 +367,7 @@ function ligne(texte, { nom = '', lieu = null, pos = null, moi = false, u = '' }
 function surMessage(m) {
   if (!m || S.vus.has(m.cle)) return; S.vus.add(m.cle);
   if (MUETS.has(m.u)) return;
+  if (m.appel) { surAppel(m); return; } // un appel (téléphoner) : jamais dans la discussion de la ville
   const moi = m.u === S.R?.id, texte = filtrer(nettoyer(m.txt, 140)), lieu = LIEUX.some(l => l[0] === m.lieu) ? m.lieu : null, st = stickerDe(m.st);
   const pos = Array.isArray(m.pos) && m.pos.length === 2 && m.pos.every(v => Number.isFinite(v) && Math.abs(v) < 80000) ? m.pos : null; // « Partager ma position »
   if (!texte) return;
@@ -379,6 +381,7 @@ function dire(texte, st = null, plus = null) { // st : l'identifiant d'un sticke
   if (texte === S.dernierMsg && t - S.dernierMsgT < 30000) return; // le même message, encore et encore
   if (t - (S.dernierMsgT || 0) < 2000) { ligne('Doucement : un message toutes les deux secondes.'); return; }
   S.dernierMsg = texte; S.dernierMsgT = t;
+  if (S.appel?.etat === 'en cours' && !st && !plus) { signalAppel('dit', S.appel.avec, texte); ligne(texte, { nom: `📞 ${S.nom} → ${S.appel.nom}`, moi: true }); bulle(S, texte); return; } // au téléphone : à lui seul
   S.canal.dire({ n: S.nom, txt: texte, ...(st ? { st } : {}), ...plus });
   signalerVie('message'); // les missions du jour (journee.js)
 }
@@ -401,14 +404,7 @@ function proposerMuet(u, nom) {
     ligne(`Tu ne verras plus les messages de ${nom}.`);
   } }], { annuler: 'Annuler' });
 }
-// Dans la rue, pas de chaise : on pose son tabouret en plastique (comme partout à Cotonou) ; il disparaît quand on se lève.
-function poserTabouret() {
-  retirerTabouret();
-  const g = new THREE.Group(), rouge = new THREE.MeshLambertMaterial({ color: '#c8352b' }), bloc = (sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), rouge); m.position.set(x, y, z); m.castShadow = true; g.add(m); };
-  bloc(.44, .05, .42, 0, .44, -.04); bloc(.44, .4, .04, 0, .66, -.25); // assise, dossier (derrière soi)
-  for (const [x, z] of [[-.19, .14], [.19, .14], [-.19, -.22], [.19, -.22]]) bloc(.035, .44, .035, x, .22, z);
-  g.position.set(S.x, S.y, S.z); g.rotation.y = S.cap; scene.add(g); S.tabouret = { g, x: S.x, z: S.z };
-}
+// Le tabouret en plastique qu'on posait dans la rue (retiré le 04/11 : on s'assoit seulement sur un vrai siège) ; un ancien reste, on l'enlève.
 function retirerTabouret() { if (!S.tabouret) return; scene.remove(S.tabouret.g); S.tabouret.g.traverse(o => o.geometry?.dispose()); S.tabouret = null; }
 // Le rond, au volant : sur le côté seul, il ne donnait que le guidon, sans gaz — à l'arrêt, la moto ne bougeait pas d'un
 // centimètre (mesuré : 0 km/h, 0°), et il fallait viser en diagonale (« la moto bouge plus ou c'est dur de guider », Honey,
@@ -420,21 +416,16 @@ function joyConduite(j) {
   return Math.abs(a) < 2.1 ? { av: m, tour: -THREE.MathUtils.clamp(a / 1.05, -1, 1) } : { av: -m, tour: -j.x };
 }
 function geste(nom) {
-  if (nom === 'telephone') { // l'animation du téléphone est une pose assise : sur une chaise s'il y en a une, sinon sur son tabouret dehors
-    const c = S.lieu && siegeProche(S.lieu, S.x, S.z);
-    if (c) { S.x = c.x; S.z = c.z; S.cap = c.cap; }
-    else if (!S.lieu && T.mode === 'pied') poserTabouret();
-    else { telephoneEnMain(6000); bulle(S, 'Allô ? Oui, je suis à Cotonou !'); S.geste = 'idle'; S.gesteFin = 0; return; }
-    rangerTelephone(); bulle(S, 'Allô ? Oui, je suis à Cotonou !'); // assis, la pose porte la main à la joue : le personnage y met lui-même le téléphone (personnages.js)
-  }
-  if (nom === 'assis') { // sur la chaise libre la plus proche, dans les gradins de l'arène, ou sur son tabouret dans la rue
+  if (nom === 'telephone') { telephoner(); return; } // ses contacts : les joueurs en ville (plus bas)
+  if (nom === 'assis') { // sur la chaise libre la plus proche, un banc, une chaise de maquis ou les gradins de l'arène
     if (!S.lieu && siegeGradins(S.x, S.z)) { assoirGradins(); return; }
-    const c = S.lieu && siegeProche(S.lieu, S.x, S.z);
+    const c = S.lieu && siegeProche(S.lieu, S.x, S.z), d = !S.lieu && T.mode === 'pied' && siegeDehors(S.x, S.z);
     if (c) { S.x = c.x; S.z = c.z; S.cap = c.cap; asseoir(c); } // si l'on porte une assiette, on la pose et on mange
-    // Dehors, on s'assoit sur son tabouret : l'assiette se posait nulle part et restait collée à la main pour
-    // toujours, même en changeant de quartier (retour d'un testeur, 24/10). On mange dessus, sur les genoux.
-    else if (!S.lieu && T.mode === 'pied') { poserTabouret(); asseoir({ x: S.x, z: S.z, cap: S.cap }, .55); }
-    else { ligne('Approche-toi d’une table pour t’asseoir.'); return; }
+    // Dehors, on posait son tabouret en plastique n'importe où (24/10) : on s'asseyait au milieu de la rue, sans rien
+    // dessous. « Il faut rendre impossible le fait de s'asseoir quand il n'y a pas une chaise à proximité » (testeur,
+    // 04/11) : seulement sur un vrai siège.
+    else if (d) { asseoirDehors(d); return; }
+    else { ligne(S.lieu ? 'Pas de chaise libre près de toi : approche-toi d’une table.' : 'Pas de chaise ici : approche-toi d’un banc ou d’une chaise de maquis pour t’asseoir.'); return; }
   }
   S.geste = nom; S.gesteFin = nom === 'salut' || nom === 'rire' ? performance.now() + 3200 : 0; // saluer et rire durent un moment, danser et s'asseoir jusqu'au prochain pas
   if (nom === 'danse1' && personnagesPrets()) chargerDanses();
@@ -453,8 +444,31 @@ function leverGradins() {
   S.gradin = null; S.x = g.bas[0]; S.z = g.bas[1]; S.y = 0; S.geste = 'idle'; S.saut = true;
   retirerVoisins();
 }
-// Un téléphone dans la main droite, quelques secondes (`duree`), quand on n'a pas pu s'asseoir pour téléphoner (en
-// voiture, dans une salle sans chaise libre). Assis, c'est le personnage qui le tient à l'oreille (personnages.js).
+// Les sièges du dehors, à moins de 2,5 m : les bancs (lieux.js : esplanades, corniche) et les chaises du maquis Tanti
+// Rosine (fauxfrere.js). { x, z, y, cap, bas } comme une place des gradins : « Se lever », ou avancer, ramène à `bas`.
+const vB = new THREE.Vector3(), qB = new THREE.Quaternion(), eB = new THREE.Euler();
+function siegeDehors(x, z) {
+  let best = null, dm = 2.5;
+  const prendre = (sx, sy, sz, cap, bx, bz) => { const d = Math.hypot(sx - x, sz - z); if (d < dm && !placePrise(sx, sz)) { dm = d; best = { x: sx, y: sy, z: sz, cap, bas: [bx, bz] }; } };
+  for (const g of BANCS) {
+    if (!g.parent) continue;
+    g.updateWorldMatrix(true, false); const cap = eB.setFromQuaternion(g.getWorldQuaternion(qB), 'YXZ').y + Math.PI; // le dossier côté +z : on regarde vers −z
+    for (const u of [-.55, .55]) {
+      vB.set(u, 0, -.02).applyMatrix4(g.matrixWorld); const sx = vB.x, sy = vB.y + .16, sz = vB.z; // assise à 0,625 m, le bassin d'un assis à 0,465 m
+      vB.set(u, 0, -.75).applyMatrix4(g.matrixWorld); prendre(sx, sy, sz, cap, vB.x, vB.z);
+    }
+  }
+  for (const s of SIEGES_MAQUIS) prendre(s.x, 0, s.z, s.cap, s.x - Math.sin(s.cap) * .6, s.z - Math.cos(s.cap) * .6);
+  return best;
+}
+/** Un autre joueur assis là. */
+const placePrise = (x, z) => [...S.autres.values()].some(A => A.g?.visible && A.etat?.a === 'assis' && Math.hypot(A.g.position.x - x, A.g.position.z - z) < .35);
+function asseoirDehors(s) {
+  S.x = s.x; S.z = s.z; S.y = s.y; S.cap = s.cap; S.gradin = s; S.saut = true; S.geste = 'assis'; S.gesteFin = 0;
+  asseoir(s, .55); // une assiette à la main : on mange sur les genoux
+}
+// Un téléphone dans la main droite, pour un appel debout (`duree` : 0 tant que l'appel dure). Assis, c'est le
+// personnage qui le tient à l'oreille (personnages.js).
 function telephoneEnMain(duree = 0) {
   if (!S.moi) return; rangerTelephone();
   const t = telephone3d(); t.position.set(0, .05, .05);
@@ -462,6 +476,77 @@ function telephoneEnMain(duree = 0) {
   S.telFin = duree ? setTimeout(rangerTelephone, duree) : 0;
 }
 function rangerTelephone() { clearTimeout(S.telFin); S.telFin = 0; S.tel?.parent?.remove(S.tel); S.tel = null; }
+
+// ---------- Téléphoner ----------
+// « Il faut revoir l'option téléphoner, c'est un feature inutile puisqu'on ne peut pas appeler quelqu'un » (testeur,
+// 04/11) : le geste montrait un téléphone, sans personne au bout. « Téléphoner » ouvre maintenant ses contacts, les
+// joueurs en ville (et un zém). Ça sonne chez l'autre, qui décroche ou refuse ; pendant l'appel, ce qu'on écrit ne va
+// qu'à lui, et chacun a le téléphone en main (à l'oreille s'il est assis). Les signaux passent par la discussion de la
+// ville, avec `appel` et `pour` : les autres joueurs les ignorent, et les règles Firebase ne changent pas.
+const SONNE = 30000; // ms avant « ne répond pas »
+function telephoner() {
+  if (S.appel) { choisir(S.appel.etat === 'recu' ? `${S.appel.nom} t’appelle` : `Au téléphone avec ${S.appel.nom}`, S.appel.etat === 'recu' ? optionsAppel() : [{ texte: 'Raccrocher', f: () => raccrocher() }], { annuler: 'Retour' }); return; }
+  const autres = [...S.autres.values()].filter(A => A.nom).sort((a, b) => estAmi(b) - estAmi(a) || a.nom.localeCompare(b.nom));
+  choisir(autres.length ? 'Qui appeler ?' : 'Personne d’autre en ville pour l’instant', [
+    ...autres.slice(0, 30).map(A => ({ texte: `Appeler ${A.nom}`, sous: estAmi(A) && S.public ? 'Ton ami' : '', f: () => appeler(A) })),
+    { texte: 'Appeler un zém', sous: 'Il vient te chercher ici', f: helerZem },
+  ], { annuler: 'Annuler' });
+}
+const signalAppel = (appel, pour, txt = '📞') => S.canal?.dire({ n: S.nom, txt, appel, pour });
+function appeler(A) {
+  if (!S.canal || S.appel) return;
+  S.appel = { avec: A.id, nom: A.nom, etat: 'sonne', fin: setTimeout(() => { if (S.appel?.etat === 'sonne') { signalAppel('fin', S.appel.avec); ligne(`${S.appel.nom} ne répond pas.`); finAppel(); } }, SONNE) };
+  signalAppel('sonne', A.id); prendreTelephone(); bulle(S, 'Allô ?');
+  ligne(`Ça sonne chez ${A.nom}…`);
+}
+const optionsAppel = () => [{ texte: 'Décrocher', f: decrocher }, { texte: 'Refuser', f: refuser }];
+/** Le bouton du moment : décrocher quand ça sonne, raccrocher pendant l'appel ou tant que ça sonne chez l'autre. */
+const actionsAppel = () => !S.appel ? [] : S.appel.etat === 'recu' ? [{ texte: `Décrocher · ${S.appel.nom}`, f: decrocher }] : [{ texte: 'Raccrocher', f: raccrocher }];
+function decrocher() {
+  const P = S.appel; if (!P || P.etat !== 'recu') return;
+  clearTimeout(P.fin); P.etat = 'en cours'; signalAppel('decroche', P.avec); prendreTelephone();
+  ligne(`Tu as décroché : ce que tu écris ne va qu’à ${P.nom}.`);
+}
+function refuser() { const P = S.appel; if (!P || P.etat !== 'recu') return; signalAppel('refuse', P.avec); finAppel(); }
+function raccrocher() { const P = S.appel; if (!P) return; signalAppel('fin', P.avec); ligne(P.etat === 'en cours' ? `Tu as raccroché. Fin de l’appel avec ${P.nom}.` : 'Tu as raccroché.'); finAppel(); }
+function finAppel() {
+  const P = S.appel; if (!P) return; clearTimeout(P.fin); S.appel = null;
+  if (P.etat === 'recu' && !$('#choix').hidden && $('#chTitre').textContent.includes(P.nom)) $('#choix').hidden = true; // la sonnerie s'arrête : la fenêtre aussi
+  rangerTelephone(); if (S.geste === 'telephone') S.geste = 'assis';
+}
+/** Le téléphone à l'oreille, assis (la pose « telephone » le porte : personnages.js), sinon en main, debout. */
+function prendreTelephone() {
+  if (S.geste === 'assis') { rangerTelephone(); S.geste = 'telephone'; S.gesteFin = 0; }
+  else if (T.mode === 'pied' && !S.tel) telephoneEnMain(0);
+}
+/** Les signaux d'appel qu'on reçoit (surMessage) : seulement ceux qui nous sont adressés, et récents. */
+function surAppel(m) {
+  if (m.u === S.R?.id || m.pour !== S.R?.id) return;
+  if (typeof m.t === 'number' && Date.now() - m.t > 20000) return; // l'historique de la discussion, à l'arrivée
+  const nom = filtrer(nettoyer(m.n, 16)) || 'Quelqu’un', P = S.appel, lui = P?.avec === m.u;
+  if (m.appel === 'sonne') {
+    if (P && !lui) { signalAppel('occupe', m.u); return; } // déjà au téléphone
+    if (P) clearTimeout(P.fin); // il rappelle : une seule sonnerie
+    S.appel = { avec: m.u, nom, etat: 'recu', fin: setTimeout(() => { if (S.appel?.etat === 'recu' && S.appel.avec === m.u) { ligne(`Appel manqué de ${nom}.`); finAppel(); } }, SONNE) };
+    son('sonnerie'); ligne(`📞 ${nom} t’appelle.`);
+    choisir(`📞 ${nom} t’appelle`, optionsAppel(), { annuler: 'Plus tard', puis: () => { } }); // « Plus tard » : ça sonne encore, « Téléphoner » rouvre l'appel
+  } else if (!lui) return;
+  else if (m.appel === 'decroche' && P.etat === 'sonne') { clearTimeout(P.fin); P.etat = 'en cours'; son('piece'); ligne(`${nom} a décroché : ce que tu écris ne va qu’à ${nom}.`); }
+  else if (m.appel === 'refuse') { ligne(`${nom} ne peut pas répondre.`); finAppel(); }
+  else if (m.appel === 'occupe') { ligne(`${nom} est déjà au téléphone.`); finAppel(); }
+  else if (m.appel === 'fin') { ligne(P.etat === 'recu' ? `Appel manqué de ${nom}.` : `${nom} a raccroché.`); finAppel(); }
+  else if (m.appel === 'dit' && P.etat === 'en cours') {
+    const texte = filtrer(nettoyer(m.txt, 140)); if (!texte) return;
+    ligne(texte, { nom: `📞 ${nom}`, moi: false, u: m.u });
+    const A = S.autres.get(m.u); if (A?.g?.visible) bulle(A, texte);
+  }
+}
+/** Le téléphone en main des autres joueurs, debout (`tl` dans leur état) ; assis, leur pose le porte déjà. */
+function telDe(A, e) {
+  const main = A.g && (A.g.userData.main || A.g), veut = !!e.tl && !!A.g?.visible && e.a !== 'telephone';
+  if (veut && A.tel?.parent !== main) { A.tel?.parent?.remove(A.tel); A.tel ??= telephone3d(); A.tel.position.set(0, .05, .05); main.add(A.tel); }
+  else if (!veut && A.tel) { A.tel.parent?.remove(A.tel); A.tel = null; }
+}
 /** Point d'arrivée d'un lieu de rendez-vous : [x, z, regard] (devant la porte pour un lieu où l'on entre). */
 // Ses commerces (commerces.js) s'ajoutent aux lieux : « Aller à », GPS et zém y mènent comme ailleurs.
 // Le logement qu'on est allé visiter (menu « Louer un logement ») : une destination de plus, le temps de la visite.
@@ -641,6 +726,33 @@ function dehors(replacer = true) {
 // Touche E : l'action principale du moment. Pas deux d'affilée en moins de 0,7 s : E, E au réveil levait le joueur puis
 // le faisait sortir aussitôt (la deuxième action arrive à la place de la première).
 function porte() { const t = performance.now(); if (t - (S.actionT || 0) < 700) return; S.actionT = t; S.actions?.[0]?.f(); }
+// Une action peut se tenir (`tenir` : secondes, `long` : ce qu'elle fait au bout) ; relâchée avant, c'est l'appui court
+// (`f`). Les propulseurs de la Roadster : un bond par-dessus les voitures, ou le vol au bout de 5 s (testeur, 04/11). Au
+// doigt ou à la souris sur le bouton, avec E, R, F au clavier, ou A, X, B à la manette. Le bouton compte les secondes.
+const TENU = { k: -1, cle: '', t0: 0, fait: false, f: null, long: null, duree: 0, relache: 0 };
+const cleAction = a => a?.cle || a?.texte || '';
+function appuyer(k) {
+  const a = S.actions?.[k]; if (!a) return;
+  if (!a.tenir) { if (k === 0) porte(); else a.f(); return; }
+  if (TENU.k >= 0) return;
+  Object.assign(TENU, { k, cle: cleAction(a), t0: performance.now(), fait: false, f: a.f, long: a.long, duree: a.tenir * 1000 });
+}
+function relacher(k) {
+  if (TENU.k !== k) return;
+  TENU.k = -1; TENU.relache = performance.now();
+  if (!TENU.fait) TENU.f?.();
+}
+function majTenu() {
+  if (TENU.k < 0 || TENU.fait) return;
+  if (cleAction(S.actions?.[TENU.k]) !== TENU.cle) { TENU.k = -1; return; } // l'action n'est plus là (descendu, en panne)
+  if (performance.now() - TENU.t0 >= TENU.duree) { TENU.fait = true; TENU.long?.(); }
+}
+/** Le clic qui suit un appui tenu (doigt, souris) ne compte pas une seconde fois ; Entrée sur le bouton, si. */
+function cliquer(k) {
+  const a = S.actions?.[k];
+  if (a?.tenir) { if (performance.now() - TENU.relache > 600) a.f(); return; }
+  if (k === 0) porte(); else a?.f();
+}
 
 // ---------- Entrer, quitter ----------
 // Un double clic sur « Créer » (ou Entrée puis clic) lançait deux entrées pendant le chargement de la vie, chacune avec
@@ -779,6 +891,7 @@ function quitter() {
   lieuStats('carte');
   menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterJournee(); quitterDeco(); quitterAlbum(); quitterTresor(); quitterEpargne(); quitterAdji(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
+  if (S.appel) { signalAppel('fin', S.appel.avec); finAppel(); } // on quitte la ville : l'appel s'arrête chez l'autre aussi
   S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
   for (const A of S.autres.values()) oublier(A); S.autres.clear();
   if (S.moi) { retirerBulle(S); scene.remove(S.moi); S.moi.userData.liberer?.(); S.moi = S.g = null; }
@@ -920,7 +1033,7 @@ export function majSalon(dt) {
   if (T.mode === 'ami') suivi = majAmi(); // derrière un ami : c'est lui qui conduit
   // La circulation s'arrête devant lui (trafic.js, circulation.js) ; dedans, elle l'ignore. Elle doit connaître sa taille :
   // au volant, ce n'est plus un piéton mais une voiture de 4,4 m, et les autres s'arrêtaient à son milieu, déjà dans sa carrosserie.
-  if (S.saut && T.mode === 'pied' && !S.lieu) placeLibre(); // on vient d'arriver (sorti de chez soi, téléporté…)
+  if (S.saut && T.mode === 'pied' && !S.lieu && !S.gradin) placeLibre(); // on vient d'arriver (sorti de chez soi, téléporté…) ; pas assis sur un banc : le banc est un obstacle, on en était chassé
   const J = S.lieu ? null : suivi ?? S;
   if (J) {
     const Vj = T.mode === 'conduit' ? T.veh : T.mode === 'passager' ? T.zem?.V : T.mode === 'ami' ? S.autres.get(S.ami)?.veh : null;
@@ -962,7 +1075,8 @@ export function majSalon(dt) {
     if (S.tabouret && (S.lieu || (S.geste !== 'assis' && S.geste !== 'telephone') || Math.hypot(S.x - S.tabouret.x, S.z - S.tabouret.z) > .3)) retirerTabouret();
     else if (S.gesteFin && performance.now() > S.gesteFin) { S.geste = 'idle'; S.gesteFin = 0; }
     S.anim = marche ? (court && S.moi?.userData.peut?.('course') ? 'course' : 'marche') : S.geste;
-    if (S.tel && !S.telFin && S.geste !== 'telephone') rangerTelephone(); // on raccroche en se levant
+    if (S.tel && !S.telFin && S.geste !== 'telephone' && !S.appel) rangerTelephone(); // on range le téléphone en se levant (pas pendant un appel)
+    if (S.appel && S.appel.etat !== 'recu' && S.geste !== 'telephone') { if (S.geste === 'assis') prendreTelephone(); else if (!S.tel && T.mode === 'pied') telephoneEnMain(0); } // assis ou relevé pendant l'appel
     if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); }
   }
   // Caméra derrière soi (ou derrière le véhicule), à la distance et l'inclinaison choisies : glisser vers le haut ou
@@ -1028,7 +1142,7 @@ export function majSalon(dt) {
     const vh = T.mode === 'conduit' ? T.veh.type : T.mode === 'passager' ? 'zem' : T.mode === 'avion' ? 'avion' : T.mode === 'apprenti' ? 'tokpa' : ''; // le véhicule sous soi, pour les amis
     // Son véhicule garé : les autres le voient dans la rue et peuvent s'y installer (« un inconnu ne voit pas ma voiture »).
     const G = T.veh && T.mode !== 'conduit' && T.mode !== 'apprenti' && VEH_GARES.includes(T.veh.type) ? T.veh : null, ex = S.expulse && performance.now() < S.expulse.fin ? [S.expulse.u] : null;
-    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...(T.mode === 'apprenti' ? { ap: 1 } : {}), ...(G ? { gv: [G.type, r2(G.x), r2(G.z), r2(G.cap)] } : {}), ...(T.veh?.peinture && !T.veh.travail ? { vc: T.veh.peinture } : {}), ...(ex ? { ex } : {}), ...(VIE.data ? { ti: rangDe(fortune()), sr: serieActuelle() } : {}), ...etatAmis() }, k = JSON.stringify(e);
+    const e = { n: S.nom, m: S.modele, x: r2(S.x), z: r2(S.z), h: r2(S.cap), a: S.anim, i: S.lieu ? (S.lieu.prive ? `${S.lieu.id}~${S.R?.id || ''}` : S.lieu.id) : '', y: r2(S.y), vh, ...(vh === 'avion' ? etatVol() : {}), ...(T.mode === 'ami' ? { sur: S.ami } : {}), ...(T.mode === 'apprenti' ? { ap: 1 } : {}), ...(G ? { gv: [G.type, r2(G.x), r2(G.z), r2(G.cap)] } : {}), ...(T.veh?.peinture && !T.veh.travail ? { vc: T.veh.peinture } : {}), ...(ex ? { ex } : {}), ...(VIE.data ? { ti: rangDe(fortune()), sr: serieActuelle() } : {}), ...(S.tel ? { tl: 1 } : {}), ...etatAmis() }, k = JSON.stringify(e);
     if (k !== S.dernier || S.depuis > 2.5) { S.dernier = k; S.depuis = 0; S.canal.envoyer(e); }
   }
   // Les autres, lissés entre deux nouvelles.
@@ -1061,6 +1175,7 @@ export function majSalon(dt) {
       G.etiquette.visible = Math.hypot(G.x - S.x, G.z - S.z) > 4.5; // tout près, elle couvrait le nom des gens
     }
     if (A.bulle && now > A.bulleFin) retirerBulle(A);
+    telDe(A, e);
   }
   if (S.bulle && now > S.bulleFin) retirerBulle(S);
   // Les actions du moment : entrer, sortir, monter, descendre, faire le plein, commander… (jusqu'à trois boutons, touche E).
@@ -1071,14 +1186,16 @@ export function majSalon(dt) {
   const vehAvant = !!S.devant && [T.veh, T.zem?.phase === 'attend' ? T.zem.V : null].some(V => V && Math.hypot(V.x - S.x, V.z - S.z) < Math.hypot(S.devant.porte[0] - S.x, S.devant.porte[1] - S.z));
   S.actions = T.mode === 'ami' ? actionsAmi()
     : occupe() ? actionsMaison() // couché : se lever ; sous la douche, aux fourneaux : arrêter
-    : S.gradin ? [{ texte: 'Se lever', f: leverGradins }]
+    : S.gradin ? [{ texte: 'Se lever', f: leverGradins }, ...actionsAppel()]
     : tir ? actionsLancePierre(S, T)
-    : [...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : [])]; // l'action du lieu d'abord, « Sortir » en dernier
+    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
   // La touche de chaque bouton : celle de la manette si l'on joue avec (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
   // Une manette branchée mais posée affichait ses boutons même au clavier : c'est la dernière saisie qui compte (saisie.js).
   const touches = SAISIE.manette ? (SAISIE.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
+  majTenu();
   ['#slEntrer', '#slAction2', '#slAction3'].forEach((sel, k) => { // trois au plus (apprenti à l'arrêt : encaisser, crier, donner le départ)
-    const b = $(sel), a = S.actions[k], txt = a ? `${a.texte}${touches ? ` (${touches[k]})` : ''}` : '';
+    const b = $(sel), a = S.actions[k], tenu = TENU.k === k && !TENU.fait ? Math.max(1, Math.ceil((TENU.duree - performance.now() + TENU.t0) / 1000)) : 0;
+    const txt = !a ? '' : tenu ? `${a.texte.split(' · ')[0]} · encore ${tenu} s…` : `${a.texte}${touches ? ` (${touches[k]})` : ''}`;
     if (b && b.textContent !== txt) { b.textContent = txt; b.hidden = !txt; }
   });
 }
@@ -1264,9 +1381,10 @@ function changerVue() {
 export function manetteSalon(m) {
   S.pad = m; S.padT = performance.now();
   if (m.lb) changerVue();
-  if (m.a) porte();
-  if (m.x) S.actions?.[1]?.f();
-  if (m.b) { if (T.mode === 'conduit') son('klaxon'); else S.actions?.[2]?.f(); } // à pied : la 3e action
+  if (m.a) appuyer(0);
+  if (m.x) appuyer(1);
+  if (m.b) { if (T.mode === 'conduit') son('klaxon'); else appuyer(2); } // à pied : la 3e action
+  if (TENU.k >= 0 && !m.tenus?.[TENU.k]) relacher(TENU.k); // A, X ou B relâché : appui court, ou rien si le vol est parti
   if (m.y) choisir('Gestes', [...GESTES.map(([id, nom]) => ({ texte: nom, f: () => geste(id) })), { texte: 'Prendre un zém', f: helerZem }, { texte: 'Travailler', f: menuTravail }, { texte: 'Mes commerces', f: listeCommerces }, { texte: 'M’habiller', f: () => ouvrirGarderobe(S.modele) }, { texte: 'Dire à tes amis…', sous: 'Une phrase toute faite dans la discussion', f: phrasesRapides }]);
   if (m.select) choisir(T.mode === 'conduit' ? 'GPS : où vas-tu ?' : 'Aller à…', tousLieux().map(L => ({ texte: L[1], f: () => aller(L[0]) })));
   // Start, le bouton ☰ de la manette : le menu, comme Échap et le rond à droite (les phrases passent sous Y).
@@ -1404,9 +1522,15 @@ export function initSalon(data) {
   $('#slVue2')?.addEventListener('click', changerVue);
   $('#slAllerBtn')?.addEventListener('click', menuAller);
   $('#slMenuBtn')?.addEventListener('click', () => menu(!S.menu)); // le rond à droite : le menu, et ses tuiles (objectifs, travailler, aller, gestes, m’habiller, vue)
-  $('#slEntrer')?.addEventListener('click', () => porte());
-  $('#slAction2')?.addEventListener('click', () => S.actions?.[1]?.f());
-  $('#slAction3')?.addEventListener('click', () => S.actions?.[2]?.f());
+  ['#slEntrer', '#slAction2', '#slAction3'].forEach((sel, k) => {
+    const b = $(sel); if (!b) return;
+    b.addEventListener('click', () => cliquer(k));
+    // Le bouton est capturé tant qu'on le tient : son texte qui compte les secondes change sa largeur, et le pointeur
+    // « sortait » du bouton sans qu'on bouge — l'appui partait en bond au lieu du vol.
+    b.addEventListener('pointerdown', e => { if (!S.actions?.[k]?.tenir) return; try { b.setPointerCapture(e.pointerId); } catch { /* pointeur déjà relâché */ } appuyer(k); });
+    for (const ev of ['pointerup', 'pointercancel']) b.addEventListener(ev, () => relacher(k));
+    b.addEventListener('contextmenu', e => { if (S.actions?.[k]?.tenir) e.preventDefault(); }); // l'appui long du doigt n'ouvre pas le menu du navigateur
+  });
   $('#vhTravail')?.addEventListener('click', menuTravail); $('#slTravail')?.addEventListener('click', menuTravail);
   $('#vhReprendre')?.addEventListener('click', () => menu(false)); $('#vhVoile')?.addEventListener('click', () => menu(false));
   $('#vhSon')?.addEventListener('click', () => { AUDIO.muet = !AUDIO.muet; if (AUDIO.muet) { taire(); moteurMaj(0, false); } else audioCtx(); majSon(); });
@@ -1530,10 +1654,11 @@ export function initSalon(data) {
     const g = /^(Digit|Numpad)([1-5])$/.exec(e.code); // 1 à 5 : les gestes, comme les boutons (touches physiques : pareil en AZERTY)
     if (g) { if (!e.repeat) geste(GESTES[+g[2] - 1][0]); e.preventDefault(); e.stopPropagation(); return; }
     const k = CLAVIER[e.code]; if (k === 'carte') { if (!e.repeat) basculerCarte(); e.preventDefault(); e.stopPropagation(); return; }
-    if (k === 'vue') { if (!e.repeat) changerVue(); e.preventDefault(); e.stopPropagation(); } else if (k === 'porte') { if (!e.repeat) porte(); e.preventDefault(); e.stopPropagation(); }
-    else if (k === 'action2' || k === 'action3') { if (!e.repeat) S.actions?.[k === 'action2' ? 1 : 2]?.f(); e.preventDefault(); e.stopPropagation(); } else if (k) { S.touches.add(k); e.preventDefault(); e.stopPropagation(); }
+    if (k === 'vue') { if (!e.repeat) changerVue(); e.preventDefault(); e.stopPropagation(); }
+    else if (ACTION_DE[k] !== undefined) { if (!e.repeat) appuyer(ACTION_DE[k]); e.preventDefault(); e.stopPropagation(); } // E, R, F : tenues, pour les propulseurs
+    else if (k) { S.touches.add(k); e.preventDefault(); e.stopPropagation(); }
   }, true);
-  window.addEventListener('keyup', e => { const k = CLAVIER[e.code]; if (k) S.touches.delete(k); }, true);
+  window.addEventListener('keyup', e => { const k = CLAVIER[e.code]; if (ACTION_DE[k] !== undefined) relacher(ACTION_DE[k]); if (k) S.touches.delete(k); }, true);
   window.addEventListener('blur', () => S.touches.clear());
   // Glisser sur la ville pour tourner, molette pour s'approcher ou s'éloigner.
   canvas.addEventListener('pointerdown', e => { if (S.actif && !tirEnCours()) S.glisse = { x: e.clientX, y: e.clientY, id: e.pointerId }; });

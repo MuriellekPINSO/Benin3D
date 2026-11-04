@@ -112,7 +112,7 @@ async function arbitre(quoi, plus = {}, { partie = G.id, qui = '' } = {}) {
 }
 
 // ---------- Le maquis ----------
-const SIEGES = []; // { x, z, cap } en coordonnées de la ville, dix places autour de deux tables
+export const SIEGES = []; // { x, z, cap } en coordonnées de la ville, dix places autour de deux tables ; on s'y assoit aussi hors du jeu (salon.js)
 const TOIT = { mats: [], o: 1 }; // les matières du toit et des enseignes, et leur opacité
 export function construireMaquis() {
   const g = groupeLieu('Maquis Tanti Rosine', MAQUIS.x, MAQUIS.z); g.userData.portee = 1200;

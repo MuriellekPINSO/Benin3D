@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TRIPO, urlTripo } from './batiments-tripo.js';
 import { construireReseau, itineraireCourt } from './carrefours.js';
 import { personne } from './discussions.js';
+import { dansArbre, dansFoule } from './lieux.js';
 import { dansBatiment, dansObstacleRue, pietonOk } from './rue.js';
 import { hauteurSol } from './sols.js';
 import { animerMoto } from './roues.js';
@@ -242,6 +243,11 @@ export function degager(V) {
 }
 // Le centre sur la route, et l'avant (l'arrière en marche arrière) avec ses deux coins hors des murs et des
 // bâtiments : avant, seul le centre comptait, et tout le capot rentrait dans la clôture.
+// Hors de la route, après s'être posée : jusqu'à 90 m de l'endroit où elle s'est posée, de quoi rejoindre la rue sans se
+// promener sur les trottoirs ; ni dans un arbre, ni dans la foule d'un lieu. (pietonOk refusait le bord de la chaussée :
+// on restait bloqué à un mètre de la route.)
+// Au-delà, on peut encore s'approcher de la route : arrivé au bout en longeant la rue, on n'était plus bloqué que de face.
+const horsRouteOk = (V, x, z) => horsMur(x, z) && dansArbre(x, z) <= 0 && dansFoule(x, z) <= 0 && (Math.hypot(x - V.horsRoute.x, z - V.horsRoute.z) < 90 || bordRoute(x, z) < bordRoute(V.x, V.z) - 1e-3);
 const horsMur = (x, z, vole = false) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && (vole || hauteurSol(x, z) < .25); // ni sur des marches (sols.js) ; en vol, on passe au-dessus
 // Les autres véhicules : toute la caisse compte (les quatre coins, le milieu des côtés, les deux bouts), pas seulement
 // l'avant — en tournant, l'arrière et les flancs entraient dans les voitures arrêtées. Et si l'on est déjà dedans
@@ -257,7 +263,9 @@ function dansLeTrafic(V, x, z) {
 function passe(V, x, z) {
   // Un vélo n'est pas tenu à la chaussée : il roule partout où l'on marche — l'esplanade, les trottoirs —,
   // comme à Cotonou. Sans ça, celui qu'on loue sur l'esplanade de l'Amazone ne pouvait pas avancer d'un mètre.
-  if (!surRoute(x, z) && !(V.D.pedale && pietonOk(x, z))) return false;
+  // Posée hors de la route (sur une esplanade, une plage) par ses propulseurs, la Roadster en repart par là où l'on
+  // marche, jusqu'à retrouver la chaussée (`horsRoute`, voler) : sans ça, elle restait clouée là où elle s'était posée.
+  if (!surRoute(x, z) && !(V.D.pedale && pietonOk(x, z)) && !(V.horsRoute && horsRouteOk(V, x, z))) return false;
   const L = (V.D.long ?? 2) / 2 * .92 * (Math.sign(V.v) || 1), W = (V.D.larg ?? .8) / 2 * .9, sx = Math.sin(V.cap), cz = Math.cos(V.cap), fx = x + sx * L, fz = z + cz * L;
   const vole = (V.alt || 0) > 1.5;
   if (!(horsMur(fx, fz, vole) && horsMur(fx + cz * W, fz - sx * W, vole) && horsMur(fx - cz * W, fz + sx * W, vole))) return false;
@@ -266,8 +274,9 @@ function passe(V, x, z) {
 }
 function avancer(V, dt, contraint) {
   const nx = V.x + Math.sin(V.cap) * V.v * dt, nz = V.z + Math.cos(V.cap) * V.v * dt; let choc = null;
-  if (!contraint || passe(V, nx, nz)) { V.km += Math.hypot(nx - V.x, nz - V.z) / 1000; V.x = nx; V.z = nz; }
+  if (!contraint || (contraint === 'air' ? passeEnLAir(V, nx, nz) : passe(V, nx, nz))) { V.km += Math.hypot(nx - V.x, nz - V.z) / 1000; V.x = nx; V.z = nz; }
   else { if (Math.abs(V.v) > 3) choc = 'choc'; V.v *= Math.abs(V.v) > .3 ? -.2 : 0; }
+  if (V.horsRoute && !V.vol && surRoute(V.x, V.z)) V.horsRoute = false; // revenue sur la chaussée : la route tient de nouveau
   if (V.vol) { V.sol = V.vol.base; V.alt = V.vol.alt; } // en vol, la hauteur vient des propulseurs (voler)
   else { V.sol = hauteur(V.x, V.z, V.sol ?? V.y); V.alt = 0; } // le tablier d'un pont, sinon le sol
   V.y = V.sol + V.alt;
@@ -282,16 +291,75 @@ function avancer(V, dt, contraint) {
 // — plus haut que tout ce qui est bâti à Cotonou (80 m au plus) —, vole où l'on veut, et se pose à la verticale sur
 // une route, alignée sur la rue : elle ne passe jamais au travers d'un mur. En vol, pas de marche arrière, mais on
 // peut faire du sur-place. Phases : monte → croisiere → approche (vers le point de pose) → descend.
+// Puis, d'un testeur (04/11) : « pour voler, on doit faire un appui long de 5 s, mais [un appui court] pour juste flotter
+// au-dessus des voitures un instant et redescendre après », et « que le joueur puisse atterrir comme il veut et où il
+// veut ». L'appui court fait un bond (`BOND`) : elle monte à 6,5 m en gardant son élan, plane, puis redescend où elle
+// se trouve — on la dirige pendant tout le saut. L'appui long (salon.js, `tenir`) la fait monter à 110 m comme avant.
+// Elle se pose désormais n'importe où le sol est libre (route, esplanade, plage, parking), près des rues.
 const VOL = { croisiere: 110, montee: 22, descente: 18, vmax: 70, accel: 14, frein: 18, virage: 1, recharge: 3 };
+const BOND = { haut: 6.5, montee: 9, plane: 2.6, attente: 4 }; // m, m/s, s (montée et plané), s au-dessus d'une place prise
 export const peutDecoller = V => !!V?.D.propulseurs && !V.vol && performance.now() > (V.rechargeT || 0);
 export function decoller(V) { if (!peutDecoller(V)) return false; V.vol = { phase: 'monte', alt: 0, base: V.sol || 0, t: 0, roulis: 0, cible: null }; flammes(V).visible = true; return true; }
+/** L'appui court : un bond par-dessus la circulation, sans perdre son élan. */
+export function bondir(V) { if (!peutDecoller(V)) return false; V.vol = { phase: 'bond', alt: 0, base: V.sol || 0, t: 0, roulis: 0, cible: null, court: true }; flammes(V).visible = true; return true; }
 /** En vol et libre de ses mouvements (ni en train de monter ni de se poser) : on peut choisir où atterrir. */
 export const enCroisiere = V => V?.vol?.phase === 'croisiere' || V?.vol?.phase === 'approche';
-/** Va se poser sur la route la plus proche de (x, z) — par défaut, sous soi. Faux s'il n'y a nulle part où se poser. */
+/** Va se poser en (x, z) — par défaut, sous soi — si le sol y est libre, sinon sur la route la plus proche. Faux s'il
+ *  n'y a nulle part où se poser. `ici` : vrai quand elle se pose à l'endroit demandé. */
 export function atterrir(V, x = V.x, z = V.z, rayon = 220) {
   if (!enCroisiere(V)) return false;
-  const p = pointDePose(V, x, z, rayon); if (!p) return false;
-  V.vol.phase = 'approche'; V.vol.cible = p; return true;
+  const p = (libreAuSol(V, x, z, V.cap) && [x, z, V.cap]) || pointDePose(V, x, z, rayon); if (!p) return false;
+  V.vol.phase = 'approche'; V.vol.cible = p; V.vol.ici = p[0] === x && p[1] === z; return true;
+}
+/** Distance (m) au bord de la chaussée la plus proche, cherchée jusqu'à `r` mètres (Infinity au-delà). */
+function bordRoute(x, z, r = 96) {
+  indexer();
+  const S = G.seg, n0 = Math.ceil(r / CS); let m = Infinity;
+  for (let i = -n0; i <= n0; i++) for (let j = -n0; j <= n0; j++) for (const n of G.cases.get((Math.floor(x / CS) + i) + ',' + (Math.floor(z / CS) + j)) || []) {
+    const o = n * 5, d = projeter(x, z, S[o], S[o + 1], S[o + 2], S[o + 3])[0] - S[o + 4]; if (d < m) m = d;
+  }
+  return m;
+}
+/** Une route à moins de `r` mètres (on ne se pose pas au milieu de la lagune ni en pleine mer). */
+const routeA = (x, z, r) => bordRoute(x, z, r) < r;
+/** Le sol est-il libre pour poser la caisse en (x, z), au cap `cap` : sur une route ou là où l'on marche, à plat, ni
+ *  bâtiment, ni mur, ni marche, ni véhicule de la circulation, ni pont (dessus comme dessous), près des rues. */
+export function libreAuSol(V, x, z, cap) {
+  if (hauteur(x, z, 0) > 0 || pontPres(x, z, 3) || !routeA(x, z, 80)) return false;
+  const L = V.D.long / 2 + .2, W = V.D.larg / 2 + .2, sx = Math.sin(cap), cz = Math.cos(cap);
+  for (const a of [-L, -L / 2, 0, L / 2, L]) for (const b of [-W, 0, W]) { // toute la caisse : une barrière fine passait entre deux points
+    const px = x + sx * a + cz * b, pz = z + cz * a - sx * b;
+    if (!horsMur(px, pz) || dansTerrePlein(px, pz, 0) || !(surRoute(px, pz) || pietonOk(px, pz))) return false;
+  }
+  if (!surRoute(x, z)) { // hors de la route : un sol dégagé tout autour (esplanade, plage, parking) pour manœuvrer, et un passage vers la rue
+    for (let k = 0; k < 12; k++) for (const r of [2.5, 4]) { const px = x + Math.sin(k * Math.PI / 6) * r, pz = z + Math.cos(k * Math.PI / 6) * r; if (!horsMur(px, pz) || dansArbre(px, pz) > 0) return false; }
+    if (!accesRoute(V, x, z)) return false;
+  }
+  const cap0 = V.cap; V.cap = cap; const p = dansLeTrafic(V, x, z); V.cap = cap0;
+  return p === 0;
+}
+// Hors de la route, la place doit avoir un chemin droit et dégagé jusqu'à une rue, à 40 m au plus : la première version
+// se posait dans une cour fermée par son mur, et la voiture y restait enfermée (mesuré le 04/11). Gardé par mètre carré :
+// pendant un bond, on le redemande à chaque image.
+const ACCES = new Map();
+function accesRoute(V, x, z) {
+  const k = Math.round(x) + ',' + Math.round(z); if (ACCES.has(k)) return ACCES.get(k);
+  const W = V.D.larg / 2 + .4; let ok = false;
+  for (let i = 0; i < 16 && !ok; i++) {
+    const a = i * Math.PI / 8, sx = Math.sin(a), cz = Math.cos(a);
+    for (let d = .4; d <= 40; d += .4) { // pas de 40 cm : les barrières du bord de la route sont fines
+      const px = x + sx * d, pz = z + cz * d;
+      if (surRoute(px, pz)) { ok = true; break; }
+      if (!horsMur(px, pz) || !horsMur(px + cz * W, pz - sx * W) || !horsMur(px - cz * W, pz + sx * W) || dansArbre(px, pz) > 0) break;
+    }
+  }
+  if (ACCES.size > 4000) ACCES.clear();
+  ACCES.set(k, ok); return ok;
+}
+/** En l'air, à quelques mètres : seuls les bâtiments arrêtent l'avant (on passe au-dessus des voitures, des étals, des murets). */
+function passeEnLAir(V, x, z) {
+  const L = (V.D.long ?? 2) / 2 * .92, W = (V.D.larg ?? .8) / 2 * .9, sx = Math.sin(V.cap), cz = Math.cos(V.cap), fx = x + sx * L, fz = z + cz * L;
+  return !dansBatiment(fx, fz) && !dansBatiment(fx + cz * W, fz - sx * W) && !dansBatiment(fx - cz * W, fz + sx * W);
 }
 let BORNES = null; // le rectangle des routes, à 400 m près : on ne s'envole pas au-dessus de l'océan sans fin
 function bornes() {
@@ -305,12 +373,15 @@ function voler(V, av, tour, dt) {
   const W = V.vol, borne = (v, a) => Math.max(-a, Math.min(a, v));
   W.t += dt;
   let contraint = false, poussee = .8;
+  if (W.phase === 'bond') return bond(V, W, av, tour, dt);
   if (W.phase === 'monte') {
     // À la verticale de sa rue : on freine en montant, et tant qu'on monte, la route et les murs nous tiennent.
     V.v *= Math.exp(-dt * 2.5); V.cap += tour * VOL.virage * dt; contraint = true; poussee = 1.3;
     W.alt = Math.min(VOL.croisiere, W.alt + VOL.montee * Math.min(1, .3 + W.alt / 15) * dt);
     if (W.alt >= VOL.croisiere) { W.phase = W.ailleurs ? 'approche' : 'croisiere'; W.cible = W.ailleurs || null; W.ailleurs = null; } // remonté d'une place prise : on file vers la suivante
-  } else if (W.phase === 'approche' && (Math.abs(av) > .3 || Math.abs(tour) > .3)) { W.phase = 'croisiere'; W.cible = null; } // on reprend les commandes
+  } else if (!W.court && (W.phase === 'approche' || (W.phase === 'descend' && W.alt > 8)) && (Math.abs(av) > .3 || Math.abs(tour) > .3)) { W.phase = 'croisiere'; W.cible = null; W.glisse = null; } // on reprend les commandes (en descendant aussi : on se pose ailleurs)
+  // À la fin d'un bond (`court`), la glissade vers la place libre voisine va à son terme, même le doigt sur le rond : sinon,
+  // on la reprenait aussitôt, elle replanait au-dessus de l'étal, et ainsi de suite sans jamais se poser (mesuré).
   if (W.phase === 'croisiere') {
     if (av > .05) V.v = Math.min(VOL.vmax, V.v + VOL.accel * av * dt);
     else if (av < -.05) V.v = Math.max(0, V.v - VOL.frein * -av * dt);
@@ -341,15 +412,51 @@ function voler(V, av, tour, dt) {
   W.roulis += (-tourne * Math.min(1, V.v / 20) * .35 - W.roulis) * (1 - Math.exp(-dt * 3)); // elle s'incline dans les virages
   for (const f of flammes(V).children) f.scale.set(1, poussee * (.8 + Math.random() * .4), 1);
   let choc = null;
-  if (W.phase === 'descend' && W.alt <= 0) { // posée
-    V.vol = null; V.rechargeT = performance.now() + VOL.recharge * 1000; flammes(V).visible = false; V.g.rotation.z = 0;
-  } else {
+  if (W.phase === 'descend' && W.alt <= 0) poser(V);
+  else {
     W.alt += W.phase === 'croisiere' ? Math.sin(W.t * 1.7) * .25 * dt : 0;
-    choc = avancer(V, dt, contraint);
+    choc = avancer(V, dt, W.court && !contraint ? 'air' : contraint); // un bond qui finit sur une place libre voisine : à 2 m, les bâtiments l'arrêtent
     if (!contraint) { const b = bornes(); V.x = Math.max(b[0], Math.min(b[2], V.x)); V.z = Math.max(b[1], Math.min(b[3], V.z)); }
     V.g.rotation.z = W.roulis; return choc;
   }
   return avancer(V, 0, false);
+}
+/** Posée : les propulseurs se rechargent (une seconde après un bond). Hors de la route, elle peut la rejoindre (passe). */
+function poser(V) {
+  V.rechargeT = performance.now() + (V.vol?.court ? 1 : VOL.recharge) * 1000; V.vol = null;
+  flammes(V).visible = false; V.g.rotation.z = 0; V.horsRoute = surRoute(V.x, V.z) ? false : { x: V.x, z: V.z };
+}
+// Le bond de l'appui court : on garde la main (gaz, frein, volant), elle monte à BOND.haut en gardant son élan, plane,
+// puis redescend là où elle se trouve. Au-dessus d'une voiture ou d'un mur, elle reste à 2,2 m en avançant ; au bout de
+// BOND.attente secondes, elle glisse vers la place libre la plus proche (approche, descend).
+function bond(V, W, av, tour, dt) {
+  const D = V.D;
+  // Les gaz ne poussent plus en l'air (à fond, elle filait à 137 km/h au-dessus des toits) : elle garde l'élan du saut,
+  // un peu freinée par l'air ; le frein la ralentit, sans marche arrière.
+  if (av < -.05) V.v = Math.max(0, V.v - D.frein * -av * dt);
+  else V.v = Math.max(0, V.v - (av > .05 ? .3 : .8) * dt);
+  V.cap += tour * D.braquage * .55 * dt;
+  const redescend = W.t > BOND.plane;
+  if (!redescend) W.alt = Math.min(BOND.haut, W.alt + BOND.montee * Math.max(.25, 1 - W.alt / BOND.haut) * dt);
+  else if (W.alt > 2.2 || libreAuSol(V, V.x, V.z, V.cap)) { W.attente = 0; W.alt = Math.max(0, W.alt - Math.min(7, 1.2 + W.alt * 1.4) * dt); }
+  else {
+    W.alt = Math.max(2.2, W.alt); W.attente = (W.attente || 0) + dt;
+    if (W.attente > BOND.attente) { const p = libreProche(V, 40); if (p) { W.phase = 'approche'; W.cible = p; W.attente = 0; } }
+  }
+  W.roulis += (-tour * Math.min(1, V.v / 20) * .25 - W.roulis) * (1 - Math.exp(-dt * 3));
+  for (const f of flammes(V).children) f.scale.set(1, (redescend ? .6 : 1.2) * (.8 + Math.random() * .4), 1);
+  if (redescend && W.alt <= 0) { poser(V); return avancer(V, 0, false); }
+  const choc = avancer(V, dt, 'air'); V.g.rotation.z = W.roulis; return choc;
+}
+/** La place libre la plus proche (à moins de `r` m), qu'on rejoint en ligne droite sans traverser de bâtiment. */
+function libreProche(V, r) {
+  for (let d = 3; d <= r; d += 3) for (let k = 0; k < 16; k++) {
+    const a = V.cap + k * Math.PI / 8, x = V.x + Math.sin(a) * d, z = V.z + Math.cos(a) * d;
+    if (!libreAuSol(V, x, z, V.cap)) continue;
+    let mur = false; for (let s = 1; s < d && !mur; s++) mur = dansBatiment(V.x + Math.sin(a) * s, V.z + Math.cos(a) * s);
+    if (!mur) return [x, z, V.cap];
+  }
+  return null;
 }
 /** Où poser la Roadster près de (x, z) : sur l'axe d'une route, ni sur un pont ni dessous, avec la place pour la
  *  caisse, et dans le sens de la rue le plus proche de son cap. [x, z, cap], ou null. */

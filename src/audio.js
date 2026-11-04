@@ -108,6 +108,7 @@ export function son(nom, variante) {
   }
   else if (nom === 'arret') { bip('triangle', 880, 880, .25, .14); bip('triangle', 1320, 1320, .35, .12, .18); }
   else if (nom === 'bosse') bip('sine', 120, 50, .2, .25);
+  else if (nom === 'sonnerie') { for (let i = 0; i < 8; i++) { const f = i % 2 ? 1700 : 1350; bip('sine', f, f, .09, .07, i * .1); } } // un appel d'un autre joueur (salon.js)
   else if (nom === 'choc') { const n = ctx.createBufferSource(), b = ctx.createBuffer(1, ctx.sampleRate * .35, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2; n.buffer = b; const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; const g = ctx.createGain(); g.gain.value = .5; n.connect(f).connect(g).connect(ctx.destination); n.start(); }
   // Le lance-pierre (lancepierre.js) : l'élastique qu'on tend, le claquement du tir, la boîte, la bouteille, la mangue, la bâche.
   else if (nom === 'elastique') bip('triangle', 180, 420, .3, .05);
