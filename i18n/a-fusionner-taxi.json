@@ -1,0 +1,24 @@
+{
+ "src/metiers.js": {
+  "'Dépose d’abord tes clients : ils sont dans le taxi.'": "'Drop your customers off first: they’re in the taxi.'",
+  "'Termine d’abord ta course : ton client est dans le taxi.'": "'Finish your ride first: your customer is in the taxi.'",
+  "'Ton client descend sans payer.'": "'Your customer gets off without paying.'",
+  "Tes ": "Your ",
+  " clients descendent sans payer.": " customers get off without paying.",
+  "Trois chocs : ": "Three bumps: ",
+  " à bord).": " on board).",
+  "'sur la moto'": "'on the motorbike'",
+  "'dans le taxi'": "'in the taxi'",
+  " clients t’attendent ": " customers are waiting for you ",
+  " : ne les laisse pas plus de 30 s.": ": don’t leave them more than 30 s.",
+  "Ton client t’attend ": "Your customer is waiting for you ",
+  " : ne le laisse pas plus de 30 s.": ": don’t leave them more than 30 s.",
+  "'Tes clients en ont eu assez d’attendre : ils sont partis sans payer.'": "'Your customers got tired of waiting: they left without paying.'",
+  "Ton client va à ": "Your customer is going to ",
+  " clients à bord · prochain arrêt : ": " customers on board · next stop: ",
+  " clients · prochain : ": " customers · next: ",
+  "' · un client paie…'": "' · a customer is paying…'",
+  "' · un client monte…'": "' · a customer is getting in…'",
+  " · un client fait signe à ": " · a customer is waving, "
+ }
+}

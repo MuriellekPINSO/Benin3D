@@ -247,7 +247,7 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
     assise: assise && M.assis?.pieds ? { fesses: M.assis.fesses * ech, pieds: M.assis.pieds * ech, dos: M.assis.dos * ech } : null, // sous le bassin, en mètres (poserAssis)
     maj: dt => { mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); suivre(E); },
     // null rend le personnage à son animation.
-    velo: v => { E.velo = v; }, // { a, bb, r, ecart, guidon } : à vélo (trajets.js, veloSous) ; 'moto' : les pieds sur les cale-pieds ; null : rien
+    velo: v => { E.velo = v; }, // { a, bb, r, ecart, guidon } : à vélo (trajets.js, veloSous) ; 'moto' : les pieds sur les cale-pieds ; { voiture, … } : assis en voiture ; null : rien
     anim: (t, parle, signe) => {
       if (assise) return;
       if (signe) jouer('salut');
@@ -315,31 +315,36 @@ const versMonde = (x, y, z, out) => out.set(x, y, z).applyQuaternion(qRacine).ad
 // gauche vers +x) : « elle n'est pas bien assise… qu'elle garde bien le guidon » (Murielle, 03/11). Avant, la pilote
 // était assise au bord du réservoir, les jambes droites dans le moteur et les mains posées sur le réservoir (« assis »).
 const MOTO = { pied: [.2, -.06, .1], guidon: [.36, .73, .76], buste: [.56, .83] };
+// En voiture (trajets.js, asseoirDans), `velo` est { voiture, pied, buste, mains } : les pieds au plancher devant soi, le dos
+// de la pose « assis » (`buste` : renversé dans les coupés), les mains au volant pour le conducteur (`mains` nul : les passagers gardent
+// celles de la pose « assis »). Avec la seule pose « assis », les jambes pendaient sous la voiture.
 function poserVelo(E, velo) {
   const os = E.osVelo ||= Object.fromEntries(OS_VELO.map(n => [n, E.corps.getObjectByName(n)]));
   E.g.getWorldDirection(vAv); // l'avant du personnage (+z de son groupe) : il regarde où va le vélo
   vCote.crossVectors(vAv, vHaut).normalize(); // sa droite
-  const moto = velo === 'moto';
+  const moto = velo === 'moto', auto = !!velo.voiture;
   E.g.updateMatrixWorld(true); E.g.getWorldPosition(vRacine); E.g.getWorldQuaternion(qRacine);
   // Le buste penché vers le guidon : de 24° à vélo, un peu plus à moto, où les poignées sont plus loin. Droit, les mains
   // n'arrivaient pas aux poignées.
-  const [bAv, bHaut] = moto ? MOTO.buste : [.41, .91];
-  if (os.Spine01) { viser(os.Spine01, vAv.x * bAv, bHaut, vAv.z * bAv); os.Spine01.updateMatrixWorld(true); }
+  const [bAv, bHaut] = moto ? MOTO.buste : auto ? velo.buste || [0, 1] : [.41, .91];
+  if (os.Spine01 && (!auto || velo.buste)) { viser(os.Spine01, vAv.x * bAv, bHaut, vAv.z * bAv); os.Spine01.updateMatrixWorld(true); } // en voiture, le dos de la pose « assis », sauf renversé dans un coupé
   for (const p of ['L_', 'R_']) {
     // De quel côté est cette jambe ? On le mesure (le modèle peut être tourné) : +1 à gauche, −1 à droite.
     const cuisse = os[p + 'Thigh']; if (!cuisse) continue;
     cuisse.getWorldPosition(vLoc); const s = vLoc.sub(vRacine).dot(vCote) > 0 ? -1 : 1;
     if (moto) versMonde(s * MOTO.pied[0], MOTO.pied[1], MOTO.pied[2], iC); // le pied sur son cale-pied
+    else if (auto) versMonde(s * velo.pied[0], velo.pied[1], velo.pied[2], iC); // au plancher, devant soi
     else {
       // La pédale : la manivelle gauche à l'angle a, la droite à l'opposé ; la cheville un peu au-dessus et en arrière de son axe.
       const a = velo.a + (s > 0 ? 0 : Math.PI), [, by, bz] = velo.bb;
       versMonde(s * velo.ecart, by + velo.r * Math.sin(a) + .065, bz + velo.r * Math.cos(a) - .04, iC);
     }
-    vPole.copy(vAv).addScaledVector(vCote, -s * .15).addScaledVector(vHaut, .1); // le genou devant, un peu écarté
+    vPole.copy(vAv).addScaledVector(vCote, -s * .15).addScaledVector(vHaut, auto ? .8 : .1); // le genou devant, un peu écarté (en voiture : vers le haut)
     membre(cuisse, os[p + 'Calf'], os[p + 'Foot'], iC.clone(), vPole);
     viser(os[p + 'Foot'], vAv.x * .95, -.3, vAv.z * .95); // le pied à plat sur la pédale
     // La main sur sa poignée, le coude plié vers l'extérieur et vers le bas.
-    const [gx, gy, gz] = moto ? MOTO.guidon : velo.guidon;
+    if (auto && !velo.mains) continue;
+    const [gx, gy, gz] = moto ? MOTO.guidon : auto ? velo.mains : velo.guidon;
     versMonde(s * gx, gy, gz, iC);
     vPole.copy(vCote).multiplyScalar(-s * .6).addScaledVector(vHaut, -.5).addScaledVector(vAv, -.4);
     membre(os[p + 'Upperarm'], os[p + 'Forearm'], os[p + 'Hand'], iC.clone(), vPole);

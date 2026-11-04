@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { $, toXZ } from './base.js';
 import { moteurStop, son } from './audio.js';
 import { construireReseau, noeudsPres, relie } from './carrefours.js';
-import { VEHICULES, creerVehicule, departLibre, itineraire, longueur, placer, pontPres, retirerRuban, retirerVehicule, ruban, suivreChemin, surRoute } from './conduite.js';
+import { VEHICULES, creerVehicule, departLibre, itineraire, longueur, placer, placesDe, pontPres, retirerRuban, retirerVehicule, ruban, siege, suivreChemin, surRoute } from './conduite.js';
 import { PLACES, QUARTIERS } from './donnees-lieux.js';
 import { chemiseZem } from './chemise-zem.js';
 import { personne } from './discussions.js';
@@ -25,7 +25,7 @@ import { actionsVille, arreterVille, demarrerVille, initVille, majVille, mission
 
 const JOUR = 864e5, PLACES_TOKPA = 14, PRIX_TOKPA = 200, PART_APPRENTI = 50;
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
-const W = { id: '', pause: false, patron: false, client: null, attente: 3, n: 0, chemise: null, ligne: null, tk: null, marcheurs: [], dests: [], mission: '' };
+const W = { id: '', pause: false, patron: false, clients: [], cible: null, arret: 0, dehors: false, guideT: 0, attente: 3, n: 0, chemise: null, ligne: null, tk: null, marcheurs: [], dests: [], mission: '' }; // clients : ceux du zém ou du taxi (plus bas)
 let S = null, T = null, X = {}; // salon, trajets et leurs fonctions (ligne, bulle, gps, choisir…)
 export const enService = () => (W.pause ? '' : W.id); // en pause : on n'est plus « en service » (on peut commander au food court)
 
@@ -33,7 +33,7 @@ export function initMetiers(data, ctx) {
   S = ctx.S; T = ctx.T; X = ctx;
   const L = data.L.lignes?.find(l => l.id === 'calavi'); if (L) W.ligne = preparerLigne(L);
   const ici = new Set(['etoile', 'dantokpa', 'amazone', 'cathedrale', 'stade', 'haievive', 'fidjrosse', 'uac', 'cite', 'golden', 'novotel', 'mtn', 'moov', 'superu', 'martyrs', 'ganhi', 'aeroport', 'port', 'bioguera', 'seme', 'zongo']);
-  if (import.meta.env.DEV) window.__metiers = { W, menuTravail, commencer: id => commencer(id), negocier: () => negocier(), accepter: p => accepter(p), crier: () => crierDestination(), encaisser: () => encaisser(), depart: () => depart(W.tk), finir: () => finirJournee(), dansBatiment, sens: () => { const V = W.tk?.V, r = V && routeSous(V.x, V.z, 6); return !r ? 'hors route' : !r.e.sens ? 'double sens' : r.e.dx * Math.sin(V.cap) + r.e.dz * Math.cos(V.cap) > 0 ? 'bon sens' : 'contresens'; } }; // pour les tests
+  if (import.meta.env.DEV) window.__metiers = { W, menuTravail, commencer: id => commencer(id), negocier: () => negocier(), accepter: p => accepter(p), nouveauClient: () => nouveauClient(), crier: () => crierDestination(), encaisser: () => encaisser(), depart: () => depart(W.tk), finir: () => finirJournee(), dansBatiment, sens: () => { const V = W.tk?.V, r = V && routeSous(V.x, V.z, 6); return !r ? 'hors route' : !r.e.sens ? 'double sens' : r.e.dx * Math.sin(V.cap) + r.e.dz * Math.cos(V.cap) > 0 ? 'bon sens' : 'contresens'; } }; // pour les tests
   initVille({ S, T, X: ctx, A: { perso, retirerPerso, marcher, trottoir, experience, routeSous, routeProche } }, data); // commerce, restauration, entreprises
   W.dests = [...QUARTIERS.filter(q => q[2] > 2.2).map(([n, la, lo]) => [n, ...toXZ(la, lo)]), ...PLACES.filter(p => ici.has(p.id)).map(p => [p.name, ...toXZ(p.lat, p.lon)])]; // sans Ouidah : c'est l'avion
 }
@@ -180,10 +180,11 @@ async function payerPatron() {
 // Pas au milieu d'une course, ni avec des passagers dans le tokpa-tokpa.
 export function pause() {
   if (!W.id || W.pause) return;
-  if (W.client?.etat === 'course') { X.ligne('Termine d’abord ta course : ton client est derrière toi.'); return; }
+  const B = aBord();
+  if (B.length) { X.ligne(W.id === 'zem' ? 'Termine d’abord ta course : ton client est derrière toi.' : B.length > 1 ? 'Dépose d’abord tes clients : ils sont dans le taxi.' : 'Termine d’abord ta course : ton client est dans le taxi.'); return; }
   if (T.mode === 'apprenti') { X.ligne('Descends d’abord du tokpa-tokpa, à un arrêt.'); return; }
   if (W.tk?.occ > 0 && W.id === 'chauffeur') { X.ligne('Dépose d’abord tes passagers à un arrêt.'); return; }
-  retirerClient(); // celui qui faisait signe trouvera un autre zém
+  retirerClients(); // celui qui faisait signe trouvera un autre zém
   W.pause = true; VIE.pause = true; rendreVie();
   X.ligne('C’est la pause ! Va manger : le food court de la Cité (« Aller »), un maquis, ou chez toi. Puis « Reprendre le travail ».');
 }
@@ -199,6 +200,7 @@ async function finirJournee() {
   const v = VIE.data, id = W.id, M = METIERS[id]; if (!id) return;
   W.pause = false; VIE.pause = false;
   if (W.tk?.part > 0) await gagner(W.tk.part, 'ta part d’apprenti'); // ce qu'on a encaissé depuis le dernier départ
+  const B = aBord(); if (B.length) X.ligne(B.length > 1 ? `Tes ${B.length} clients descendent sans payer.` : 'Ton client descend sans payer.'); // la journée finie en pleine course
   arreterService();
   if (W.patron && v.versement > 0) {
     const paye = Math.min(v.argent, v.versement);
@@ -210,7 +212,7 @@ async function finirJournee() {
 }
 /** Arrête tout ce que le service a mis en place : clients, passagers, chemise, véhicule du patron, minibus. */
 function arreterService() {
-  arreterVille(); retirerClient(); retirerChemise(); for (const m of W.marcheurs) retirerPerso(m.p); W.marcheurs = [];
+  arreterVille(); retirerClients(); W.cible = null; W.arret = 0; W.dehors = false; retirerChemise(); for (const m of W.marcheurs) retirerPerso(m.p); W.marcheurs = [];
   const tk = W.tk;
   if (tk) {
     if (T.mode === 'apprenti') pieds(tk.V, -2.4); // côté porte
@@ -277,7 +279,7 @@ function vehiculeDuPatron(type) {
 }
 /** On descend du véhicule (fin de service, départ pour la gare). */
 function descendreDe(V) { V.v = 0; moteurStop(); T.mode = 'pied'; pieds(V, V.D.cache ? 1.6 : 1); }
-function pieds(V, cote) { S.x = V.x + Math.sin(V.cap + Math.PI / 2) * cote; S.z = V.z + Math.cos(V.cap + Math.PI / 2) * cote; S.cap = V.cap; S.y = 0; T.mode = 'pied'; if (S.moi) S.moi.visible = true; }
+function pieds(V, cote) { S.x = V.x + Math.sin(V.cap + Math.PI / 2) * cote; S.z = V.z + Math.cos(V.cap + Math.PI / 2) * cote; S.cap = V.cap; S.y = 0; T.mode = 'pied'; if (S.moi) { S.moi.visible = true; S.moi.userData.velo?.(null); } } // sans quitter la pose de conduite, il marchait les jambes tendues
 
 // ---------- La chemise jaune numérotée du zémidjan ----------
 // Taillée dans le corps du personnage (chemise-zem.js) et liée à son squelette : elle suit la pose, debout comme assis sur
@@ -292,7 +294,16 @@ function retirerChemise() { if (W.chemise) { for (const m of W.chemise.morceaux)
 function majChemise() { if (W.chemise && W.chemise.p !== S.moi) enfilerChemise(); } // il vient de changer de tenue : on lui remet sa chemise
 
 // ---------- Zémidjan et taxi : les clients ----------
+// « Rendre possible le fait de prendre un maximum de 4 clients » (testeur, 04/11) : au taxi, comme dans les taxis partagés
+// de Cotonou, jusqu'à quatre clients à la fois (W.clients), chacun avec sa destination, son prix et sa place (l'avant
+// droite d'abord, puis l'arrière : conduite.js, HABITACLES). On s'arrête pour celui qui fait signe même avec du monde à
+// bord ; le GPS mène au client dont la destination est la plus proche ; chacun descend et paie chez lui ; les chocs comptent
+// pour tous. Le zém, lui, n'a qu'une selle : un client à la fois.
+const MAX_CLIENTS_TAXI = 4;
 const PHRASES_CLIENT = ['Il fait chaud aujourd’hui !', 'Doucement aux carrefours, hein.', 'Tu connais bien le chemin ?', 'On arrive bientôt ?', 'Tu supportes quelle équipe ?', 'Cotonou a changé, dis donc.'];
+/** Les clients assis dans le véhicule, et celui qui fait signe au bord de la rue (un seul à la fois). */
+const aBord = () => W.clients.filter(C => C.etat === 'course');
+const quiFaitSigne = () => W.clients.find(C => C.etat === 'signe');
 function nouveauClient() {
   const V = T.veh, R = construireReseau(), ax = Math.sin(V.cap), az = Math.cos(V.cap);
   const cands = noeudsPres(V.x, V.z, 170).filter(([n, d]) => d > 50 && relie(n) && ((R.X[n] - V.x) * ax + (R.Z[n] - V.z) * az) / d > .55); // devant soi
@@ -305,7 +316,7 @@ function nouveauClient() {
     const marque = X.etiquette(W.id === 'taxi' ? 'Client · taxi' : 'Client'); marque.position.y = .45; p.userData.tete.add(marque);
     p.userData.jouer('salut'); // il fait signe
     const bonus = 1 + .1 * gradeDe(VIE.data.xp || 0), base = W.id === 'taxi' ? Math.max(500, 250 * dest.km + 300) : Math.max(200, 120 * dest.km + 100);
-    W.client = { p, g: p, marque, x: spot[0], z: spot[1], route: [NX, NZ], dest, prix: Math.ceil(base * bonus / 50) * 50, etat: 'signe', t: 0, chocs: 0, dit: 20, arret: 0 };
+    W.clients.push({ p, g: p, marque, x: spot[0], z: spot[1], route: [NX, NZ], dest, prix: Math.ceil(base * bonus / 50) * 50, etat: 'signe', t: 0, chocs: 0, dit: 20, place: 0 });
     return;
   }
 }
@@ -325,21 +336,22 @@ function destinationDe(x, z) {
 }
 function perso(graine, role) { const p = personne(graine, role ? { role } : {}); p.userData.jouer ??= () => { }; return p; }
 function retirerPerso(p) { if (p) { scene.remove(p); p.userData.liberer?.(); } }
-function retirerClient() { const C = W.client; if (!C) return; oublierGuide(C); X.retirerBulle(C); retirerPerso(C.p); W.client = null; }
+function retirerClient(C) { if (!C) return; oublierGuide(C); X.retirerBulle(C); retirerPerso(C.p); W.clients = W.clients.filter(c => c !== C); if (W.cible === C) W.cible = null; }
+function retirerClients() { for (const C of [...W.clients]) retirerClient(C); }
 /** Efface le chemin bleu vers le client qui faisait signe, s'il est encore celui qu'on suit. */
 function oublierGuide(C) { if (C.guide && T.gps === C.guide) { retirerRuban(T.gps.m); T.gps = null; } C.guide = null; }
 function dire(qui, texte) { if (qui?.g) X.bulle(qui, texte); }
 
 /** Parler au client arrêté à côté de lui : il annonce sa destination et son prix, on peut demander plus. */
 function negocier() {
-  const C = W.client; if (!C || C.etat !== 'signe') return;
+  const C = quiFaitSigne(); if (!C) return;
   C.p.userData.jouer('parle'); C.p.rotation.y = Math.atan2(T.veh.x - C.x, T.veh.z - C.z);
   const plus = W.id === 'taxi' ? 300 : 100, km = C.dest.km.toFixed(1).replace('.', ',');
   const proposer = (titre, prix, peutDemander) => X.choisir(titre, [
-    { texte: `D’accord, monte ! · ${fmt(prix)}`, f: () => accepter(prix) },
+    { texte: `D’accord, monte ! · ${fmt(prix)}`, f: () => accepter(prix, C) },
     ...(peutDemander ? [{ texte: `Demander ${fmt(prix + plus)}`, sous: 'Il peut accepter… ou aller voir quelqu’un d’autre', f: () => {
       const r = Math.random();
-      if (r < .45) { dire(C, 'Bon… d’accord.'); accepter(prix + plus); }
+      if (r < .45) { dire(C, 'Bon… d’accord.'); accepter(prix + plus, C); }
       else if (r < .85) proposer(`« Non non, ${fmt(prix)}, c’est le prix ! »`, prix, false);
       else { dire(C, 'Laisse, je vais prendre un autre.'); partir(C); }
     } }] : []),
@@ -347,34 +359,67 @@ function negocier() {
   ], { annuler: 'Réfléchir' });
   proposer(`« ${C.dest.nom}, ${fmt(C.prix)} ? » (${km} km)`, C.prix, true);
 }
-function accepter(prix) {
-  const C = W.client, V = T.veh; if (!C || !V) return;
-  C.prix = prix; C.etat = 'monte'; C.t = 0; C.marque.visible = false;
-  C.vers = [V.x + Math.sin(V.cap - Math.PI / 2) * (V.D.cache ? 1.3 : .6), V.z + Math.cos(V.cap - Math.PI / 2) * (V.D.cache ? 1.3 : .6)];
+/** Les amis montés avec soi prennent les premières places (salon.js, placeAmi) : les clients s'assoient après eux. */
+const amisABord = () => (S.R?.id ? [...S.autres.values()].filter(A => A.etat?.sur === S.R.id).length : 0);
+/** La première place libre de la voiture (1 : l'avant droite, puis l'arrière) ; sur le zém, la selle derrière. */
+function placeLibre(V) {
+  if (!V.D.cache) return true;
+  const prises = new Set(W.clients.filter(C => C.etat === 'course' || C.etat === 'monte').map(C => C.place));
+  for (let k = 1 + amisABord(); k < placesDe(V); k++) if (!prises.has(k)) return k;
+  return placesDe(V) - 1;
+}
+function accepter(prix, C = quiFaitSigne()) {
+  const V = T.veh; if (!C || !V || C.etat !== 'signe') return;
+  C.prix = prix; C.etat = 'monte'; C.t = 0; C.marque.visible = false; C.place = placeLibre(V);
+  // Il va à la portière de sa place, côté trottoir (à droite), avant ou arrière.
+  const e = V.D.cache ? 1.3 : .6, dz = V.D.cache ? siege(V, C.place)?.z ?? 0 : 0;
+  C.vers = [V.x + Math.sin(V.cap - Math.PI / 2) * e + Math.sin(V.cap) * dz, V.z + Math.cos(V.cap - Math.PI / 2) * e + Math.cos(V.cap) * dz];
 }
 function partir(C) { oublierGuide(C); C.etat = 'part'; C.t = 0; C.marque.visible = false; W.attente = 6 + Math.random() * 6; }
-/** Le choc compte pendant une course : au troisième, le client descend sans payer. */
+/** Un choc compte pour chaque client à bord : au troisième, celui-là descend sans payer. */
 export function chocMetier() {
-  const C = W.client; if (!C || C.etat !== 'course') return;
-  C.chocs++;
-  if (C.chocs >= 3) { dire(C, 'Arrête-toi ! Je descends ici, je ne paie pas !'); X.ligne('Trois chocs : ton client descend sans payer.'); descendreClient(C); partir(C); return; }
+  const B = aBord(); if (!B.length) return;
+  for (const C of B) C.chocs++;
+  const partent = B.filter(C => C.chocs >= 3), restent = B.filter(C => C.chocs < 3);
+  if (partent.length) {
+    dire(partent[0], 'Arrête-toi ! Je descends ici, je ne paie pas !');
+    X.ligne(partent.length > 1 ? `Trois chocs : ${partent.length} clients descendent sans payer.` : 'Trois chocs : ton client descend sans payer.');
+    for (const C of partent) { descendreClient(C); partir(C); }
+    guider();
+  }
+  const C = restent[0]; if (!C) return; // un seul parle pour tous : quatre bulles à la fois, on ne lisait plus rien
   const t = C.chocs === 1 ? 'Eh ! Doucement !' : 'Tu veux nous tuer ou bien ?'; if (C.p.visible) dire(C, t); else X.ligne(`Ton client : « ${t} »`);
 }
 function descendreClient(C) {
   const V = T.veh; if (!V) return;
-  const ecart = V.D.cache ? 1.9 : 1.7; // à 1,1 m du deux-roues, vu de derrière, il avait l'air encore assis dessus
-  C.x = V.x + Math.sin(V.cap - Math.PI / 2) * ecart; C.z = V.z + Math.cos(V.cap - Math.PI / 2) * ecart;
-  C.p.visible = true; C.p.position.set(C.x, 0, C.z); C.p.rotation.y = V.cap - Math.PI / 2; C.p.userData.jouer('idle');
-  if (T.gps) { retirerRuban(T.gps.m); T.gps = null; }
+  const ecart = V.D.cache ? 1.9 : 1.7, dz = V.D.cache ? siege(V, C.place)?.z ?? 0 : 0; // à 1,1 m du deux-roues, vu de derrière, il avait l'air encore assis dessus ; en voiture, à hauteur de sa portière
+  C.x = V.x + Math.sin(V.cap - Math.PI / 2) * ecart + Math.sin(V.cap) * dz; C.z = V.z + Math.cos(V.cap - Math.PI / 2) * ecart + Math.cos(V.cap) * dz;
+  C.p.visible = true; C.p.userData.velo?.(null); C.p.position.set(C.x, 0, C.z); C.p.rotation.set(0, V.cap - Math.PI / 2, 0); C.p.userData.jouer('idle');
 }
 async function arriveeClient(C) {
   C.etat = 'paie'; descendreClient(C);
+  const prochain = guider(), n = aBord().length;
   const attendu = C.dest.km * 1000 / 6.5, pourboire = C.chocs ? 0 : C.t < attendu ? 100 : 50;
   remettre(C.p, S.moi?.visible ? S.moi : new THREE.Vector3(T.veh.x, T.veh.y + 1.1, T.veh.z), 'billet', { hautDe: 1.2, garder: .4 });
   dire(C, pourboire === 100 ? 'Merci ! Tu roules bien, garde la monnaie.' : 'Merci, à la prochaine !');
+  if (prochain) X.ligne(`Prochain arrêt : ${prochain.dest.nom} (${n} client${n > 1 ? 's' : ''} à bord).`);
   await gagner(C.prix + pourboire, `course jusqu’à ${C.dest.nom}${pourboire ? ` (dont ${pourboire} F de pourboire)` : ''}`);
   experience(); son('piece'); signaler('course');
   setTimeout(() => partir(C), 1200);
+}
+/**
+ * Le GPS mène au client à bord dont la destination est la plus proche (à vol d'oiseau) ; on garde celle qu'on suit tant
+ * qu'une autre n'est pas nettement plus près (15 %), sinon le chemin bleu sautait d'une destination à l'autre. `annonce` :
+ * la distance dans le fil (à la montée d'un client). Plus personne à bord : le chemin s'efface. Renvoie le client suivi.
+ */
+function guider(annonce = false) {
+  const V = T.veh, B = aBord();
+  if (!B.length || !V) { W.cible = null; if (T.gps?.client) { retirerRuban(T.gps.m); T.gps = null; } return null; }
+  const d = C => Math.hypot(C.dest.x - V.x, C.dest.z - V.z);
+  let C = B.reduce((a, b) => (d(b) < d(a) ? b : a));
+  if (B.includes(W.cible) && d(C) > d(W.cible) * .85) C = W.cible;
+  if (C !== W.cible || !T.gps) { W.cible = C; if (X.gps(C.dest.x, C.dest.z, C.dest.nom, { muet: !annonce }) && T.gps) T.gps.client = true; }
+  return C;
 }
 /** Une course ou un arrêt servi : un point d'expérience ; tous les quelques points, on monte en grade. */
 async function experience() {
@@ -384,42 +429,63 @@ async function experience() {
   rendreVie();
 }
 function majClient(dt) {
-  const V = T.veh;
-  if (!W.client) { if (T.mode === 'conduit' && V && !S.lieu) { W.attente -= dt; if (W.attente <= 0) { W.attente = 3; nouveauClient(); } } return; }
-  const C = W.client; C.t += dt;
+  const V = T.veh, B = aBord(), max = W.id === 'taxi' ? Math.min(MAX_CLIENTS_TAXI, placesDe(V) - 1 - amisABord()) : 1;
+  // Un seul client fait signe à la fois ; au taxi, même avec du monde à bord, tant qu'il reste une place.
+  const libre = W.id === 'taxi' ? !W.clients.some(C => C.etat === 'signe' || C.etat === 'monte') && B.length < max : !W.clients.length;
+  if (libre && T.mode === 'conduit' && V && !S.lieu) { W.attente -= dt; if (W.attente <= 0) { W.attente = 3; nouveauClient(); } }
+  for (const C of [...W.clients]) majUnClient(C, dt, V);
+  // Descendu du véhicule avec des clients à bord : ils attendent assis, 30 s au plus, puis s'en vont sans payer.
+  const restent = aBord();
+  if (restent.length && T.mode !== 'conduit') {
+    const ou = W.id === 'zem' ? 'sur la moto' : 'dans le taxi';
+    if (!W.dehors) { W.dehors = true; X.ligne(restent.length > 1 ? `Tes ${restent.length} clients t’attendent ${ou} : ne les laisse pas plus de 30 s.` : `Ton client t’attend ${ou} : ne le laisse pas plus de 30 s.`); }
+    W.arret += dt;
+    if (W.arret > 30) {
+      X.ligne(restent.length > 1 ? 'Tes clients en ont eu assez d’attendre : ils sont partis sans payer.' : 'Ton client en a eu assez d’attendre : il est parti sans payer.');
+      for (const C of restent) { descendreClient(C); partir(C); }
+      guider();
+    }
+  } else { W.arret = 0; W.dehors = false; }
+  W.guideT += dt; if (restent.length && W.guideT > 3) { W.guideT = 0; if (!T.gps || T.gps.client) guider(); } // on se rapproche d'une autre destination
+  W.mission = missionClients();
+}
+function majUnClient(C, dt, V) {
+  C.t += dt;
   if (C.bulle && performance.now() > C.bulleFin) X.retirerBulle(C);
   const d = V ? Math.hypot(C.x - V.x, C.z - V.z) : Infinity;
   if (C.etat === 'signe') {
     // « Un client te fait signe · 25 m », face au mur d'un carrefour en T, sans flèche (testeur, 03/11) : la distance est à
     // vol d'oiseau et il attend souvent dans la rue d'à côté. Le chemin bleu mène à sa rue, sans remplacer un itinéraire
-    // déjà tracé (la station-service) ; une fois arrivé près de lui (majGps l'efface), il ne revient pas.
+    // déjà tracé (la station-service, la destination des clients à bord) ; une fois arrivé près de lui (majGps l'efface), il ne revient pas.
     if (C.guide === undefined && !T.gps && T.mode === 'conduit') C.guide = X.gps(C.route[0], C.route[1], 'ton client', { muet: true }) ? T.gps : null;
     if (d < 32 && !C.appele) { C.appele = true; dire(C, W.id === 'taxi' ? 'Taxi ! Taxi !' : 'Zém ! Zém !'); }
-    if (d > 260 || C.t > 90) { retirerClient(); W.attente = 2; }
-  } else if (C.etat === 'monte') { // il marche jusqu'au véhicule puis s'assoit derrière (ou disparaît dans la voiture)
+    if (d > 260 || C.t > 90) { retirerClient(C); W.attente = 2; }
+  } else if (C.etat === 'monte') { // il marche jusqu'à sa portière, puis s'assoit à sa place (derrière le zém)
     if (marcher(C.p, C.vers, dt, 1.8) || C.t > 4) {
-      C.etat = 'course'; C.t = 0; C.p.visible = !V.D.cache;
-      X.gps(C.dest.x, C.dest.z, C.dest.nom); son('bosse');
+      C.etat = 'course'; C.t = 0; son('bosse'); oublierGuide(C);
+      const avant = W.cible, suivi = guider(true), n = aBord().length;
+      if (suivi && suivi === avant) X.ligne(`Ton client va à ${C.dest.nom}. ${n} clients à bord · prochain arrêt : ${suivi.dest.nom}.`); // sinon, le GPS vient de dire où l'on va
     }
   } else if (C.etat === 'course') {
-    if (C.p.visible) X.asseoirSur(C.p, V, true);
+    X.asseoirSur(C.p, V, C.place);
     C.dit -= dt; if (C.dit <= 0) { C.dit = 25 + Math.random() * 20; const t = PHRASES_CLIENT[Math.floor(Math.random() * PHRASES_CLIENT.length)]; if (C.p.visible) dire(C, t); else X.ligne(`Ton client : « ${t} »`); }
-    if (T.mode !== 'conduit') { C.arret += dt; if (C.arret > 30) { X.ligne('Ton client en a eu assez d’attendre : il est parti sans payer.'); descendreClient(C); partir(C); } }
-    else if (Math.hypot(C.dest.x - V.x, C.dest.z - V.z) < 25 && Math.abs(V.v) < 1.2) arriveeClient(C);
-    W.mission = `Course : ${C.dest.nom} · ${fmt(C.prix)}${C.chocs ? ` · ${C.chocs} choc${C.chocs > 1 ? 's' : ''}` : ''}`;
-    return;
+    if (T.mode === 'conduit' && Math.hypot(C.dest.x - V.x, C.dest.z - V.z) < 25 && Math.abs(V.v) < 1.2) arriveeClient(C);
   } else if (C.etat === 'part') { // il s'éloigne du bord de la route, puis s'en va
     const away = [C.x + Math.sin(C.p.rotation.y) * 3, C.z + Math.cos(C.p.rotation.y) * 3];
     if (C.t < 3 && pietonOk(C.p.position.x + Math.sin(C.p.rotation.y) * .5, C.p.position.z + Math.cos(C.p.rotation.y) * .5)) marcher(C.p, away, dt);
-    if (C.t > 3) { retirerClient(); W.attente = Math.min(W.attente, 6); }
+    if (C.t > 3) { retirerClient(C); W.attente = Math.min(W.attente, 6); }
   }
-  // Tant que le client est encore là, on ne dit pas d'en chercher un autre : il descend, il paie, il s'éloigne.
-  // Les joueurs le voyaient « encore sur la moto » pendant que la consigne demandait déjà le suivant.
-  W.mission = !W.client ? ''
-    : C.etat === 'signe' ? `Un client te fait signe · ${Math.round(d / 5) * 5} m`
-    : C.etat === 'monte' ? 'Ton client monte…'
-    : C.etat === 'paie' ? 'Ton client descend et te paie…'
-    : C.etat === 'part' ? 'Ton client s’en va…' : '';
+}
+// Tant qu'un client est encore là, on ne dit pas d'en chercher un autre : il descend, il paie, il s'éloigne. Les joueurs le
+// voyaient « encore sur la moto » pendant que la consigne demandait déjà le suivant. Avec plusieurs à bord : leur nombre et
+// le prochain arrêt, « 3 clients · prochain : Haie Vive ».
+function missionClients() {
+  const B = aBord(), V = T.veh, signe = quiFaitSigne(), monte = W.clients.find(C => C.etat === 'monte'), paie = W.clients.find(C => C.etat === 'paie'), part = W.clients.find(C => C.etat === 'part');
+  const loin = C => (V ? Math.round(Math.hypot(C.x - V.x, C.z - V.z) / 5) * 5 : 0);
+  if (!B.length) return paie ? 'Ton client descend et te paie…' : monte ? 'Ton client monte…' : signe ? `Un client te fait signe · ${loin(signe)} m` : part ? 'Ton client s’en va…' : '';
+  const chocs = Math.max(...B.map(C => C.chocs)), c = chocs ? ` · ${chocs} choc${chocs > 1 ? 's' : ''}` : '', cible = B.includes(W.cible) ? W.cible : B[0];
+  return (B.length === 1 ? `Course : ${cible.dest.nom} · ${fmt(cible.prix)}${c}` : `${B.length} clients · prochain : ${cible.dest.nom}${c}`)
+    + (paie ? ' · un client paie…' : monte ? ' · un client monte…' : signe ? ` · un client fait signe à ${loin(signe)} m` : '');
 }
 function marcher(p, vers, dt, v = 1.4) {
   const dx = vers[0] - p.position.x, dz = vers[1] - p.position.z, d = Math.hypot(dx, dz); if (d < .15) return true;
@@ -560,7 +626,8 @@ function ouvrirPorte(V) {
   const m = V.g.children[0], D = HABITACLE[m.geometry === TOKPA_3D.geo ? 'tripo' : 'dessin'];
   // La découpe : on ne dessine plus la carrosserie dans la boîte de la porte (intersection des cinq demi-espaces).
   const plans = [[0, 0, -1, D.ar], [0, 0, 1, -D.av], [0, -1, 0, D.bas], [0, 1, 0, -D.haut], [1, 0, 0, -D.coupe]].map(([x, y, z, c]) => new THREE.Plane(new THREE.Vector3(x, y, z), c));
-  m.material = m.material.clone(); m.material.clippingPlanes = plans.map(P => P.clone()); m.material.clipIntersection = true; m.material.clipShadows = true;
+  const avant = m.material; m.material = avant.clone(); m.material.clippingPlanes = plans.map(P => P.clone()); m.material.clipIntersection = true; m.material.clipShadows = true;
+  m.material.onBeforeCompile = avant.onBeforeCompile; m.material.customProgramCacheKey = avant.customProgramCacheKey; // ses vitres percées (conduite.js, vitrer) : clone() ne les copie pas
   renderer.localClippingEnabled = true;
   habits ??= { fond: new THREE.MeshLambertMaterial({ color: '#2f2a25', side: THREE.BackSide }), siege: new THREE.MeshLambertMaterial({ color: '#4a3b30' }), cadre: new THREE.MeshLambertMaterial({ color: '#d8d2c2' }) };
   const boite = (w, h, d, mat, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); b.position.set(x, y, z); V.g.add(b); return b; };
@@ -767,7 +834,7 @@ function depart(tk) {
 export function actionsMetier() {
   const out = []; if (!W.id || W.pause) return out;
   if (METIERS[W.id].famille !== 'transport') return actionsVille();
-  const C = W.client, V = T.veh, tk = W.tk;
+  const C = quiFaitSigne(), V = T.veh, tk = W.tk;
   if (C?.etat === 'signe' && T.mode === 'conduit' && Math.hypot(C.x - V.x, C.z - V.z) < 9 && Math.abs(V.v) < 1.5) out.push({ texte: 'Parler au client', f: negocier });
   if (tk && W.id === 'apprenti') {
     if (T.mode === 'pied' && Math.hypot(tk.V.x - S.x, tk.V.z - S.z) < 6) out.push({ texte: 'Monter à la porte (apprenti)', f: monterApprenti });
