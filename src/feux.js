@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { LITE } from './base.js';
 import { COUCHES_SOL, scene } from './scene.js';
-import { roadLines } from './ville.js';
+import { ELARGIR, roadLines } from './ville.js';
 import { surChaussee } from './chaussee.js';
 import { dansTerrePlein } from './terre-pleins.js';
 
@@ -42,10 +42,17 @@ export function construireFeux(feux = [], passages = []) {
     for (const s of [1, -1]) { // un poteau pour chaque sens de circulation
       // Pas sur une autre chaussée ni sur un terre-plein : au carrefour, à 1,1 m du bord de sa rue, le poteau tombait
       // souvent sur la rue transversale ou au milieu d'un boulevard (« un poteau seul au milieu de la chaussée »,
-      // 26/10). On l'écarte du bord jusqu'à 4 m ; sinon, pas de feu de ce côté.
-      let off = r.w / 2 + 1.1, px = 0, pz = 0;
-      for (; off <= r.w / 2 + 4; off += .5) { px = r.x + rx * off * s; pz = r.z + rz * off * s; if (!surChaussee(px, pz, -.4) && !dansTerrePlein(px, pz, .3)) break; }
-      if (off > r.w / 2 + 4) continue;
+      // 26/10). On l'écarte du bord jusqu'à 4 m ; sinon, pas de feu de ce côté. Les rues élargies (ville.js, ELARGIR, 04/11)
+      // couvraient davantage les coins : 58 têtes de feux au lieu de 72. On cherche jusqu'à 4 m × ELARGIR, comme les trottoirs,
+      // et, si le coin est pris, 3 puis 6 m en arrière, du côté de ceux qui arrivent : un feu se dresse avant le carrefour.
+      const loin = r.w / 2 + 4 * ELARGIR;
+      let px = 0, pz = 0, place = false;
+      for (const recul of [0, 3, 6]) {
+        const bx = r.x - r.dx * s * recul, bz = r.z - r.dz * s * recul;
+        for (let off = r.w / 2 + 1.1; off <= loin && !place; off += .5) { px = bx + rx * off * s; pz = bz + rz * off * s; place = !surChaussee(px, pz, -.4) && !dansTerrePlein(px, pz, .3); }
+        if (place) break;
+      }
+      if (!place) continue;
       poteaux.push([px, pz]);
       const fx = -r.dx * s, fz = -r.dz * s; // la tête regarde ceux qui arrivent
       tetes.push({ x: px - rx * s * .9, z: pz - rz * s * .9, ang: Math.atan2(fx, fz), phase });

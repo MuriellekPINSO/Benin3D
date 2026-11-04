@@ -6,6 +6,7 @@ import { declarerDome } from './dome-interieur.js';
 import { porteFoodCourt } from './interieurs.js';
 import { K, bake, barrieres, centroide, groupeLieu, mursPoly, obb, panneauTexte, ruban, solPoly } from './lieux.js';
 import { ajouterEmprise, ajouterZoneLibre } from './rue.js';
+import { ajouterPlace } from './zones.js';
 import { reduireImage } from './textures.js';
 
 // ---------- Boulevard de la Marina, de l'Amazone à Bio Guéra ----------
@@ -92,6 +93,7 @@ K.motif('usFlag', (c, t) => { const h = c.canvas.height; for (let i = 0; i < 13;
 // ---------- Jardin de l'Amazone : pelouses en lentilles, allées sinueuses, grands pylônes ----------
 function jardin(J) {
   const c = centroide(J.ring), g = groupeLieu('jardin-amazone', c[0], c[1]);
+  ajouterPlace(J.ring, { teinte: 'jardin' }); // sur la carte, le jardin et non les sentiers d'OSM qu'il recouvre (zones.js)
   K.into(g, () => {
     solPoly([loc(g, J.ring)], K.tex('dalleBeige', 1, 1), .04, 6);
     const verts = ['#3e5a2c', '#4b6a33', '#7b3a35'];
@@ -151,6 +153,10 @@ function citeMinisterielle(Cm) {
   for (const b of Cm.bats) ajouterEmprise(b);
   if (Cm.parking) ajouterEmprise(Cm.parking);
   if (parvis) ajouterZoneLibre(parvis);
+  // L'enclos et le parvis pavés recouvrent les allées de service d'OSM : on y roule partout, et la carte les montre comme
+  // une place, sans ces allées qu'on ne voit plus (zones.js, testeur, 04/11).
+  ajouterPlace(Cm.zone, { roule: true });
+  if (parvis) { const [x0, z0, x1, z1] = parvis; ajouterPlace([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], { roule: true }); }
   bake(g);
 }
 

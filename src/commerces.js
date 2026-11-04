@@ -8,6 +8,7 @@ import { EMPLACEMENTS, LOT } from './emplacements.js';
 import { texteToile } from './lieux.js';
 import { poserObstacles } from './rue.js';
 import { scene } from './scene.js';
+import { roadLines } from './ville.js';
 import { VIE, depenser, ecrireEnPlus, gagner, lireEnPlus, rendreVie, signaler } from './vie.js';
 import { MAX_DECOR, reduireImage } from './textures.js';
 
@@ -234,9 +235,24 @@ export function majCommerces(dt) {
   for (const B of CM.lots.values()) { B.g.visible = !S.lieu; majVisites(B, dt); }
 }
 
+// Les voies élargies de 30 % (ville.js, ELARGIR, testeur, 04/11) avancent de 0,9 m (rue de quartier) à 2,3 m (boulevard)
+// vers les boutiques : leur trottoir, relevé à la largeur d'avant, passait sur la chaussée, et les clients attendaient sur
+// le goudron. Il s'arrête désormais au bord de la rue (50 cm au moins) ; la parcelle elle-même ne bouge pas.
+function rognerTrottoirs() {
+  for (const E of EMPLACEMENTS) {
+    const fx = E.x + Math.sin(E.cap) * LOT.avant, fz = E.z + Math.cos(E.cap) * LOT.avant; let m = Infinity;
+    for (const L of roadLines) {
+      if (L.cls > 5 || L.bridge) continue;
+      for (let k = 1; k < L.pts.length; k++) { const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k]; if (Math.min(ax, bx) > fx + 40 || Math.max(ax, bx) < fx - 40 || Math.min(az, bz) > fz + 40 || Math.max(az, bz) < fz - 40) continue; const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((fx - ax) * dx + (fz - az) * dz) / l2)); m = Math.min(m, Math.hypot(ax + dx * t - fx, az + dz * t - fz) - L.w / 2); }
+    }
+    E.trottoir = Math.max(.5, Math.min(E.trottoir, m));
+  }
+}
+
 // ---------- Le salon s'ouvre, se ferme ----------
 export function initCommerces(ctx) {
   X = ctx;
+  rognerTrottoirs();
   $('#vfFermer')?.addEventListener('click', fermerFiche);
   $('#vieFiche')?.addEventListener('click', e => { if (e.target === e.currentTarget) fermerFiche(); });
   $('#vieFiche')?.addEventListener('click', e => { const b = e.target.closest('[data-cm]'); if (b) actionFiche(b.dataset.cm, b.dataset.v); });

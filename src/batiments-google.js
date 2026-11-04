@@ -2,7 +2,7 @@ import { LITE, hash } from './base.js';
 import { scene } from './scene.js';
 import { maillageLot } from './ville.js';
 import { surLaChaussee } from './chaussee.js';
-import { ajouterEmprises } from './rue.js';
+import { ajouterEmprises, tuileCachee } from './rue.js';
 import { lireJsonGz } from './chargement.js';
 import { rectDansParc, rectSansConstruction } from './zones.js';
 import { preparerGeometries } from './memoire.js';
@@ -13,7 +13,7 @@ import { preparerGeometries } from './memoire.js';
 // tuiles de 1 km (npm run donnees) et chargés autour de la caméra : toutes les maisons
 // réelles du quartier où l'on se trouve, au lieu des maisons inventées.
 
-const BG = { index: null, taille: 1000, tuiles: new Map(), emprises: new Set(), t: 0, enCours: 0, visible: true, retires: 0, lus: 0, parClasse: {} };
+const BG = { index: null, taille: 1000, tuiles: new Map(), t: 0, enCours: 0, visible: true, retires: 0, lus: 0, parClasse: {} };
 
 // Pas de maison sur la chaussée : les emprises qui mordent sur une rue sont retirées au chargement (chaussee.js).
 /** Le lot sans les emprises posées sur une chaussée, et le numéro d'origine de celles qu'on garde. */
@@ -46,11 +46,12 @@ async function charger(k) {
     e.mesh = maillageLot(T, 2e6 + Math.floor(hash(tx * 977 + tz, 5) * 1e6), ids);
     e.mesh.castShadow = false; e.mesh.visible = BG.visible; scene.add(e.mesh);
     preparerGeometries(e.mesh); // sommets rendus une fois envoyés (memoire.js) : une tuile arrivée en marchant les gardait, 35 Mo en ville
-    if (!BG.emprises.has(k)) { BG.emprises.add(k); ajouterEmprises(T, [tx * BG.taille, tz * BG.taille, (tx + 1) * BG.taille, (tz + 1) * BG.taille]); } // les emprises restent quand la tuile part : à son retour, on les rajoutait en double
+    ajouterEmprises(T, zoneDe(k), k); // une seule fois par tuile (à son retour, on les rajoutait en double) ; elles ne bloquent que tant qu'elle est là (rue.js)
   } catch (err) { console.warn('tuile', k, err); }
   finally { BG.enCours--; }
 }
-function liberer(k) { const e = BG.tuiles.get(k); if (!e) return; e.mort = true; if (e.mesh) { scene.remove(e.mesh); e.mesh.geometry.dispose(); } BG.tuiles.delete(k); }
+function liberer(k) { const e = BG.tuiles.get(k); if (!e) return; e.mort = true; if (e.mesh) { scene.remove(e.mesh); e.mesh.geometry.dispose(); tuileCachee(k, zoneDe(k)); } BG.tuiles.delete(k); }
+const zoneDe = k => { const [tx, tz] = k.split('_').map(Number); return [tx * BG.taille, tz * BG.taille, (tx + 1) * BG.taille, (tz + 1) * BG.taille]; };
 /** Charge les tuiles autour de `centre` quand on est assez près (`dist` : distance de la caméra). */
 export function majBatimentsGoogle(dt, centre, dist) {
   if (!BG.index || !BG.visible) return; // vue Google seule : rien à charger

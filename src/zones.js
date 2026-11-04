@@ -61,6 +61,31 @@ export function dansParc(x, z) {
 /** Un rectangle touche-t-il un parc (son centre ou un de ses coins) ? */
 export const rectDansParc = (x0, z0, x1, z1) => dansParc((x0 + x1) / 2, (z0 + z1) / 2) || dansParc(x0, z0) || dansParc(x1, z0) || dansParc(x0, z1) || dansParc(x1, z1);
 
+// ---------- Places : le sol d'un lieu posé par-dessus des rues d'OpenStreetMap ----------
+// Le parvis et l'enclos pavés de la Cité ministérielle (lieux-marina.js) recouvrent cinq allées de service d'OSM : en 3D, une
+// grande esplanade vide ; sur la mini-carte, des rues ; au volant, on ne roulait que sur ces allées qu'on ne voit pas, et
+// l'on butait partout ailleurs sur l'esplanade (« trop de murs invisibles », « des endroits supprimés figurent encore sur la
+// carte », testeur en Roadster au-dessus de l'avenue Jean-Paul II, 04/11). Une place est dessinée telle quelle sur la carte
+// (carte-salon.js), sans les rues qu'elle recouvre ; `roule` : on y roule partout où rien ne bloque (conduite.js, surRoute).
+const PLACES = [];
+/** Une place : anneau [[x, z], …] en mètres ; `roule` : les véhicules y circulent ; `teinte` : 'pave' ou 'jardin' sur la carte. */
+export function ajouterPlace(ring, { roule = false, teinte = 'pave' } = {}) {
+  if (!ring || ring.length < 3) return;
+  const xs = ring.map(p => p[0]), zs = ring.map(p => p[1]);
+  PLACES.push({ r: ring, roule, teinte, bb: [Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)] });
+}
+/** (x, z) est-il sur une place (une place où l'on roule, si `roule`) ? */
+export function dansPlace(x, z, roule = false) {
+  for (const P of PLACES) {
+    if ((roule && !P.roule) || x < P.bb[0] || x > P.bb[2] || z < P.bb[1] || z > P.bb[3]) continue;
+    const r = P.r; let d = false;
+    for (let a = 0, j = r.length - 1; a < r.length; j = a++) { const [xa, za] = r[a], [xj, zj] = r[j]; if ((za > z) !== (zj > z) && x < (xj - xa) * (z - za) / (zj - za) + xa) d = !d; }
+    if (d) return true;
+  }
+  return false;
+}
+export const lesPlaces = () => PLACES;
+
 /** À appeler avant de construire la ville (données des lieux : `data.L`). */
 export function initZones(L) {
   if (!PARCS.length) for (const p of PARCS_LATLON) parc(p);

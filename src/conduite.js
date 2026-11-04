@@ -6,10 +6,11 @@ import { dansBatiment, dansObstacleRue, pietonOk } from './rue.js';
 import { hauteurSol } from './sols.js';
 import { animerMoto } from './roues.js';
 import { dansTerrePlein } from './terre-pleins.js';
+import { dansPlace } from './zones.js';
 import { dansCirculation } from './trafic.js';
 import { scene } from './scene.js';
 import { plusTard } from './telechargements.js';
-import { TABLIERS, mergeColored, roadLines } from './ville.js';
+import { ELARGIR, TABLIERS, mergeColored, roadLines } from './ville.js';
 import { PEDALIER, TOKPA_3D, ZEMS_3D, gabaritDe, matVeh, partsBolide, partsPedalier, partsRoadster, partsCitadine, partsTokpa, partsVelo, partsVoiture, partsZem } from './vehicules.js';
 import { chargeurGLB } from './textures.js';
 
@@ -153,13 +154,15 @@ function indexer() {
   G.cases = g; G.seg = new Float32Array(seg); G.ponts = p;
 }
 const projeter = (x, z, ax, az, bx, bz) => { const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)); return [Math.hypot(ax + dx * t - x, az + dz * t - z), t]; };
-/** Vrai si l'on peut rouler en (x, z) : sur une route, hors des bâtiments et des terre-pleins. */
+/** Vrai si l'on peut rouler en (x, z) : sur une route ou une place pavée où l'on roule (zones.js), hors des bâtiments et des
+ *  terre-pleins. Un terre-plein seulement peint (moins de 1 m) se franchit : il n'y a rien à heurter (testeur, 04/11). */
 export function surRoute(x, z) {
   indexer();
-  const l = G.cases.get(cle(x, z)); if (!l) return false;
-  const S = G.seg;
-  for (const n of l) { const o = n * 5; if (projeter(x, z, S[o], S[o + 1], S[o + 2], S[o + 3])[0] <= S[o + 4]) return !dansBatiment(x, z) && !dansTerrePlein(x, z, 0) && !dansObstacleRue(x, z, .2); } // ni bâtiment, ni terre-plein central, ni mur de parcelle
-  return false;
+  const l = G.cases.get(cle(x, z)), S = G.seg;
+  let ok = false;
+  if (l) for (const n of l) { const o = n * 5; if (projeter(x, z, S[o], S[o + 1], S[o + 2], S[o + 3])[0] <= S[o + 4]) { ok = true; break; } }
+  if (!ok && !dansPlace(x, z, true)) return false;
+  return !dansBatiment(x, z) && !dansTerrePlein(x, z, 0, false) && !dansObstacleRue(x, z, .2); // ni bâtiment, ni terre-plein central, ni mur de parcelle
 }
 /** Hauteur sous les roues : le tablier d'un pont si l'on y est monté (par sa rampe), sinon le sol. */
 export function hauteur(x, z, yPrec) {
@@ -484,7 +487,7 @@ function chevrons() {
 }
 /** Ruban posé sur la route, du véhicule (ou de ses pieds) jusqu'à la destination. */
 export function ruban(pts) {
-  const pos = [], uv = [], idx = [], w = .85;
+  const pos = [], uv = [], idx = [], w = .85 * ELARGIR; // élargi avec les voies (ville.js, testeur, 04/11)
   let l = 0;
   for (let i = 0; i < pts.length; i++) {
     if (i) l += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);

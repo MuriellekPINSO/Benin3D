@@ -3,7 +3,7 @@ import { dansTerrePlein } from './terre-pleins.js';
 import { LITE, hash, toXZ } from './base.js';
 import { camera, controls, scene } from './scene.js';
 import { dansParc, rectSansConstruction, sansConstruction, zoneBoutique } from './zones.js';
-import { ilesDesRondsPoints, ROAD_W, roadLines } from './ville.js';
+import { ELARGIR, ilesDesRondsPoints, ROAD_W, roadLines } from './ville.js';
 import { texFacades } from './facades.js';
 import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
 import { MAX_DECOR, reduireImage } from './textures.js';
@@ -19,8 +19,9 @@ import { preparerGeometries } from './memoire.js';
 // près, puis libéré quand on s'éloigne.
 
 const CARRE = 400;
-const TROTTOIR = { 0: 4, 1: 3.5, 2: 3, 3: 2.2, 4: 1.3, 5: .9 };
-const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, segR: null, zonesLibres: [], rectsLibres: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [] };
+// Du bord de la chaussée jusqu'aux murs des parcelles ; élargis avec les voies (ville.js, ELARGIR, testeur, 04/11).
+const TROTTOIR = Object.fromEntries(Object.entries({ 0: 4, 1: 3.5, 2: 3, 3: 2.2, 4: 1.3, 5: .9 }).map(([c, m]) => [c, m * ELARGIR]));
+const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, segR: null, zonesLibres: [], rectsLibres: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [], tuiles: new Set(), tuilesVues: new Set() };
 
 // ---------- Index spatiaux ----------
 const CB = 50, CR = 40;
@@ -95,6 +96,7 @@ export function dansBatiment(x, z) {
   for (const i of l) {
     if (typeof i === 'object') { // emprise Google Open Buildings (anneau absolu, en mètres)
       const b2 = i.bb; if (x < b2[0] || x > b2[2] || z < b2[1] || z > b2[3]) continue;
+      if (i.tuile && !R.tuilesVues.has(i.tuile)) continue; // sa tuile est partie (trop loin, ou pas encore revenue) : la maison n'est plus dessinée
       const r = i.r, n = r.length / 2; let dd = false;
       for (let a = 0, j = n - 1; a < n; j = a++) { const xa = r[2 * a], za = r[2 * a + 1], xj = r[2 * j], zj = r[2 * j + 1]; if ((za > z) !== (zj > z) && x < (xj - xa) * (z - za) / (zj - za) + xa) dd = !dd; }
       if (dd) return true; continue;
@@ -540,8 +542,8 @@ function metrique(mat, ex, ey) {
 // ---------- Pilotage ----------
 export function initRue(data) { indexer(data); }
 /** Range une emprise (anneau absolu, en mètres) dans la grille des bâtiments : on ne la traverse plus. */
-function rangerEmprise(r, bb) {
-  const e = { r, bb };
+function rangerEmprise(r, bb, tuile = null) {
+  const e = { r, bb, tuile };
   for (let gx = Math.floor(bb[0] / CB); gx <= Math.floor(bb[2] / CB); gx++) for (let gz = Math.floor(bb[1] / CB); gz <= Math.floor(bb[3] / CB); gz++) { const k = gx + ',' + gz; if (!R.grilleB.has(k)) R.grilleB.set(k, []); R.grilleB.get(k).push(e); }
 }
 /**
@@ -557,16 +559,30 @@ export function ajouterEmprise(anneau) {
   anneau.forEach(([x, z], j) => { r[2 * j] = x; r[2 * j + 1] = z; bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], z); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], z); });
   rangerEmprise(r, bb);
 }
-/** Ajoute les emprises d'une tuile Google Open Buildings ; l'habillage de la zone est refait. */
-export function ajouterEmprises(T, zone) {
+/**
+ * Ajoute les emprises d'une tuile Google Open Buildings (`tuile` : son nom), une seule fois, et la déclare affichée ; l'habillage
+ * de la zone est refait. Les emprises restent quand la tuile part, mais ne bloquent plus tant qu'elle n'est pas revenue
+ * (tuileCachee) : les maisons d'une tuile libérée n'étaient plus dessinées, et l'on butait dessus en revenant dans le
+ * quartier, le temps qu'elle se recharge (« trop de murs invisibles », testeur, 04/11).
+ */
+export function ajouterEmprises(T, zone, tuile = null) {
   if (!R.grilleB) return;
-  let o = 0;
-  for (let i = 0; i < T.n.length; i++) {
-    const n = T.n[i], cx = T.x[i] / 10, cz = T.z[i] / 10, r = new Float32Array(n * 2), bb = [1e9, 1e9, -1e9, -1e9];
-    for (let j = 0; j < n; j++) { const x = cx + T.p[o + 2 * j] / 10, z = cz + T.p[o + 2 * j + 1] / 10; r[2 * j] = x; r[2 * j + 1] = z; bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], z); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], z); }
-    o += n * 2;
-    rangerEmprise(r, bb);
+  if (tuile) R.tuilesVues.add(tuile);
+  if (!tuile || !R.tuiles.has(tuile)) {
+    if (tuile) R.tuiles.add(tuile);
+    let o = 0;
+    for (let i = 0; i < T.n.length; i++) {
+      const n = T.n[i], cx = T.x[i] / 10, cz = T.z[i] / 10, r = new Float32Array(n * 2), bb = [1e9, 1e9, -1e9, -1e9];
+      for (let j = 0; j < n; j++) { const x = cx + T.p[o + 2 * j] / 10, z = cz + T.p[o + 2 * j + 1] / 10; r[2 * j] = x; r[2 * j + 1] = z; bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], z); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], z); }
+      o += n * 2;
+      rangerEmprise(r, bb, tuile);
+    }
   }
+  refaireCarres(zone);
+}
+/** La tuile `tuile` n'est plus dessinée : ses emprises ne bloquent plus, et l'habillage de la zone se refait sans elles. */
+export function tuileCachee(tuile, zone) { if (R.tuilesVues.delete(tuile)) refaireCarres(zone); }
+function refaireCarres(zone) {
   for (const [k, g] of R.carres) {
     const [a, b] = k.split(',').map(Number);
     if ((a + 1) * CARRE > zone[0] && a * CARRE < zone[2] && (b + 1) * CARRE > zone[1] && b * CARRE < zone[3]) { liberer(g); R.carres.delete(k); }
