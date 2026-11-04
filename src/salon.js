@@ -14,7 +14,7 @@ import { firebase, joueur } from './firebase.js';
 import { compte } from './compte.js';
 import { startFlight } from './interface.js';
 import { JEU } from './jeu.js';
-import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personnagesPrets } from './personnages.js';
+import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personnagesPrets, telephone3d } from './personnages.js';
 import { retirerRuban, stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment, obstaclesPres, profondeurRue } from './rue.js';
 import { hauteurSol } from './sols.js';
@@ -415,7 +415,7 @@ function geste(nom) {
     if (c) { S.x = c.x; S.z = c.z; S.cap = c.cap; }
     else if (!S.lieu && T.mode === 'pied') poserTabouret();
     else { telephoneEnMain(6000); bulle(S, 'Allô ? Oui, je suis à Cotonou !'); S.geste = 'idle'; S.gesteFin = 0; return; }
-    telephoneEnMain(); bulle(S, 'Allô ? Oui, je suis à Cotonou !');
+    rangerTelephone(); bulle(S, 'Allô ? Oui, je suis à Cotonou !'); // assis, la pose porte la main à la joue : le personnage y met lui-même le téléphone (personnages.js)
   }
   if (nom === 'assis') { // sur la chaise libre la plus proche, dans les gradins de l'arène, ou sur son tabouret dans la rue
     if (!S.lieu && siegeGradins(S.x, S.z)) { assoirGradins(); return; }
@@ -443,15 +443,11 @@ function leverGradins() {
   S.gradin = null; S.x = g.bas[0]; S.z = g.bas[1]; S.y = 0; S.geste = 'idle'; S.saut = true;
   retirerVoisins();
 }
-// Un téléphone dans la main : tant qu'on téléphone (`duree` : quelques secondes seulement, quand on n'a pas pu
-// s'asseoir). « Quand le joueur téléphone, on ne voit pas son appareil » (un testeur, 26/10) : il partait au bout de
-// 6 s alors que la pose restait, et c'était un pavé noir de 7 cm. Un peu plus grand, et l'écran allumé.
-const TEL = { coque: new THREE.BoxGeometry(.09, .17, .02), ecran: new THREE.PlaneGeometry(.076, .145), noir: new THREE.MeshLambertMaterial({ color: '#1d2024' }), lumiere: new THREE.MeshBasicMaterial({ color: '#9fd8ff' }) };
+// Un téléphone dans la main droite, quelques secondes (`duree`), quand on n'a pas pu s'asseoir pour téléphoner (en
+// voiture, dans une salle sans chaise libre). Assis, c'est le personnage qui le tient à l'oreille (personnages.js).
 function telephoneEnMain(duree = 0) {
   if (!S.moi) return; rangerTelephone();
-  const t = new THREE.Group(), coque = new THREE.Mesh(TEL.coque, TEL.noir);
-  for (const z of [.0105, -.0105]) { const e = new THREE.Mesh(TEL.ecran, TEL.lumiere); e.position.z = z; if (z < 0) e.rotation.y = Math.PI; t.add(e); } // vu de devant comme de derrière
-  t.add(coque); t.position.set(0, .05, .05);
+  const t = telephone3d(); t.position.set(0, .05, .05);
   (S.moi.userData.main || S.moi).add(t); S.tel = t;
   S.telFin = duree ? setTimeout(rangerTelephone, duree) : 0;
 }

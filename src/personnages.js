@@ -213,7 +213,7 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
   const mixer = new THREE.AnimationMixer(corps), actions = {};
   for (const [nom, clip] of Object.entries(M.clips)) actions[nom] = mixer.clipAction(clip);
   const os = nom => corps.getObjectByName(nom);
-  const E = { g, mixer, actions, courante: null, corps, velo: null, osVelo: null, tete: new THREE.Object3D(), main: new THREE.Object3D(), osTete: os('Head'), osMain: os('R_Hand'), crane: M.crane * ech, orphelin: 0, ph: hash(i, 93) * 10 };
+  const E = { g, mixer, actions, courante: null, corps, velo: null, osVelo: null, tete: new THREE.Object3D(), main: new THREE.Object3D(), osTete: os('Head'), osMain: os('R_Hand'), osMains: [os('L_Hand'), os('R_Hand')].filter(Boolean), tel: null, crane: M.crane * ech, orphelin: 0, ph: hash(i, 93) * 10 };
   g.add(E.tete); E.main.position.set(0, 1.1, .25); g.add(E.main);
   E.tete.position.set(0, taille + .08, 0);
   const jouer = (nom, fondu = .35) => {
@@ -350,6 +350,34 @@ function poserVelo(E, velo) {
 function suivre(E) {
   if (E.osTete) { E.osTete.getWorldPosition(v); E.g.updateMatrixWorld(); E.g.worldToLocal(v); E.tete.position.set(v.x, v.y + E.crane + .03, v.z); } // juste au-dessus du crâne
   if (E.osMain) { E.osMain.getWorldPosition(v); E.g.worldToLocal(v); E.main.position.copy(v); }
+  if (E.courante === 'telephone' && E.osTete && E.osMains.length) placerTelephone(E); else if (E.tel) E.tel.visible = false;
+}
+
+// Un téléphone à écran allumé (vu de devant comme de derrière). « Quand le joueur téléphone, on ne voit pas son
+// appareil » (un testeur, 26/10) : c'était un pavé noir de 7 cm ; un peu plus grand, et l'écran allumé.
+const TEL = { coque: new THREE.BoxGeometry(.09, .17, .02), ecran: new THREE.PlaneGeometry(.076, .145), noir: new THREE.MeshLambertMaterial({ color: '#1d2024' }), lumiere: new THREE.MeshBasicMaterial({ color: '#9fd8ff' }) };
+export function telephone3d() {
+  const t = new THREE.Group();
+  for (const z of [.0105, -.0105]) { const e = new THREE.Mesh(TEL.ecran, TEL.lumiere); e.position.z = z; if (z < 0) e.rotation.y = Math.PI; t.add(e); }
+  t.add(new THREE.Mesh(TEL.coque, TEL.noir));
+  return t;
+}
+// « Quand je prends un appel, on ne voit pas le téléphone, juste ma main sur ma joue » (Murielle, 04/11) : dans la pose
+// « telephone », c'est la main GAUCHE qui monte à la joue, et le téléphone suivait la droite, posée sur le genou. Il va
+// donc dans la main qui est à la joue (la plus proche de la tête, mesurée à chaque image : la pose bouge), entre la paume
+// et la joue, l'écran contre elle, le haut vers l'oreille. Il n'apparaît qu'une fois la main arrivée près de la tête.
+// Pour le joueur, ses amis et les passants assis qui téléphonent. Repère du personnage : regard vers +z, gauche en +x.
+const vT = new THREE.Vector3(), vM = new THREE.Vector3(), axeX = new THREE.Vector3(), axeY = new THREE.Vector3(), axeZ = new THREE.Vector3(), mT = new THREE.Matrix4();
+function placerTelephone(E) {
+  E.osTete.getWorldPosition(vT); E.g.worldToLocal(vT);
+  let d = Infinity;
+  for (const o of E.osMains) { o.getWorldPosition(v2); E.g.worldToLocal(v2); const dd = v2.distanceTo(vT); if (dd < d) { d = dd; vM.copy(v2); } }
+  if (!E.tel) { E.tel = telephone3d(); E.g.add(E.tel); }
+  E.tel.visible = d < .32 && vM.y > vT.y - .16; if (!E.tel.visible) return;
+  const s = Math.sign(vM.x - vT.x) || 1, ecart = Math.abs(vM.x - vT.x); // côté de la main, et sa distance au milieu de la tête
+  E.tel.position.set(vT.x + s * Math.max(.1, ecart - .04), vM.y + .1, (vM.z + vT.z) / 2); // contre la joue, dans la paume, le haut à l’oreille
+  axeY.set(0, .8, -.6); axeZ.set(-s, 0, 0); axeX.crossVectors(axeY, axeZ); // le haut vers l'oreille (en arrière), l'écran vers la joue
+  E.tel.quaternion.setFromRotationMatrix(mT.makeBasis(axeX, axeY, axeZ));
 }
 function dansScene(o) { while (o.parent) o = o.parent; return o.isScene; }
 
