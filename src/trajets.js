@@ -182,7 +182,7 @@ export function actions() {
 
 // ---------- Monter, descendre ----------
 // Le personnage marche jusqu'au véhicule (moins d'une seconde), puis s'assoit sur la selle, ou ouvre la
-// portière et disparaît dans la voiture.
+// portière et s'assoit au volant, à gauche (on le voit par les vitres).
 function monter() {
   const V = T.veh; if (!V) return;
   const cote = V.type === 'tokpa' ? 1.5 : V.D.cache ? 1.3 : .55, bx = V.x + Math.sin(V.cap + Math.PI / 2) * cote, bz = V.z + Math.cos(V.cap + Math.PI / 2) * cote;
@@ -531,7 +531,7 @@ export function majTrajets(dt, av, tour) {
   majGps(dt, S.x, S.z, S.cap);
   return null;
 }
-/** Pose un personnage sur la selle (pilote ou passager), ou le cache dans la voiture. */
+/** Pose un personnage sur la selle (pilote ou passager), ou à sa place dans la voiture. */
 // Un tour de pédalier tous les 2,2 m environ : la phase suit la distance, donc les jambes s'arrêtent avec le vélo.
 // Le pédalier fait un tour tous les 2,2 m. L'angle est celui de la manivelle gauche, compté depuis l'avant vers le haut :
 // il décroît, pour que la pédale du haut parte vers l'avant.
@@ -542,18 +542,66 @@ function veloSous(V) {
   if (V.pedalier) V.pedalier.rotation.z = a;
   return { a, bb: [0, PEDALIER.y - y0, PEDALIER.x - z0], r: PEDALIER.r, ecart: PEDALIER.z + .01, guidon: [.23, 1.02 - y0, .39 - z0] };
 }
+/** `passager` : vrai ou faux sur un deux-roues ; en voiture, le numéro de la place (conduite.js, siege ; vrai : l'avant droite). */
 export function asseoirSur(p, V, passager) {
   if (!p) return;
-  const s = siege(V, passager); p.visible = !!s; porterCasque(p, !!s && (V.type === 'moto' || V.type === 'zem')); if (!s) return; // le casque intégral : sur une moto, pas à vélo
+  const s = siege(V, passager);
+  if (s?.voiture) { asseoirDans(p, V, s); return; }
+  p.visible = !!s; porterCasque(p, !!s && (V.type === 'moto' || V.type === 'zem')); if (!s) return; // le casque intégral : sur une moto, pas à vélo
   v3.set(0, s.y, s.z).applyAxisAngle(THREE.Object3D.DEFAULT_UP, V.cap);
   p.position.set(V.x + v3.x, V.y + v3.y, V.z + v3.z); p.rotation.y = V.cap; p.userData.jouer?.('assis');
   // Au guidon, « assis » ne suffit pas — c'est la pose d'une chaise : bras au guidon, et les jambes qui
   // tournent à vélo ou posées sur les cale-pieds à moto (personnages.js). Le passager, lui, reste assis.
   p.userData.velo?.(passager || V.D.cache ? null : V.D.pedale ? veloSous(V) : 'moto');
 }
+// « On ne voit pas le joueur dans le taxi » (testeur, 04/11) : en voiture, on est assis à sa place (conduite.js, HABITACLES),
+// vu à travers les vitres. Les fesses sur l'assise, la tête sous le toit : renversé de `incline` dans les coupés, le haut du
+// corps se raccourcit, et celui qui dépasse encore (les mamans et leur foulard : 1,10 m des fesses au sommet du crâne, contre
+// 0,92 m pour d'autres) s'enfonce dans le siège plutôt que de passer la tête à travers le toit. Les jambes vont devant, les
+// pieds au plancher — avec la seule pose « assis », elles pendaient sous la voiture — et, au volant, les mains dessus
+// (personnages.js, poserVelo). Toute la pose suit le véhicule, roulis de la Roadster en vol compris.
+const vS = new THREE.Vector3();
+function asseoirDans(p, V, s) {
+  const A = assisDans(p);
+  if (!A) { p.visible = false; return; } // un personnage dessiné en code (modèles pas encore là) ne s'assoit pas : il reste caché
+  p.visible = true; porterCasque(p, false); p.userData.jouer?.('assis');
+  const P = p.userData.poseVoiture ??= { voiture: true, buste: null, dos: [0, 1], pied: [.13, 0, 0], mains: null, volant: [.16, 0, 0], cle: '', vu: 0 };
+  const cle = `${V.g.id}:${s.place}`; if (P.cle !== cle) { P.cle = cle; P.vu = 0; } else P.vu++;
+  // La hauteur de la tête : estimée d'après la pose « assis » mesurée, puis, la pose de voiture en place, lue sur le repère
+  // posé au sommet du crâne (personnages.js, userData.tete, 3 cm au-dessus) à l'image d'avant.
+  const haut = A.rein - A.fesses + (A.tete - A.rein) * Math.cos(s.incline);
+  let y = Math.min(s.y, s.toit - haut) - A.fesses;
+  if (P.vu > 2 && p.userData.tete) y = Math.min(y, s.toit + .03 - p.userData.tete.position.y);
+  vS.set(s.x, y, s.z); V.g.updateMatrixWorld(); V.g.localToWorld(vS);
+  p.position.copy(vS); p.rotation.set(0, V.cap, V.g.rotation.z);
+  if (s.incline) { P.dos[0] = -Math.sin(s.incline); P.dos[1] = Math.cos(s.incline); P.buste = P.dos; } else P.buste = null; // renversé dans un coupé
+  P.pied[1] = s.plancher + .06 - y; P.pied[2] = s.pied;
+  P.mains = s.volant ? P.volant : null; if (s.volant) { P.volant[1] = s.volant[1] - y; P.volant[2] = s.volant[2] - s.z; }
+  p.userData.velo?.(P);
+}
+/**
+ * Où sont, dans la pose « assis », ses fesses, le bas de son dos (l'os Spine01) et le sommet de son crâne, au-dessus de ses
+ * pieds. Mesuré une fois, sur sa peau, dans la pose complète : au milieu d'un fondu depuis la marche, on aurait mesuré la
+ * pose debout (on le coupe net). Null pour un personnage dessiné en code, sans squelette.
+ */
+const vM = new THREE.Vector3();
+function assisDans(p) {
+  if (p.userData.assisVoiture !== undefined) return p.userData.assisVoiture;
+  const bassin = p.getObjectByName?.('Pelvis'), rein = p.getObjectByName?.('Spine01');
+  if (!bassin || !rein || !p.userData.maj) return (p.userData.assisVoiture = null);
+  p.userData.velo?.(null); p.userData.jouer?.('dort'); p.userData.jouer?.('assis', 0); p.userData.maj(0); p.updateMatrixWorld(true); // « dort » arrête toutes les animations, fondus compris
+  const b = p.worldToLocal(bassin.getWorldPosition(new THREE.Vector3())), r = p.worldToLocal(rein.getWorldPosition(new THREE.Vector3()));
+  let fesses = Infinity, tete = -Infinity;
+  p.traverse(o => {
+    if (!o.isSkinnedMesh) return;
+    const n = o.geometry.attributes.position.count;
+    for (let i = 0; i < n; i += 2) { o.getVertexPosition(i, vM).applyMatrix4(o.matrixWorld); p.worldToLocal(vM); tete = Math.max(tete, vM.y); if (Math.abs(vM.x - b.x) < .16 && vM.z < b.z + .03) fesses = Math.min(fesses, vM.y); }
+  });
+  return (p.userData.assisVoiture = Number.isFinite(fesses) && Number.isFinite(tete) ? { fesses, tete, rein: r.y } : null);
+}
 /** Pour les amis : leur véhicule sous eux (créé à la demande), dans la couleur qu'ils lui ont choisie (`vc`). */
 export function vehiculeDe(A, type, vc = null) {
-  if (!type) { if (A.veh) { retirerVehicule(A.veh); A.veh = null; if (A.g) { A.g.visible = true; porterCasque(A.g, false); } } return null; }
+  if (!type) { if (A.veh) { retirerVehicule(A.veh); A.veh = null; if (A.g) { A.g.visible = true; porterCasque(A.g, false); A.g.userData.velo?.(null); } } return null; }
   if (!A.veh || A.veh.type !== type) { retirerVehicule(A.veh); A.veh = creerVehicule(type, { couleur: couleurPerso(type), peinture: vc }); }
   else peindre(A.veh, vc);
   return A.veh;

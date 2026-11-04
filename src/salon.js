@@ -15,7 +15,7 @@ import { compte } from './compte.js';
 import { startFlight } from './interface.js';
 import { JEU } from './jeu.js';
 import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personnagesPrets, telephone3d } from './personnages.js';
-import { retirerRuban, stationLaPlusProche, surRoute } from './conduite.js';
+import { placesDe, retirerRuban, stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment, obstaclesPres, profondeurRue } from './rue.js';
 import { hauteurSol } from './sols.js';
 import { PEIGNABLES, PEINTURES, PRIX_PEINTURE, actions, appelerZem, asseoir, asseoirSur, choisir, couleurValide, entrerMonde, garerSonVehicule, gps, pointDeRoute, initTrajets, majTrajets, peindreSonVehicule, peintureDe, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe, vehiculeGareDe } from './trajets.js';
@@ -1175,12 +1175,12 @@ export function majSalon(dt) {
     // au milieu de la route chez les autres.
     const V = vehiculeDe(A, VEH_AMIS.includes(e.vh) && !(e.i || S.lieu) ? e.vh : null, PEIGNABLES.includes(e.vh) ? couleurValide(e.vc) : null); // sa peinture : pas sur le zém qu'il a hélé
     if (enAvion) { /* dans l'avion : on ne le voit pas */ }
-    else if (V) { V.x = A.x; V.z = A.z; V.cap = A.cap; V.y = typeof e.y === 'number' ? e.y : 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; if (e.ap) assoirApprenti(A.g, V); else asseoirSur(A.g, V, e.vh === 'zem'); } // l'ami apprenti : assis à la porte ouverte du tokpa-tokpa (metiers.js)
-    else if (e.sur && A.g && !(e.i || S.lieu)) { // passager d'un ami : assis derrière lui (dans la voiture, on ne le voit pas)
+    else if (V) { V.x = A.x; V.z = A.z; V.cap = A.cap; V.y = typeof e.y === 'number' ? e.y : 0; V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; if (e.ap) assoirApprenti(A.g, V); else asseoirSur(A.g, V, e.vh === 'zem'); } // l'ami apprenti : assis à la porte ouverte du tokpa-tokpa (metiers.js) ; au volant, on le voit à gauche, par les vitres
+    else if (e.sur && A.g && !(e.i || S.lieu)) { // passager d'un ami : assis derrière lui, ou à sa place dans la voiture (on le voit par les vitres, testeur 04/11)
       const Vd = e.sur === S.R?.id ? T.veh : vehiculeAmi(S.autres.get(e.sur)); // dans sa voiture, qu'elle roule ou soit garée
-      if (Vd) asseoirSur(A.g, Vd, true); else { A.g.position.set(A.x, ey, A.z); A.g.rotation.y = A.cap; }
+      if (Vd) asseoirSur(A.g, Vd, placeAmi(e.sur, A.id)); else { A.g.position.set(A.x, ey, A.z); A.g.rotation.y = A.cap; }
     }
-    else if (A.g) { A.g.position.set(A.x, typeof e.y === 'number' ? e.y : 0, A.z); A.g.rotation.y = A.cap; A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? (e.a === 'course' && A.g.userData.peut?.('course') ? 'course' : 'marche') : ANIMS.has(e.a) ? e.a : 'idle'); } // l'ami qui court, court aussi chez soi
+    else if (A.g) { A.g.userData.velo?.(null); A.g.position.set(A.x, typeof e.y === 'number' ? e.y : 0, A.z); A.g.rotation.y = A.cap; A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? (e.a === 'course' && A.g.userData.peut?.('course') ? 'course' : 'marche') : ANIMS.has(e.a) ? e.a : 'idle'); } // l'ami qui court, court aussi chez soi
     const G = vehiculeGareDe(A, !S.lieu && Array.isArray(e.gv) && VEH_GARES.includes(e.gv[0]) && e.gv.slice(1, 4).every(Number.isFinite) ? e.gv : null, couleurValide(e.vc));
     if (G) {
       G.g.visible = (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < VU * VU;
@@ -1289,7 +1289,7 @@ function amisAuVolant() {
     const V = vehiculeAmi(A); if (!V || !A.nom || now < (A.refus || 0)) continue;
     const gare = V === A.garee;
     if (Math.hypot(V.x - S.x, V.z - S.z) > (V.D.cache ? 3.6 : 3) || (!gare && (A.vitesse ?? 0) > 1)) continue; // à côté, et arrêté
-    const places = V.D.cache ? 3 : 1, pris = [...S.autres.values()].filter(B => B.etat?.sur === A.id).length;
+    const places = placesDe(V) - 1, pris = [...S.autres.values()].filter(B => B.etat?.sur === A.id).length; // quatre dans une voiture, un dans les coupés et sur une moto
     if (pris < places) out.push({ texte: V.D.cache ? `Monter dans la voiture ${deNom(A.nom)}` : gare ? `Monter sur la moto ${deNom(A.nom)}` : `Monter derrière ${A.nom}`, f: () => monterAmi(A) });
   }
   return out;
@@ -1309,8 +1309,17 @@ function majAmi() {
   if (A && Array.isArray(e?.ex) && e.ex.includes(S.R?.id)) { A.refus = performance.now() + 120000; descendreAmi(`${A.nom} te fait descendre.`); return null; }
   if (!A || !e || !V) { descendreAmi(A ? `Fin du trajet avec ${A.nom} : tu descends.` : 'Ton ami a quitté le salon : tu descends.'); return null; }
   S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; S.anim = 'assis';
-  asseoirSur(S.moi, V, true);
+  asseoirSur(S.moi, V, placeAmi(S.ami, S.R?.id));
   return { x: V.x, y: V.y, z: V.z, cap: V.cap, dist: V.D.cache ? 8 : 6, haut: V.D.cache ? 3.2 : 2.6 };
+}
+/**
+ * La place d'un passager `qui` dans le véhicule de `chauffeur` : les passagers rangés par identifiant, le même ordre chez
+ * tous les joueurs ; le premier à l'avant droite, les suivants à l'arrière (conduite.js, HABITACLES). Sur une moto, derrière.
+ */
+function placeAmi(chauffeur, qui) {
+  const ids = [...S.autres.values()].filter(B => B.etat?.sur === chauffeur).map(B => B.id);
+  if (T.mode === 'ami' && S.ami === chauffeur && S.R?.id) ids.push(S.R.id);
+  ids.sort(); return 1 + Math.max(0, ids.indexOf(qui));
 }
 function actionsAmi() {
   const A = S.autres.get(S.ami), V = vehiculeAmi(A);
@@ -1324,7 +1333,7 @@ function actionsProprio() {
 }
 function descendreAmi(message = '') {
   const A = S.autres.get(S.ami), V = vehiculeAmi(A) ?? A?.veh ?? A?.garee;
-  T.mode = 'pied'; S.ami = null; S.y = 0; S.anim = 'idle';
+  T.mode = 'pied'; S.ami = null; S.y = 0; S.anim = 'idle'; S.moi?.userData.velo?.(null); // il quitte la pose assise de la voiture
   if (V) { const cote = V.D.cache ? 1.6 : 1; S.x = V.x + Math.sin(V.cap + Math.PI / 2) * cote; S.z = V.z + Math.cos(V.cap + Math.PI / 2) * cote; S.cap = V.cap; }
   if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; }
   if (message) ligne(message);

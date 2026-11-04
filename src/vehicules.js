@@ -135,9 +135,16 @@ export function partsTokpa(c = {}) {
   if (c.passagers !== false) for (let x = -1.9; x < 1.2; x += 0.62) add(new THREE.SphereGeometry(0.12, 6, 5).translate(x, 1.66, -0.75), '#4a2f22'); // des têtes sans corps : pas dans le minibus dont on ouvre la porte
   return P;
 }
-export function partsVoiture(couleur) {
+// « On ne voit pas le joueur dans le taxi » (testeur, 04/11) : l'habitacle était une boîte sombre et pleine. Pour les
+// voitures qu'on conduit (conduite.js, `vitres`), les vitres sont rendues à part, transparentes (repère VITRE au lieu d'une
+// couleur), et des montants dans la couleur de la carrosserie les tiennent. La circulation et Zém Run gardent la boîte pleine.
+export const VITRE = 'vitre';
+/** Montants avant, milieu et arrière d'un habitacle vitré, de chaque côté (repère des pièces : avant vers +x). */
+function montants(add, couleur, xs, bas, haut, z, e = .1) { for (const x of xs) for (const s of [1, -1]) add(B3(e, haut - bas, .06).translate(x, (bas + haut) / 2, s * z), couleur); }
+export function partsVoiture(couleur, { vitres = false } = {}) {
   const P = [], add = (g, hex) => P.push([g, hex]);
-  add(B3(4.3, 0.72, 1.8).translate(0, 0.68, 0), couleur); add(B3(2.3, 0.6, 1.62).translate(-0.25, 1.32, 0), '#2e3a40');
+  add(B3(4.3, 0.72, 1.8).translate(0, 0.68, 0), couleur); add(B3(2.3, 0.6, 1.62).translate(-0.25, 1.32, 0), vitres ? VITRE : '#2e3a40');
+  if (vitres) montants(add, couleur, [0.85, -0.3, -1.35], 1.04, 1.62, 0.79);
   add(B3(2.2, 0.08, 1.66).translate(-0.25, 1.65, 0), couleur);
   for (const x of [1.35, -1.35]) for (const z of [0.86, -0.86]) add(C3(0.33, 0.33, 0.22, 10).rotateX(Math.PI / 2).translate(x, 0.33, z), '#1c1c1e');
   for (const z of [0.6, -0.6]) add(B3(0.05, 0.14, 0.32).translate(2.16, 0.78, z), '#f4efd8');
@@ -145,11 +152,12 @@ export function partsVoiture(couleur) {
 }
 // La citadine : une petite cinq-portes haute et courte, celles qu'on croise par milliers à Cotonou. Toit
 // bombé, grandes vitres, pare-chocs gris, une barre de toit. Dessinée en boîtes, comme les autres.
-export function partsCitadine(couleur = '#c9342c') {
+export function partsCitadine(couleur = '#c9342c', { vitres = false } = {}) {
   const P = [], add = (g, hex) => P.push([g, hex]);
-  const vitre = '#2b343a', gris = '#8d9196';
+  const vitre = vitres ? VITRE : '#2b343a', gris = '#8d9196';
   add(B3(3.55, .62, 1.68).translate(0, .62, 0), couleur);                       // caisse
   add(B3(2.05, .62, 1.56).translate(-.12, 1.22, 0), vitre);                     // habitacle vitré, haut et court
+  if (vitres) montants(add, couleur, [.85, -.2, -1.09], .93, 1.53, .76);
   add(B3(1.95, .08, 1.6).translate(-.12, 1.55, 0), couleur);                    // toit
   for (const z of [.58, -.58]) add(B3(1.1, .05, .07).translate(-.15, 1.62, z), gris); // barres de toit
   add(B3(.5, .34, 1.66).translate(1.74, .52, 0), gris);                         // pare-chocs avant
@@ -161,17 +169,26 @@ export function partsCitadine(couleur = '#c9342c') {
 }
 // Le bolide électrique : un coupé bas en coin, verrière sombre d'un seul tenant, bas de caisse noir et
 // grandes roues — la silhouette des sportives électriques. Dessiné en boîtes, comme les autres véhicules.
-export function partsBolide(couleur = '#eceff2') {
+// Avec `vitres` (le bolide qu'on conduit), la verrière monte de 22 cm : à 1,05 m, aucun personnage assis n'y tenait, même
+// renversé dans son siège ; le toit à 1,24 m reste celui d'une sportive basse.
+export function partsBolide(couleur = '#eceff2', { vitres = false } = {}) {
   const P = [], add = (g, hex) => P.push([g, hex]);
-  const sombre = '#15181c', vitre = '#222931', jante = '#aab1b8';
+  const sombre = '#15181c', vitre = vitres ? VITRE : '#222931', jante = '#aab1b8';
   add(B3(3.9, 0.24, 1.66).translate(0, 0.25, 0), sombre);                            // châssis, plus étroit que les roues
   add(B3(4.2, 0.28, 1.76).translate(0, 0.5, 0), couleur);                            // flancs
   add(B3(1.7, 0.3, 1.92).translate(-1.05, 0.54, 0), couleur);                        // épaules arrière, larges
   add(B3(1.8, 0.2, 1.68).rotateZ(-0.075).translate(1.2, 0.72, 0), couleur);          // capot qui plonge
   add(B3(0.66, 0.14, 1.46).rotateZ(-0.26).translate(2.02, 0.58, 0), couleur);        // le museau, en pointe
-  add(B3(1.75, 0.28, 1.4).translate(-0.15, 0.82, 0), vitre);                         // verrière basse
-  add(B3(1.1, 0.09, 1.26).translate(-0.4, 1.0, 0), couleur);                         // toit fin
-  add(B3(0.95, 0.2, 1.34).rotateZ(0.34).translate(-1.2, 0.86, 0), vitre);            // lunette arrière fuyante
+  if (vitres) {
+    add(B3(1.75, 0.5, 1.4).translate(-0.15, 0.93, 0), vitre);                         // verrière, assez haute pour une tête
+    add(B3(1.15, 0.07, 1.3).translate(-0.35, 1.2, 0), couleur);                       // toit fin
+    add(B3(0.82, 0.05, 1.3).rotateZ(0.59).translate(-1.27, 0.975, 0), vitre);         // lunette, du toit à la croupe
+    montants(add, couleur, [0.69], 0.68, 1.18, 0.69, 0.07);
+  } else {
+    add(B3(1.75, 0.28, 1.4).translate(-0.15, 0.82, 0), vitre);                         // verrière basse
+    add(B3(1.1, 0.09, 1.26).translate(-0.4, 1.0, 0), couleur);                         // toit fin
+    add(B3(0.95, 0.2, 1.34).rotateZ(0.34).translate(-1.2, 0.86, 0), vitre);            // lunette arrière fuyante
+  }
   add(B3(0.8, 0.26, 1.88).translate(-1.76, 0.62, 0), couleur);                       // croupe
   add(B3(0.1, 0.09, 1.56).translate(-2.13, 0.68, 0), '#c1272d');                     // bandeau rouge, en travers
   add(B3(0.14, 0.07, 1.18).translate(2.12, 0.6, 0), '#f3f6ff');                      // bandeau de phares
@@ -186,7 +203,9 @@ export function partsBolide(couleur = '#eceff2') {
 // Le Roadster : le coupé électrique d'après la photo que Murielle a envoyée (25/10). Un coin très bas, un museau
 // pointu, une verrière sombre d'un seul tenant du pare-brise à la lunette, des ailes larges au-dessus de grandes
 // roues, et une arête qui court sur tout le flanc. Dessiné en boîtes, comme les autres véhicules du jeu.
-export function partsRoadster(couleur = '#dfe3e7') {
+// Avec `vitres` (la Roadster qu'on conduit), le toit de verre et deux vitres de côté laissent voir qui est dedans ; le
+// pare-brise et la lunette gardent leur teinte sombre, qui dessine sa silhouette.
+export function partsRoadster(couleur = '#dfe3e7', { vitres = false } = {}) {
   const P = [], add = (g, hex) => P.push([g, hex]);
   const sombre = '#141619', verre = '#191e24', jante = '#b9c0c6';
   // La carrosserie : trois dalles empilées, de plus en plus courtes, qui dessinent le coin.
@@ -197,8 +216,9 @@ export function partsRoadster(couleur = '#dfe3e7') {
   add(B3(0.95, 0.15, 1.26).rotateZ(-0.34).translate(2.05, 0.62, 0), couleur);       // museau en pointe
   // La verrière, d'un seul tenant du pare-brise à la lunette.
   add(B3(0.85, 0.30, 1.42).rotateZ(-0.46).translate(0.86, 0.99, 0), verre);         // pare-brise très couché
-  add(B3(1.55, 0.14, 1.46).translate(-0.20, 1.12, 0), verre);                       // toit de verre
+  add(B3(1.55, 0.14, 1.46).translate(-0.20, 1.12, 0), vitres ? VITRE : verre);       // toit de verre
   add(B3(1.15, 0.26, 1.44).rotateZ(0.40).translate(-1.22, 0.98, 0), verre);         // lunette fuyante
+  if (vitres) for (const z of [0.72, -0.72]) add(B3(1.5, 0.2, 0.03).translate(-0.2, 0.955, z), VITRE); // vitres latérales, entre le flanc et le toit de verre
   add(B3(0.95, 0.20, 1.72).translate(-1.90, 0.76, 0), couleur);                     // croupe coupée net
   // Les ailes : des arches basses et larges, juste au-dessus des roues.
   for (const x of [1.42, -1.46]) add(B3(1.25, 0.30, 1.98).translate(x, 0.60, 0), couleur);

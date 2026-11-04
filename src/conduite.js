@@ -13,7 +13,7 @@ import { E } from './etat.js';
 import { scene } from './scene.js';
 import { plusTard } from './telechargements.js';
 import { ELARGIR, TABLIERS, mergeColored, roadLines } from './ville.js';
-import { PEDALIER, TOKPA_3D, ZEMS_3D, gabaritDe, matVeh, partsBolide, partsPedalier, partsRoadster, partsCitadine, partsTokpa, partsVelo, partsVoiture, partsZem } from './vehicules.js';
+import { B3, PEDALIER, TOKPA_3D, VITRE, ZEMS_3D, gabaritDe, matVeh, partsBolide, partsPedalier, partsRoadster, partsCitadine, partsTokpa, partsVelo, partsVoiture, partsZem } from './vehicules.js';
 import { chargeurGLB } from './textures.js';
 
 // ---------- Conduire dans la ville (Ma vie, salon entre amis) ----------
@@ -25,7 +25,7 @@ import { chargeurGLB } from './textures.js';
 
 // Vitesses en m/s (13,9 = 50 km/h ; on roule plus vite qu'en vrai : la ville est grande), essence à l'échelle du jeu : des réservoirs de quelques litres, qu'on voit
 // baisser en roulant, mais assez de kilomètres par litre pour qu'une course de zém ou de taxi rapporte plus que
-// l'essence qu'elle coûte (metiers.js).
+// l'essence qu'elle coûte (metiers.js). `cache` : on est dedans (portières, toit) — on le voit à travers les vitres (HABITACLES).
 export const VEHICULES = {
   moto: { nom: 'moto', long: 2, larg: .8, vmax: 22, accel: 5.5, frein: 9, recul: 2.5, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.8 }, // le passager au fond de la selle, derrière la pilote reculée (03/11)
   voiture: { nom: 'voiture', long: 4.4, larg: 1.8, vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
@@ -51,6 +51,7 @@ const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote aut
 // c'est son personnage qu'on voit dessus), zémidjan de « 3D monde » (gilet jaune, casque). Gabarits : avant vers
 // +x (vehicules.js). Tant qu'ils ne sont pas chargés, les modèles dessinés en code.
 const MODELES = { voiture: null, moto: null, taxi: null };
+if (import.meta.env.DEV) window.__vehicules = { MODELES }; // pour les tests : la voiture dessinée en code, en vidant MODELES
 const LONGUEURS = { voiture: 4.4, moto: 2, taxi: 4.3 };
 const DEMI_TOUR = { voiture: true, moto: true, taxi: false }; // le redressement aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu (phare devant)
 // Selle du modèle Tripo, mesurée : avec [1,02 ; −0,08] du zém, on s'asseyait sur le réservoir ; avec [0,86 ; −0,27], encore
@@ -69,22 +70,30 @@ export function creerVehicule(type, { couleur, peinture } = {}) {
   const D = VEHICULES[type], g = new THREE.Group();
   const gabarit = type === 'zem' ? ZEMS_3D.moto : MODELES[type];
   let m, dessin = null;
+  const H = HABITACLES[type + ((type === 'tokpa' ? TOKPA_3D.geo : gabarit && MODELES[type]) ? ':tripo' : '')] || null; // les places, les vitres et l'intérieur d'une voiture (plus bas)
   if (type === 'tokpa') { m = TOKPA_3D.geo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(mergeColored(partsTokpa({ passagers: false })), matVeh); m.castShadow = true; } // le minibus de Zém Run (Tripo)
   else if (gabarit) m = gabarit.clone();
   else {
-    dessin = c => mergeColored(type === 'velo' ? partsVelo({ pedalier: false }) : type === 'citadine' ? partsCitadine(c || '#c9342c') : type === 'bolide' ? partsBolide(c || '#eceff2') : type === 'roadster' ? partsRoadster(c || '#dfe3e7') : type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : c || '#7a1f2b') : partsZem({ pilote: type === 'zem', carrosserie: c, chemise: '#f2c21b' }));
+    // Les voitures dessinées : leurs vitres à part (VITRE), transparentes, pour qu'on voie qui est dedans.
+    const pieces = c => (type === 'velo' ? partsVelo({ pedalier: false }) : type === 'citadine' ? partsCitadine(c || '#c9342c', { vitres: true }) : type === 'bolide' ? partsBolide(c || '#eceff2', { vitres: true }) : type === 'roadster' ? partsRoadster(c || '#dfe3e7', { vitres: true }) : type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : c || '#7a1f2b', { vitres: true }) : partsZem({ pilote: type === 'zem', carrosserie: c, chemise: '#f2c21b' }));
+    dessin = c => mergeColored(pieces(c).filter(([, h]) => h !== VITRE));
     m = new THREE.Mesh(dessin(peinture || couleur), matVeh); m.castShadow = true; m.receiveShadow = true; // le vélo est vide : c'est le personnage du joueur qu'on voit dessus
+    const vitres = pieces(couleur).filter(([, h]) => h === VITRE);
+    if (vitres.length) m.add(new THREE.Mesh(mergeColored(vitres.map(([v]) => [v, '#000000'])), MAT_VITRE));
   }
   m.rotation.y = -Math.PI / 2 + (gabarit && MODELES[type] && DEMI_TOUR[type] ? Math.PI : 0); g.add(m); // avant +x → +z
+  if (H?.miroir) m.scale.z = -1; // le taxi de Zém Run a son volant à droite : en miroir, il l'a à gauche, comme au Bénin
+  if (H) g.add(amenager(H));
   scene.add(g);
   // Roues qui tournent, fumée, poussière (roues.js) : elles se posent dans le repère du véhicule, l'avant vers +x,
   // alors que le groupe a son avant en +z. Sans ce quart de tour, les quatre disques sortaient de chaque côté de la moto.
   let anim = null;
   if (type === 'moto' || type === 'zem') { const axe = new THREE.Group(); axe.rotation.y = -Math.PI / 2; g.add(axe); anim = animerMoto(axe, { parent: scene }); }
-  const V = { type, D, g, x: 0, z: 0, y: 0, cap: 0, v: 0, km: 0, anim, selle: (gabarit && MODELES[type] && SELLES[type]) || D.selle, modele: m, dessin, couleur, peinture: null };
+  const V = { type, D, g, x: 0, z: 0, y: 0, cap: 0, v: 0, km: 0, anim, selle: (gabarit && MODELES[type] && SELLES[type]) || D.selle, modele: m, dessin, couleur, peinture: null, habitacle: H };
   // Le vélo : son pédalier à part, qui tourne sous les pieds du cycliste (trajets.js, asseoirSur ; personnages.js, poserVelo).
   if (type === 'velo') { V.pedalier = new THREE.Mesh(mergeColored(partsPedalier()), matVeh); V.pedalier.position.set(PEDALIER.x, PEDALIER.y, 0); V.pedalier.castShadow = true; m.add(V.pedalier); }
-  if (peinture && gabarit && type !== 'zem') peindre(V, peinture); else V.peinture = peinture || null;
+  if (H?.vitres) vitrer(V, peinture);
+  else if (peinture && gabarit && type !== 'zem') peindre(V, peinture); else V.peinture = peinture || null;
   return V;
 }
 
@@ -95,17 +104,22 @@ export function creerVehicule(type, { couleur, peinture } = {}) {
 // gris ou noirs, les feux orange et la peau du pilote tirent vers le jaune. Le nuanceur remplace donc ce rouge-là par
 // la peinture, en gardant ses reflets et ses ombres (sa clarté, rapportée à celle d'un rouge moyen, 0,35).
 const PEINTS = new Map(), ORIGINES = new WeakMap(); // un matériau par (matériau d'origine, couleur) : deux joueurs en bleu roi se le partagent
-function materiauPeint(mat, couleur) {
-  const cle = `${mat.uuid}|${couleur}`; let p = PEINTS.get(cle); if (p) return p;
-  p = mat.clone(); const u = { value: new THREE.Color(couleur) }; // Color() passe le code en couleurs linéaires, comme la texture lue
+/** Le matériau d'origine `mat`, repeint de `couleur` et/ou percé à ses vitres (`Z` : ses uniformes, vitrer). */
+function materiauPeint(mat, couleur, Z = null) {
+  if (!couleur && !Z) return mat;
+  const cle = `${mat.uuid}|${couleur || ''}|${Z ? 'v' : ''}`; let p = PEINTS.get(cle); if (p) return p;
+  p = mat.clone(); const u = { value: new THREE.Color(couleur || '#000') }; // Color() passe le code en couleurs linéaires, comme la texture lue
   p.onBeforeCompile = sh => {
     sh.uniforms.uPeinture = u;
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uPeinture;').replace('#include <map_fragment>', `#include <map_fragment>
+    if (couleur) sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uPeinture;').replace('#include <map_fragment>', `#include <map_fragment>
   { vec3 c = diffuseColor.rgb; float r = max(c.r, 1e-4);
     float k = (1. - smoothstep(.12, .2, max(c.g, c.b) / r)) * (1. - smoothstep(.06, .1, (c.g - c.b) / r)) * smoothstep(.015, .04, c.r);
     diffuseColor.rgb = mix(c, min(uPeinture * (c.r / .35), vec3(1.)), k); }`);
+    // Après la peinture dans le code, donc avant elle dans le nuanceur : c'est la texture d'origine qui dit où est la vitre (en
+    // noir brillant, toute la carrosserie aurait passé pour une vitre). La vitre est dessinée à part (materiauVerre).
+    if (Z) percer(sh, Z, 'if (vitreIci(diffuseColor.rgb)) discard;');
   };
-  p.customProgramCacheKey = () => 'peinture'; // un seul programme pour toutes les couleurs : seule la variable change
+  p.customProgramCacheKey = () => `peinture|${couleur ? 'p' : ''}|${Z ? 'v' : ''}`; // un seul programme pour toutes les couleurs : seule la variable change
   PEINTS.set(cle, p); return p;
 }
 /** Repeint un véhicule déjà posé ; `couleur` nulle : il retrouve sa couleur d'origine. */
@@ -114,17 +128,136 @@ export function peindre(V, couleur) {
   V.peinture = couleur || null;
   if (V.dessin) { const vieille = V.modele.geometry; V.modele.geometry = V.dessin(couleur || V.couleur); vieille.dispose(); return; }
   V.modele.traverse(n => {
-    if (!n.isMesh) return;
+    if (!n.isMesh || n.userData.verre) return; // la vitre ne se peint pas
     if (!ORIGINES.has(n)) ORIGINES.set(n, n.material);
-    n.material = couleur ? materiauPeint(ORIGINES.get(n), couleur) : ORIGINES.get(n);
+    n.material = materiauPeint(ORIGINES.get(n), couleur, V.habitacle?.vitres ? VITRES_U.get(ORIGINES.get(n)) : null);
   });
+}
+
+// ---------- Dedans : les places, les vitres, l'intérieur ----------
+// « On ne voit pas le joueur dans le taxi » (testeur, 04/11, capture : un taxi jaune et vert qui roule, vide) : en voiture,
+// le personnage était caché (siege() rendait null), et « le client n'apparaît pas non plus dans la voiture ». On le voit
+// maintenant assis au volant, à GAUCHE — on roule à droite au Bénin —, ses passagers chacun à sa place : l'avant droite,
+// puis les trois de l'arrière. Places, plafond, plancher et volant mesurés au rayon sur chaque modèle (le taxi Tripo de
+// Zém Run, la voiture du joueur) ou relevés sur les pièces des voitures dessinées en code (vehicules.js), dans le repère du
+// véhicule : la gauche vers +x, le haut vers +y, l'avant vers +z. Une place : [x, dessus de l'assise, z, plafond au-dessus
+// de la tête]. L'ordre : 0 le conducteur, 1 l'avant droite, 2 l'arrière droite, 3 l'arrière gauche, 4 l'arrière milieu.
+// `incline` : le dossier renversé (radians), dans les voitures basses, sinon aucune tête n'y tient ; `pied` : jusqu'où
+// les pieds vont devant les fesses ; `miroir` : le modèle retourné de gauche à droite.
+const cinq = (av, ar) => [av, [-av[0], ...av.slice(1)], [-ar[0], ...ar.slice(1)], ar, [0, ...ar.slice(1)]];
+const deux = av => [av, [-av[0], ...av.slice(1)]];
+const HABITACLES = {
+  // Le taxi Tripo a son intérieur (sièges à 0,68 m, plancher à 0,50 m, toit intérieur à 1,57-1,62 m, volant à droite : on le
+  // retourne). Ses vitres de côté sont ouvertes, comme celles des taxis de Cotonou ; le pare-brise et la lunette arrière
+  // sont percés à leur plan, mesuré sur le toit (point de la vitre sous le toit et au ras du capot ou du coffre).
+  'taxi:tripo': { miroir: true, places: cinq([.38, .68, .14, 1.56], [.44, .69, -.62, 1.59]), plancher: .5, volant: [.38, 1.04, .5], pied: .62,
+    vitres: { zones: [[[-.72, 1.16, .28], [.72, 1.72, 1.25], [0, .825, .566, 1.546]], [[-.74, 1.34, -1.78], [.74, 1.72, -.96], [0, .842, -.539, 1.957]]], teinte: [.24, .5, 0] } }, // le joint du bas reste noir : percé, il s'effilochait
+  // La voiture du joueur (Tripo) est une coque fermée, vitres teintées comprises : on perce tout ce qui est sombre et gris
+  // entre le bas des vitres (1,12 m) et le toit, et l'on pose dedans un habitacle (bac sombre, sièges, tableau de bord, volant).
+  'voiture:tripo': { places: cinq([.38, .55, 0, 1.57], [.42, .55, -.86, 1.52]), plancher: .45, volant: [.38, 1.1, .46], pied: .6,
+    vitres: { zones: [[[-1.1, 1.12, -2.25], [1.1, 1.62, 1.4], null]], teinte: [.24, .55, 0] },
+    interieur: { bac: [.72, .95, 1.12, -1.85, .95], dos: 1.42, dosAr: 1.32, tableau: [.62, 1.0, .95, 1.17] } }, // le bac va jusqu'au coffre, sous la lunette
+  // Les voitures dessinées sont des blocs pleins jusqu'au bas des vitres : une plaque sombre fait le plancher visible.
+  voiture: { places: cinq([.38, .6, .12, 1.6], [.42, .6, -.9, 1.6]), plancher: .4, volant: [.38, 1.18, .5], pied: .6,
+    interieur: { plaque: [.79, 1.045, -1.38, .88], dos: 1.42, dosAr: 1.34, tableau: [.62, .88, 1.045, 1.18] } },
+  citadine: { places: cinq([.37, .5, .08, 1.5], [.4, .5, -.78, 1.5]), plancher: .34, volant: [.37, 1.07, .45], pied: .58,
+    interieur: { plaque: [.76, .935, -1.13, .89], dos: 1.32, dosAr: 1.25, tableau: [.62, .89, .935, 1.06] } },
+  // Le bolide (verrière relevée à 1,18 m, vehicules.js) et la Roadster : deux places, assis bas et renversés.
+  bolide: { places: deux([.33, .26, -.05, 1.15]), plancher: .2, volant: [.33, .86, .4], pied: .72, incline: .55,
+    interieur: { plaque: [.68, .66, -1.0, .7], tableau: [.42, .7, .66, .8] } },
+  roadster: { places: deux([.34, .24, -.1, 1.16]), plancher: .2, volant: [.34, .93, .36], pied: .72, incline: .6,
+    interieur: { plaque: [.7, .865, -.95, .55], tableau: [.3, .6, .865, .96] } },
+  // Le tokpa-tokpa Tripo : le chauffeur seul, assis haut derrière le pare-brise (de 1,82 m à z = 2,0 jusqu'à 2,37 m à z = 1,6),
+  // le toit à 2,5 m. Ses vitres sont peintes en bleu ciel dans la texture : on perce celles de la cabine (pare-brise et deux
+  // portières), et une cloison (le fond du bac) cache l'arrière, où les passagers ne sont pas dessinés.
+  'tokpa:tripo': { places: [[.45, 1.1, 1.3, 2.38]], plancher: .78, volant: [.45, 1.58, 1.66], pied: .5,
+    vitres: { zones: [[[-.96, 1.7, 1.45], [.96, 2.46, 2.15], [0, .588, .809, 2.688]], [[.75, 1.55, 1.3], [1.06, 2.42, 2.12], null], [[-1.06, 1.55, 1.3], [-.75, 2.42, 2.12], null]], teinte: [0, 0, 1] }, // les rétroviseurs, bleutés eux aussi, dépassent à 1,2 m : on les garde
+    interieur: { bac: [.8, .75, 2.3, 1.12, 1.55], tableau: [1.55, 1.98, .75, 1.75] } }, // sous le toit bombé, qui descend à 2,35 m sur les bords
+};
+HABITACLES.taxi = HABITACLES.voiture; // le taxi dessiné : la voiture dessinée, en jaune
+/** Combien de places compte le véhicule, conducteur compris : 5 dans une voiture, 2 dans les coupés et sur une moto. */
+export const placesDe = V => V?.habitacle?.places.length ?? (V?.D.cache ? 1 : 2);
+const MAT_VITRE = new THREE.MeshStandardMaterial({ color: '#1d2b34', roughness: .08, metalness: .25, transparent: true, opacity: .32, depthWrite: false });
+const MAT_BAC = new THREE.MeshLambertMaterial({ color: '#232120', side: THREE.BackSide });
+/** L'intérieur d'une voiture (repère du véhicule) : le plancher visible, les dossiers, le tableau de bord et le volant. */
+function amenager(H) {
+  const g = new THREE.Group(), I = H.interieur; if (!I) return g;
+  const P = [], add = (geo, hex) => P.push([geo, hex]), sombre = '#262526', siege = '#3b3632', av = H.places[0], ar = H.places[2];
+  // Un bac vu de l'intérieur (faces arrière) : par les vitres, on voit son fond et ses flancs, et rien de la rue au travers
+  // de la coque — la voiture Tripo n'a pas d'intérieur, et ses faces ne se voient que du dehors.
+  if (I.bac) { const [l, b, h, z0, z1] = I.bac, m = new THREE.Mesh(new THREE.BoxGeometry(2 * l, h - b, z1 - z0), MAT_BAC); m.position.set(0, (b + h) / 2, (z0 + z1) / 2); g.add(m); }
+  const [l, sol, z0, z1] = I.plaque || [I.bac[0], I.bac[1], I.bac[3], I.bac[4]];
+  if (I.plaque) add(B3(2 * l, .02, z1 - z0).translate(0, sol + .01, (z0 + z1) / 2), sombre);
+  // Les dossiers, juste derrière le dos des personnages (qui recule jusqu'à 22 cm derrière le bassin) ; pas dans les coupés,
+  // où l'on est renversé : le siège bas disparaît sous le flanc.
+  if (I.dos) for (const s of [1, -1]) { add(B3(.5, I.dos - sol, .1).translate(s * av[0], (sol + I.dos) / 2, av[2] - .3), siege); add(B3(.26, .14, .08).translate(s * av[0], I.dos + .08, av[2] - .31), siege); }
+  if (I.dosAr && H.places.length > 2) add(B3(2 * l - .08, I.dosAr - sol, .1).translate(0, (sol + I.dosAr) / 2, ar[2] - .32), siege);
+  const [ta, tb, ty0, ty1] = I.tableau; add(B3(2 * l - .04, ty1 - ty0, tb - ta).translate(0, (ty0 + ty1) / 2, (ta + tb) / 2), sombre);
+  // Le volant devant le conducteur, tourné vers lui.
+  const [vx, vy, vz] = H.volant;
+  add(new THREE.TorusGeometry(.17, .022, 6, 18).rotateX(.47).translate(vx, vy, vz), '#161617');
+  const m = new THREE.Mesh(mergeColored(P), matVeh); m.receiveShadow = true; g.add(m);
+  return g;
+}
+// Les vitres d'un modèle Tripo, percées dans sa texture : un texel est une vitre s'il est sombre et gris (pas la peinture
+// jaune, verte ou rouge ; `teinte` [clarté, saturation], ou bleuté pour le tokpa-tokpa, [0, 0, 1]) et s'il est dans une
+// des zones de vitres (boîte, et plan de la vitre à 6 cm près). La carrosserie y
+// est trouée (materiauPeint), et une copie du modèle n'y dessine qu'un verre teinté, transparent (materiauVerre).
+const VITRES_U = new WeakMap(); // matériau d'origine → ses uniformes (repère du véhicule, zones)
+function percer(sh, Z, quoi) {
+  Object.assign(sh.uniforms, Z);
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform mat4 uVeh;\nvarying vec3 vVeh;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvVeh = (uVeh * vec4(transformed, 1.)).xyz;');
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+uniform vec3 uBas[3]; uniform vec3 uHaut[3]; uniform vec4 uPlan[3]; uniform vec3 uTeinte; varying vec3 vVeh;
+bool vitreIci(vec3 c) {
+  float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b));
+  if (uTeinte.z > .5 ? c.b < max(c.r, c.g) * 1.06 : mx > uTeinte.x || mx - mn > uTeinte.y * mx + .004) return false;
+  for (int i = 0; i < 3; i++) if (all(greaterThanEqual(vVeh, uBas[i])) && all(lessThanEqual(vVeh, uHaut[i])) && abs(dot(uPlan[i].xyz, vVeh) - uPlan[i].w) < .06) return true;
+  return false;
+}`).replace('#include <map_fragment>', `#include <map_fragment>\n${quoi}`);
+}
+const VERRES = new Map();
+function materiauVerre(mat, Z) {
+  let p = VERRES.get(mat.uuid); if (p) return p;
+  p = mat.clone(); p.transparent = true; p.depthWrite = false; p.opacity = .34; p.roughness = .08; p.metalness = .25;
+  p.onBeforeCompile = sh => percer(sh, Z, 'if (!vitreIci(diffuseColor.rgb)) discard;\ndiffuseColor.rgb = vec3(.035, .05, .06);');
+  p.customProgramCacheKey = () => 'verre';
+  VERRES.set(mat.uuid, p); return p;
+}
+function vitrer(V, peinture) {
+  const H = V.habitacle, meshes = []; V.g.updateMatrixWorld(true);
+  const inv = V.g.matrixWorld.clone().invert();
+  V.modele.traverse(n => { if (n.isMesh) meshes.push(n); });
+  for (const n of meshes) {
+    if (!ORIGINES.has(n)) ORIGINES.set(n, n.material);
+    const mat = ORIGINES.get(n);
+    if (!VITRES_U.has(mat)) {
+      const zone = i => H.vitres.zones[i] || [[1e3, 1e3, 1e3], [-1e3, -1e3, -1e3], null];
+      VITRES_U.set(mat, {
+        uVeh: { value: inv.clone().multiply(n.matrixWorld) }, // du modèle au repère du véhicule (le même pour toutes ses copies)
+        uBas: { value: [0, 1, 2].map(i => new THREE.Vector3(...zone(i)[0])) }, uHaut: { value: [0, 1, 2].map(i => new THREE.Vector3(...zone(i)[1])) },
+        uPlan: { value: [0, 1, 2].map(i => new THREE.Vector4(...(zone(i)[2] || [0, 0, 0, 0]))) }, uTeinte: { value: new THREE.Vector3(...H.vitres.teinte) },
+      });
+    }
+    const Z = VITRES_U.get(mat);
+    n.material = materiauPeint(mat, peinture, Z);
+    const verre = new THREE.Mesh(n.geometry, materiauVerre(mat, Z)); verre.userData.verre = true; verre.renderOrder = 3; n.add(verre);
+  }
+  V.peinture = peinture || null;
 }
 export function retirerVehicule(V) { if (V) { scene.remove(V.g); V.anim?.liberer(); } } // les géométries sont partagées entre les copies : on ne les libère pas
 export function placer(V, x, z, cap) { V.x = x; V.z = z; V.cap = cap; V.v = 0; V.y = V.sol = hauteur(x, z, 0); V.g.position.set(V.x, V.y, V.z); V.g.rotation.y = V.cap; }
-/** Où asseoir un personnage sur le véhicule (repère du véhicule) : pilote ou passager ; null : dans la voiture, on ne le voit pas. */
-export function siege(V, passager = false) {
-  const D = V.D; if (D.cache) return null;
-  return { y: V.selle[0] - .48, z: passager ? D.arriere : V.selle[1] }; // .48 : hauteur du bassin d'un personnage assis
+/**
+ * Où asseoir un personnage sur le véhicule (repère du véhicule). `place` : 0 (ou faux) le conducteur, vrai le passager (sur
+ * une moto, derrière ; en voiture, l'avant droite), ou le numéro de la place en voiture (HABITACLES). Dans une voiture :
+ * { voiture, x, y (l'assise), z, toit, plancher, volant (le conducteur seul), incline, pied } ; null : on ne le voit pas
+ * (le tokpa-tokpa, qui n'a pas encore d'habitacle).
+ */
+export function siege(V, place = false) {
+  const D = V.D, n = place === true ? 1 : place || 0, H = V.habitacle;
+  if (H) { const p = H.places[Math.min(n, H.places.length - 1)]; return { voiture: true, place: n, x: p[0], y: p[1], z: p[2], toit: p[3], plancher: H.plancher, volant: n === 0 ? H.volant : null, incline: H.incline || 0, pied: n < 2 ? H.pied : .5 }; }
+  if (D.cache) return null;
+  return { y: V.selle[0] - .48, z: n ? D.arriere : V.selle[1] }; // .48 : hauteur du bassin d'un personnage assis
 }
 
 // ---------- Les routes : où l'on peut rouler ----------
