@@ -1,5 +1,6 @@
 import { roadLines } from './ville.js';
 import { dansTerrePlein } from './terre-pleins.js';
+import { dansBatiment } from './rue.js';
 
 // ---------- Réseau routier : carrefours et itinéraires ----------
 // Graphe des rues d'OpenStreetMap (routes principales à rues de quartier). Les lignes ont
@@ -62,6 +63,7 @@ export function construireReseau() {
     const n = noeud(bx, bz); lier(prec, n, cls, sens); prec = n;
   }
   const grille = new Map(); for (let n = 0; n < X.length; n++) { const q = cle(X[n], Z[n], CASE); let l = grille.get(q); if (!l) grille.set(q, l = []); l.push(n); }
+  const raccords = raccorderSensUniques(X, Z, adj, grille);
   // 4. Morceaux de rue reliés à rien (parkings, allées privées : une cinquantaine, 1 % des nœuds). On part et on
   //    arrive par le grand réseau : la rue la plus proche du hall de l'aéroport est un parking, et ni le zém ni le
   //    GPS ne trouvaient d'itinéraire jusque-là.
@@ -75,8 +77,43 @@ export function construireReseau() {
     tailles.push(t);
   }
   Object.assign(R, { pret: true, X, Z, adj, grille, n: X.length, comp, principal: tailles.indexOf(Math.max(...tailles)) });
-  console.info(`réseau routier : ${X.length} nœuds en ${Math.round(performance.now() - t0)} ms`);
+  console.info(`réseau routier : ${X.length} nœuds, ${raccords} raccords de sens unique, en ${Math.round(performance.now() - t0)} ms`);
   return R;
+}
+/**
+ * Les bouts de rue à sens unique sans issue. Les chaussées d'un boulevard s'arrêtent souvent à quelques mètres de la rue
+ * qui les continue — un rond-point dont l'anneau manque dans OpenStreetMap, une fin de chaussée qui ne touche pas la rue
+ * suivante : à l'ouest de Fiyégnon, la chaussée de la Route des Pêches vers l'ouest finissait à 16 m de toutes les autres
+ * (97 bouts pareils dans la ville, 99 débuts où l'on ne pouvait pas entrer). Le GPS n'y trouvait aucun chemin dans le bon
+ * sens, retombait sur le contresens et faisait remonter la chaussée à rebours, ou couper le terre-plein en diagonale
+ * jusqu'à la chaussée d'en face (testeur, 04/11, en taxi vers la Mosquée de Zongo). Chaque bout sans sortie est relié aux
+ * deux nœuds les plus proches (25 m au plus) d'où l'on peut repartir, chaque début sans entrée aux deux d'où l'on peut y
+ * venir, à sens unique, sans traverser de terre-plein ni de bâtiment, et jamais à un point de la même rue derrière soi.
+ * L'arête porte un cinquième champ (1) : Zém Run ne propose pas ces raccords comme des carrefours (carrefoursDe).
+ */
+function raccorderSensUniques(X, Z, adj, grille, RAC = 25) {
+  const sort = n => adj[n].some(e => e[3] !== -1), entre = n => adj[n].some(e => e[3] !== 1);
+  const pres = n => {
+    const out = [], cx = Math.floor(X[n] / CASE), cz = Math.floor(Z[n] / CASE);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const m of grille.get((cx + i) + ',' + (cz + j)) || []) {
+      if (m === n || adj[n].some(e => e[0] === m)) continue;
+      const d = Math.hypot(X[m] - X[n], Z[m] - Z[n]); if (d < RAC) out.push([m, d]);
+    }
+    return out.sort((a, b) => a[1] - b[1]);
+  };
+  // Le segment a → b reste sur la chaussée : ni terre-plein, ni bâtiment.
+  const libre = (a, b) => { const l = Math.hypot(X[b] - X[a], Z[b] - Z[a]); for (let k = 1; k < l; k++) { const x = X[a] + (X[b] - X[a]) * k / l, z = Z[a] + (Z[b] - Z[a]) * k / l; if (dansTerrePlein(x, z, 0) || dansBatiment(x, z)) return false; } return true; };
+  // m est-il derrière n, sur la même rue ? (dans l'axe de l'arête qui mène à n, à moins de 3 m de lui)
+  const derriere = (n, m) => adj[n].some(([p]) => { const ux = X[n] - X[p], uz = Z[n] - Z[p], l = Math.hypot(ux, uz) || 1, vx = X[m] - X[n], vz = Z[m] - Z[n]; return (vx * ux + vz * uz) / l < 0 && Math.abs(vx * uz - vz * ux) / l < 3; });
+  let faits = 0;
+  const lier = (a, b, cls) => { const d = Math.hypot(X[a] - X[b], Z[a] - Z[b]); adj[a].push([b, d, cls, 1, 1]); adj[b].push([a, d, cls, -1, 1]); faits++; };
+  for (let k = 0, N = X.length; k < N; k++) {
+    if (!adj[k].length) continue;
+    const cls = Math.max(...adj[k].map(e => e[2]));
+    if (!sort(k)) { let pris = 0; for (const [m] of pres(k)) { if (!sort(m) || derriere(k, m) || !libre(k, m)) continue; lier(k, m, cls); if (++pris === 2) break; } }
+    if (!entre(k)) { let pris = 0; for (const [m] of pres(k)) { if (!entre(m) || derriere(k, m) || !libre(m, k)) continue; lier(m, k, cls); if (++pris === 2) break; } }
+  }
+  return faits;
 }
 
 export function noeudsPres(x, z, r) {
@@ -137,12 +174,12 @@ export function carrefoursDe(C) {
   const out = [], vus = new Set(), dir = (i, j) => { const dx = C.X[j] - C.X[i], dz = C.Z[j] - C.Z[i], l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
   for (let i = 30; i < C.n - 15; i += 3) { // pas le carrefour où l'on vient de tourner
     for (const [n] of noeudsPres(C.X[i], C.Z[i], 4)) {
-      if (vus.has(n) || R.adj[n].filter(e => e[2] <= 4).length < 3) continue; vus.add(n); // les voies de service ne font pas un carrefour
+      if (vus.has(n) || R.adj[n].filter(e => e[2] <= 4 && !e[4]).length < 3) continue; vus.add(n); // les voies de service ne font pas un carrefour, ni les raccords de sens unique
       const dIn = dir(i - 12, i), dOut = dir(i, i + 12), cotes = {};
       // L'itinéraire tourne-t-il ici ? (plus de 35° entre l'arrivée et la sortie)
       const tourne = dIn[0] * dOut[0] + dIn[1] * dOut[1] < .82, sens = dIn[0] * dOut[1] - dIn[1] * dOut[0] > 0 ? 1 : -1;
-      for (const [m, , cls, sens] of R.adj[n]) {
-        if (cls > 4 || sens === -1) continue; // ni dans une allée de parking, ni à contresens d'une rue à sens unique
+      for (const [m, , cls, sens, raccord] of R.adj[n]) {
+        if (cls > 4 || sens === -1 || raccord) continue; // ni dans une allée de parking, ni à contresens d'une rue à sens unique
         const ch = suivre(n, m, 16), f = ch[ch.length - 1], ex = R.X[f] - R.X[n], ez = R.Z[f] - R.Z[n], el = Math.hypot(ex, ez); if (el < 6) continue;
         const ux = ex / el, uz = ez / el, dot = ux * dIn[0] + uz * dIn[1], croix = dIn[0] * uz - dIn[1] * ux;
         if (ux * dOut[0] + uz * dOut[1] > .82 || -dot > .82) continue; // la route suivie, ou celle d'où l'on vient
@@ -391,5 +428,84 @@ export function itineraireCourt(x, z, xa, za, cibles, rayon = 80) {
     for (const n of ch.slice(1)) pts.push([R.X[n], R.Z[n]]);
     if (ch.length > 1) { avant = ch[ch.length - 2]; cur = ch[ch.length - 1]; }
   }
+  return pts;
+}
+
+// ---------- L'itinéraire du GPS (conduite.js, itineraire) ----------
+// On partait du nœud le plus proche d'un point 12 m devant le véhicule, et l'on arrivait au nœud le plus proche de la
+// destination. Sur un boulevard à deux chaussées, ce nœud était souvent sur la chaussée d'en face, à 9 m, ou derrière soi :
+// le ruban coupait la chaussée en diagonale, passait sur le terre-plein et faisait un crochet sur la mini-carte (testeur,
+// 04/11, en taxi sur la Route des Pêches vers la Mosquée de Zongo). On part maintenant de l'arête sous le véhicule, dans
+// son sens de marche et dans le sens permis, et l'on arrive sur l'arête la plus proche de la destination par le bout d'où
+// l'on peut y rouler. Un demi-tour sur place n'est proposé que s'il évite plus de DEMI_TOUR mètres de route.
+const DEMI_TOUR = 150;
+const traverseTP = (ax, az, bx, bz) => { const l = Math.hypot(bx - ax, bz - az); for (let k = .5; k < l; k++) if (dansTerrePlein(ax + (bx - ax) * k / l, az + (bz - az) * k / l, 0)) return true; return false; };
+/** Peut-on rouler de a vers b sur l'arête a–b ? (pas à contresens d'une rue à sens unique) */
+const permis = (a, b) => R.adj[a].some(e => e[0] === b && e[3] !== -1);
+/**
+ * L'arête du grand réseau la plus proche de (x, z), à moins de r mètres, qu'on rejoint sans traverser de terre-plein :
+ * { a, b, px, pz } (le point de l'arête le plus proche). Avec (fx, fz), une rue dans cet axe passe avant une rue en travers
+ * (au carrefour, la rue transversale est souvent la plus proche).
+ */
+function areteProche(x, z, r, fx = 0, fz = 0) {
+  let best = null, score = Infinity; const vues = new Set();
+  for (const [a] of noeudsPres(x, z, r + 160)) {
+    if (!relie(a)) continue;
+    for (const [b] of R.adj[a]) {
+      const k = a < b ? a * R.n + b : b * R.n + a; if (vues.has(k)) continue; vues.add(k);
+      const ux = R.X[b] - R.X[a], uz = R.Z[b] - R.Z[a], l2 = ux * ux + uz * uz || 1, t = Math.max(0, Math.min(1, ((x - R.X[a]) * ux + (z - R.Z[a]) * uz) / l2));
+      const px = R.X[a] + ux * t, pz = R.Z[a] + uz * t, d = Math.hypot(px - x, pz - z); if (d > r) continue;
+      const s = d + (fx || fz ? (1 - Math.abs(ux * fx + uz * fz) / Math.sqrt(l2)) * 10 : 0);
+      if (s >= score || traverseTP(x, z, px, pz)) continue;
+      score = s; best = { a, b, px, pz };
+    }
+  }
+  return best;
+}
+/**
+ * Itinéraire du GPS d'un véhicule en (x, z) qui roule vers `cap` (null : un piéton, qui part dans un sens ou dans
+ * l'autre sans faire demi-tour) jusqu'à (xb, zb), dont la rue est cherchée à `rayon` mètres : [[x, z], …, le point de la
+ * rue le plus proche de l'arrivée], ou null. Dans le bon sens d'abord ; à contresens seulement si rien d'autre n'y mène.
+ */
+export function itineraireGps(x, z, cap, xb, zb, rayon = 300) {
+  if (!R.pret) return null;
+  const fx = cap == null ? 0 : Math.sin(cap), fz = cap == null ? 0 : Math.cos(cap);
+  const dep = (cap != null && areteProche(x, z, 15, fx, fz)) || areteProche(x, z, 150), arr = areteProche(xb, zb, rayon);
+  if (!dep || !arr) return null;
+  const devant = cap == null ? -1 : (R.X[dep.b] - R.X[dep.a]) * fx + (R.Z[dep.b] - R.Z[dep.a]) * fz >= 0 ? dep.b : dep.a;
+  // Même arête, l'arrivée devant soi dans le sens permis : tout droit.
+  const meme = (dep.a === arr.a && dep.b === arr.b) || (dep.a === arr.b && dep.b === arr.a);
+  if (meme) {
+    const vers = (arr.px - dep.px) * (R.X[dep.b] - R.X[dep.a]) + (arr.pz - dep.pz) * (R.Z[dep.b] - R.Z[dep.a]) >= 0 ? dep.b : dep.a, de = vers === dep.b ? dep.a : dep.b;
+    if (permis(de, vers) && (devant < 0 || devant === vers)) return [[x, z], [arr.px, arr.pz]];
+  }
+  // Départ : le bout de l'arête devant soi ; celui de derrière (un demi-tour) au prix de DEMI_TOUR mètres. Jamais en
+  // remontant l'arête à contresens : à contresens d'un sens unique, le seul départ est le demi-tour.
+  const sources = [];
+  for (const [n, o] of [[dep.b, dep.a], [dep.a, dep.b]]) if (permis(o, n)) sources.push([n, Math.hypot(R.X[n] - dep.px, R.Z[n] - dep.pz) + (devant >= 0 && n !== devant ? DEMI_TOUR : 0), o]);
+  // Arrivée : par un bout de l'arête d'où l'on peut rouler jusqu'au point le plus proche de la destination.
+  const cibles = new Map();
+  for (const [n, o] of [[arr.a, arr.b], [arr.b, arr.a]]) if (permis(n, o)) cibles.set(n, Math.hypot(R.X[n] - arr.px, R.Z[n] - arr.pz));
+  if (!sources.length || !cibles.size) return null;
+  const resoudre = (contresens, fac) => {
+    const dist = new Float64Array(R.n).fill(Infinity), prec = new Int32Array(R.n).fill(-1), interdit = new Map(), tas = [];
+    const pousser = e => { tas.push(e); let i = tas.length - 1; while (i) { const p = (i - 1) >> 1; if (tas[p][0] <= tas[i][0]) break; [tas[p], tas[i]] = [tas[i], tas[p]]; i = p; } };
+    const tirer = () => { const h = tas[0], d = tas.pop(); if (tas.length) { tas[0] = d; let i = 0; for (;;) { const a = 2 * i + 1, b = a + 1; let m = i; if (a < tas.length && tas[a][0] < tas[m][0]) m = a; if (b < tas.length && tas[b][0] < tas[m][0]) m = b; if (m === i) break; [tas[m], tas[i]] = [tas[i], tas[m]]; i = m; } } return h; };
+    for (const [n, c, o] of sources) if (c < dist[n]) { dist[n] = c; interdit.set(n, o); pousser([c, n]); } // depuis le bout de départ, on ne revient pas sur l'arête de départ
+    let fin = -1, total = Infinity;
+    while (tas.length) {
+      const [d, n] = tirer(); if (d > dist[n]) continue; if (d >= total) break;
+      const e = cibles.get(n); if (e !== undefined && d + e < total) { total = d + e; fin = n; }
+      const non = prec[n] < 0 ? interdit.get(n) : -1;
+      for (const [m, l, c, sens] of R.adj[n]) { if (m === non || (sens === -1 && !contresens)) continue; const nd = d + l * fac[c]; if (nd < dist[m]) { dist[m] = nd; prec[m] = n; pousser([nd, m]); } }
+    }
+    if (fin < 0) return null;
+    const ch = []; for (let n = fin; n >= 0; n = prec[n]) ch.push(n); return ch.reverse();
+  };
+  const ch = resoudre(false, DIRECT) || resoudre(true, DIRECT); if (!ch) return null;
+  const pts = [[x, z]], n0 = ch[0], dn = Math.hypot(R.X[n0] - dep.px, R.Z[n0] - dep.pz);
+  if (dn > 10) pts.push([dep.px + (R.X[n0] - dep.px) * 6 / dn, dep.pz + (R.Z[n0] - dep.pz) * 6 / dn]); // on rejoint l'axe de la rue un peu plus loin, pas par le travers
+  for (const n of ch) pts.push([R.X[n], R.Z[n]]);
+  pts.push([arr.px, arr.pz]);
   return pts;
 }

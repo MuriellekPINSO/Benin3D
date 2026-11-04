@@ -897,6 +897,18 @@ function suivreClavier() {
   vv.addEventListener('resize', poser); vv.addEventListener('scroll', poser); poser();
 }
 
+/**
+ * Les véhicules que la circulation doit contourner sans les gérer (etat.js, E.garees), à 150 m du joueur : le sien quand il
+ * est garé, le zém hélé qui vient ou attend, ceux des autres joueurs, garés ou au volant. Les voitures de la circulation
+ * passaient au travers ; elles s'arrêtent maintenant derrière, puis les contournent (circulation.js).
+ */
+function majGarees() {
+  const L = E.garees; L.length = 0;
+  const mettre = V => { if (V?.g && V.g.visible !== false && V.D && (V.x - S.x) ** 2 + (V.z - S.z) ** 2 < 22500) L.push({ x: V.x, z: V.z, cap: V.cap, hl: V.D.long / 2, hw: V.D.larg / 2 }); };
+  if (T.mode !== 'conduit' && T.mode !== 'apprenti') mettre(T.veh); // au volant, c'est le joueur lui-même (E.joueur)
+  if (T.mode !== 'passager') mettre(T.zem?.V);
+  for (const A of S.autres.values()) { mettre(A.garee); if (A.g?.visible) mettre(A.veh); }
+}
 /** L'appel du rond du menu s'arrête dès qu'on l'a ouvert une fois. */
 function vuMenu() {
   $('#slMenuBtn')?.classList.remove('appel');
@@ -913,6 +925,7 @@ export function majSalon(dt) {
   const tour = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) + (jc ? jc.tour : j ? -j.x : 0) - (pad ? pad.lx : 0), -1, 1);
   majVie(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
   for (const A of S.autres.values()) { const G = A.garee; if (G?.g.visible && (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < 1600) E.circulation.push({ px: G.x, pz: G.z, cap: G.cap, hl: G.D.long / 2, hw: G.D.larg / 2, v: 0, type: G.type }); } // vidée à chaque image (main.js)
+  majGarees();
   // Après un rechargement, la moto du patron revient dès qu'on est dehors et à pied (au réveil, en sortant de chez soi ;
   // tout de suite si l'on arrive dans la rue, à côté d'un ami) : jamais dans une pièce (testeur, 03/11).
   if (S.reprise && !S.lieu && T.mode === 'pied' && !T.trans) { S.reprise = false; reprendreJournee(); }

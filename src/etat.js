@@ -11,6 +11,10 @@ export const E = {
   // Les deux circulations ne se voyaient pas : les véhicules denses autour du joueur (circulation.js) et les zéms
   // et tokpas de toute la ville proches de lui (trafic.js, refaits à chaque image), pour qu'ils se cèdent le passage.
   denses: [], zemsPres: [],
+  // Les véhicules arrêtés ou conduits par d'autres que la circulation, autour du joueur : le sien garé, le zém qui l'attend,
+  // ceux des autres joueurs (garés ou au volant). Refaits à chaque image par le salon : { x, z, cap, hl, hw } ; la
+  // circulation les contourne au lieu de passer au travers (testeur, 04/11).
+  garees: [],
   lamps: null, foamMat: null,
   showQ: true, selected: null,
   riseDone: reduceMotion, frameN: 0,

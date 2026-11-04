@@ -251,7 +251,7 @@ function capRoute(x, z) {
  * 60 m (au-delà, chaque point essayé coûte des centaines de tests de chaussée : la route la plus proche fera l'affaire).
  */
 function placeDeDepart(D, x, z, rMax = 60) {
-  const gares = [...S.autres.values()].map(A => A.garee).filter(G => G?.g.visible); // les motos et voitures garées des autres joueurs
+  const gares = X.vehiculesDesAutres(); // les motos et voitures des autres joueurs, garées ou sous eux
   for (let r = 0; r <= rMax; r += 1.5) for (let a = 0; a < (r ? 16 : 1); a++) {
     const px = x + Math.cos(a * Math.PI / 8) * r, pz = z + Math.sin(a * Math.PI / 8) * r; if (!surRoute(px, pz)) continue;
     const c = capRoute(px, pz);
@@ -318,7 +318,7 @@ function destinationDe(x, z) {
   const [a, b] = W.id === 'taxi' ? [1500, 8000] : [600, 4000], ok = W.dests.filter(([, dx, dz]) => { const d = Math.hypot(dx - x, dz - z); return d > a && d < b; });
   for (let k = 0; k < 4 && ok.length; k++) {
     const [nom, dx, dz] = ok[Math.floor(Math.random() * ok.length)], p = routeProche(dx, dz, 0, 120); if (!p) continue;
-    const pts = itineraire(x, z, 0, p[0], p[1]); if (!pts) continue;
+    const pts = itineraire(x, z, null, p[0], p[1]); if (!pts) continue;
     return { nom, x: p[0], z: p[1], km: longueur(pts) / 1000 };
   }
   return null;

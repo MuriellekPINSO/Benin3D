@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { TRIPO, urlTripo } from './batiments-tripo.js';
-import { construireReseau, itineraireCourt } from './carrefours.js';
+import { construireReseau, itineraireCourt, itineraireGps } from './carrefours.js';
 import { personne } from './discussions.js';
 import { dansBatiment, dansObstacleRue, pietonOk } from './rue.js';
 import { hauteurSol } from './sols.js';
 import { animerMoto } from './roues.js';
 import { dansTerrePlein } from './terre-pleins.js';
-import { dansCirculation } from './trafic.js';
+import { chevauchement, dansCirculation } from './trafic.js';
+import { E } from './etat.js';
 import { scene } from './scene.js';
 import { plusTard } from './telechargements.js';
 import { TABLIERS, mergeColored, roadLines } from './ville.js';
@@ -185,9 +186,11 @@ export function pontPres(x, z, r = 20) {
  */
 export function piloter(V, av, tour, dt, { panne = false, aide = false } = {}) {
   if (V.vol) return voler(V, av, tour, dt);
+  const cap0 = V.cap;
   if (V.redresse !== undefined) { // remis dans le sens de la rue (degager) : il pivote sur place, puis on reprend la main
     const e = angle(V.redresse - V.cap); V.cap += Math.sign(e) * Math.min(Math.abs(e), 3.5 * dt); V.v = 0;
     if (Math.abs(e) < .02) delete V.redresse;
+    if (tourneDansLeTrafic(V, cap0)) delete V.redresse; // il buterait contre une voiture en pivotant : il s'arrête là
     return avancer(V, dt, true);
   }
   const D = V.D, vmax = panne ? 1.2 : D.vmax;
@@ -199,7 +202,19 @@ export function piloter(V, av, tour, dt, { panne = false, aide = false } = {}) {
   const a = Math.abs(V.v), k = Math.min(1, a / 3) * (1 - .45 * Math.min(1, a / D.vmax));
   V.cap += tour * D.braquage * k * Math.sign(V.v || 1) * dt;
   if (aide && Math.abs(tour) < .35 && V.v > 1.5) suivreRue(V, dt);
+  tourneDansLeTrafic(V, cap0);
   return avancer(V, dt, true);
+}
+/**
+ * Le véhicule vient de tourner de cap0 à V.cap sans bouger : si sa caisse entre ainsi davantage dans un véhicule voisin,
+ * on annule le coup de volant (vrai). Seul le déplacement était vérifié (passe) : en braquant contre une voiture arrêtée, ou
+ * en pivotant sur place (degager), l'arrière ou le flanc y pénétrait, et le taxi finissait imbriqué dans deux voitures
+ * garées (capture d'un testeur, 04/11, près du Stade de l'Amitié).
+ */
+function tourneDansLeTrafic(V, cap0) {
+  if (V.cap === cap0 || (V.alt || 0) > 1.5) return false;
+  if (dansLeTrafic(V, V.x, V.z, V.cap) <= dansLeTrafic(V, V.x, V.z, cap0) + 1e-3) return false;
+  V.cap = cap0; return true;
 }
 /** Le tronçon de route le plus proche sous (x, z) : son sens (cap), la distance à son axe, sa demi-largeur avec le trottoir, le point de l'axe le plus proche. */
 export function sensRoute(x, z) {
@@ -243,15 +258,15 @@ export function degager(V) {
 // Le centre sur la route, et l'avant (l'arrière en marche arrière) avec ses deux coins hors des murs et des
 // bâtiments : avant, seul le centre comptait, et tout le capot rentrait dans la clôture.
 const horsMur = (x, z, vole = false) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && (vole || hauteurSol(x, z) < .25); // ni sur des marches (sols.js) ; en vol, on passe au-dessus
-// Les autres véhicules : toute la caisse compte (les quatre coins, le milieu des côtés, les deux bouts), pas seulement
-// l'avant — en tournant, l'arrière et les flancs entraient dans les voitures arrêtées. Et si l'on est déjà dedans
-// (posé sur une voiture, ou serré par elle), on peut toujours s'en écarter : avant, tout mouvement était refusé tant
-// qu'on la touchait, et la Roadster restait coincée entre deux voitures, « ni monter, ni avancer » (26/10).
-const CAISSE = [[1, 1], [1, -1], [-1, 1], [-1, -1], [0, 1], [0, -1], [1, 0], [-1, 0]];
-function dansLeTrafic(V, x, z) {
-  const L = (V.D.long ?? 2) / 2 * .92, W = (V.D.larg ?? .8) / 2 * .9, sx = Math.sin(V.cap), cz = Math.cos(V.cap);
+// Les autres véhicules : toute la caisse compte, pas seulement l'avant — en tournant, l'arrière et les flancs entraient
+// dans les voitures arrêtées. Et si l'on est déjà dedans (posé sur une voiture, ou serré par elle), on peut toujours s'en
+// écarter : avant, tout mouvement était refusé tant qu'on la touchait, et la Roadster restait coincée entre deux voitures,
+// « ni monter, ni avancer » (26/10). La caisse est un rectangle contre le rectangle de chaque véhicule proche (trafic.js,
+// chevauchement) : huit points testés laissaient entrer le coin d'une voiture garée entre deux d'entre eux (04/11).
+function dansLeTrafic(V, x, z, cap = V.cap) {
+  const L = (V.D.long ?? 2) / 2 * .96, W = (V.D.larg ?? .8) / 2 * .94;
   let p = 0;
-  for (const [a, b] of CAISSE) p = Math.max(p, dansCirculation(x + sx * a * L + cz * b * W, z + cz * a * L - sx * b * W, .05));
+  for (const O of E.circulation) if (Math.abs(O.px - x) < 9 && Math.abs(O.pz - z) < 9) p = Math.max(p, chevauchement(x, z, cap, L, W, O.px, O.pz, O.cap, O.hl, O.hw));
   return p;
 }
 function passe(V, x, z) {
@@ -447,14 +462,17 @@ export function segmentLibre(ax, az, bx, bz, r = .6) {
   for (let i = 0; i <= n; i++) { const x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n; if (dansBatiment(x, z) || dansObstacleRue(x, z, r)) return false; }
   return true;
 }
+/** `cap` : null pour un piéton (il part dans un sens ou dans l'autre, sans demi-tour). Voir itineraireGps (carrefours.js). */
 export function itineraire(x, z, cap, xb, zb) {
   construireReseau();
-  const pts = itineraireCourt(x, z, x + Math.sin(cap) * 12, z + Math.cos(cap) * 12, [[xb, zb]], 300);
+  const pts = itineraireGps(x, z, cap, xb, zb, 300) || itineraireCourt(x, z, x + Math.sin(cap ?? 0) * 12, z + Math.cos(cap ?? 0) * 12, [[xb, zb]], 300);
   // Dernier bout, hors de la route : jusqu'à la porte, la cour, le sable de la plage, seulement s'il n'y a ni mur ni bâtiment
-  // entre les deux (sinon le véhicule s'arrête au bord de la route, et l'on finit à pied).
-  if (pts) { const f = pts[pts.length - 1]; if (Math.hypot(f[0] - xb, f[1] - zb) > 4 && segmentLibre(f[0], f[1], xb, zb)) pts.push([xb, zb]); }
+  // entre les deux (sinon le véhicule s'arrête au bord de la route, et l'on finit à pied). Ni terre-plein : le dernier trait
+  // allait de la chaussée d'en face jusqu'à la porte, par-dessus le terre-plein (testeur, 04/11).
+  if (pts) { const f = pts[pts.length - 1]; if (Math.hypot(f[0] - xb, f[1] - zb) > 4 && segmentLibre(f[0], f[1], xb, zb) && !terrePleinEntre(f[0], f[1], xb, zb)) pts.push([xb, zb]); }
   return pts && sansAllerRetour(pts);
 }
+const terrePleinEntre = (ax, az, bx, bz) => { const l = Math.hypot(bx - ax, bz - az); for (let k = .5; k < l; k++) if (dansTerrePlein(ax + (bx - ax) * k / l, az + (bz - az) * k / l, 0)) return true; return false; };
 // Pas d'aller-retour dans un chemin : le carrefour devant soi quand la route part derrière, le dernier carrefour quand la
 // porte est déjà passée, les points en double. Le véhicule fait demi-tour tout de suite ; sinon, partagé entre l'aller et
 // le retour, il tournait sur place autour du carrefour (vu en arrivant à la Haie Vive).

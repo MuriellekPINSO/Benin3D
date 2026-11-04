@@ -34,7 +34,7 @@ export function buildZems() {
     // Chaussée à sens unique (moitié de boulevard) : tout le monde roule dans le même sens, réparti sur la largeur.
     // Un sur trois n'est pas un zém : un conducteur en chemise (civil 1 à 4, la couleur de sa chemise ; 0 : gilet jaune).
     const z = { P, s: hash(i, 61) * P.len, v: 7 + hash(i, 62) * 7, dir: P.sens ? 1 : hash(i, 63) < 0.5 ? 1 : -1, seg: 0, lane: P.sens ? (hash(i, 64) - .5) * (P.w - 2) : 0.8 + hash(i, 64) * (P.w * 0.3), hl: 1.05, hw: .42, civil: hash(i, 65) < .34 ? 1 + Math.floor(hash(i, 66) * 4) : 0 };
-    z.vc = z.v; (P.zems ??= []).push(z); E.zemState.push(z);
+    z.vc = z.v; z.laneN = z.lane; (P.zems ??= []).push(z); E.zemState.push(z);
   }
   scene.add(E.zems);
 }
@@ -82,7 +82,7 @@ export function updateZems(dt) {
   let nv = 0; const y0 = E.zems.userData.en3D ? .04 : .15; // le modèle 3D est posé au sol ; celui dessiné en code se relève de 15 cm
   for (let i = 0; i < E.zemState.length; i++) {
     const z = E.zemState[i], P = z.P;
-    const vise = cede(z, dt) ? 0 : suivre(z, dt); z.vc += THREE.MathUtils.clamp(vise - z.vc, -9 * dt, 3 * dt); z.s += z.vc * dt * z.dir;
+    const ce = cede(z, dt), vise = ce === false ? suivre(z, dt) : Math.min(ce, suivre(z, dt)); z.vc += THREE.MathUtils.clamp(vise - z.vc, -9 * dt, 3 * dt); z.s += z.vc * dt * z.dir;
     if (P.sens) { if (z.s >= P.len) z.s = 0.01; } // sens unique : pas de demi-tour, on repart du début
     else if (z.s >= P.len) { z.s = P.len - 0.01; z.dir = -1; } else if (z.s <= 0) { z.s = 0.01; z.dir = 1; }
     const cum = P.cum; let k = z.seg;
@@ -114,21 +114,75 @@ export function updateZems(dt) {
 // ---------- La circulation et le joueur de « Vivre à Cotonou » ----------
 // Personne ne traverse personne : un zém ou un tokpa qui a le joueur juste devant lui s'arrête (cede), et ceux qui
 // roulent près de lui (retenir → E.circulation) bloquent sa marche et sa conduite (dansCirculation).
+/**
+ * De combien deux rectangles orientés se chevauchent (0 : ils ne se touchent pas), par les axes séparateurs. (x, z) : le
+ * centre ; cap : le sens de marche, l'avant vers (sin cap, cos cap) ; hl, hw : demi-longueur et demi-largeur.
+ * dansCirculation ne testait que des points : huit points de la caisse du joueur contre la boîte des autres, et le coin
+ * d'une voiture garée entrait entre deux points (capture d'un testeur, 04/11 : le taxi imbriqué dans deux voitures).
+ */
+export function chevauchement(ax, az, acap, ahl, ahw, bx, bz, bcap, bhl, bhw) {
+  const dx = bx - ax, dz = bz - az, as = Math.sin(acap), ac = Math.cos(acap), bs = Math.sin(bcap), bc = Math.cos(bcap);
+  let p = Infinity;
+  for (let k = 0; k < 4; k++) {
+    const ux = k === 0 ? as : k === 1 ? ac : k === 2 ? bs : bc, uz = k === 0 ? ac : k === 1 ? -as : k === 2 ? bc : -bs;
+    const o = ahl * Math.abs(as * ux + ac * uz) + ahw * Math.abs(ac * ux - as * uz) + bhl * Math.abs(bs * ux + bc * uz) + bhw * Math.abs(bc * ux - bs * uz) - Math.abs(dx * ux + dz * uz);
+    if (o <= 0) return 0; if (o < p) p = o;
+  }
+  return p;
+}
+/** Le joueur voit-il le point (x, z) ? Dans le champ de la caméra (CHAMP, refait à chaque image) et à moins de 150 m
+ *  d'elle. Ailleurs seulement, un zém peut sauter plus loin sans qu'on le voie disparaître. */
+export function vuDuJoueur(J, x, z) {
+  const dx = x - camera.position.x, dz = z - camera.position.z;
+  return dx * dx + dz * dz < 150 * 150 && dansLeChamp(x, z, 2);
+}
+/**
+ * Un obstacle O ({ x, z, cap, hl, hw }) dans le repère de z (sens de marche fx, fz) : à quelle distance devant lui, à quel
+ * écart sur le côté (vers ses `lane` positives), et de quelle largeur et longueur il occupe la rue vu de z.
+ */
+export function vuDe(z, O) {
+  const ax = O.x - z.px, az = O.z - z.pz, a = (O.cap ?? 0) - z.cap, s = Math.abs(Math.sin(a)), c = Math.abs(Math.cos(a));
+  return { devant: ax * z.fx + az * z.fz, lat: -ax * z.fz + az * z.fx, eLat: O.hl * s + O.hw * c, eLong: O.hl * c + O.hw * s };
+}
+// L'obstacle du joueur (un piéton, ou le véhicule qu'il conduit), réutilisé à chaque appel.
+const OJ = { x: 0, z: 0, cap: 0, hl: .3, hw: .3 };
+/**
+ * Le zém ou le tokpa z cède : 0 s'il s'arrête, une petite vitesse s'il se faufile, false s'il roule normalement.
+ *
+ * Retenu par le joueur (ou par un véhicule garé : le sien, celui d'un autre joueur), il sautait 40 m plus loin au bout de
+ * 3 s, sous ses yeux. « Il faut que les voitures des bots contournent le joueur quand celui-ci bloque le chemin, et non
+ * qu'elles disparaissent » (testeur, 04/11). Au bout de 0,8 s, il se décale sur le côté où la rue laisse la place, passe,
+ * puis reprend sa file (laneN). Pas de place : il attend ; il ne saute que si le joueur ne le voit pas.
+ */
 function cede(z, dt) {
   const J = E.joueur; z.arret = false; if (!J || J.enLair || z.px === undefined) { z.cedeT = 0; return false; } // la Roadster en vol : on passe dessous
   const Jr = Math.max(J.hl ?? .3, J.hw ?? .3); // un piéton, ou la voiture qu'il conduit
   const ax = J.x - z.px, az = J.z - z.pz, d2 = ax * ax + az * az;
   if (d2 > PRES2) { z.cedeT = 0; return false; }
-  if (d2 < (8 + Jr) ** 2) {
-    const devant = ax * z.fx + az * z.fz, cote = Math.abs(ax * z.fz - az * z.fx);
+  if (z.contour && z.laneVise !== undefined) z.lane += THREE.MathUtils.clamp(z.laneVise - z.lane, -1.3 * dt, 1.3 * dt); // le déport, même arrêté
+  OJ.x = J.x; OJ.z = J.z; OJ.cap = J.cap ?? 0; OJ.hl = J.hl ?? .3; OJ.hw = J.hw ?? .3;
+  let gene = null, derriere = true;
+  for (const O of d2 < (12 + Jr) ** 2 ? [OJ, ...E.garees] : E.garees) {
+    if (Math.abs(O.x - z.px) > 30 || Math.abs(O.z - z.pz) > 30) continue;
+    const g = vuDe(z, O); if (Math.abs(g.lat) > z.hw + g.eLat + 3) continue; // ni sur sa file, ni sur celle où il se décale
+    if (g.devant > -z.hl - g.eLong - 2) derriere = false; // pas encore dépassé
     // Devant lui, mais aussi à hauteur de sa caisse : sans ça, un joueur à côté de l'arrière du véhicule
     // le voyait repartir, et la moitié arrière lui passait au travers.
-    // Retenu plus de 3 s par le joueur, il passe son chemin (40 m plus loin, comme degagerAutourDuJoueur) : sinon,
-    // devant la moto où l'on vient de monter, chacun attendait l'autre et la moto ne bougeait pas (testeur, 03/11).
-    if (devant > -z.hl - Jr && devant < z.hl + Jr + 3 && cote < z.hw + Jr + .6) {
-      z.cedeT = (z.cedeT || 0) + dt; if (z.cedeT <= 3) return (z.arret = true);
-      z.cedeT = 0; ecarter(z); return false;
-    }
+    // Il le voit venir d'assez loin pour freiner (9 m/s² au plus) : à 3 m, lancé à 9 m/s, il lui fallait 4,5 m et il
+    // entrait dans la voiture du joueur (mesuré le 04/11 : 93 images de chevauchement en 20 s, derrière un taxi arrêté).
+    const ecart = g.devant - z.hl - g.eLong, v = z.vc ?? z.v;
+    if (g.devant > -z.hl - g.eLong && ecart < 3 + v * v / 9 && Math.abs(g.lat) < z.hw + g.eLat + .35 && (!gene || ecart < gene.ecart)) { gene = g; gene.ecart = ecart; }
+  }
+  if (z.contour && derriere) { z.contour = false; z.laneVise = z.laneN; } // dépassé : il reprend sa file
+  if (gene) {
+    const permis = Math.sqrt(16 * Math.max(0, gene.ecart - 1.2)); // de quoi s'arrêter à 1,2 m de lui (8 m/s², sous les 9 du freinage)
+    if (permis < 1) z.cedeT = (z.cedeT || 0) + dt; // arrêté derrière lui (pas en approche)
+    if (z.cedeT > .8 && !z.contour) { const l = voieDeContour(z, gene); if (l !== null) { z.contour = true; z.laneVise = l; } }
+    // Ni place pour passer ni joueur pour le voir : il passe son chemin, 40 m plus loin (devant la moto où l'on vient
+    // de monter, chacun attendait l'autre et la moto ne bougeait pas, testeur, 03/11).
+    if (z.cedeT > 6 && !vuDuJoueur(J, z.px, z.pz)) { z.cedeT = 0; z.contour = false; ecarter(z); return false; }
+    z.arret = permis < .5;
+    return z.contour && gene.ecart > .6 ? Math.max(permis, 1.5) : permis; // en se décalant, il se faufile au pas
   }
   z.cedeT = 0;
   // Les voitures, taxis et camions de la circulation dense (circulation.js) sont un autre système : un zém qui en
@@ -138,9 +192,24 @@ function cede(z, dt) {
   for (const W of E.denses) {
     if (!W.R || !devantLui(z, W)) continue;
     z.attente = (z.attente || 0) + dt; if (z.attente > 4) { z.attente = 0; z.libre = 1.5; }
-    return (z.arret = true);
+    z.arret = true; return 0;
   }
   z.attente = 0; return false;
+}
+/**
+ * Le côté où z (zém ou tokpa) passe l'obstacle g (vuDe) : la `lane` où sa caisse longe celle de l'obstacle à 45 cm, sans
+ * sortir de la chaussée (P.w, la largeur de la rue). Sur une rue à double sens, il reste dans sa moitié s'il le peut. null :
+ * pas la place.
+ */
+function voieDeContour(z, g) {
+  const latO = z.lane + g.lat, ecart = g.eLat + z.hw + .45, bord = z.P.w / 2 - z.hw - .2;
+  let best = null, cout = Infinity;
+  for (const l of [latO + ecart, latO - ecart]) {
+    if (Math.abs(l) > bord) continue;
+    const c = Math.abs(l - z.lane) + (!z.P.sens && l < 0 ? 2 : 0); // la moitié d'en face, seulement s'il le faut
+    if (c < cout) { cout = c; best = l; }
+  }
+  return best;
 }
 const PRES2 = 150 * 150;
 /** Le véhicule W est-il juste devant z, dans sa trajectoire ? (deux points devant son nez, dans la boîte de W) */
@@ -168,17 +237,21 @@ function retenir(z, x, zz, dx, dz) {
  * et personne ne cédait. Le même garde-fou existait déjà pour la circulation dense (circulation.js) mais pas
  * pour ces zéms-là, qui sont d'un autre système.
  *
- * On les fait avancer de quarante mètres sur leur propre rue : ils repartent devant, la voie se libère, et à
- * cette distance le saut ne se voit pas — ce sont des silhouettes d'un mètre.
+ * On les faisait avancer de quarante mètres sur leur propre rue, même sous les yeux du joueur (« qu'elles ne
+ * disparaissent pas », testeur, 04/11). Ceux qu'il voit se décalent maintenant sur le côté libre de la rue (voieDeContour)
+ * et passent ; seuls ceux qu'il ne voit pas sautent plus loin. `force` (coincé depuis longtemps) : tous sautent, faute de mieux.
  */
-export function degagerAutourDuJoueur(J) {
+export function degagerAutourDuJoueur(J, force = false) {
   const Jr = Math.max(J.hl ?? .3, J.hw ?? .3) + 2.5;
   let n = 0;
+  OJ.x = J.x; OJ.z = J.z; OJ.cap = J.cap ?? 0; OJ.hl = J.hl ?? .3; OJ.hw = J.hw ?? .3;
   for (const liste of [E.zemState, E.tokpaState]) {
     for (const z of liste || []) {
       if (z.px === undefined) continue;
       const dx = z.px - J.x, dz = z.pz - J.z; if (dx * dx + dz * dz > Jr * Jr) continue;
-      ecarter(z); n++;
+      if (force || !vuDuJoueur(J, z.px, z.pz)) { ecarter(z); n++; continue; }
+      if (z.contour) continue; // déjà en train de passer
+      const l = voieDeContour(z, vuDe(z, OJ)); if (l !== null) { z.contour = true; z.laneVise = l; n++; }
     }
   }
   return n;
@@ -242,7 +315,7 @@ export function construireTokpas() {
   E.tokpas.instanceMatrix.setUsage(THREE.DynamicDrawUsage); E.tokpas.frustumCulled = false; E.tokpas.visible = false; E.tokpas.castShadow = !LITE;
   for (let i = 0; i < n; i++) {
     const r = hash(i, 160) * total; let lo = 0, hi = paths.length - 1; while (lo < hi) { const mid = (lo + hi) >> 1; if (paths[mid].acc < r) lo = mid + 1; else hi = mid; }
-    const P = paths[lo]; E.tokpaState.push({ P, s: hash(i, 161) * P.len, v: 7 + hash(i, 162) * 5, dir: hash(i, 163) < .5 ? 1 : -1, seg: 0, lane: 2.2 + hash(i, 164) * 1.2, hl: 2.45, hw: .93 });
+    const P = paths[lo], lane = 2.2 + hash(i, 164) * 1.2; E.tokpaState.push({ P, s: hash(i, 161) * P.len, v: 7 + hash(i, 162) * 5, dir: hash(i, 163) < .5 ? 1 : -1, seg: 0, lane, laneN: lane, hl: 2.45, hw: .93 });
   }
   scene.add(E.tokpas);
 }
@@ -250,7 +323,7 @@ export function majTokpas(dt) {
   if (!E.tokpas) return;
   const A = E.tokpas.instanceMatrix.array, cam = camera.position, V2 = majChamp(); let nv = 0;
   for (let i = 0; i < E.tokpaState.length; i++) {
-    const z = E.tokpaState[i], P = z.P; if (!cede(z, dt)) z.s += z.v * dt * z.dir;
+    const z = E.tokpaState[i], P = z.P, ce = cede(z, dt); z.s += (ce === false ? z.v : Math.min(ce, z.v)) * dt * z.dir;
     if (z.s >= P.len) { z.s = P.len - .01; z.dir = -1; } else if (z.s <= 0) { z.s = .01; z.dir = 1; }
     const cum = P.cum; let k = z.seg; while (k < cum.length - 2 && z.s > cum[k + 1]) k++; while (k > 0 && z.s < cum[k]) k--; z.seg = k;
     const x0 = P.xz[2 * k], z0 = P.xz[2 * k + 1], x1 = P.xz[2 * k + 2], z1 = P.xz[2 * k + 3], sl = cum[k + 1] - cum[k] || 1, t = (z.s - cum[k]) / sl;
