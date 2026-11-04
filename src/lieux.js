@@ -8,6 +8,7 @@ import { ROAD_W, TABLIERS, roadLines } from './ville.js';
 import { surChaussee } from './chaussee.js';
 import { GRANDES_AFFICHES, matAffiche } from './publicites.js';
 import { poserSol } from './sols.js';
+import { ajouterPlace } from './zones.js';
 import { photoPlusTard } from './telechargements.js';
 import { chargeurGLB, reduireImage } from './textures.js';
 
@@ -428,6 +429,7 @@ export function statueEtoile(x, y, z) {
 export async function amazone(L) {
   const o = obb(L.place);
   const g = groupeLieu('amazone', L.pt[0], L.pt[1]);
+  ajouterPlace(L.place); // sur la carte, l'esplanade dallée et non le sentier d'OSM qu'elle recouvre (zones.js, testeur, 04/11)
   K.into(g, () => {
     // Esplanade dallée de gris, en grands triangles séparés de bandes beige clair (photos sur place et drone).
     solPoly([L.place.map(([x, z]) => local(g, x, z))], K.tex('triangles', 1, 256 / 443), .06, 21);

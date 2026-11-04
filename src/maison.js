@@ -10,7 +10,7 @@ import { dansBatiment, surChaussee } from './rue.js';
 import { scene } from './scene.js';
 import { T, choisir, tenirPlat } from './trajets.js';
 import { LOGEMENTS, VIE, depenser, louerLogement } from './vie.js';
-import { ROAD_W, roadLines } from './ville.js';
+import { ELARGIR, ROAD_W, roadLines } from './ville.js';
 
 // ---------- Chez soi : la journée commence au lit ----------
 // En entrant dans le salon, on se réveille chez soi, couché sous son pagne : la chambre d'une maison en cour
@@ -52,7 +52,7 @@ function numeroDuJoueur() {
   let h = 2166136261; for (const c of String(VIE.data?.cree || VIE.data?.nom || '')) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0; // FNV-1a
   return h;
 }
-const TROTTOIR = { 3: 2.2, 4: 1.3, 5: .9 }; // comme rue.js : de la chaussée jusqu'aux murs des parcelles
+const TROTTOIR = { 3: 2.2 * ELARGIR, 4: 1.3 * ELARGIR, 5: .9 * ELARGIR }; // comme rue.js : de la chaussée jusqu'aux murs des parcelles
 /** La porte la plus proche de (x0, z0) ; avec `tous` (un tableau), toutes celles à moins de 450 m, à 30 m l'une de l'autre. */
 function chercherPorte(x0, z0, facade, classes = [4, 5], tous = null) {
   let best = null, bd = tous ? 450 : 520;

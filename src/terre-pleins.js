@@ -18,18 +18,23 @@ const CASE = 40, cle = (x, z) => Math.floor(x / CASE) + ',' + Math.floor(z / CAS
 /** À appeler avant la rue et la circulation : range les terre-pleins dans une grille. */
 export function initTerrePleins(T = []) {
   TP.bandes = T; TP.grille.clear();
-  for (const b of T) for (let i = 1; i < b.p.length; i++) {
-    const [ax, az, wa] = b.p[i - 1], [bx, bz, wb] = b.p[i], hw = Math.max(wa, wb) / 2 + 1;
-    for (let cx = Math.floor((Math.min(ax, bx) - hw) / CASE); cx <= Math.floor((Math.max(ax, bx) + hw) / CASE); cx++)
-      for (let cz = Math.floor((Math.min(az, bz) - hw) / CASE); cz <= Math.floor((Math.max(az, bz) + hw) / CASE); cz++) {
-        const k = cx + ',' + cz; let l = TP.grille.get(k); if (!l) TP.grille.set(k, l = []); l.push([ax, az, bx, bz, wa / 2, wb / 2]);
-      }
+  for (const b of T) {
+    const peint = b.p.map(q => q[2]).sort((u, v) => u - v)[Math.floor(b.p.length / 2)] < 1; // même seuil que construireTerrePleins : un double trait
+    for (let i = 1; i < b.p.length; i++) {
+      const [ax, az, wa] = b.p[i - 1], [bx, bz, wb] = b.p[i], hw = Math.max(wa, wb) / 2 + 1;
+      for (let cx = Math.floor((Math.min(ax, bx) - hw) / CASE); cx <= Math.floor((Math.max(ax, bx) + hw) / CASE); cx++)
+        for (let cz = Math.floor((Math.min(az, bz) - hw) / CASE); cz <= Math.floor((Math.max(az, bz) + hw) / CASE); cz++) {
+          const k = cx + ',' + cz; let l = TP.grille.get(k); if (!l) TP.grille.set(k, l = []); l.push([ax, az, bx, bz, wa / 2, wb / 2, peint]);
+        }
+    }
   }
 }
-/** Vrai si (x, z) est sur un terre-plein (élargi de `marge` mètres). */
-export function dansTerrePlein(x, z, marge = 0) {
+/** Vrai si (x, z) est sur un terre-plein (élargi de `marge` mètres). `peints` faux : sans les terre-pleins seulement peints
+ *  au sol (un double trait de moins de 1 m), qu'une voiture franchit — elle y butait sans rien voir (conduite.js). */
+export function dansTerrePlein(x, z, marge = 0, peints = true) {
   const l = TP.grille.get(cle(x, z)); if (!l) return false;
-  for (const [ax, az, bx, bz, ha, hb] of l) {
+  for (const [ax, az, bx, bz, ha, hb, peint] of l) {
+    if (peint && !peints) continue;
     const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
     if (Math.hypot(ax + dx * t - x, az + dz * t - z) < ha + (hb - ha) * t + marge) return true;
   }

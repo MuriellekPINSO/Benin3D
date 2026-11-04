@@ -2,7 +2,8 @@ import { $, toXZ } from './base.js';
 import { longueur } from './conduite.js';
 import { QUARTIERS } from './donnees-lieux.js';
 import { chargerRecherche, chercher, ouEstCe, quartierDe, texteDistance, texteDuree, texteOu, typeDe } from './recherche.js';
-import { roadLines } from './ville.js';
+import { ELARGIR, roadLines } from './ville.js';
+import { dansPlace, lesPlaces } from './zones.js';
 
 // ---------- La carte du salon : une mini-carte ronde (façon GTA) et la grande carte ----------
 // La mini-carte, en haut à droite, tourne avec la caméra (en haut : là où l'on regarde) : les rues autour de soi, sa
@@ -15,8 +16,8 @@ import { roadLines } from './ville.js';
 
 let X = null;
 const CELL = 200, M = { u: 1, grille: null, t: 0, grande: false, centre: [0, 0], echelle: 6, glisse: null, cibles: [], dest: null, vrai: null, resultats: [], iciT: 0, rue: '', rueT: 0, debut: 0 };
-const COUL = { fond: '#e7dfcd', route: '#ffffff', bord: '#c9bfa8', gps: '#2e8fd6', moi: '#1a7d52', ami: '#2e86c1', zem: '#f2c21b', maison: '#c8553d', commerce: '#1a7d52', lieu: '#3a3f44', dest: '#d93a2b', vrai: '#1e6fd9' };
-const LARG = c => (c <= 1 ? 7 : c <= 2 ? 5.5 : c <= 3 ? 4.5 : c <= 4 ? 3.5 : 2.5); // largeur dessinée (m) selon la classe de route
+const COUL = { fond: '#e7dfcd', route: '#ffffff', bord: '#c9bfa8', place: '#f4f0e7', jardin: '#c9dcae', gps: '#2e8fd6', moi: '#1a7d52', ami: '#2e86c1', zem: '#f2c21b', maison: '#c8553d', commerce: '#1a7d52', lieu: '#3a3f44', dest: '#d93a2b', vrai: '#1e6fd9' };
+const LARG = c => (c <= 1 ? 7 : c <= 2 ? 5.5 : c <= 3 ? 4.5 : c <= 4 ? 3.5 : 2.5) * ELARGIR; // largeur dessinée (m) selon la classe de route, élargie avec les voies (ville.js)
 
 function grille() {
   if (M.grille) return M.grille;
@@ -25,13 +26,20 @@ function grille() {
     if (L.cls >= 10 || L.pts.length < 2) continue;
     for (let k = 1; k < L.pts.length; k++) {
       const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k], cle = Math.floor((ax + bx) / 2 / CELL) + ',' + Math.floor((az + bz) / 2 / CELL);
+      if (dansPlace((ax + bx) / 2, (az + bz) / 2) && dansPlace(ax, az) && dansPlace(bx, bz)) continue; // sous le sol d'une place, on ne la voit pas en 3D (zones.js)
       let l = g.get(cle); if (!l) g.set(cle, l = []); l.push(ax, az, bx, bz, L.cls);
     }
   }
   return M.grille = g;
 }
-/** Les rues autour de (x, z) à r mètres, par classe (les petites d'abord, les grandes par-dessus). */
+/** Les rues autour de (x, z) à r mètres, par classe (les petites d'abord, les grandes par-dessus). Sous elles, les places
+ *  (zones.js) : l'esplanade pavée de la Cité ministérielle, de l'Amazone, le jardin, telles qu'on les voit en 3D. */
 function dessinerRues(c, x, z, r, k) {
+  for (const P of lesPlaces()) {
+    if (P.bb[2] < x - r || P.bb[0] > x + r || P.bb[3] < z - r || P.bb[1] > z + r) continue;
+    c.beginPath(); P.r.forEach(([px, pz], i) => (i ? c.lineTo(px, pz) : c.moveTo(px, pz))); c.closePath();
+    c.fillStyle = P.teinte === 'jardin' ? COUL.jardin : COUL.place; c.fill(); c.lineWidth = 1.5 * M.u / k; c.strokeStyle = COUL.bord; c.stroke();
+  }
   const g = grille(), n = Math.ceil(r / CELL), ix = Math.floor(x / CELL), iz = Math.floor(z / CELL), parClasse = new Map();
   for (let i = -n; i <= n; i++) for (let j = -n; j <= n; j++) {
     const l = g.get((ix + i) + ',' + (iz + j)); if (!l) continue;

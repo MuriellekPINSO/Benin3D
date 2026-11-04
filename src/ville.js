@@ -182,7 +182,19 @@ function texMarquageSens(n) {
  * alors sur la chaussée (chaussee.js les retire), contre 1 000 si l'on élargissait les rues de quartier, qu'on garde.
  */
 const ELARGI = { 0: 1.25, 1: 1.25, 2: 1.25, 3: 1.15 };
-export const largeurRoute = L => L.sens && L.cls <= 3 ? Math.max(2, L.voies || 2) * (L.cls <= 1 ? 3.5 : 3.3) + 1.2 : ROAD_W[L.cls] * (ELARGI[L.cls] ?? 1);
+/**
+ * Toutes les voies, 30 % plus larges encore : « augmenter la largeur de toutes les voies », les voitures étaient à l'étroit
+ * (testeur, 04/11) — dans une rue de quartier de 6 m, une voiture de 1,8 m croisait à peine un zém. Un seul facteur, ici :
+ * la chaussée dessinée (et ses marquages, tendus sur sa largeur), la zone où l'on roule (conduite.js), les files de la
+ * circulation (trafic.js, circulation.js), les feux et les passages piétons (feux.js), les rues de Zém Run (jeu.js)
+ * suivent `L.w` ; les trottoirs (rue.js, maison.js), le ruban du GPS (conduite.js) et la carte (carte-salon.js) suivent
+ * ELARGIR. Ce qui tombe alors sur la chaussée est retiré au chargement, dessin et collision (chaussee.js,
+ * batiments-google.js, rue.js) : 2 831 maisons OpenStreetMap de plus (6 246 au lieu de 3 415, sur 88 000), environ 10 000
+ * emprises Google sur 690 000, 7 600 arbres. Les chaussées des boulevards s'élargissent vers l'extérieur (ecarterChaussees) :
+ * le terre-plein reste entier. Les pistes de l'aéroport, les voies ferrées et les jetées ne bougent pas.
+ */
+export const ELARGIR = 1.3;
+export const largeurRoute = L => (L.sens && L.cls <= 3 ? Math.max(2, L.voies || 2) * (L.cls <= 1 ? 3.5 : 3.3) + 1.2 : ROAD_W[L.cls] * (ELARGI[L.cls] ?? 1)) * (L.cls <= 6 ? ELARGIR : 1);
 function rubanUV(pts, w, pos, uv, idx) {
   const n = pts.length, base = pos.length / 3; let v = 0;
   for (let i = 0; i < n; i++) {
@@ -263,8 +275,8 @@ function anneauxManquants() {
     for (const j of grp) pris.add(j);
     // Sens inverse des aiguilles d'une montre vu d'en haut (on roule à droite) ; z va vers le sud.
     const pts = []; for (let k = 0; k <= 64; k++) { const a = k / 64 * Math.PI * 2; pts.push([cx + Math.cos(a) * m, cz - Math.sin(a) * m]); }
-    nouveaux.push({ cls: 3, surf: 0, bridge: false, sens: false, voies: 2, pts, w: 9, rond: true, anneau: true });
-    ILES.push([cx, cz, m - 4.5]);
+    nouveaux.push({ cls: 3, surf: 0, bridge: false, sens: false, voies: 2, pts, w: 9 * ELARGIR, rond: true, anneau: true });
+    ILES.push([cx, cz, m - 4.5 * ELARGIR]);
   });
   roadLines.push(...nouveaux);
   return nouveaux.length;
@@ -299,15 +311,53 @@ function morceauxAuCarrefour(L, li) {
   return fus.filter(q => q.pts.length >= 2);
 }
 if (import.meta.env.DEV) window.__morceaux = (L, i) => morceauxAuCarrefour(L, i); // pour les tests
+/**
+ * Les deux chaussées à sens unique d'un boulevard, élargies d'ELARGIR, mangeaient le terre-plein entre elles (ou se
+ * chevauchaient, là où il n'y en a pas). Chacune s'écarte donc de l'autre de ce qu'elle a gagné de chaque côté : son bord
+ * intérieur ne bouge pas, le terre-plein garde sa place et sa largeur, seul le bord extérieur avance. Au plus 1,4 m : les
+ * rues qui débouchent sur le boulevard, les demi-tours qui traversent le terre-plein, restent raccordés au réseau du GPS
+ * (carrefours.js les relie à 1,5 m près) ; une chaussée de trois voies en perd 35 cm vers l'intérieur. Les deux moitiés
+ * se reconnaissent comme scripts/donnees.mjs les apparie : sens contraires, parallèles, −2 à 25 m entre leurs bords. Là où
+ * elles se rejoignent (bout du boulevard), elles ne sont plus appariées et ne bougent pas. Renvoie le nombre de points déplacés.
+ */
+function ecarterChaussees() {
+  const S = roadLines.filter(L => L.sens && L.cls <= 3), CG = 60, g = new Map(); // les ponts aussi : leurs deux tabliers se chevauchaient
+  for (const L of S) for (let k = 1; k < L.pts.length; k++) {
+    const [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k];
+    for (let cx = Math.floor((Math.min(ax, bx) - 30) / CG); cx <= Math.floor((Math.max(ax, bx) + 30) / CG); cx++) for (let cz = Math.floor((Math.min(az, bz) - 30) / CG); cz <= Math.floor((Math.max(az, bz) + 30) / CG); cz++) { const q = cx + ',' + cz; (g.get(q) || g.set(q, []).get(q)).push([L, k]); }
+  }
+  const decal = S.map(L => {
+    const s = Math.min(1.4, L.w * (1 - 1 / ELARGIR) / 2), w0 = L.w / ELARGIR;
+    return L.pts.map(([x, z], i) => {
+      const a = L.pts[Math.max(0, i - 1)], b = L.pts[Math.min(L.pts.length - 1, i + 1)], dl = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, ux = (b[0] - a[0]) / dl, uz = (b[1] - a[1]) / dl;
+      let best = null;
+      for (const [M, k] of g.get(Math.floor(x / CG) + ',' + Math.floor(z / CG)) || []) {
+        if (M === L) continue;
+        const [ax, az] = M.pts[k - 1], [bx, bz] = M.pts[k], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz; if (!l2 || (dx * ux + dz * uz) / Math.sqrt(l2) > -.85) continue;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)), px = ax + dx * t, pz = az + dz * t, d = Math.hypot(px - x, pz - z), ecart = d - (w0 + M.w / ELARGIR) / 2;
+        if (d > .5 && ecart > -2 && ecart < 25 && (!best || d < best.d)) best = { d, px, pz };
+      }
+      return best && [(x - best.px) / best.d * s, (z - best.pz) / best.d * s];
+    });
+  });
+  let n = 0;
+  S.forEach((L, j) => decal[j].forEach((v, i) => { if (v) { L.pts[i] = [L.pts[i][0] + v[0], L.pts[i][1] + v[1]]; n++; } }));
+  return n;
+}
 export function buildRoads(R) {
-  let pi = 0;
+  let pi = 0, nDalots = 0;
   for (let i = 0; i < R.c.length; i++) {
     const n = R.n[i], pts = []; let x = 0, z = 0;
     for (let j = 0; j < n; j++) { x += R.p[pi++]; z += R.p[pi++]; pts.push([x / 10, z / 10]); }
     const L = { cls: R.c[i], surf: R.f[i] & 3, bridge: !!(R.f[i] & 4), sens: !!(R.f[i] & 8), voies: (R.f[i] >> 4) & 7, pts };
+    // Un « pont » de moins de 60 m (bridge=yes dans OpenStreetMap) : un dalot sous la route, au ras de la chaussée. Son
+    // tablier montait à 35 cm au-dessus des deux bouts de la rue, avec 1,4 m de flancs qu'on voyait à travers le sol : une
+    // dalle sombre aux flancs bruns posée en travers du carrefour de la Route des Pêches à Fiyégnon (« il y a un bug dans ce
+    // carrefour », testeur, 04/11). 94 tronçons sur 122 sont dans ce cas (43 rues, 51 sentiers) ; ils deviennent des rues comme les autres.
+    if (L.bridge) { let lon = 0; for (let j = 1; j < n; j++) lon += Math.hypot(pts[j][0] - pts[j - 1][0], pts[j][1] - pts[j - 1][1]); if (lon < 60) { L.bridge = false; L.dalot = true; nDalots++; } }
     L.w = largeurRoute(L); roadLines.push(L);
   }
-  const t0 = performance.now(), nAjoutes = anneauxManquants(), nRonds = goudronnerRondsPoints();
+  const t0 = performance.now(), nAjoutes = anneauxManquants(), nEcartes = ecarterChaussees(), nRonds = goudronnerRondsPoints(); // les anneaux d'abord, sur les bouts de rue d'origine : écartées, deux des six places n'étaient plus reconnues
   const order = roadLines.map((_, i) => i).sort((a, b) => ROAD_ORDER[roadLines[a].cls] - ROAD_ORDER[roadLines[b].cls]);
   const pos = [], idx = [], col = [];
   const bpos = [], bidx = [], bcol = [];
@@ -335,11 +385,11 @@ export function buildRoads(R) {
     const base0 = bpos.length / 3;
     ribbon(dense, w, bpos, bidx, bcol, rgb, hY);
     const side = u8c('#9c958a');
-    for (const s of [0, 1]) { // flancs du tablier
+    for (const s of [0, 1]) { // flancs du tablier, jusqu'au sol au plus : sous le sol, ils se voyaient au travers (il n'écrit pas sa profondeur)
       const sb = bpos.length / 3;
       for (let j = 0; j < dense.length; j++) {
         const vi = (base0 + j * 2 + s) * 3, x = bpos[vi], y = bpos[vi + 1], z = bpos[vi + 2];
-        bpos.push(x, y, z, x, y - 1.4, z); bcol.push(...side, ...side);
+        bpos.push(x, y, z, x, Math.max(0, y - 1.4), z); bcol.push(...side, ...side);
         if (j > 0) { const o = sb + (j - 1) * 2; bidx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2); }
       }
     }
@@ -354,7 +404,7 @@ export function buildRoads(R) {
     m.renderOrder = order; m.receiveShadow = true; m.castShadow = depthWrite && !LITE; scene.add(m); return m;
   };
   const routes = mk(pos, idx, col, 7, false); grainSol(routes.material, false, true); routes.userData.route = true; COUCHES_SOL.push(routes); // fissures et rapiéçages sur le goudron
-  console.info(`routes : ${nRonds} anneaux de ronds-points goudronnés, ${nAjoutes} ajoutés, lignes coupées aux carrefours, ${Math.round(performance.now() - t0)} ms`);
+  console.info(`routes : ${nRonds} anneaux de ronds-points goudronnés, ${nAjoutes} ajoutés, ${nDalots} ponts courts au ras de la rue, ${nEcartes} points de boulevard écartés, lignes coupées aux carrefours, ${Math.round(performance.now() - t0)} ms`);
   for (const M of [nu, marqAxe, marq2, marq4, ...Object.values(marqSens)]) {
     if (!M.pos.length) continue;
     const g = new THREE.BufferGeometry();
