@@ -10,6 +10,7 @@ import { PLACES } from './donnees-lieux.js';
 import { musiqueEvenement } from './musique.js';
 import { fouleCorps, fouleTete, fouleTissus } from './lieux.js';
 import { chargerDanses, chargerPersonnages, personnage3d, personnagesPrets } from './personnages.js';
+import { fouleAnimee } from './foule-reelle.js';
 import { LITE } from './base.js';
 import { echecCertain, paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
 import { avatarPorte } from './mode.js';
@@ -80,7 +81,9 @@ function construire() {
     const c = new THREE.Mesh(new THREE.ConeGeometry(2.6, 16, 18, 1, true).translate(0, -8, 0), new THREE.MeshBasicMaterial({ color: lum[i], transparent: true, opacity: .18, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     c.position.set(sx - 10 + i * 4, 12.4, sz - 4); g.add(c); EV.spots.push(c);
   }
-  // La foule : silhouettes en tissus wax, tournées vers la scène, qui sautent en rythme (derrière les danseurs des premiers rangs).
+  // La foule : de vraies personnes, bras levés ou qui dansent, tournées vers la scène, qui sautent en rythme (derrière les
+  // danseurs des premiers rangs). « Règle ça pour qu'on ne voie plus ces choses » (Murielle, 05/11, à propos des cylindres) :
+  // les silhouettes en tissus wax ne servent plus que le temps que concert.glb arrive (foule-reelle.js).
   const n = LITE ? 700 : 1600, corps = new THREE.InstancedMesh(fouleCorps, new THREE.MeshLambertMaterial(), n), tetes = new THREE.InstancedMesh(fouleTete, new THREE.MeshLambertMaterial({ color: '#4a2f22' }), n);
   for (let i = 0; i < n; i++) { const x = sx + (Math.random() - .5) * 62, z = az - 8 + Math.random() * 34; EV.places.push([x, z, Math.random() * 6.28, .8 + Math.random() * .5]); corps.setColorAt(i, fouleTissus[i % fouleTissus.length]); }
   corps.frustumCulled = tetes.frustumCulled = false; // positions mises à jour à chaque image
@@ -89,6 +92,32 @@ function construire() {
   const nt = Math.round(n / 4);
   const tel = new THREE.InstancedMesh(new THREE.PlaneGeometry(.12, .22), new THREE.MeshBasicMaterial({ color: '#fff6d8', transparent: true, opacity: .9, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }), nt);
   tel.frustumCulled = false; tel.renderOrder = 4; g.add(tel); EV.telephones = tel; surEcran(tel);
+  poserFoule(0, false); // chacun à sa place dès le départ : avant, tous attendaient au même point que le concert commence
+  fouleAnimee('concert', n, 77, g).then(F => {
+    if (!F) return;
+    EV.vrais = F; F.meshes.forEach(surEcran); corps.visible = tetes.visible = false;
+    F.choisir(EV.actif && !LITE ? 'haut' : 'bas'); poserFoule(EV.t, EV.actif);
+  });
+}
+// La foule et ses téléphones levés, à l'instant t (en musique si `anime`, sinon debout, immobile).
+const TEMPS = 60 / 118; // pulsation du morceau
+const s2 = new THREE.Vector3();
+function poserFoule(t, anime) {
+  const R = EV.vrais, saut = (ph, f) => anime ? Math.max(0, Math.sin((t / TEMPS) * Math.PI + ph)) * .35 * f : 0;
+  EV.places.forEach(([x, z, ph, f], i) => {
+    const tourne = anime ? Math.sin(t + ph) * .2 : 0;
+    if (R) { const k = 1 + (f - 1.05) * .3; m4.compose(v.set(x, saut(ph, f), z), q.setFromAxisAngle(Y, tourne), s2.set(k, k, k)); R.poser(i, m4); } // face à la scène (+z)
+    else { m4.compose(v.set(x, saut(ph, f), z), q.setFromAxisAngle(Y, Math.PI + tourne), s1); EV.foule.setMatrixAt(i, m4); EV.tetes.setMatrixAt(i, m4); }
+  });
+  if (R) R.fini(); else { EV.foule.instanceMatrix.needsUpdate = true; EV.tetes.instanceMatrix.needsUpdate = true; }
+  // Les téléphones levés : un spectateur sur quatre, le bras qui bouge un peu avec la musique. Au bout des mains levées
+  // des vraies personnes, juste devant elles ; l'écran tourné vers l'arrière, comme quand on filme.
+  const tel = EV.telephones; if (!tel) return;
+  for (let i = 0; i < tel.count; i++) {
+    const [x, z, ph, f] = EV.places[i * 4], haut = R ? R.sommet(i * 4) * (1 + (f - 1.05) * .3) - .08 : 1.78 * f;
+    m4.compose(v.set(x + (anime ? Math.sin(t * 1.3 + ph) * .12 : 0), haut + saut(ph, f), z + (R ? .18 : -.18)), q.setFromAxisAngle(Y, Math.PI), s1); tel.setMatrixAt(i, m4);
+  }
+  tel.instanceMatrix.needsUpdate = true;
 }
 // Les premiers rangs : de vrais personnages (personnages.js) qui dansent et acclament, chacun à son rythme.
 const DANSES = ['danse1', 'danse2', 'acclame'];
@@ -147,22 +176,8 @@ function filmer(t, plan) {
 }
 function boucle(now) {
   if (!EV.actif) return;
-  const t = now / 1000, temps = 60 / 118; // pulsation du morceau
-  EV.places.forEach(([x, z, ph, f], i) => {
-    const saut = Math.max(0, Math.sin((t / temps) * Math.PI + ph)) * .35 * f;
-    m4.compose(v.set(x, saut, z), q.setFromAxisAngle(Y, Math.PI + Math.sin(t + ph) * .2), s1); EV.foule.setMatrixAt(i, m4); EV.tetes.setMatrixAt(i, m4);
-  });
-  EV.foule.instanceMatrix.needsUpdate = true; EV.tetes.instanceMatrix.needsUpdate = true;
-  // Les téléphones levés : un spectateur sur quatre, le bras qui bouge un peu avec la musique.
-  if (EV.telephones) {
-    const tel = EV.telephones;
-    for (let i = 0; i < tel.count; i++) {
-      const [x, z, ph, f] = EV.places[i * 4];
-      const saut = Math.max(0, Math.sin((t / temps) * Math.PI + ph)) * .35 * f;
-      m4.compose(v.set(x + Math.sin(t * 1.3 + ph) * .12, 1.78 * f + saut, z - .18), q.setFromAxisAngle(Y, Math.PI), s1); tel.setMatrixAt(i, m4);
-    }
-    tel.instanceMatrix.needsUpdate = true;
-  }
+  const t = now / 1000; EV.t = t;
+  poserFoule(t, true);
   EV.spots.forEach((c, i) => { c.rotation.x = Math.sin(t * .9 + i) * .55 - .35; c.rotation.z = Math.cos(t * .7 + i * 1.3) * .5; });
   // L'écran, en boucle : l'artiste, le public, la vidéo s'il y en a une, puis les motifs au nom du concert.
   const duree = EV.video ? 20 : 16, phase = t % duree;
@@ -206,6 +221,7 @@ function entrer() {
   if (!EV.groupe) construire();
   chargerPersonnages().then(() => chargerDanses()).then(() => { if (EV.actif) { artistes(); danseurs(); } }); // les danses arrivent en quelques secondes ; sans attendre, la scène restait vide quand on entrait tôt
   EV.groupe.visible = true; EV.dehors = false; EV.actif = true; setMood('nuit'); musiqueEvenement(true);
+  EV.vrais?.choisir(LITE ? 'bas' : 'haut'); // au concert, on est tout près de la foule
   EV.minDist = controls.minDistance; controls.minDistance = 5; // au concert, on peut s'approcher de la foule
   startFlight(EV.scene.clone(), 32, 1.2, Math.PI - .65, 2.6); // derrière la foule, en biais (la statue est dans l'axe de la scène)
   $('#evQuitter').hidden = false; $('#evenement').hidden = true;
@@ -242,6 +258,7 @@ export function quitterEvenement() {
   musiqueEvenement(false); EV.groupe.visible = false; $('#evQuitter').hidden = true; EV.videoEl?.pause();
   if (EV.moi) { EV.moi.userData.liberer(); EV.groupe.remove(EV.moi); EV.moi = null; }
   if (EV.minDist) controls.minDistance = EV.minDist;
+  EV.vrais?.choisir('bas'); poserFoule(0, false); // vue de la ville (les soirs de concert) : debout, immobiles, de loin
 }
 // Billet payé en MoMo : gardé pour la journée sur cet appareil (on ne paie pas deux fois le même soir).
 const CLE_BILLET = 'cotonou3d-billet-concert', aujourdhui = () => new Date().toISOString().slice(0, 10);

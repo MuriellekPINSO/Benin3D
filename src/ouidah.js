@@ -5,6 +5,7 @@ import { fouleCorps, fouleTete, fouleTissus, groupeLieu } from './lieux.js';
 import { photoPlusTard } from './telechargements.js';
 import { chargerMasques, creerEgungun, creerZangbeto, masque } from './egungun.js';
 import { reduireImage } from './textures.js';
+import { fouleAnimee } from './foule-reelle.js';
 
 // Ouidah : la Porte du Non-Retour, au bout de la Route des Esclaves, et l'Arène de
 // Ouidah voisine (celle des Vodun Days). L'arène reprend la maquette de l'artifact
@@ -419,17 +420,25 @@ function monterPublic() {
   }
   corps.frustumCulled = tetes.frustumCulled = false;
   SP.arene.add(corps, tetes); SP.public = corps; SP.tetes = tetes;
+  // De vraies personnes assises (foule-reelle.js, gradins.glb : 700 triangles chacune, instanciées) : les silhouettes ne
+  // servent plus que le temps que le fichier arrive. « On ne doit plus voir ces choses » (Murielle, 05/11).
+  fouleAnimee('gradins', n, 31, SP.arene).then(F => {
+    if (!F) return;
+    SP.vrais = F; F.choisir(LITE ? 'bas' : 'haut'); corps.visible = tetes.visible = false; animerPublic(0);
+  });
 }
+const ASSIS_Y = -.11; // depuis la place des silhouettes (RANG_Y - .34) jusqu'à celle d'une personne assise
 const m4P = new THREE.Matrix4(), qP = new THREE.Quaternion(), vP = new THREE.Vector3(), sP = new THREE.Vector3(1, 1, 1), YP = new THREE.Vector3(0, 1, 0);
 /** Le public respire et se balance : on n'anime que ce qui se voit, et doucement — ils sont assis. */
 function animerPublic(t) {
   if (!SP.public) return;
   SP.places.forEach(([x, y, z, cap, ph], i) => {
     const b = Math.sin(t * 1.6 + ph) * .035;
-    m4P.compose(vP.set(x, y + b, z), qP.setFromAxisAngle(YP, cap + Math.sin(t * .9 + ph) * .12), sP);
-    SP.public.setMatrixAt(i, m4P); SP.tetes.setMatrixAt(i, m4P);
+    // Une vraie personne assise a les pieds au sol : son bassin sur le banc, ses pieds sur le rang du dessous.
+    m4P.compose(vP.set(x, y + b + (SP.vrais ? ASSIS_Y : 0), z), qP.setFromAxisAngle(YP, cap + Math.sin(t * .9 + ph) * .12), sP);
+    if (SP.vrais) SP.vrais.poser(i, m4P); else { SP.public.setMatrixAt(i, m4P); SP.tetes.setMatrixAt(i, m4P); }
   });
-  SP.public.instanceMatrix.needsUpdate = true; SP.tetes.instanceMatrix.needsUpdate = true;
+  if (SP.vrais) SP.vrais.fini(); else { SP.public.instanceMatrix.needsUpdate = true; SP.tetes.instanceMatrix.needsUpdate = true; }
 }
 // Les voisins de rang. Murielle les voulait en vrais personnages : « les vrais personnages doivent être à
 // côté d'elle » (25/10). Essayé, et renoncé, parce que c'est trop cher. Un personnage du jeu est un modèle

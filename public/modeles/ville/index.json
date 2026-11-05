@@ -52,8 +52,27 @@
   "octets": 204612
  },
  "foule": {
-  "triangles": 17167,
-  "octets": 344592,
-  "variantes": 24
+  "variantes": 24,
+  "triangles": {
+   "haut": 700,
+   "bas": 365
+  },
+  "octets": 484236
+ },
+ "concert": {
+  "variantes": 32,
+  "triangles": {
+   "haut": 700,
+   "bas": 365
+  },
+  "octets": 602764
+ },
+ "gradins": {
+  "variantes": 32,
+  "triangles": {
+   "haut": 818,
+   "bas": 375
+  },
+  "octets": 612692
  }
 }

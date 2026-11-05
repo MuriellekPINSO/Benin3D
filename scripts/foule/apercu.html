@@ -2,7 +2,7 @@
 <meta charset="utf-8">
 <title>Aperçu de la foule</title>
 <style>body{margin:0;background:#cfd8dc}</style>
-<!-- Les variantes de public/modeles/ville/foule.glb côte à côte (contrôle de scripts/foule.mjs). -->
+<!-- Les variantes de public/modeles/ville/foule.glb (ou ?f=concert, ?finesse=bas) côte à côte (contrôle de scripts/foule.mjs). -->
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -10,9 +10,10 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 const R = new THREE.WebGLRenderer({ antialias: true }); R.setSize(innerWidth, innerHeight); document.body.append(R.domElement);
 const S = new THREE.Scene(); S.background = new THREE.Color('#cfd8dc');
 S.add(new THREE.HemisphereLight('#ffffff', '#8a7a66', 1.6)); const d = new THREE.DirectionalLight('#fff', 1.8); d.position.set(3, 6, 8); S.add(d);
-const g = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('/modeles/ville/foule.glb');
-const meshes = []; g.scene.traverse(o => o.isMesh && meshes.push(o));
-const cols = 8, prox = new URLSearchParams(location.search).has('pres');
+const Q = new URLSearchParams(location.search), fichier = Q.get('f') || 'foule', finesse = Q.get('finesse') || 'haut';
+const g = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`/modeles/ville/${fichier}.glb`);
+const meshes = []; g.scene.traverse(o => o.isMesh && o.name.endsWith(finesse) && meshes.push(o));
+const cols = 8, prox = Q.has('pres');
 meshes.forEach((m, i) => {
   const geo = m.geometry.clone(); for (const k of Object.keys(geo.attributes)) { const a = geo.attributes[k], f = new Float32Array(a.count * a.itemSize); for (let j = 0; j < a.count; j++) for (let c = 0; c < a.itemSize; c++) f[j * a.itemSize + c] = a.getComponent(j, c); geo.setAttribute(k, new THREE.BufferAttribute(f, a.itemSize)); }
   geo.applyMatrix4(m.matrixWorld); geo.computeVertexNormals();

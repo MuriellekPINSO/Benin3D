@@ -62,8 +62,8 @@ function preparer(id, gltf) {
 }
 
 // Modèles faits mais pas (encore) posés dans le jeu : pas téléchargés. Et ceux qu'un autre module charge à sa façon
-// (la foule : plusieurs personnages dans un fichier, foule-reelle.js).
-const PAS_ENCORE = new Set(), A_PART = new Set(['foule']);
+// (la foule et celle du concert : plusieurs personnages dans un fichier, foule-reelle.js).
+const PAS_ENCORE = new Set(), A_PART = new Set(['foule', 'concert', 'gradins']);
 let INDEX = null;
 /** La liste des modèles de public/modeles/ville (null si elle manque). */
 export const indexVille = () => INDEX ??= fetch(import.meta.env.BASE_URL + 'modeles/ville/index.json')

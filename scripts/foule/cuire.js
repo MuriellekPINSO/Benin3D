@@ -5,12 +5,14 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
-const { ids, poses, tailles } = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+// danses : les clips du concert (danse1, danse2, acclame) sont dans <id>-danses.glb, sans maillage (même squelette).
+const { ids, poses, tailles, danses } = JSON.parse(decodeURIComponent(location.hash.slice(1)));
 const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const sortie = { variantes: [], textures: {} };
 const v = new THREE.Vector3();
 for (const id of ids) {
   const g = await L.loadAsync(`/modeles/personnages/${id}.glb`);
+  if (danses) g.animations.push(...(await L.loadAsync(`/modeles/personnages/${id}-danses.glb`)).animations);
   const mixer = new THREE.AnimationMixer(g.scene);
   let tex = null;
   for (const [nom, f] of poses) {
@@ -27,6 +29,8 @@ for (const id of ids) {
       base += n;
       tex ||= o.material.map;
     });
+    // Les modèles de Tripo regardent vers +x : un quart de tour pour qu'ils regardent vers +z, comme dans le jeu.
+    for (let i = 0; i < pos.length; i += 3) { const x = pos[i], z = pos[i + 2]; pos[i] = -z; pos[i + 2] = x; }
     // Au sol, centré, à sa taille.
     let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
     for (let i = 0; i < pos.length; i += 3) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], pos[i + k]); mx[k] = Math.max(mx[k], pos[i + k]); }

@@ -12,7 +12,7 @@ import { ajouterPlace } from './zones.js';
 import { photoPlusTard, plusTard } from './telechargements.js';
 import { chargeurGLB, reduireImage } from './textures.js';
 import { remplacerParVille, quandVille, instancesVille, echelleSol } from './ville-tripo.js';
-import { ajouterFoule, majFoule } from './foule-reelle.js';
+import { ajouterFoule, fouleAnimee, majFoule } from './foule-reelle.js';
 
 // ---------- Lieux détaillés ----------
 // Matières et primitives reprises du projet « 3D monde » (src/entities/Batisseur.ts),
@@ -1052,14 +1052,23 @@ export function pirogues(arr) {
       if (gens) gens.setColorAt(k, fouleTissus[Math.floor(hash(ids[k], 96) * fouleTissus.length)]);
       if (pan) for (let j = 0; j < 4; j++) pan.setColorAt(k * 4 + j, new THREE.Color(['#d8432f', '#e9b23a', '#5d9b3a', '#d97a2a'][j]));
     });
+    // Le pagayeur : un vrai personnage debout à moins de 150 m (80 m sur téléphone), la silhouette plus loin (foule-reelle.js).
+    // Enfants de la coque : cachés avec elle.
+    let vrais = null; const q2 = new THREE.Quaternion(), cam = camera.position, PRES_P = LITE ? 80 : 150, ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+    if (gens) fouleAnimee('foule', ids.length, 300 + ids.length, coque).then(F => { if (F) { F.choisir(LITE ? 'bas' : 'haut'); vrais = F; } });
     const maj = t => {
       base.forEach((b, k) => {
         const d = Math.sin(t * b.w + b.ph) * b.r, x = b.x + Math.cos(b.a) * d, z = b.z - Math.sin(b.a) * d;
         q.setFromAxisAngle(Y, b.a); m4.compose(p.set(x, 0, z), q, s1); coque.setMatrixAt(k, m4);
-        if (gens) { const ox = Math.cos(b.a) * -1.8, oz = -Math.sin(b.a) * -1.8; m4.compose(p.set(x + ox, b.debout || paniers ? .05 : -.45, z + oz), q, s1); gens.setMatrixAt(k, m4); }
+        if (gens) {
+          const ox = Math.cos(b.a) * -1.8, oz = -Math.sin(b.a) * -1.8, pres = vrais && Math.hypot(x + ox - cam.x, z + oz - cam.z, cam.y) < PRES_P;
+          m4.compose(p.set(x + ox, pres ? .1 : b.debout || paniers ? .05 : -.45, z + oz), q, s1);
+          gens.setMatrixAt(k, pres ? ZERO : m4);
+          if (vrais) { if (pres) m4.compose(p, q2.setFromAxisAngle(Y, b.a + Math.PI / 2), s1); vrais.poser(k, pres ? m4 : ZERO); } // tourné vers l'avant de la pirogue
+        }
         if (pan) for (let j = 0; j < 4; j++) { m4.compose(p.set(x + Math.cos(b.a) * (j - 1) * .9, .2, z - Math.sin(b.a) * (j - 1) * .9), q, s1); pan.setMatrixAt(k * 4 + j, m4); }
       });
-      coque.instanceMatrix.needsUpdate = true; if (gens) gens.instanceMatrix.needsUpdate = true; if (pan) pan.instanceMatrix.needsUpdate = true;
+      coque.instanceMatrix.needsUpdate = true; if (gens) gens.instanceMatrix.needsUpdate = true; if (pan) pan.instanceMatrix.needsUpdate = true; vrais?.fini();
     };
     maj(0);
     coque.userData.anim = maj;
