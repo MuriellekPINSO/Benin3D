@@ -37,7 +37,8 @@
   .erreur { color: var(--rouge); font-size: 14px; font-weight: 600; }
   .message { padding: 12px 14px; border-radius: 14px; background: var(--vert-clair); color: #134d33; font-weight: 600; }
   .message.mal { background: #fbe9e7; color: var(--rouge); }
-  .choix { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .choix { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .cases { display: flex; flex-wrap: wrap; gap: 16px; } .cases label { display: flex; align-items: center; gap: 8px; font-weight: 500; } .cases input { width: 20px; height: 20px; }
   .choix button { background: #fff; color: var(--encre); border: 1.5px solid var(--trait); border-radius: 16px; padding: 14px; display: grid; gap: 2px; text-align: left; font-weight: 600; }
   .choix button small { font-weight: 400; color: var(--encre-2); font-size: 13.5px; }
   .choix button[aria-pressed=true] { border-color: var(--vert); background: var(--vert-clair); }
@@ -80,7 +81,7 @@
 
   <section class="bloc" id="accueil">
     <h1>Mets ton jeu dans la salle de jeux de Kutɔnu Vibes</h1>
-    <p class="doux">Kutɔnu Vibes, c’est Cotonou en 3D. Sa salle de jeux présente les jeux des créateurs béninois. Un jeu web se joue directement dans Kutɔnu Vibes. Un jeu mobile a sa vitrine, et un bouton envoie les joueurs vers le Play Store ou l’App Store.</p>
+    <p class="doux">Kutɔnu Vibes, c’est Cotonou en 3D. Sa salle de jeux présente les jeux des créateurs béninois. Un jeu web se joue directement dans Kutɔnu Vibes. Un jeu mobile ou pour ordinateur a sa vitrine, et un bouton envoie les joueurs vers le Play Store, l’App Store ou sa page de téléchargement.</p>
     <p class="doux">Tu crées la fiche de ton jeu ici. L’équipe la valide, puis le jeu apparaît dans la ville. C’est gratuit.</p>
   </section>
 
@@ -121,6 +122,7 @@
     <div class="choix" role="group" aria-label="Type de jeu">
       <button type="button" data-type="mobile" aria-pressed="true">Jeu mobile<small>Sur le Play Store ou l’App Store</small></button>
       <button type="button" data-type="web" aria-pressed="false">Jeu web<small>Il se joue dans un navigateur</small></button>
+      <button type="button" data-type="pc" aria-pressed="false">Jeu ordinateur<small>À télécharger : Windows, Linux, Mac</small></button>
     </div>
     <label>Nom du jeu<input type="text" id="nom" maxlength="40"></label>
     <p class="erreur" data-erreur="nom" hidden></p>
@@ -134,6 +136,12 @@
       <p class="erreur" data-erreur="android" hidden></p>
       <label>Lien App Store<small>Facultatif. https://apps.apple.com/…/id…</small><input type="url" id="ios" inputmode="url"></label>
       <p class="erreur" data-erreur="ios" hidden></p>
+    </div>
+    <div id="champsPc" hidden style="display:grid;gap:14px">
+      <label>Page de téléchargement<small>En https : itch.io, Steam, GitHub ou ton propre site.</small><input type="url" id="pc" inputmode="url"></label>
+      <p class="erreur" data-erreur="pc" hidden></p>
+      <div><p><b>Il marche sur</b></p><div class="cases"><label><input type="checkbox" name="plateforme" value="windows">Windows</label><label><input type="checkbox" name="plateforme" value="linux">Linux</label><label><input type="checkbox" name="plateforme" value="mac">Mac</label></div></div>
+      <p class="erreur" data-erreur="plateformes" hidden></p>
     </div>
     <div id="champsWeb" hidden>
       <label>Adresse du jeu<small>En https, sur ton propre domaine. Elle s’ouvrira dans une fenêtre de Kutɔnu Vibes : ton site doit accepter d’être affiché dans une autre page (pas d’en-tête X-Frame-Options ni de frame-ancestors qui l’interdit pour kotonuvibes.com).</small><input type="url" id="web" inputmode="url"></label>
@@ -230,9 +238,9 @@
       const d = document.createElement('div'); d.className = 'jeu';
       const enLigneAncienne = f.enLigne && f.statut !== 'publie';
       d.innerHTML = `<div class="jeu-tete"><b></b><span class="statut ${f.statut}">${STATUTS[f.statut] || f.statut}</span></div>
-        <p class="doux">${f.type === 'web' ? 'Jeu web' : 'Jeu mobile'}${enLigneAncienne ? ' · la version validée reste en ligne en attendant' : ''}</p>
+        <p class="doux">${TYPES[f.type] || 'Jeu mobile'}${enLigneAncienne ? ' · la version validée reste en ligne en attendant' : ''}</p>
         ${f.mot && (f.statut === 'refuse' || f.statut === 'retire') ? '<p class="message mal"></p>' : ''}
-        ${f.stats ? `<div class="chiffres"><span>${f.stats.fiche} fiches ouvertes</span><span>${f.stats.partie} parties</span><span>${f.stats.magasin} vers le magasin</span><span>${f.stats.qr} QR codes</span><span>${f.stats.code} codes copiés</span><span class="doux">30 derniers jours</span></div>` : ''}
+        ${f.stats ? `<div class="chiffres"><span>${f.stats.fiche} fiches ouvertes</span><span>${f.stats.partie} parties</span><span>${f.stats.magasin} ${f.type === 'pc' ? 'vers le téléchargement' : 'vers le magasin'}</span><span>${f.stats.qr} QR codes</span><span>${f.stats.code} codes copiés</span><span class="doux">30 derniers jours</span></div>` : ''}
         <div class="rangee"><button type="button" class="second" data-modifier>Modifier</button>${f.enLigne ? '<button type="button" class="danger" data-retrait>Demander le retrait</button>' : '<button type="button" class="danger" data-supprimer>Supprimer</button>'}</div>`;
       d.querySelector('b').textContent = f.nom; // textes du créateur : jamais en HTML
       if (d.querySelector('.message')) d.querySelector('.message').textContent = `Mot de l’équipe : ${f.mot}`;
@@ -276,16 +284,17 @@
   $('#retour').onclick = () => chargerListe();
 
   // ---------- La fiche ----------
-  const CHAMPS = ['nom', 'accroche', 'description', 'createurs', 'android', 'ios', 'web', 'video', 'code'];
+  const CHAMPS = ['nom', 'accroche', 'description', 'createurs', 'android', 'ios', 'web', 'pc', 'video', 'code'];
+  const TYPES = { web: 'Jeu web', mobile: 'Jeu mobile', pc: 'Jeu ordinateur' };
   function choisirType(t) {
     S.type = t; document.querySelectorAll('.choix button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.type === t)));
-    montrer('#champsMobile', t === 'mobile'); montrer('#champsWeb', t === 'web');
+    montrer('#champsMobile', t === 'mobile'); montrer('#champsWeb', t === 'web'); montrer('#champsPc', t === 'pc');
   }
   document.querySelectorAll('.choix button').forEach(b => { b.onclick = () => choisirType(b.dataset.type); });
   async function ouvrirFiche(id) {
     S.id = id; S.affiche = null; S.captures = [];
     for (const c of CHAMPS) $(`#${c}`).value = '';
-    $('#accord').checked = false; effacerErreurs(); montrer('#messageFiche', false); montrer('#ficheMot', false);
+    $('#accord').checked = false; document.querySelectorAll('[name=plateforme]').forEach(c => { c.checked = false; }); effacerErreurs(); montrer('#messageFiche', false); montrer('#ficheMot', false);
     $('#ficheTitre').textContent = id ? 'Modifier le jeu' : 'Nouveau jeu'; choisirType('mobile');
     montrer('#mesJeux', false); montrer('#messages', false); montrer('#accueil', false); montrer('#fiche'); scrollTo({ top: 0 });
     if (id) {
@@ -293,7 +302,8 @@
       if (!r.ok) { dire(MSG[r.statut] || 'Impossible de lire la fiche.', true); return; }
       const f = r.fiche;
       for (const c of CHAMPS) $(`#${c}`).value = c === 'video' && f.video ? `https://youtu.be/${f.video}` : (f[c] || '');
-      choisirType(f.type === 'web' ? 'web' : 'mobile');
+      choisirType(TYPES[f.type] ? f.type : 'mobile');
+      document.querySelectorAll('[name=plateforme]').forEach(c => { c.checked = (f.plateformes || []).includes(c.value); });
       if (f.images?.a) S.affiche = { url: f.images.a, nouvelle: null };
       for (const k of ['c0', 'c1', 'c2', 'c3', 'c4']) if (f.images?.[k]) S.captures.push({ url: f.images[k], nouvelle: null });
       $('#accord').checked = f.accord?.v === ACCORD;
@@ -340,6 +350,7 @@
     effacerErreurs(); dire('');
     const fiche = Object.fromEntries(CHAMPS.map(c => [c, $(`#${c}`).value.trim()]));
     fiche.type = S.type; fiche.accord = $('#accord').checked ? ACCORD : '';
+    fiche.plateformes = [...document.querySelectorAll('[name=plateforme]:checked')].map(c => c.value);
     // Une image déjà enregistrée reste sur le serveur ('garder') ; seules les nouvelles partent.
     fiche.images = { a: S.affiche ? (S.affiche.nouvelle || 'garder') : null };
     // Les captures gardées ne gardent leur place que si l'ordre ne change pas : on renvoie tout ce qui a bougé.

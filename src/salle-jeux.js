@@ -4,7 +4,8 @@
 // Lagos Life le fait pour ses partenaires. Les fiches viennent de /api/jeux (api/jeux.js) : un jeu validé dans le
 // tableau de bord apparaît ici en une minute, sans mise à jour du site.
 //   - jeu web : il se joue dans une fenêtre de Kutɔnu Vibes (cadre isolé), la ville en pause derrière ;
-//   - jeu mobile : sa vitrine, et un bouton vers le bon magasin (Play Store, App Store) ; sur ordinateur, un QR code.
+//   - jeu mobile : sa vitrine, et un bouton vers le bon magasin (Play Store, App Store) ; sur ordinateur, un QR code ;
+//   - jeu d'ordinateur (Windows, Linux, Mac) : un bouton vers sa page de téléchargement ; sur téléphone, le lien à s'envoyer.
 // Rien ne part avant qu'on entre : ni la liste, ni les affiches (celles de la façade arrivent après la ville).
 import * as THREE from 'three';
 import qrcode from 'qrcode-generator';
@@ -113,7 +114,7 @@ export async function ouvrirSalle() {
   const invitation = '<p class="sj-invitation">Tu crées des jeux ? <a href="/createurs.html" target="_blank" rel="noopener">Mets le tien dans la salle</a>, web ou mobile. C’est gratuit.</p>';
   if (!jeux.length) { corps().innerHTML = `<p class="sj-doux">Les premiers jeux arrivent bientôt.</p>${invitation}`; return; }
   corps().innerHTML = `<p class="sj-doux">Les jeux des créateurs béninois. Touche un jeu pour le découvrir.</p><div class="sj-grille">${jeux.map(j => `
-    <button type="button" class="sj-carte" data-id="${esc(j.id)}"><img src="${imageJeu(j)}" alt="" loading="lazy"><b>${esc(j.nom)}</b><small>${esc(j.accroche || j.createurs || '')}</small><span class="sj-type">${j.type === 'web' ? 'Joue ici' : 'Sur mobile'}</span></button>`).join('')}</div>${invitation}`;
+    <button type="button" class="sj-carte" data-id="${esc(j.id)}"><img src="${imageJeu(j)}" alt="" loading="lazy"><b>${esc(j.nom)}</b><small>${esc(j.accroche || j.createurs || '')}</small><span class="sj-type">${j.type === 'web' ? 'Joue ici' : j.type === 'pc' ? 'Sur ordinateur' : 'Sur mobile'}</span></button>`).join('')}</div>${invitation}`;
   corps().querySelectorAll('.sj-carte').forEach(b => b.addEventListener('click', () => ouvrirFiche(b.dataset.id)));
 }
 export function fermerSalle() { fermerJeu(); if (S.el) S.el.hidden = true; }
@@ -125,14 +126,18 @@ async function ouvrirFiche(id) {
   const images = [imageJeu(j), ...Array.from({ length: j.captures || 0 }, (_, i) => imageJeu(j, i))];
   const magasin = `${API}?aller=${encodeURIComponent(j.id)}`, android = !!j.android, ios = !!j.ios, surIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   let action;
+  const systemes = (j.plateformes || []).map(p => ({ windows: 'Windows', linux: 'Linux', mac: 'Mac' })[p]).filter(Boolean).join(', ');
   if (j.type === 'web') action = '<button type="button" class="jouer sj-jouer">Jouer</button>';
+  else if (j.type === 'pc') action = telephone()
+    ? `<p class="sj-doux">Ce jeu se joue sur ordinateur (${esc(systemes)}).</p><a class="btn-ghost" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`${j.nom}, à télécharger sur ordinateur : ${new URL(magasin, location.href).href}`)}">M’envoyer le lien sur WhatsApp</a>`
+    : `<a class="jouer" href="${magasin}" target="_blank" rel="noopener">Télécharger le jeu</a><span class="sj-doux">${esc(systemes)}</span>`;
   else if (telephone()) action = (surIos && !ios) ? '<p class="sj-doux">Ce jeu n’existe que sur Android pour l’instant.</p>' : (!surIos && !android) ? '<p class="sj-doux">Ce jeu n’existe que sur iPhone pour l’instant.</p>' : `<a class="jouer" href="${magasin}" target="_blank" rel="noopener">${surIos ? 'Jouer : ouvrir l’App Store' : 'Jouer : ouvrir le Play Store'}</a>`;
   else action = '<button type="button" class="jouer sj-qr-montrer">Jouer sur mon téléphone</button><div class="sj-qr" hidden></div>';
   corps().innerHTML = `
     <button type="button" class="sj-retour">‹ Tous les jeux</button>
     <div class="sj-images">${images.map(u => `<img src="${u}" alt="" loading="lazy">`).join('')}</div>
     <h3 class="sj-nom">${esc(j.nom)}</h3>
-    <p class="sj-par">${j.type === 'web' ? 'Jeu web' : 'Jeu mobile'}${j.createurs ? ` · par ${esc(j.createurs)}` : ''}</p>
+    <p class="sj-par">${j.type === 'web' ? 'Jeu web' : j.type === 'pc' ? `Jeu pour ${esc(systemes)}` : 'Jeu mobile'}${j.createurs ? ` · par ${esc(j.createurs)}` : ''}</p>
     <p class="sj-desc">${esc(j.description)}</p>
     <div class="sj-actions">${action}${j.video ? '<button type="button" class="btn-ghost sj-video">Voir la vidéo</button>' : ''}</div>
     <div class="sj-lecteur" hidden></div>

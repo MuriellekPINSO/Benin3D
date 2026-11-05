@@ -212,11 +212,11 @@
     $('#jEtat').textContent = `${n ? `${n} fiche${n > 1 ? 's' : ''} à valider` : 'Aucune fiche à valider'} · ${F.filter(f => f.enLigne).length} jeu(x) en ligne${J.racine !== 'jeux' ? ' · ESSAIS LOCAUX (essais_jeux)' : ''}`;
     $('#jListe').innerHTML = F.map(f => {
       const img = k => `/api/jeux-admin?img=${encodeURIComponent(f.id)}&k=${k}&t=${f.modifie}`;
-      const lien = f.type === 'web' ? `<a href="${esc(f.web)}" target="_blank" rel="noopener">${esc(f.web)}</a>` : [f.android && `<a href="${esc(f.android)}" target="_blank" rel="noopener">Play Store</a>`, f.ios && `<a href="${esc(f.ios)}" target="_blank" rel="noopener">App Store</a>`].filter(Boolean).join(' · ');
+      const lien = f.type === 'web' ? `<a href="${esc(f.web)}" target="_blank" rel="noopener">${esc(f.web)}</a>` : f.type === 'pc' ? `<a href="${esc(f.pc)}" target="_blank" rel="noopener">page de téléchargement</a> · ${esc((f.plateformes || []).join(', '))}` : [f.android && `<a href="${esc(f.android)}" target="_blank" rel="noopener">Play Store</a>`, f.ios && `<a href="${esc(f.ios)}" target="_blank" rel="noopener">App Store</a>`].filter(Boolean).join(' · ');
       return `<div class="jeu-fiche" data-id="${esc(f.id)}"><img src="${img('a')}" alt="" loading="lazy">
         <div style="display:grid;gap:6px;min-width:0">
           <h3>${esc(f.nom)}<span class="badge ${esc(f.statut)}">${ETATS_JEU[f.statut] || esc(f.statut)}</span></h3>
-          <p class="meta">${f.type === 'web' ? 'Jeu web' : 'Jeu mobile'} · ${esc(f.createurs || '')} · ${esc(f.email || '')} · modifié le ${new Date(f.modifie).toLocaleString('fr-FR')}</p>
+          <p class="meta">${({ web: 'Jeu web', pc: 'Jeu ordinateur' })[f.type] || 'Jeu mobile'} · ${esc(f.createurs || '')} · ${esc(f.email || '')} · modifié le ${new Date(f.modifie).toLocaleString('fr-FR')}</p>
           ${f.accroche ? `<p><b>${esc(f.accroche)}</b></p>` : ''}<p>${esc(f.description || '')}</p>
           <p>${lien}${f.video ? ` · <a href="https://youtu.be/${esc(f.video)}" target="_blank" rel="noopener">vidéo</a>` : ''}${f.code ? ` · code cadeau : <b>${esc(f.code)}</b>` : ''}</p>
           <div class="captures">${Array.from({ length: f.nCaptures || 0 }, (_, i) => `<img src="${img(i)}" alt="" loading="lazy">`).join('')}</div>

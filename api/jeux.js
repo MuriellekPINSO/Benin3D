@@ -17,7 +17,8 @@
 //   GET  /api/jeux?liste                  → { jeux: [ résumé des jeux publiés ] }
 //   GET  /api/jeux?id=<id>                → { jeu: fiche publiée }
 //   GET  /api/jeux?img=<id>&k=a|0…4&v=…   → l'image (mise en cache par Vercel)
-//   GET  /api/jeux?aller=<id>[&qr]        → vers le bon magasin selon le téléphone (Play Store, App Store), compté :
+//   GET  /api/jeux?aller=<id>[&qr]        → vers le bon magasin selon le téléphone (Play Store, App Store), ou la page de
+//                                          téléchargement d'un jeu d'ordinateur, compté :
 //                                          le bouton de la salle et le QR code affiché sur ordinateur pointent ici
 //   POST /api/jeux { action: 'compter', id, quoi }
 //   POST /api/jeux { action: 'moi' | 'lire' | 'enregistrer' | 'supprimer' | 'message', jeton, … }   (espace créateurs)
@@ -31,7 +32,8 @@ export const jourDe = t => new Date(t + 3600e3).toISOString().slice(0, 10); // h
 export const QUOI = ['vue', 'fiche', 'partie', 'magasin', 'qr', 'code', 'video'];
 export const STATUTS = ['brouillon', 'attente', 'publie', 'refuse', 'retire'];
 const ID = /^[a-z0-9-]{3,48}$/, CLES_IMAGES = ['a', 'c0', 'c1', 'c2', 'c3', 'c4'];
-export const ACCORD = '1'; // version de l'accord créateur (public/createurs.html)
+export const ACCORD = '1';
+export const PLATEFORMES = ['windows', 'linux', 'mac']; // version de l'accord créateur (public/createurs.html)
 
 // ---------- La fiche : ce qu'on accepte ----------
 const texte = (v, max) => String(v ?? '').replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, max);
@@ -73,8 +75,15 @@ export function verifierFiche(f, { envoyer = false } = {}) {
   o.description = texte(f?.description, 700);
   o.createurs = texte(f?.createurs, 80);
   o.code = texte(f?.code, 30);
-  o.type = f?.type === 'web' ? 'web' : 'mobile';
+  // Trois sortes de jeux : web (il se joue dans Kutɔnu Vibes), mobile (Play Store, App Store), ordinateur (Windows,
+  // Linux, Mac : un bouton vers sa page de téléchargement, itch.io, Steam, GitHub ou le site du créateur ; 05/11).
+  o.type = ['web', 'pc'].includes(f?.type) ? f.type : 'mobile';
   if (o.type === 'web') { const w = adresseWeb(f?.web); if (w.erreur) e.web = w.erreur; else o.web = w.url; }
+  else if (o.type === 'pc') {
+    const w = adresseWeb(f?.pc); if (w.erreur) e.pc = w.erreur.replace('ton jeu', 'ta page de téléchargement'); else o.pc = w.url;
+    o.plateformes = PLATEFORMES.filter(p => Array.isArray(f?.plateformes) && f.plateformes.includes(p));
+    if (!o.plateformes.length) e.plateformes = 'Coche au moins un système : Windows, Linux ou Mac.';
+  }
   else {
     o.android = f?.android ? lienAndroid(f.android) : ''; o.ios = f?.ios ? lienIos(f.ios) : '';
     if (o.android === null) e.android = 'Un lien du Play Store : https://play.google.com/store/apps/details?id=…';
@@ -114,7 +123,7 @@ export async function createurDuJeton(jeton, base = BASE) {
 const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 36) || 'jeu';
 const hasard = () => Math.random().toString(36).slice(2, 6);
 /** Ce que les joueurs voient d'un jeu (rien sur son créateur que son nom public). */
-export const versionPublique = (f, id) => ({ id, type: f.type, nom: f.nom, accroche: f.accroche || '', description: f.description || '', createurs: f.createurs || '', web: f.web || '', android: f.android || '', ios: f.ios || '', video: f.video || '', code: f.code || '', captures: f.nCaptures || 0, v: f.modifie || 0 });
+export const versionPublique = (f, id) => ({ id, type: f.type, nom: f.nom, accroche: f.accroche || '', description: f.description || '', createurs: f.createurs || '', web: f.web || '', pc: f.pc || '', plateformes: f.plateformes || [], android: f.android || '', ios: f.ios || '', video: f.video || '', code: f.code || '', captures: f.nCaptures || 0, v: f.modifie || 0 });
 /** +1 sur un compteur, sous condition (ETag) : deux joueurs en même temps ne s'écrasent pas. */
 export async function incrementer(B, chemin) {
   for (let i = 0; i < 6; i++) {
@@ -232,8 +241,8 @@ export function magasinPour(j, ua = '') {
 export async function aller(q, ua, { secret = process.env.FIREBASE_DB_SECRET, base = BASE, now = Date.now() } = {}) {
   if (!ID.test(q.aller || '') || !String(secret || '').trim()) return null;
   const B = baseAdmin(base, String(secret).trim()), R = racine();
-  const { val: j } = await B.lire(`${R}/publics/${q.aller}`); if (!j || j.type !== 'mobile') return null;
-  const url = magasinPour(j, ua); if (!url) return null;
+  const { val: j } = await B.lire(`${R}/publics/${q.aller}`); if (!j || j.type === 'web') return null;
+  const url = j.type === 'pc' ? j.pc : magasinPour(j, ua); if (!url) return null; // un jeu d'ordinateur : sa page de téléchargement
   await incrementer(B, `${R}/stats/${q.aller}/${jourDe(now)}/magasin`).catch(() => {});
   return url;
 }
