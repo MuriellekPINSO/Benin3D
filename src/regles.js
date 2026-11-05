@@ -74,6 +74,11 @@ export function preparerFeux(C) {
 }
 
 /** À chaque image : couleurs des feux, passage au rouge, voyant du prochain feu. */
+/** Le prochain feu devant `s`, à moins de `portee` m, et sa couleur à l'instant `temps` (les rivales de la course : course.js). */
+export function feuDevant(s, portee, temps) {
+  let best = null; for (const f of R.feux) { const d = f.s - s; if (d > 0 && d < portee && (!best || f.s < best.s)) best = f; }
+  return best && { s: best.s, etat: etatFeu(best, temps) };
+}
 export function majFeux(st) {
   for (const f of R.feux) {
     const e = etatFeu(f, st.temps);

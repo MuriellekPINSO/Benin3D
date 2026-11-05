@@ -38,10 +38,11 @@ import { suspendreChanson } from './lecteur.js';
 import { envoyerScore, initClassement, ouvrirClassement, placeApresCourse } from './classement.js';
 import { animerMoto } from './roues.js';
 import { departDefi, finDefi, initDefi, majCarte, majDefi } from './defi.js';
+import { departCourse, finCourse, majCourse, menuCourses, nouvelleCourse, pistesCourse, retirerBarreRivaux } from './course.js';
 
 // ---------- Zém Run : le jeu ----------
 /** Véhicules qui prennent un client à la fois, avec négociation (zém et taxi). */
-export const avecClients = v => v === 'zem' || v === 'voiture' || v === 'bolide';
+export const avecClients = v => (v === 'zem' || v === 'voiture' || v === 'bolide') && !JEU.course; // en course de motos (course.js) : pas de clients, la vitesse
 export const VEH = {
   zem: { nom: 'Zémidjan', vmax: 25, accel: 4.4, larg: .75, long: 2.1, places: 1, tarif: [200, 450], cam: [6.4, 3] },
   tokpa: { nom: 'Tokpa-tokpa', vmax: 21, accel: 3.2, larg: 1.9, long: 5, places: 14, tarif: [150, 300], cam: [12.5, 5.2] },
@@ -396,7 +397,8 @@ function mesurerHautJeu() {
 /** `defi` : la mission du défi du jour (defi.js), pour une course qui compte au podium. */
 export function lancerLigne(L, veh, defi = null) {
   geosJeu(); chargerMasques(); // les processions d'Egungun prennent les modèles 3D dès qu'ils sont là
-  JEU.defi = defi ? departDefi(L) : null; if (!JEU.defi) $('#jhDefi')?.setAttribute('hidden', '');
+  JEU.course = L.course ? nouvelleCourse() : null; retirerBarreRivaux(); // une piste de course : quatre rivales (course.js)
+  JEU.defi = defi && !L.course ? departDefi(L) : null; if (!JEU.defi) $('#jhDefi')?.setAttribute('hidden', '');
   JEU.ligne = L; JEU.veh = veh; compterUneFois('zemrun'); lieuStats('zemrun');
   // Le trajet remis sur la chaussée qui va dans le bon sens (carrefours.js) ; à défaut, celui des données.
   const C0 = cheminDe(L.pts), tot = L.arrets[L.arrets.length - 1].s || 1, xzArrets = L.arrets.map(a => { const p = pose(C0, a.s / tot * C0.L, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }); return [p.x, p.z]; });
@@ -438,7 +440,8 @@ export function lancerLigne(L, veh, defi = null) {
   majSerie(st0);
   if (ameliore('pneus') && avecClients(veh)) st0.pneus = Infinity; // pneus renforcés du garage : pour toute la course
   sauver(); serieDuJour(); placerCollecteur(L, C);
-  if (avecClients(veh)) setTimeout(() => { if (JEU.etat === st0 && JEU.actif) nouveauClient(st0, 1); }, 1400); else setTimeout(departApprenti, 900);
+  if (JEU.course) departCourse(st0); // la grille de départ et le compte à rebours
+  else if (avecClients(veh)) setTimeout(() => { if (JEU.etat === st0 && JEU.actif) nouveauClient(st0, 1); }, 1400); else setTimeout(departApprenti, 900);
   JEU.actif = true; JEU.pause = false; E.flight = null; controls.enabled = false; controls.autoRotate = false;
   camera.near = .4; camera.updateProjectionMatrix();
   if (E.zems) E.zems.visible = false; if (E.zemsProches) E.zemsProches.visible = false; if (E.tokpas) E.tokpas.visible = false;
@@ -478,7 +481,7 @@ function installerTrajet(L, C, debut, garderClient) {
  *  Quand l'itinéraire tourne et qu'on veut continuer tout droit (passer le pont, par exemple), la flèche opposée au
  *  virage prévu prend la rue d'en face, s'il n'y a pas de vraie rue de ce côté-là. */
 export function virage(dir) {
-  const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || !JEU.carrefours || JEU.pause) return false;
+  const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || !JEU.carrefours || JEU.pause || JEU.course) return false;
   if (st.v > 12) return false; // à plus de 43 km/h, les flèches changent de file
   const j = JEU.carrefours.find(c => c.s - st.s > -4 && c.s - st.s < 18);
   let br = j && (dir === 0 ? j.droit : dir < 0 ? j.gauche : j.droite), droit = dir === 0;
@@ -493,7 +496,7 @@ export function virage(dir) {
 }
 /** Demi-tour (U, arrêté ou au pas) : un U vers la gauche, on repart en sens inverse, le GPS recalcule jusqu'aux arrêts suivants. */
 export function demiTour() {
-  const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || JEU.pause || st.service > 0 || st.auto || st.prochain >= L.arretsJ.length) return false;
+  const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || JEU.pause || JEU.course || st.service > 0 || st.auto || st.prochain >= L.arretsJ.length) return false;
   if (Math.abs(st.v) > 3) { toast('Ralentis pour faire demi-tour', 1.2); return false; }
   const lat = latJeu(C, st.s, st.lat), p = pose(C, st.s, lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), gx = p.dz, gz = -p.dx; // (gx, gz) : vers la gauche
   const R = THREE.MathUtils.clamp((demiChaussee(C, st.s) + lat - .6) / 2, 1.8, 3.5), boucle = [];
@@ -527,7 +530,7 @@ function appliquerItineraire(pts) {
 }
 /** Client pressé (cahier des charges, priorité 3) : le GPS prend le plus court, petites rues comprises. */
 export function prendreRaccourci() {
-  const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || st.prochain >= L.arretsJ.length) return false;
+  const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || JEU.course || st.prochain >= L.arretsJ.length) return false;
   const p = pose(C, st.s, latJeu(C, st.s, st.lat), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(C, Math.min(C.L - 1, st.s + 18), 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   const avant = Math.max(0, L.arretsJ[st.prochain].s - st.s);
   const pts = itineraireCourt(p.x, p.z, q.x, q.z, L.arretsXZ.slice(st.prochain));
@@ -770,7 +773,7 @@ export function majJeu(dt) {
   JEU.objets = restants;
   if (corpsDuBord(st, C, V, dt)) return;
   // Arrêts : file de droite, presque à l'arrêt, dans la zone jaune.
-  const a = L.arretsJ[st.prochain];
+  const a = JEU.course ? null : L.arretsJ[st.prochain]; // en course, pas d'arrêt : on file jusqu'à l'arrivée
   if (a) {
     const dansZone = st.s > a.s - 32 && st.s < a.s + 6, sansClient = avecClients(JEU.veh) && !DISC.client;
     if (sansClient) { // pas de client : on passe, il faut en trouver un (quelqu'un fait signe plus loin)
@@ -808,7 +811,7 @@ export function majJeu(dt) {
   majPietons(st, dt);
   // Carrefour devant : ce que fait le GPS, et les rues possibles en boutons (actifs une fois ralenti, juste avant).
   // Sans rien faire, on suit le GPS ; ← → (ou les boutons) prennent une autre rue, T (ou ↑ Tout droit) continue tout droit.
-  const cf = JEU.carrefours?.find(c => c.s - st.s > -4 && c.s - st.s < 70), elC = $('#jhCarrefour');
+  const cf = JEU.course ? null : JEU.carrefours?.find(c => c.s - st.s > -4 && c.s - st.s < 70), elC = $('#jhCarrefour'); // en course, tout le monde suit le même tracé
   if (elC) {
     elC.hidden = !cf;
     if (cf) {
@@ -860,6 +863,7 @@ export function majJeu(dt) {
     if (best && best !== st.quartier) { st.quartier = best; musiqueQuartier(best); const q = $('#jhQuartier'); q.textContent = `Quartier · ${best}`; q.classList.remove('on'); void q.offsetWidth; q.classList.add('on'); }
   }
   majHud(st, C, V);
+  if (JEU.course) majCourse(st, C, dt); // les rivales, puis la place en direct par-dessus le prochain arrêt
 }
 export let QUARTIERS_J = [];
 // ---------- Prise en main (la première fois) : une consigne à la fois, quand elle devient utile ----------
@@ -948,6 +952,7 @@ function corpsDuBord(st, C, V, dt) {
 /** Bilan de la course : au terminus (`arrive`), ou quand on la quitte (`quitte`, menu Pause). */
 export function finJeu(arrive, quitte = false) {
   const st = JEU.etat; if (!st || JEU.fini) return; JEU.fini = true; JEU.pause = true; moteurMaj(0, false); taire(); arreterMusique();
+  if (JEU.course) { finCourse(arrive); remplirLignes(); return; } // le classement de la course de motos (course.js)
   const L = JEU.ligne, el = $('#jeuFin'), prochain = L.arretsJ[st.prochain];
   el.querySelector('h2').textContent = arrive ? 'Terminus !' : 'Course arrêtée';
   el.querySelector('.jf-sous').textContent = arrive ? `${L.nom} : ${L.arretsJ[0].nom} → ${L.arretsJ[L.arretsJ.length - 1].nom}` : `${L.nom}${prochain ? ` · arrêtée avant ${prochain.nom}` : ''}. Ta recette va dans ta cagnotte.`;
@@ -1037,6 +1042,7 @@ export function remplirLignes() {
     b.addEventListener('click', () => partir(L, veh));
     el.prepend(b); // la ligne express reste en tête, avant les lignes en étapes
   }
+  menuCourses(el, L => { JEU.numero = ($('#jmNumero').value || '1234').slice(0, 5); sauver(); JEU.fini = false; lancerLigne(L, 'zem'); }); // tout en haut : la course de motos
 }
 export function ouvrirJeu() {
   geosJeu(); audioCtx(); JEU.menuT = performance.now(); // multijoueur.js : pas de clic fantôme sur « Inviter »
@@ -1109,7 +1115,7 @@ export function initJeu(data) {
   QUARTIERS_J = [...QUARTIERS, ['Abomey-Calavi', 6.448, 2.355], ['Zogbadjè', 6.4236, 2.3348], ['Godomey', 6.3870, 2.3420], ['Togoudo', 6.4071, 2.3345]].map(([n, la, lo]) => { const [x, z] = toXZ(la, lo); return [n, x, z]; });
   JEU.quartiersNoms = [...new Set(QUARTIERS_J.map(q => q[0]))];
   const ex = ligneExpress(data.L.lignes || []), etapes = (data.L.lignes || []).flatMap(etapesDe); // les étapes ont besoin des quartiers pour nommer leurs arrêts
-  JEU.lignes = ex ? [ex, ...etapes] : etapes; JEU.data = data;
+  JEU.lignes = ex ? [ex, ...etapes] : etapes; JEU.data = data; JEU.courses = pistesCourse(data.L.lignes || []);
   JEU.prog = Object.assign(progDefaut(), JEU.progSauve || {}); assurerMissions();
   $('#btnJouer').addEventListener('click', ouvrirJeu);
   const retourCarte = () => { $('#jeu').hidden = true; document.getElementById('app').classList.remove('mode-jeu'); };
