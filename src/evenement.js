@@ -204,6 +204,7 @@ function placeDeLaScene() {
   const [ax, az] = toXZ(p.lat, p.lon); return EV.place = [ax, az + 42];
 }
 export function majConcertDehors(p, dt) {
+  if (EV.cine) return false; // le ciné occupe l'esplanade (cinema.js)
   if (EV.actif || !concertCeSoir()) { if (EV.dehors) { EV.groupe.visible = false; EV.dehors = false; } return; }
   const ou = placeDeLaScene(); if (!ou) return;
   const d = Math.hypot(p.x - ou[0], p.z - ou[1]);
@@ -336,6 +337,28 @@ export function initEvenement() {
   window.addEventListener('keydown', e => { if (e.key === 'Escape' && EV.actif) quitterEvenement(); });
 }
 export const evenementActif = () => EV.actif;
+// ---------- Le ciné de l'Amazone (cinema.js) ----------
+// La même scène et le même écran que le concert, sans le concert : pas de musique ni de projecteurs, les artistes
+// descendus de scène, le public debout qui regarde. cinema.js pose le lecteur vidéo sur l'écran ; ici, on montre
+// l'esplanade (on) ou on la range (off). Renvoie l'écran, pour que le ciné y dessine sa liste de films.
+export function esplanadePourLeCine(on) {
+  if (on) {
+    if (EV.actif) quitterEvenement();
+    if (!EV.groupe) construire();
+    EV.cine = true; EV.groupe.visible = true; EV.dehors = false;
+    EV.spots.forEach(c => { c.visible = false; });
+    for (const m of [...(EV.artistes || []), ...(EV.danseurs || [])]) m.visible = false;
+    EV.vrais?.choisir(LITE ? 'bas' : 'haut'); poserFoule(0, false);
+    return EV.planEcran;
+  }
+  if (!EV.cine) return null;
+  EV.cine = false; EV.groupe.visible = false;
+  EV.spots.forEach(c => { c.visible = true; });
+  for (const m of [...(EV.artistes || []), ...(EV.danseurs || [])]) m.visible = true;
+  EV.vrais?.choisir('bas');
+  EV.planEcran.material.map = EV.toileEcran; EV.planEcran.material.needsUpdate = true;
+  return null;
+}
 if (import.meta.env.DEV) window.__concert = { EV, camera, controls, renderer }; // pour les tests : placer la caméra devant la scène
 
 void E;

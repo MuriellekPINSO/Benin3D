@@ -1,5 +1,6 @@
 import './style.css';
 import { initEvenement, majConcertDehors } from './evenement.js';
+import { initCinema } from './cinema.js';
 import { initMultijoueur, majMultijoueur } from './multijoueur.js';
 import { construireFeux, majFeuxVille } from './feux.js';
 import { construireTerrePleins, initTerrePleins } from './terre-pleins.js';
@@ -204,7 +205,7 @@ async function main() {
   // Le vrai minibus des tokpa-tokpa (Tripo) remplace celui dessiné en code dans la circulation de la ville.
   if (TRIPO.info.tokpa) plusTard(() => chargerTokpa(urlTripo('tokpa'))).then(t => { if (t.geo && E.tokpas) { E.tokpas.geometry = t.geo; E.tokpas.material = t.mat; E.tokpas.castShadow = !LITE; } });
   buildZems(); zemsDetailles(); buildLamps(); buildLabels();
-  initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initBoutique(); initOffre(); initMode(); initSalon(data); initLeger();
+  initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initCinema(); initBoutique(); initOffre(); initMode(); initSalon(data); initLeger();
   if (reduceMotion) finishRise();
   // Les routes, marquages, terre-pleins et surfaces sont posés à quelques centimètres du sol sans écrire leur profondeur.
   // Sur un téléphone, au loin, le test de profondeur hésitait entre eux et le sol d'une image à l'autre : ils clignotaient.
