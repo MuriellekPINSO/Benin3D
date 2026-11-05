@@ -38,7 +38,7 @@ function enseigne() {
   const c = document.createElement('canvas'); c.width = 1024; c.height = 160; const g = c.getContext('2d');
   const d = g.createLinearGradient(0, 0, 1024, 0); d.addColorStop(0, '#2a1d52'); d.addColorStop(1, '#4a2477'); g.fillStyle = d; g.fillRect(0, 0, 1024, 160);
   g.fillStyle = '#ffd23b'; g.font = '800 92px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('SALLE DE JEUX', 512, 70);
-  g.fillStyle = '#ffffff'; g.font = '600 30px system-ui, sans-serif'; g.fillText('Les jeux des créateurs béninois', 512, 132);
+  g.fillStyle = '#ffffff'; g.font = '600 30px system-ui, sans-serif'; g.fillText('Les jeux des créateurs, d’ici et d’ailleurs', 512, 132);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 function afficheVide(i) {
@@ -113,7 +113,7 @@ export async function ouvrirSalle() {
   let jeux; try { jeux = await lireListe(); } catch { corps().innerHTML = '<p class="sj-doux">La salle ne répond pas. Vérifie ta connexion, puis réessaie.</p>'; return; }
   const invitation = '<p class="sj-invitation">Tu crées des jeux ? <a href="/createurs.html" target="_blank" rel="noopener">Mets le tien dans la salle</a>, web ou mobile. C’est gratuit.</p>';
   if (!jeux.length) { corps().innerHTML = `<p class="sj-doux">Les premiers jeux arrivent bientôt.</p>${invitation}`; return; }
-  corps().innerHTML = `<p class="sj-doux">Les jeux des créateurs béninois. Touche un jeu pour le découvrir.</p><div class="sj-grille">${jeux.map(j => `
+  corps().innerHTML = `<p class="sj-doux">Les jeux des créateurs, d’ici et d’ailleurs. Touche un jeu pour le découvrir.</p><div class="sj-grille">${jeux.map(j => `
     <button type="button" class="sj-carte" data-id="${esc(j.id)}"><img src="${imageJeu(j)}" alt="" loading="lazy"><b>${esc(j.nom)}</b><small>${esc(j.accroche || j.createurs || '')}</small><span class="sj-type">${j.type === 'web' ? 'Joue ici' : j.type === 'pc' ? 'Sur ordinateur' : 'Sur mobile'}</span></button>`).join('')}</div>${invitation}`;
   corps().querySelectorAll('.sj-carte').forEach(b => b.addEventListener('click', () => ouvrirFiche(b.dataset.id)));
 }

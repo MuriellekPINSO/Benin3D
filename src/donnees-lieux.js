@@ -28,7 +28,7 @@ export const PLACES = [
   { id: 'haievive', name: 'Haie Vive', kind: 'Quartier', k: 'quartier', lat: 6.3552, lon: 2.3976, h: 10, view: [380, 1.0, 0.4],
     text: "Le quartier des restaurants, des bars et des maquis, tout près de l'aéroport. Rues arborées et terrasses sous les parasols : c'est là que Cotonou sort le soir." },
   { id: 'salle-jeux', name: 'Salle de jeux', kind: 'Jeux vidéo', k: 'jeux', lat: 6.35603, lon: 2.40076, h: 9, view: [60, 1.12, 0.6],
-    text: "La salle de jeux de Kutɔnu Vibes : les jeux des créateurs béninois. Un jeu web se joue ici même ; un jeu mobile se découvre, puis s'installe sur ton téléphone. Créateur ? Mets ton jeu sur kotonuvibes.com/createurs.html." },
+    text: "La salle de jeux de Kutɔnu Vibes : les jeux des créateurs, du Bénin et du monde entier. Un jeu web se joue ici même ; un jeu mobile se découvre, puis s'installe sur ton téléphone. Créateur ? Mets ton jeu sur kotonuvibes.com/createurs.html." },
   { id: 'nokoue', name: 'Lac Nokoué', kind: 'Lagune', k: 'eau', lat: 6.432, lon: 2.425, h: 6, view: [3600, 1.08, 0.3],
     text: "La grande lagune au nord de la ville. Les pêcheurs y plantent des acadjas, des enclos de branchages où le poisson vient se réfugier ; on les voit en lignes brunes à la surface de l'eau." },
   { id: 'bioguera', name: 'Carrefour Bio Guéra', kind: 'Monument', k: 'monument', lat: 6.35015, lon: 2.38752, h: 16, view: [210, 1.05, 0.9],
