@@ -479,7 +479,7 @@ export const PAL = {
   tin: pal(['#9aa1a4', '#8c9396', '#777e82', '#a0684a', '#8f5f47', '#7a4a36', '#6e4632', '#8b5a3c', '#5e4a3c', '#9a6b4f', '#7b5a46', '#4f7fae']),
   tuile: pal(['#a8503a', '#9c4b37', '#b25a40', '#8f4632', '#a4563f', '#bd6346']),
   flat: pal(['#b9b5ab', '#aba79e', '#c4c0b6', '#9f9c94', '#b0ada5', '#c9c5bc']),
-  roofCat: [null, pal(['#d7cfc0', '#c9c4ba']), pal(['#a9653f', '#9a5a3c']), pal(['#bdb6aa']), pal(['#9fa6a8', '#8f979b', '#b8bec0']), pal(['#a8946b', '#8f979b', '#9a8660']), pal(['#d7cfc0']), pal(['#9d998f']), pal(['#a9653f', '#8f979b', '#9fa6a8', '#8c5b43', '#b8bec0']), pal(['#e6e5df', '#dcdbd4']), pal(['#cfc8bb']), pal(['#b9654a', '#9fa6a8', '#d7cfc0'])],
+  roofCat: [null, pal(['#d7cfc0', '#c9c4ba']), pal(['#9aa1a4', '#8a5a44', '#b9b5ab']) /* écoles : tôle ou dalle, plus le toit orange de toutes (05/11) */, pal(['#bdb6aa']), pal(['#9fa6a8', '#8f979b', '#b8bec0']), pal(['#a8946b', '#8f979b', '#9a8660']), pal(['#d7cfc0']), pal(['#9d998f']), pal(['#a9653f', '#8f979b', '#9fa6a8', '#8c5b43', '#b8bec0']), pal(['#e6e5df', '#dcdbd4']), pal(['#cfc8bb']), pal(['#b9654a', '#9fa6a8', '#d7cfc0'])],
 };
 export const buildingMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 buildingMat.onBeforeCompile = s => {
