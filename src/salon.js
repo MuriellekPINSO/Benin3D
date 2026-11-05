@@ -471,11 +471,11 @@ function asseoirDehors(s) {
 // personnage qui le tient à l'oreille (personnages.js).
 function telephoneEnMain(duree = 0) {
   if (!S.moi) return; rangerTelephone();
-  const t = telephone3d(); t.position.set(0, .05, .05);
-  (S.moi.userData.main || S.moi).add(t); S.tel = t;
+  if (S.moi.userData.oreille) { S.moi.userData.oreille(true); S.tel = { oreille: S.moi }; } // la main à l'oreille (personnages.js)
+  else { const t = telephone3d(); t.position.set(0, .05, .05); (S.moi.userData.main || S.moi).add(t); S.tel = t; } // personnage dessiné en code
   S.telFin = duree ? setTimeout(rangerTelephone, duree) : 0;
 }
-function rangerTelephone() { clearTimeout(S.telFin); S.telFin = 0; S.tel?.parent?.remove(S.tel); S.tel = null; }
+function rangerTelephone() { clearTimeout(S.telFin); S.telFin = 0; if (S.tel?.oreille) S.tel.oreille.userData.oreille?.(false); else S.tel?.parent?.remove(S.tel); S.tel = null; }
 
 // ---------- Téléphoner ----------
 // « Il faut revoir l'option téléphoner, c'est un feature inutile puisqu'on ne peut pas appeler quelqu'un » (testeur,
@@ -544,6 +544,7 @@ function surAppel(m) {
 /** Le téléphone en main des autres joueurs, debout (`tl` dans leur état) ; assis, leur pose le porte déjà. */
 function telDe(A, e) {
   const main = A.g && (A.g.userData.main || A.g), veut = !!e.tl && !!A.g?.visible && e.a !== 'telephone';
+  if (A.g?.userData.oreille) { if (A.telOreille !== veut || A.telG !== A.g) { A.g.userData.oreille(veut); A.telOreille = veut; A.telG = A.g; } return; } // la main à l'oreille, comme le joueur
   if (veut && A.tel?.parent !== main) { A.tel?.parent?.remove(A.tel); A.tel ??= telephone3d(); A.tel.position.set(0, .05, .05); main.add(A.tel); }
   else if (!veut && A.tel) { A.tel.parent?.remove(A.tel); A.tel = null; }
 }
@@ -1089,7 +1090,7 @@ export function majSalon(dt) {
     else if (S.gesteFin && performance.now() > S.gesteFin) { S.geste = 'idle'; S.gesteFin = 0; }
     S.anim = marche ? (court && S.moi?.userData.peut?.('course') ? 'course' : 'marche') : S.geste;
     if (S.tel && !S.telFin && S.geste !== 'telephone' && !S.appel) rangerTelephone(); // on range le téléphone en se levant (pas pendant un appel)
-    if (S.appel && S.appel.etat !== 'recu' && S.geste !== 'telephone') { if (S.geste === 'assis') prendreTelephone(); else if (!S.tel && T.mode === 'pied') telephoneEnMain(0); } // assis ou relevé pendant l'appel
+    if (S.appel && S.appel.etat !== 'recu' && S.geste !== 'telephone') { if (S.geste === 'assis') prendreTelephone(); else if ((!S.tel || (S.tel.oreille && S.tel.oreille !== S.moi)) && T.mode === 'pied') telephoneEnMain(0); } // changé de tenue en plein appel : le nouveau corps reprend le téléphone // assis ou relevé pendant l'appel
     if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); }
   }
   // Caméra derrière soi (ou derrière le véhicule), à la distance et l'inclinaison choisies : glisser vers le haut ou

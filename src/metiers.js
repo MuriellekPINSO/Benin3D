@@ -326,7 +326,9 @@ function trottoir(x, z, dx, dz, cotes = [1, -1]) {
   return null;
 }
 function destinationDe(x, z) {
-  const [a, b] = W.id === 'taxi' ? [1500, 8000] : [600, 4000], ok = W.dests.filter(([, dx, dz]) => { const d = Math.hypot(dx - x, dz - z); return d > a && d < b; });
+  // Taxi : 1,2 à 5 km (8 km avant) — à quatre clients, le dernier déposé avait fait le tour de la ville (« les clients du taxi
+  // demandent des courses longues », Carlos, 05/11).
+  const [a, b] = W.id === 'taxi' ? [1200, 5000] : [600, 4000], ok = W.dests.filter(([, dx, dz]) => { const d = Math.hypot(dx - x, dz - z); return d > a && d < b; });
   for (let k = 0; k < 4 && ok.length; k++) {
     const [nom, dx, dz] = ok[Math.floor(Math.random() * ok.length)], p = routeProche(dx, dz, 0, 120); if (!p) continue;
     const pts = itineraire(x, z, null, p[0], p[1]); if (!pts) continue;
@@ -376,9 +378,12 @@ function accepter(prix, C = quiFaitSigne()) {
   C.vers = [V.x + Math.sin(V.cap - Math.PI / 2) * e + Math.sin(V.cap) * dz, V.z + Math.cos(V.cap - Math.PI / 2) * e + Math.cos(V.cap) * dz];
 }
 function partir(C) { oublierGuide(C); C.etat = 'part'; C.t = 0; C.marque.visible = false; W.attente = 6 + Math.random() * 6; }
-/** Un choc compte pour chaque client à bord : au troisième, celui-là descend sans payer. */
+/** Un choc compte pour chaque client à bord : au troisième, celui-là descend sans payer. Un seul toutes les 4 s : contre un
+ *  mur ou une voiture, gaz ouvert, la caisse rebondit et cogne de nouveau — trois chocs en deux secondes, et les clients
+ *  descendaient « quand on tarde trop » (Carlos, 05/11 ; les chocs ne comptaient plus du tout depuis le 04/11 jusqu'au soir). */
 export function chocMetier() {
   const B = aBord(); if (!B.length) return;
+  const maintenant = performance.now(); if (maintenant - (W.chocT || 0) < 4000) return; W.chocT = maintenant;
   for (const C of B) C.chocs++;
   const partent = B.filter(C => C.chocs >= 3), restent = B.filter(C => C.chocs < 3);
   if (partent.length) {

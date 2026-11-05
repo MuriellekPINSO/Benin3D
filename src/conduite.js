@@ -455,11 +455,13 @@ export function decoller(V) { if (!peutDecoller(V)) return false; V.vol = { phas
 export function bondir(V) { if (!peutDecoller(V)) return false; V.vol = { phase: 'bond', alt: 0, base: V.sol || 0, t: 0, roulis: 0, cible: null, court: true }; flammes(V).visible = true; return true; }
 /** En vol et libre de ses mouvements (ni en train de monter ni de se poser) : on peut choisir où atterrir. */
 export const enCroisiere = V => V?.vol?.phase === 'croisiere' || V?.vol?.phase === 'approche';
-/** Va se poser en (x, z) — par défaut, sous soi — si le sol y est libre, sinon sur la route la plus proche. Faux s'il
- *  n'y a nulle part où se poser. `ici` : vrai quand elle se pose à l'endroit demandé. */
-export function atterrir(V, x = V.x, z = V.z, rayon = 220) {
+/** Va se poser sur la route la plus proche de (x, z) — par défaut, sous soi. `partout` (« Atterrir ici », le joueur choisit) :
+ *  d'abord à l'endroit même si le sol y est libre, hors de la route aussi. Seule (vers une destination, en panne), elle se
+ *  pose toujours sur une route : posée sur le sable près de Caï Caï, Carlos croyait que « les routes ont disparu » (05/11).
+ *  Faux s'il n'y a nulle part où se poser. `ici` : vrai quand elle se pose à l'endroit demandé. */
+export function atterrir(V, x = V.x, z = V.z, rayon = 220, partout = false) {
   if (!enCroisiere(V)) return false;
-  const p = (libreAuSol(V, x, z, V.cap) && [x, z, V.cap]) || pointDePose(V, x, z, rayon); if (!p) return false;
+  const p = (partout && libreAuSol(V, x, z, V.cap) && [x, z, V.cap]) || pointDePose(V, x, z, rayon); if (!p) return false;
   V.vol.phase = 'approche'; V.vol.cible = p; V.vol.ici = p[0] === x && p[1] === z; return true;
 }
 /** Distance (m) au bord de la chaussée la plus proche, cherchée jusqu'à `r` mètres (Infinity au-delà). */

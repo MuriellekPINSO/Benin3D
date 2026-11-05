@@ -320,6 +320,52 @@ if (import.meta.env.DEV) window.__morceaux = (L, i) => morceauxAuCarrefour(L, i)
  * se reconnaissent comme scripts/donnees.mjs les apparie : sens contraires, parallèles, −2 à 25 m entre leurs bords. Là où
  * elles se rejoignent (bout du boulevard), elles ne sont plus appariées et ne bougent pas. Renvoie le nombre de points déplacés.
  */
+/**
+ * Deux rues parallèles et proches, l'une goudronnée, l'autre claire (terre, gravier, sentier) : collées l'une à l'autre, on les
+ * prenait pour une seule voie moitié goudron, moitié gravier — « regarde la voie » (Carlos, 05/11, à Akpakpa, où une route en
+ * gravier à deux chaussées longe des rues goudronnées). Élargies de 30 %, il y en avait 10,3 km au lieu de 4,6. La rue
+ * claire se rétrécit donc pour laisser un mètre de sable entre elles (3 m de large au moins), au besoin la goudronnée reprend
+ * sa largeur d'avant l'élargissement ; sans la place, les deux la reprennent. La largeur est celle de toute la rue : elle ne varie pas le long d'une ligne.
+ * Renvoie le nombre de rues retouchées.
+ */
+function sansChevauchement() {
+  const fonce = L => L.rond || (L.surf === 0 && ![6, 7, 9].includes(L.cls)), large = L => L.cls <= 6 && !L.rond, w0 = L => (large(L) ? L.w / ELARGIR : L.w);
+  const CG = 40, g = new Map(), segs = [];
+  roadLines.forEach((L, i) => { if (L.bridge) return; for (let k = 1; k < L.pts.length; k++) {
+    const n = segs.push([i, k]) - 1, [ax, az] = L.pts[k - 1], [bx, bz] = L.pts[k];
+    for (let cx = Math.floor(Math.min(ax, bx) / CG); cx <= Math.floor(Math.max(ax, bx) / CG); cx++) for (let cz = Math.floor(Math.min(az, bz) / CG); cz <= Math.floor(Math.max(az, bz) / CG); cz++) { const q = cx + ',' + cz; (g.get(q) || g.set(q, []).get(q)).push(n); }
+  } });
+  const paires = new Map();
+  for (const [i, k] of segs) {
+    const A = roadLines[i]; if (!fonce(A)) continue;
+    const [ax, az] = A.pts[k - 1], [bx, bz] = A.pts[k], dx = bx - ax, dz = bz - az, l = Math.hypot(dx, dz); if (l < 1) continue;
+    for (let t = .5; t < l; t += 2) {
+      const x = ax + dx * t / l, z = az + dz * t / l;
+      for (const m of g.get(Math.floor(x / CG) + ',' + Math.floor(z / CG)) || []) {
+        const [j, kb] = segs[m], B = roadLines[j]; if (j === i || fonce(B) || !large(B)) continue;
+        const [cx, cz] = B.pts[kb - 1], [ex, ez] = [B.pts[kb][0] - cx, B.pts[kb][1] - cz], l2 = ex * ex + ez * ez; if (!l2) continue;
+        if (Math.abs((dx * ex + dz * ez) / (l * Math.sqrt(l2))) < .9) continue; // parallèles seulement : un croisement n'est pas un chevauchement
+        const u = Math.max(0, Math.min(1, ((x - cx) * ex + (z - cz) * ez) / l2)), d = Math.hypot(cx + ex * u - x, cz + ez * u - z);
+        if (d < A.w / 2 + .5 || d > (A.w + B.w) / 2 + 1) continue; // l'une dans l'autre (un doublon d'OSM), ou déjà séparées
+        const cle = i + '|' + j, p = paires.get(cle) || paires.set(cle, { i, j, m: 0, d }).get(cle);
+        p.m += 2; p.d = Math.min(p.d, d);
+      }
+    }
+  }
+  const largeur = new Map();
+  for (const p of paires.values()) {
+    if (p.m < 20) continue; // 20 m au moins côte à côte
+    const A = roadLines[p.i], B = roadLines[p.j], mini = (k, w) => largeur.set(k, Math.min(largeur.get(k) ?? roadLines[k].w, w));
+    const wB = 2 * (p.d - A.w / 2 - 1), wB0 = 2 * (p.d - w0(A) / 2 - 1);
+    if (wB >= 3) mini(p.j, wB); // la claire se rétrécit : un mètre de sable avec le goudron
+    else if (wB0 >= 3) { mini(p.j, wB0); mini(p.i, w0(A)); } // il faut aussi que le goudron garde sa largeur d'avant
+    else { mini(p.j, w0(B)); mini(p.i, w0(A)); } // pas la place : les deux comme avant l'élargissement
+  }
+  let n = 0;
+  for (const [i, w] of largeur) if (w < roadLines[i].w - .05) { roadLines[i].w = w; n++; }
+  if (import.meta.env.DEV) window.__chevauchement = { paires: [...paires.values()], largeur: [...largeur] }; // pour les tests
+  return n;
+}
 function ecarterChaussees() {
   const S = roadLines.filter(L => L.sens && L.cls <= 3), CG = 60, g = new Map(); // les ponts aussi : leurs deux tabliers se chevauchaient
   for (const L of S) for (let k = 1; k < L.pts.length; k++) {
@@ -357,7 +403,7 @@ export function buildRoads(R) {
     if (L.bridge) { let lon = 0; for (let j = 1; j < n; j++) lon += Math.hypot(pts[j][0] - pts[j - 1][0], pts[j][1] - pts[j - 1][1]); if (lon < 60) { L.bridge = false; L.dalot = true; nDalots++; } }
     L.w = largeurRoute(L); roadLines.push(L);
   }
-  const t0 = performance.now(), nAjoutes = anneauxManquants(), nEcartes = ecarterChaussees(), nRonds = goudronnerRondsPoints(); // les anneaux d'abord, sur les bouts de rue d'origine : écartées, deux des six places n'étaient plus reconnues
+  const t0 = performance.now(), nAjoutes = anneauxManquants(), nEcartes = ecarterChaussees(), nRonds = goudronnerRondsPoints(), nRetenues = sansChevauchement(); // les anneaux d'abord, sur les bouts de rue d'origine : écartées, deux des six places n'étaient plus reconnues
   const order = roadLines.map((_, i) => i).sort((a, b) => ROAD_ORDER[roadLines[a].cls] - ROAD_ORDER[roadLines[b].cls]);
   const pos = [], idx = [], col = [];
   const bpos = [], bidx = [], bcol = [];
@@ -404,7 +450,7 @@ export function buildRoads(R) {
     m.renderOrder = order; m.receiveShadow = true; m.castShadow = depthWrite && !LITE; scene.add(m); return m;
   };
   const routes = mk(pos, idx, col, 7, false); grainSol(routes.material, false, true); routes.userData.route = true; COUCHES_SOL.push(routes); // fissures et rapiéçages sur le goudron
-  console.info(`routes : ${nRonds} anneaux de ronds-points goudronnés, ${nAjoutes} ajoutés, ${nDalots} ponts courts au ras de la rue, ${nEcartes} points de boulevard écartés, lignes coupées aux carrefours, ${Math.round(performance.now() - t0)} ms`);
+  console.info(`routes : ${nRonds} anneaux de ronds-points goudronnés, ${nAjoutes} ajoutés, ${nDalots} ponts courts au ras de la rue, ${nEcartes} points de boulevard écartés, ${nRetenues} rues qui ne s'élargissent pas l'une dans l'autre, lignes coupées aux carrefours, ${Math.round(performance.now() - t0)} ms`);
   for (const M of [nu, marqAxe, marq2, marq4, ...Object.values(marqSens)]) {
     if (!M.pos.length) continue;
     const g = new THREE.BufferGeometry();

@@ -213,7 +213,7 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
   const mixer = new THREE.AnimationMixer(corps), actions = {};
   for (const [nom, clip] of Object.entries(M.clips)) actions[nom] = mixer.clipAction(clip);
   const os = nom => corps.getObjectByName(nom);
-  const E = { g, mixer, actions, courante: null, corps, velo: null, osVelo: null, tete: new THREE.Object3D(), main: new THREE.Object3D(), osTete: os('Head'), osMain: os('R_Hand'), osMains: [os('L_Hand'), os('R_Hand')].filter(Boolean), tel: null, crane: M.crane * ech, orphelin: 0, ph: hash(i, 93) * 10 };
+  const E = { g, mixer, actions, courante: null, corps, velo: null, osVelo: null, oreille: false, tete: new THREE.Object3D(), main: new THREE.Object3D(), osTete: os('Head'), osMain: os('R_Hand'), osMains: [os('L_Hand'), os('R_Hand')].filter(Boolean), tel: null, crane: M.crane * ech, orphelin: 0, ph: hash(i, 93) * 10 };
   g.add(E.tete); E.main.position.set(0, 1.1, .25); g.add(E.main);
   E.tete.position.set(0, taille + .08, 0);
   const jouer = (nom, fondu = .35) => {
@@ -245,7 +245,8 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
   g.userData = {
     tete: E.tete, main: E.main, femme: M.femme, graine: i, modele: id, haut: 1.15, jouer, peut: nom => !!(actions[nom] || M.clips[nom]), // peut('course') : seuls les modèles des joueurs savent courir
     assise: assise && M.assis?.pieds ? { fesses: M.assis.fesses * ech, pieds: M.assis.pieds * ech, dos: M.assis.dos * ech } : null, // sous le bassin, en mètres (poserAssis)
-    maj: dt => { mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); suivre(E); },
+    maj: dt => { mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); else if (E.oreille && E.courante !== 'telephone') poserOreille(E); suivre(E); },
+    oreille: on => { E.oreille = !!on; }, // au téléphone, debout : la main à l'oreille, le téléphone dedans (poserOreille)
     // null rend le personnage à son animation.
     velo: v => { E.velo = v; }, // { a, bb, r, ecart, guidon } : à vélo (trajets.js, veloSous) ; 'moto' : les pieds sur les cale-pieds ; { voiture, … } : assis en voiture ; null : rien
     anim: (t, parle, signe) => {
@@ -355,7 +356,7 @@ function poserVelo(E, velo) {
 function suivre(E) {
   if (E.osTete) { E.osTete.getWorldPosition(v); E.g.updateMatrixWorld(); E.g.worldToLocal(v); E.tete.position.set(v.x, v.y + E.crane + .03, v.z); } // juste au-dessus du crâne
   if (E.osMain) { E.osMain.getWorldPosition(v); E.g.worldToLocal(v); E.main.position.copy(v); }
-  if (E.courante === 'telephone' && E.osTete && E.osMains.length) placerTelephone(E); else if (E.tel) E.tel.visible = false;
+  if ((E.courante === 'telephone' || E.oreille) && E.osTete && E.osMains.length) placerTelephone(E); else if (E.tel) E.tel.visible = false;
 }
 
 // Un téléphone à écran allumé (vu de devant comme de derrière). « Quand le joueur téléphone, on ne voit pas son
@@ -373,6 +374,19 @@ export function telephone3d() {
 // et la joue, l'écran contre elle, le haut vers l'oreille. Il n'apparaît qu'une fois la main arrivée près de la tête.
 // Pour le joueur, ses amis et les passants assis qui téléphonent. Repère du personnage : regard vers +z, gauche en +x.
 const vT = new THREE.Vector3(), vM = new THREE.Vector3(), axeX = new THREE.Vector3(), axeY = new THREE.Vector3(), axeZ = new THREE.Vector3(), mT = new THREE.Matrix4();
+// Au téléphone debout (un appel, salon.js) : il n'y a pas d'animation pour ça. Le téléphone pendait dans la main, le long de
+// la cuisse, loin de la paume (« le téléphone est censé tenir dans sa main », Carlos, 05/11). On repose donc le bras droit
+// par-dessus l'animation, comme au guidon : la main à la joue, le coude plié vers l'extérieur et vers le bas ; placerTelephone
+// met ensuite l'appareil entre la paume et l'oreille. En marchant aussi : les jambes gardent leur pas.
+function poserOreille(E) {
+  const os = E.osVelo ||= Object.fromEntries(OS_VELO.map(n => [n, E.corps.getObjectByName(n)]));
+  const bras = os.R_Upperarm, main = os.R_Hand; if (!bras || !main || !E.osTete) return;
+  E.g.updateMatrixWorld(true); E.g.getWorldPosition(vRacine); E.g.getWorldDirection(vAv); vCote.crossVectors(vAv, vHaut).normalize(); // sa droite
+  bras.getWorldPosition(vLoc); const s = vLoc.sub(vRacine).dot(vCote) > 0 ? 1 : -1; // le côté de ce bras (le modèle peut être tourné)
+  E.osTete.getWorldPosition(iC); iC.addScaledVector(vCote, s * .1).addScaledVector(vHaut, .02).addScaledVector(vAv, .05); // contre la joue
+  vPole.copy(vCote).multiplyScalar(s * .6).addScaledVector(vHaut, -.8).addScaledVector(vAv, .1);
+  membre(bras, os.R_Forearm, main, iC.clone(), vPole);
+}
 function placerTelephone(E) {
   E.osTete.getWorldPosition(vT); E.g.worldToLocal(vT);
   let d = Infinity;
@@ -395,6 +409,6 @@ export function majPersonnages(dt) {
     let vis = E.g.visible; for (let o = E.g.parent; vis && o; o = o.parent) vis = o.visible;
     if (!vis) continue;
     E.g.getWorldPosition(v); if (v.distanceToSquared(camera.position) > 160 * 160) continue;
-    E.mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); suivre(E);
+    E.mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); else if (E.oreille && E.courante !== 'telephone') poserOreille(E); suivre(E);
   }
 }

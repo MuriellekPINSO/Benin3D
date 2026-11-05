@@ -154,7 +154,7 @@ export function actions() {
       if (enCroisiere(V)) {
         const G = T.gps;
         if (G && !(V.vol.phase === 'approche' && V.vol.vers === G.nom)) out.push({ texte: `Voler jusqu’à ${G.nom}`, f: () => volerVers(G) });
-        out.push({ texte: 'Atterrir ici', f: () => { if (atterrir(V)) { V.vol.vers = null; ligne(V.vol.ici ? 'Tu descends te poser juste en dessous. Touche les commandes pour te poser ailleurs.' : 'Pas de place juste en dessous : tu descends sur la route la plus proche.'); } else ligne('Pas de place où se poser ici : vole un peu plus loin.'); } });
+        out.push({ texte: 'Atterrir ici', f: () => { if (atterrir(V, V.x, V.z, 220, true)) { V.vol.vers = null; ligne(V.vol.ici ? 'Tu descends te poser juste en dessous. Touche les commandes pour te poser ailleurs.' : 'Pas de place juste en dessous : tu descends sur la route la plus proche.'); } else ligne('Pas de place où se poser ici : vole un peu plus loin.'); } });
       }
       return out;
     }
