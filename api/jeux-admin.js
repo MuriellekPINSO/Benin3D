@@ -3,11 +3,12 @@
 //   GET  /api/jeux-admin                        → { fiches: [ toutes les fiches, la plus récente d'abord ] }
 //   GET  /api/jeux-admin?img=<id>&k=a|0…4       → une image de la fiche en attente (aperçu avant validation)
 //   POST /api/jeux-admin { action: 'valider' | 'refuser' | 'retirer', id, mot? }
+//   POST /api/jeux-admin { action: 'repondre', uid, texte }   (les messages des créateurs : api/jeux.js, messages/)
 // Valider copie la fiche et ses images vers la version publique : le jeu apparaît dans la salle de jeux en une minute
 // (cache de /api/jeux?liste). Refuser laisse un mot au créateur, qui corrige et renvoie. Retirer enlève un jeu en ligne.
 import { BASE, origineAdmise } from './fedapay.js';
 import { baseAdmin } from './_admin.js';
-import { image, lireCorpsGrand, racine, totaux, versionPublique } from './jeux.js';
+import { fil, image, lireCorpsGrand, racine, totaux, versionPublique } from './jeux.js';
 
 const ID = /^[a-z0-9-]{3,48}$/;
 export async function admin(q, { secret = process.env.FIREBASE_DB_SECRET, base = BASE, now = Date.now(), methode = 'POST' } = {}) {
@@ -19,9 +20,19 @@ export async function admin(q, { secret = process.env.FIREBASE_DB_SECRET, base =
     for (const [id, f] of Object.entries(val || {})) {
       fiches.push({ id, ...f, enLigne: !!pubs?.[id], stats: pubs?.[id] ? await totaux(B, R, id, 30, now) : null });
     }
-    return { code: 200, corps: { racine: R, fiches: fiches.sort((a, b) => (b.modifie || 0) - (a.modifie || 0)) } };
+    // Les messages, par créateur : le fil le plus récent d'abord ; « à répondre » si le dernier mot est du créateur.
+    const { val: msgs } = await B.lire(`${R}/messages`), { val: cr } = await B.lire(`${R}/createurs`);
+    const fils = Object.entries(msgs || {}).map(([uid, m]) => { const l = Object.values(m || {}).sort((a, b) => a.t - b.t); return { uid, email: cr?.[uid]?.email || '', messages: l.slice(-40), dernier: l.at(-1)?.t || 0, aRepondre: l.at(-1)?.de === 'createur' }; })
+      .sort((a, b) => b.dernier - a.dernier);
+    return { code: 200, corps: { racine: R, fiches: fiches.sort((a, b) => (b.modifie || 0) - (a.modifie || 0)), fils } };
   }
   const action = String(q.action || ''), id = String(q.id || ''), mot = String(q.mot || '').trim().slice(0, 400);
+  if (action === 'repondre') {
+    const uid = String(q.uid || ''), texte = String(q.texte || '').trim().slice(0, 1000);
+    if (!/^[A-Za-z0-9_-]{6,128}$/.test(uid) || texte.length < 1) return { code: 400, corps: { statut: 'demande-invalide' } };
+    await B.ecrire(`${R}/messages/${uid}/${now}-${Math.random().toString(36).slice(2, 6)}`, { de: 'equipe', texte, t: now });
+    return { code: 200, corps: { statut: 'ok' } };
+  }
   if (!['valider', 'refuser', 'retirer'].includes(action) || !ID.test(id)) return { code: 400, corps: { statut: 'demande-invalide' } };
   const { val: f } = await B.lire(`${R}/fiches/${id}`); if (!f) return { code: 404, corps: { statut: 'introuvable' } };
   if (action === 'valider') {

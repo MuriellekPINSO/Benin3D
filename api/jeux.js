@@ -20,7 +20,9 @@
 //   GET  /api/jeux?aller=<id>[&qr]        → vers le bon magasin selon le téléphone (Play Store, App Store), compté :
 //                                          le bouton de la salle et le QR code affiché sur ordinateur pointent ici
 //   POST /api/jeux { action: 'compter', id, quoi }
-//   POST /api/jeux { action: 'moi' | 'lire' | 'enregistrer' | 'supprimer', jeton, … }   (espace créateurs)
+//   POST /api/jeux { action: 'moi' | 'lire' | 'enregistrer' | 'supprimer' | 'message', jeton, … }   (espace créateurs)
+//   messages/<uid>/<n°>    ce que le créateur écrit à l'équipe et ses réponses (« Écrire à l'équipe », « Demander le
+//                          retrait ») : aucune adresse e-mail sur la page, la réponse arrive dans son espace (05/11)
 import { BASE, origineAdmise } from './fedapay.js';
 import { baseAdmin, uidDuJeton } from './_admin.js';
 
@@ -128,6 +130,11 @@ export async function totaux(B, R, id, jours = 30, now = Date.now()) {
   return t;
 }
 const reponse = (code, corps) => ({ code, corps });
+/** Les messages entre un créateur et l'équipe, du plus ancien au plus récent (les `n` derniers). */
+export async function fil(B, R, uid, n = 40) {
+  const { val } = await B.lire(`${R}/messages/${uid}`);
+  return Object.values(val || {}).sort((a, b) => a.t - b.t).slice(-n);
+}
 
 // ---------- Les actions ----------
 export async function jeux(q, { secret = process.env.FIREBASE_DB_SECRET, base = BASE, now = Date.now(), methode = 'POST' } = {}) {
@@ -154,7 +161,7 @@ export async function jeux(q, { secret = process.env.FIREBASE_DB_SECRET, base = 
     await incrementer(B, `${R}/stats/${q.id}/${jourDe(now)}/${q.quoi}`);
     return reponse(200, { statut: 'ok' });
   }
-  if (!['moi', 'lire', 'enregistrer', 'supprimer'].includes(action)) return reponse(400, { statut: 'demande-invalide' });
+  if (!['moi', 'lire', 'enregistrer', 'supprimer', 'message'].includes(action)) return reponse(400, { statut: 'demande-invalide' });
   const moi = await createurDuJeton(q.jeton, base); if (!moi) return reponse(401, { statut: 'connexion' });
   const { val: c } = await B.lire(`${R}/createurs/${moi.uid}`);
   const mesJeux = Object.keys(c?.jeux || {});
@@ -165,7 +172,16 @@ export async function jeux(q, { secret = process.env.FIREBASE_DB_SECRET, base = 
       const { val: pub } = await B.lire(`${R}/publics/${id}/v`);
       fiches.push({ id, nom: f.nom, type: f.type, statut: f.statut, mot: f.mot || '', modifie: f.modifie || 0, enLigne: !!pub, stats: pub ? await totaux(B, R, id, 30, now) : null });
     }
-    return reponse(200, { statut: 'ok', email: moi.email, fiches: fiches.sort((a, b) => b.modifie - a.modifie) });
+    return reponse(200, { statut: 'ok', email: moi.email, fiches: fiches.sort((a, b) => b.modifie - a.modifie), messages: await fil(B, R, moi.uid) });
+  }
+  if (action === 'message') {
+    const t = texte(q.texte, 1000); if (t.length < 2) return reponse(422, { statut: 'message-vide' });
+    const id = q.id ? String(q.id) : ''; if (id && !mesJeux.includes(id)) return reponse(403, { statut: 'pas-a-toi' });
+    const deja = await fil(B, R, moi.uid, 200);
+    if (deja.filter(m => m.de === 'createur' && now - m.t < 864e5).length >= 20) return reponse(429, { statut: 'trop-de-messages' });
+    await B.ecrire(`${R}/messages/${moi.uid}/${now}-${hasard()}`, { de: 'createur', texte: t, ...(id ? { id } : {}), ...(id && q.retrait === true ? { retrait: true } : {}), t: now });
+    if (!c) await B.ecrire(`${R}/createurs/${moi.uid}`, { email: moi.email, jeux: {} });
+    return reponse(200, { statut: 'ok', messages: await fil(B, R, moi.uid) });
   }
   if (action === 'lire' || action === 'supprimer') {
     if (!mesJeux.includes(q.id)) return reponse(403, { statut: 'pas-a-toi' });

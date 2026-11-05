@@ -67,6 +67,14 @@
   .jeu-fiche .badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--fond); margin-left: 6px; }
   .jeu-fiche .badge.attente { background: #fff2c2; } .jeu-fiche .badge.publie { background: var(--vert-clair); color: var(--vert); }
   @media (max-width: 520px) { .jeu-fiche { grid-template-columns: 1fr; } }
+  .fils { display: grid; gap: 12px; } .fil-createur { border: 1px solid var(--trait); border-radius: 18px; padding: 14px; display: grid; gap: 8px; }
+  .fil-createur.a-repondre { border-color: var(--jaune); box-shadow: 0 0 0 2px rgba(245, 197, 24, .25); }
+  .fil-createur h3 { margin: 0; font-size: 15px; } .fil-createur .meta { color: var(--encre-2); font-size: 13px; }
+  .msg { max-width: 85%; padding: 8px 12px; border-radius: 14px; font-size: 14px; white-space: pre-line; background: var(--fond); }
+  .msg.equipe { justify-self: end; background: var(--vert-clair); } .msg small { display: block; color: var(--encre-2); font-size: 12px; }
+  .msg .retrait { color: #b3261e; font-weight: 700; font-size: 12px; }
+  .fil-createur textarea { width: 100%; font: inherit; padding: 9px 12px; border: 1px solid var(--trait); border-radius: 12px; min-height: 64px; }
+  .fil-createur button { justify-self: start; font: inherit; font-weight: 600; border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer; background: var(--vert); color: #fff; }
   table.paiements th:nth-child(2), table.paiements td:nth-child(2) { text-align: left; white-space: normal; min-width: 180px; }
   table.paiements tbody td.paye { color: var(--vert); font-weight: 700; } table.paiements tbody td.rate { color: var(--encre-2); }
   /* Défi du jour de Zém Run : le classement d'un jour ou d'une semaine, et la partie d'un joueur à vérifier avant un lot. */
@@ -161,6 +169,9 @@
     <h2>Jeux des créateurs</h2>
     <p class="note" id="jEtat">Lecture des fiches…</p>
     <div class="jeux-liste" id="jListe"></div>
+    <h2 style="font-size:16px;margin-top:6px">Messages des créateurs</h2>
+    <p class="note" id="jMsgEtat"></p>
+    <div class="fils" id="jFils"></div>
     <p class="note">Les créateurs remplissent leur fiche sur <a href="/createurs.html">kotonuvibes.com/createurs.html</a>. « Valider » met le jeu dans la salle de jeux de la ville en une minute. « Refuser » renvoie la fiche au créateur avec ton mot. « Retirer » enlève un jeu en ligne.</p>
   </section>
 
@@ -221,6 +232,21 @@
       b.disabled = true;
       const r = await fetch('/api/jeux-admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, id, mot }) });
       if (!r.ok) { alert('Ça n’a pas marché. Réessaie dans un instant.'); b.disabled = false; return; }
+      jeuxCreateurs();
+    }));
+    // Les messages : un fil par créateur, celui qui attend une réponse en premier (bordure jaune).
+    const fils = (J.fils || []).sort((a, b) => (b.aRepondre - a.aRepondre) || (b.dernier - a.dernier));
+    const nomJeu = id => F.find(f => f.id === id)?.nom || id;
+    $('#jMsgEtat').textContent = fils.length ? `${fils.filter(f => f.aRepondre).length} message(s) en attente de réponse` : 'Aucun message pour l’instant.';
+    $('#jFils').innerHTML = fils.map(f => `<div class="fil-createur${f.aRepondre ? ' a-repondre' : ''}" data-uid="${esc(f.uid)}">
+        <h3>${esc(f.email || 'Créateur')}</h3>
+        ${f.messages.map(m => `<div class="msg ${m.de === 'equipe' ? 'equipe' : ''}">${m.retrait ? '<span class="retrait">Demande de retrait</span><br>' : ''}${esc(m.texte)}<small>${m.de === 'equipe' ? 'Toi' : 'Créateur'}${m.id ? ` · ${esc(nomJeu(m.id))}` : ''} · ${new Date(m.t).toLocaleString('fr-FR')}</small></div>`).join('')}
+        <textarea placeholder="Ta réponse…" maxlength="1000"></textarea><button type="button">Répondre</button></div>`).join('');
+    $('#jFils').querySelectorAll('.fil-createur button').forEach(b => b.addEventListener('click', async () => {
+      const bloc = b.closest('[data-uid]'), texte = bloc.querySelector('textarea').value.trim(); if (!texte) return;
+      b.disabled = true;
+      const r = await fetch('/api/jeux-admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'repondre', uid: bloc.dataset.uid, texte }) });
+      if (!r.ok) { alert('La réponse n’est pas partie. Réessaie dans un instant.'); b.disabled = false; return; }
       jeuxCreateurs();
     }));
   }

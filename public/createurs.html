@@ -61,6 +61,13 @@
   details ol { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14.5px; }
   .case { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; }
   .case input { width: 20px; height: 20px; margin-top: 2px; flex: none; }
+  .fil { display: grid; gap: 8px; max-height: 360px; overflow-y: auto; padding: 4px 2px; }
+  .bulle { max-width: 85%; padding: 10px 13px; border-radius: 16px; font-size: 15px; white-space: pre-line; }
+  .bulle small { display: block; font-size: 12.5px; color: var(--encre-2); margin-top: 3px; }
+  .bulle.moi { justify-self: end; background: var(--vert-clair); border-bottom-right-radius: 6px; }
+  .bulle.equipe { justify-self: start; background: #efe6d3; border-bottom-left-radius: 6px; }
+  .bulle .retrait { display: inline-block; font-size: 12px; font-weight: 700; color: var(--rouge); margin-bottom: 2px; }
+  select { font: inherit; padding: 10px 12px; border: 1.5px solid var(--trait); border-radius: 14px; background: #fff; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -96,6 +103,16 @@
     <p class="doux" id="moiEmail"></p>
     <p class="message" id="messageListe" role="status" hidden></p>
     <div class="jeux" id="listeJeux"></div>
+  </section>
+
+  <section class="bloc" id="messages" hidden>
+    <h2>Écrire à l’équipe</h2>
+    <p class="doux">Une question, un souci avec ta fiche ? L’équipe de Kutɔnu Vibes te répond ici.</p>
+    <div class="fil" id="fil"></div>
+    <label>Ton message<textarea id="message" maxlength="1000" placeholder="Bonjour…"></textarea></label>
+    <label>À propos de<select id="messageJeu"><option value="">Pas d’un jeu en particulier</option></select></label>
+    <p class="erreur" id="erreurMessage" role="alert" hidden></p>
+    <div class="rangee"><button type="button" id="envoyerMessage">Envoyer</button></div>
   </section>
 
   <section class="bloc" id="fiche" hidden>
@@ -142,7 +159,7 @@
         <li>Tu autorises Kutɔnu Vibes à montrer gratuitement le nom, les images, la vidéo et les liens de ton jeu, dans le jeu et sur ses réseaux.</li>
         <li>Ton jeu ne contient ni paris d’argent, ni contenu pour adultes, ni haine, ni violence gratuite, ni arnaque.</li>
         <li>Les achats, les comptes et les données de tes joueurs dans ton jeu restent sous ta responsabilité.</li>
-        <li>Kutɔnu Vibes peut refuser ou retirer un jeu. Tu peux demander à retirer le tien à tout moment.</li>
+        <li>Kutɔnu Vibes peut refuser ou retirer un jeu. Tu peux demander à retirer le tien à tout moment, depuis ton espace (« Demander le retrait »).</li>
         <li>Le service est gratuit. S’il devient payant un jour, tu seras prévenu avant.</li>
       </ol>
     </details>
@@ -176,7 +193,7 @@
     const j = await r.json().catch(() => ({ statut: 'serveur-injoignable' }));
     return { ok: r.ok, ...j };
   }
-  const MSG = { connexion: 'Ta session a expiré : reconnecte-toi.', 'serveur-injoignable': 'Le serveur ne répond pas. Réessaie dans un instant.', 'trop-lourd': 'Les images sont trop lourdes ensemble. Retire une capture.', 'trop-de-jeux': 'Dix jeux au plus par créateur.', 'trop-d-essais': 'Trop d’essais d’un coup : attends une minute.', 'en-ligne': 'Ce jeu est en ligne : écris à l’équipe pour le retirer.', 'non-configure': 'L’espace créateurs n’est pas encore ouvert sur ce site.' };
+  const MSG = { connexion: 'Ta session a expiré : reconnecte-toi.', 'serveur-injoignable': 'Le serveur ne répond pas. Réessaie dans un instant.', 'trop-lourd': 'Les images sont trop lourdes ensemble. Retire une capture.', 'trop-de-jeux': 'Dix jeux au plus par créateur.', 'trop-d-essais': 'Trop d’essais d’un coup : attends une minute.', 'en-ligne': 'Ce jeu est en ligne : touche « Demander le retrait ».', 'trop-de-messages': 'Vingt messages par jour au plus : l’équipe te répond bientôt.', 'message-vide': 'Écris ton message.', 'non-configure': 'L’espace créateurs n’est pas encore ouvert sur ce site.' };
 
   // ---------- Connexion ----------
   const erreurAuth = e => ({ 'auth/invalid-credential': 'E-mail ou mot de passe incorrect.', 'auth/wrong-password': 'Mot de passe incorrect.', 'auth/user-not-found': 'Pas de compte avec cet e-mail : crée-le.', 'auth/email-already-in-use': 'Ce compte existe déjà : connecte-toi.', 'auth/weak-password': 'Le mot de passe doit faire 6 caractères au moins.', 'auth/invalid-email': 'Cet e-mail n’est pas valide.', 'auth/popup-closed-by-user': 'Connexion Google annulée.' }[e?.code] || 'La connexion a échoué. Réessaie.');
@@ -193,18 +210,20 @@
   $('#deconnexion').onclick = () => signOut(auth);
   onAuthStateChanged(auth, u => {
     const vrai = u && !u.isAnonymous;
-    montrer('#connexion', !vrai); montrer('#deconnexion', !!vrai); montrer('#mesJeux', !!vrai); montrer('#fiche', false);
+    montrer('#connexion', !vrai); montrer('#deconnexion', !!vrai); montrer('#mesJeux', !!vrai); montrer('#messages', !!vrai); montrer('#fiche', false);
     if (vrai) chargerListe();
   });
 
   // ---------- Mes jeux ----------
   async function chargerListe(message = '') {
-    montrer('#fiche', false); montrer('#mesJeux'); montrer('#accueil');
+    montrer('#fiche', false); montrer('#mesJeux'); montrer('#messages'); montrer('#accueil');
     $('#messageListe').textContent = message; montrer('#messageListe', !!message);
     $('#listeJeux').innerHTML = '<p class="doux">Chargement…</p>';
     const r = await appel('moi');
     if (!r.ok) { $('#listeJeux').innerHTML = `<p class="erreur">${MSG[r.statut] || 'Impossible de lire tes jeux.'}</p>`; return; }
     $('#moiEmail').textContent = `Connecté : ${r.email}`;
+    dessinerFil(r.messages || []);
+    $('#messageJeu').innerHTML = '<option value="">Pas d’un jeu en particulier</option>'; for (const f of r.fiches) { const o = document.createElement('option'); o.value = f.id; o.textContent = f.nom; $('#messageJeu').appendChild(o); }
     if (!r.fiches.length) { $('#listeJeux').innerHTML = '<p class="doux">Pas encore de jeu. Touche « Ajouter un jeu » pour créer sa fiche.</p>'; return; }
     $('#listeJeux').innerHTML = '';
     for (const f of r.fiches) {
@@ -214,7 +233,7 @@
         <p class="doux">${f.type === 'web' ? 'Jeu web' : 'Jeu mobile'}${enLigneAncienne ? ' · la version validée reste en ligne en attendant' : ''}</p>
         ${f.mot && (f.statut === 'refuse' || f.statut === 'retire') ? '<p class="message mal"></p>' : ''}
         ${f.stats ? `<div class="chiffres"><span>${f.stats.fiche} fiches ouvertes</span><span>${f.stats.partie} parties</span><span>${f.stats.magasin} vers le magasin</span><span>${f.stats.qr} QR codes</span><span>${f.stats.code} codes copiés</span><span class="doux">30 derniers jours</span></div>` : ''}
-        <div class="rangee"><button type="button" class="second" data-modifier>Modifier</button>${f.enLigne ? '' : '<button type="button" class="danger" data-supprimer>Supprimer</button>'}</div>`;
+        <div class="rangee"><button type="button" class="second" data-modifier>Modifier</button>${f.enLigne ? '<button type="button" class="danger" data-retrait>Demander le retrait</button>' : '<button type="button" class="danger" data-supprimer>Supprimer</button>'}</div>`;
       d.querySelector('b').textContent = f.nom; // textes du créateur : jamais en HTML
       if (d.querySelector('.message')) d.querySelector('.message').textContent = `Mot de l’équipe : ${f.mot}`;
       d.querySelector('[data-modifier]').onclick = () => ouvrirFiche(f.id);
@@ -222,9 +241,37 @@
         if (!confirm(`Supprimer la fiche « ${f.nom} » ?`)) return;
         const s = await appel('supprimer', { id: f.id }); chargerListe(s.ok ? 'Fiche supprimée.' : (MSG[s.statut] || 'Suppression impossible.'));
       });
+      d.querySelector('[data-retrait]')?.addEventListener('click', async () => {
+        const raison = prompt(`Pourquoi retirer « ${f.nom} » ? (facultatif)`); if (raison === null) return;
+        const s = await appel('message', { id: f.id, retrait: true, texte: `Je demande le retrait de « ${f.nom} ».${raison.trim() ? ` Raison : ${raison.trim()}` : ''}` });
+        if (s.ok) { dessinerFil(s.messages); chargerListe('Demande envoyée : l’équipe retire ton jeu et te répond ici.'); } else chargerListe(MSG[s.statut] || 'La demande n’est pas partie.');
+      });
       $('#listeJeux').appendChild(d);
     }
   }
+  // ---------- Écrire à l'équipe ----------
+  const quand = t => new Date(t).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  function dessinerFil(l) {
+    const f = $('#fil'); f.innerHTML = '';
+    if (!l.length) { f.innerHTML = '<p class="doux">Pas encore de message.</p>'; return; }
+    for (const m of l) {
+      const b = document.createElement('div'); b.className = `bulle ${m.de === 'equipe' ? 'equipe' : 'moi'}`;
+      if (m.retrait) { const r = document.createElement('span'); r.className = 'retrait'; r.textContent = 'Demande de retrait'; b.appendChild(r); b.appendChild(document.createElement('br')); }
+      b.appendChild(document.createTextNode(m.texte)); // textes : jamais en HTML
+      const s = document.createElement('small'); s.textContent = `${m.de === 'equipe' ? 'L’équipe de Kutɔnu Vibes' : 'Toi'} · ${quand(m.t)}`; b.appendChild(s);
+      f.appendChild(b);
+    }
+    f.scrollTop = f.scrollHeight;
+  }
+  $('#envoyerMessage').onclick = async () => {
+    const texte = $('#message').value.trim(), e = $('#erreurMessage'); e.hidden = true;
+    if (texte.length < 2) { e.textContent = MSG['message-vide']; e.hidden = false; return; }
+    $('#envoyerMessage').disabled = true;
+    const r = await appel('message', { texte, id: $('#messageJeu').value || undefined });
+    $('#envoyerMessage').disabled = false;
+    if (!r.ok) { e.textContent = MSG[r.statut] || 'Le message n’est pas parti.'; e.hidden = false; return; }
+    $('#message').value = ''; dessinerFil(r.messages);
+  };
   $('#ajouter').onclick = () => ouvrirFiche(null);
   $('#retour').onclick = () => chargerListe();
 
@@ -240,7 +287,7 @@
     for (const c of CHAMPS) $(`#${c}`).value = '';
     $('#accord').checked = false; effacerErreurs(); montrer('#messageFiche', false); montrer('#ficheMot', false);
     $('#ficheTitre').textContent = id ? 'Modifier le jeu' : 'Nouveau jeu'; choisirType('mobile');
-    montrer('#mesJeux', false); montrer('#accueil', false); montrer('#fiche'); scrollTo({ top: 0 });
+    montrer('#mesJeux', false); montrer('#messages', false); montrer('#accueil', false); montrer('#fiche'); scrollTo({ top: 0 });
     if (id) {
       const r = await appel('lire', { id });
       if (!r.ok) { dire(MSG[r.statut] || 'Impossible de lire la fiche.', true); return; }
