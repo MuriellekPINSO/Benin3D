@@ -11,7 +11,7 @@ import { camera, controls } from './scene.js';
 // ---------- Explorer : catégories, radio, présentation ----------
 export const CATS = { hotel: 'Hôtels', monument: 'Monuments', institution: 'Institutions', culte: 'Monuments', marche: 'Marchés', eau: 'Mer et lagune', plage: 'Mer et lagune', transport: 'Transport', savoir: 'Savoir', quartier: 'Quartiers' };
 // Ouidah a son filtre (la Porte et l'Arène étaient noyées en bas de la liste) ; sièges, ambassade et ministères ne sont pas des monuments.
-const LOISIRS = new Set(['stade', 'jardin']), ENTREPRISES = new Set(['mtn', 'moov', 'agl']);
+const LOISIRS = new Set(['stade', 'jardin', 'salle-jeux']), ENTREPRISES = new Set(['mtn', 'moov', 'agl']);
 export const catDe = p => /Ouidah/.test(p.kind) ? 'Ouidah' : LOISIRS.has(p.id) ? 'Sport et loisirs' : ENTREPRISES.has(p.id) ? 'Entreprises' : CATS[p.k] || 'Autres';
 export let filtre = 'Tout';
 export function initCategories() {

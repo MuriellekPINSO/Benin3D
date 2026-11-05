@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Espace créateurs · Kutɔnu Vibes</title>
+<meta name="description" content="Mets ton jeu, web ou mobile, dans la salle de jeux de Kutɔnu Vibes, le Cotonou en 3D.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400..700&display=swap">
+<style>
+  /* Espace créateurs (05/11) : les créateurs ajoutent leur jeu, web ou mobile ; l'équipe valide dans le tableau de bord ;
+     le jeu apparaît dans la salle de jeux de la ville. Les données passent par /api/jeux (api/jeux.js). */
+  :root { --fond: #f6f1e6; --carte: #fffdf8; --encre: #1f2420; --encre-2: #6b6457; --trait: #e3d9c6; --vert: #1a7d52; --vert-clair: #e6f3ec; --jaune: #f2b705; --rouge: #b3261e; --violet: #6d4fc2; color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--encre); font: 16px/1.5 "Google Sans", system-ui, -apple-system, "Segoe UI", sans-serif; padding: 18px 16px 48px; }
+  .page { max-width: 760px; margin: 0 auto; display: grid; gap: 18px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .marque { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+  .marque svg { width: 40px; height: 40px; flex: none; }
+  .marque b { display: block; font-size: 19px; } .marque small { color: var(--encre-2); font-size: 14px; }
+  .bloc { background: var(--carte); border-radius: 24px; padding: 22px; box-shadow: 0 8px 26px rgba(60, 40, 10, .08); display: grid; gap: 14px; min-width: 0; }
+  h1 { margin: 0; font-size: 26px; line-height: 1.2; } h2 { margin: 0; font-size: 19px; }
+  p { margin: 0; } .doux { color: var(--encre-2); font-size: 15px; }
+  label { display: grid; gap: 6px; font-weight: 600; font-size: 15px; }
+  label small { font-weight: 400; color: var(--encre-2); font-size: 13.5px; }
+  input[type=text], input[type=email], input[type=password], input[type=url], textarea { width: 100%; font: inherit; padding: 12px 14px; border: 1.5px solid var(--trait); border-radius: 14px; background: #fff; outline: none; }
+  input:focus, textarea:focus { border-color: var(--vert); }
+  textarea { min-height: 110px; resize: vertical; }
+  .rangee { display: flex; flex-wrap: wrap; gap: 10px; }
+  button, .bouton { font: inherit; font-weight: 700; padding: 12px 18px; border: 0; border-radius: 999px; cursor: pointer; background: var(--vert); color: #fff; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+  button.second, .bouton.second { background: #efe6d3; color: var(--encre); }
+  button.discret { background: none; color: var(--vert); padding: 8px 4px; }
+  button.danger { background: none; color: var(--rouge); padding: 8px 4px; }
+  button:disabled { opacity: .5; cursor: wait; }
+  .erreur { color: var(--rouge); font-size: 14px; font-weight: 600; }
+  .message { padding: 12px 14px; border-radius: 14px; background: var(--vert-clair); color: #134d33; font-weight: 600; }
+  .message.mal { background: #fbe9e7; color: var(--rouge); }
+  .choix { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .choix button { background: #fff; color: var(--encre); border: 1.5px solid var(--trait); border-radius: 16px; padding: 14px; display: grid; gap: 2px; text-align: left; font-weight: 600; }
+  .choix button small { font-weight: 400; color: var(--encre-2); font-size: 13.5px; }
+  .choix button[aria-pressed=true] { border-color: var(--vert); background: var(--vert-clair); }
+  .jeux { display: grid; gap: 12px; }
+  .jeu { border: 1.5px solid var(--trait); border-radius: 18px; padding: 14px 16px; display: grid; gap: 8px; }
+  .jeu-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .jeu-tete b { font-size: 17px; }
+  .statut { font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #efe6d3; }
+  .statut.attente { background: #fff2c2; color: #6a4f00; } .statut.publie { background: var(--vert-clair); color: #134d33; }
+  .statut.refuse, .statut.retire { background: #fbe9e7; color: var(--rouge); }
+  .chiffres { display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px; color: var(--encre-2); }
+  .chiffres span { background: var(--fond); border-radius: 10px; padding: 4px 9px; }
+  .images { display: flex; flex-wrap: wrap; gap: 10px; }
+  .vignette { position: relative; width: 108px; height: 108px; border-radius: 14px; overflow: hidden; background: #efe6d3; border: 1.5px solid var(--trait); }
+  .vignette img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .vignette button { position: absolute; top: 4px; right: 4px; padding: 2px 8px; font-size: 13px; background: rgba(0, 0, 0, .6); }
+  .ajout { width: 108px; height: 108px; border-radius: 14px; border: 1.5px dashed var(--encre-2); display: grid; place-items: center; text-align: center; font-size: 13px; color: var(--encre-2); cursor: pointer; padding: 6px; }
+  .ajout input { display: none; }
+  details { border: 1.5px solid var(--trait); border-radius: 16px; padding: 12px 14px; background: #fff; }
+  details summary { cursor: pointer; font-weight: 700; }
+  details ol { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14.5px; }
+  .case { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; }
+  .case input { width: 20px; height: 20px; margin-top: 2px; flex: none; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a class="marque" href="/"><img src="/favicon.svg" alt="" width="40" height="40"><span><b>Kutɔnu Vibes</b><small>Espace créateurs</small></span></a>
+    <button type="button" class="second" id="deconnexion" hidden>Se déconnecter</button>
+  </header>
+
+  <section class="bloc" id="accueil">
+    <h1>Mets ton jeu dans la salle de jeux de Kutɔnu Vibes</h1>
+    <p class="doux">Kutɔnu Vibes, c’est Cotonou en 3D. Sa salle de jeux présente les jeux des créateurs béninois. Un jeu web se joue directement dans Kutɔnu Vibes. Un jeu mobile a sa vitrine, et un bouton envoie les joueurs vers le Play Store ou l’App Store.</p>
+    <p class="doux">Tu crées la fiche de ton jeu ici. L’équipe la valide, puis le jeu apparaît dans la ville. C’est gratuit.</p>
+  </section>
+
+  <section class="bloc" id="connexion" hidden>
+    <h2>Connexion</h2>
+    <p class="doux">Avec ton compte Kutɔnu Vibes, ou crée-le ici.</p>
+    <label>E-mail<input type="email" id="email" autocomplete="email" autocapitalize="none"></label>
+    <label>Mot de passe<input type="password" id="mdp" autocomplete="current-password"></label>
+    <p class="erreur" id="erreurConnexion" role="alert" hidden></p>
+    <div class="rangee">
+      <button type="button" id="seConnecter">Se connecter</button>
+      <button type="button" class="second" id="creerCompte">Créer mon compte</button>
+      <button type="button" class="second" id="google">Continuer avec Google</button>
+    </div>
+    <button type="button" class="discret" id="oubli">Mot de passe oublié</button>
+  </section>
+
+  <section class="bloc" id="mesJeux" hidden>
+    <div class="jeu-tete"><h2>Mes jeux</h2><button type="button" id="ajouter">Ajouter un jeu</button></div>
+    <p class="doux" id="moiEmail"></p>
+    <p class="message" id="messageListe" role="status" hidden></p>
+    <div class="jeux" id="listeJeux"></div>
+  </section>
+
+  <section class="bloc" id="fiche" hidden>
+    <div class="jeu-tete"><h2 id="ficheTitre">Nouveau jeu</h2><button type="button" class="discret" id="retour">Retour à mes jeux</button></div>
+    <p class="message mal" id="ficheMot" hidden></p>
+    <div class="choix" role="group" aria-label="Type de jeu">
+      <button type="button" data-type="mobile" aria-pressed="true">Jeu mobile<small>Sur le Play Store ou l’App Store</small></button>
+      <button type="button" data-type="web" aria-pressed="false">Jeu web<small>Il se joue dans un navigateur</small></button>
+    </div>
+    <label>Nom du jeu<input type="text" id="nom" maxlength="40"></label>
+    <p class="erreur" data-erreur="nom" hidden></p>
+    <label>En une phrase<small>Ce qu’on lit sous l’affiche, dans la salle de jeux.</small><input type="text" id="accroche" maxlength="90"></label>
+    <label>Description<small>Le principe du jeu, comment on joue.</small><textarea id="description" maxlength="700"></textarea></label>
+    <p class="erreur" data-erreur="description" hidden></p>
+    <label>Créateur ou studio<input type="text" id="createurs" maxlength="80"></label>
+    <p class="erreur" data-erreur="createurs" hidden></p>
+    <div id="champsMobile" class="bloc" style="padding:0;box-shadow:none;background:none">
+      <label>Lien Play Store<small>https://play.google.com/store/apps/details?id=…</small><input type="url" id="android" inputmode="url"></label>
+      <p class="erreur" data-erreur="android" hidden></p>
+      <label>Lien App Store<small>Facultatif. https://apps.apple.com/…/id…</small><input type="url" id="ios" inputmode="url"></label>
+      <p class="erreur" data-erreur="ios" hidden></p>
+    </div>
+    <div id="champsWeb" hidden>
+      <label>Adresse du jeu<small>En https, sur ton propre domaine. Elle s’ouvrira dans une fenêtre de Kutɔnu Vibes : ton site doit accepter d’être affiché dans une autre page (pas d’en-tête X-Frame-Options ni de frame-ancestors qui l’interdit pour kotonuvibes.com).</small><input type="url" id="web" inputmode="url"></label>
+      <p class="erreur" data-erreur="web" hidden></p>
+    </div>
+    <label>Vidéo YouTube<small>Facultatif. Une bande-annonce de 30 secondes à 1 minute.</small><input type="url" id="video" inputmode="url"></label>
+    <p class="erreur" data-erreur="video" hidden></p>
+    <label>Code cadeau<small>Facultatif. Un code valable dans ton jeu, offert aux joueurs de Kutɔnu Vibes.</small><input type="text" id="code" maxlength="30"></label>
+    <div>
+      <p><b>Affiche</b> <span class="doux">(obligatoire, de préférence verticale)</span></p>
+      <div class="images" id="imagesAffiche"></div>
+      <p class="erreur" data-erreur="image_a" hidden></p>
+    </div>
+    <div>
+      <p><b>Captures d’écran</b> <span class="doux">(jusqu’à 5)</span></p>
+      <div class="images" id="imagesCaptures"></div>
+      <p class="erreur" data-erreur="images" hidden></p>
+    </div>
+    <details>
+      <summary>Accord créateur (version 1)</summary>
+      <ol>
+        <li>Tu es l’auteur du jeu, ou tu as le droit de le présenter.</li>
+        <li>Tu autorises Kutɔnu Vibes à montrer gratuitement le nom, les images, la vidéo et les liens de ton jeu, dans le jeu et sur ses réseaux.</li>
+        <li>Ton jeu ne contient ni paris d’argent, ni contenu pour adultes, ni haine, ni violence gratuite, ni arnaque.</li>
+        <li>Les achats, les comptes et les données de tes joueurs dans ton jeu restent sous ta responsabilité.</li>
+        <li>Kutɔnu Vibes peut refuser ou retirer un jeu. Tu peux demander à retirer le tien à tout moment.</li>
+        <li>Le service est gratuit. S’il devient payant un jour, tu seras prévenu avant.</li>
+      </ol>
+    </details>
+    <label class="case"><input type="checkbox" id="accord">J’ai lu l’accord créateur et je l’accepte.</label>
+    <p class="erreur" data-erreur="accord" hidden></p>
+    <p class="message" id="messageFiche" role="status" hidden></p>
+    <div class="rangee">
+      <button type="button" id="envoyer">Envoyer pour validation</button>
+      <button type="button" class="second" id="brouillon">Enregistrer le brouillon</button>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, GoogleAuthProvider, signOut } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+
+  // Le même projet que le jeu (src/firebase.js), sous un autre nom d'appli : la session de créateur ne remplace pas celle
+  // du joueur (souvent anonyme) dans le jeu ouvert sur le même navigateur.
+  const app = initializeApp({ apiKey: 'AIzaSyBICBd5BGAGoLBgjRb78Zq-shfP9oij1rA', authDomain: 'zem-run-cotonou.firebaseapp.com', projectId: 'zem-run-cotonou', databaseURL: 'https://zem-run-cotonou-default-rtdb.europe-west1.firebasedatabase.app', appId: '1:655292147870:web:e6d7ab3d39a452adb8338f' }, 'createurs');
+  const auth = getAuth(app);
+  const $ = s => document.querySelector(s);
+  const montrer = (id, oui = true) => { $(id).hidden = !oui; };
+  const ACCORD = '1';
+  const STATUTS = { brouillon: 'Brouillon', attente: 'En attente de validation', publie: 'En ligne', refuse: 'À corriger', retire: 'Retiré' };
+  const S = { id: null, type: 'mobile', affiche: null, captures: [] }; // une image : { url (data: ou adresse), nouvelle: data: URL | null }
+
+  async function appel(action, donnees = {}) {
+    const jeton = await auth.currentUser?.getIdToken();
+    const r = await fetch('/api/jeux', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, jeton, ...donnees }) });
+    const j = await r.json().catch(() => ({ statut: 'serveur-injoignable' }));
+    return { ok: r.ok, ...j };
+  }
+  const MSG = { connexion: 'Ta session a expiré : reconnecte-toi.', 'serveur-injoignable': 'Le serveur ne répond pas. Réessaie dans un instant.', 'trop-lourd': 'Les images sont trop lourdes ensemble. Retire une capture.', 'trop-de-jeux': 'Dix jeux au plus par créateur.', 'trop-d-essais': 'Trop d’essais d’un coup : attends une minute.', 'en-ligne': 'Ce jeu est en ligne : écris à l’équipe pour le retirer.', 'non-configure': 'L’espace créateurs n’est pas encore ouvert sur ce site.' };
+
+  // ---------- Connexion ----------
+  const erreurAuth = e => ({ 'auth/invalid-credential': 'E-mail ou mot de passe incorrect.', 'auth/wrong-password': 'Mot de passe incorrect.', 'auth/user-not-found': 'Pas de compte avec cet e-mail : crée-le.', 'auth/email-already-in-use': 'Ce compte existe déjà : connecte-toi.', 'auth/weak-password': 'Le mot de passe doit faire 6 caractères au moins.', 'auth/invalid-email': 'Cet e-mail n’est pas valide.', 'auth/popup-closed-by-user': 'Connexion Google annulée.' }[e?.code] || 'La connexion a échoué. Réessaie.');
+  const direConnexion = t => { $('#erreurConnexion').textContent = t; montrer('#erreurConnexion', !!t); };
+  const identifiants = () => [$('#email').value.trim(), $('#mdp').value];
+  $('#seConnecter').onclick = async () => { direConnexion(''); try { await signInWithEmailAndPassword(auth, ...identifiants()); } catch (e) { direConnexion(erreurAuth(e)); } };
+  $('#creerCompte').onclick = async () => { direConnexion(''); try { await createUserWithEmailAndPassword(auth, ...identifiants()); } catch (e) { direConnexion(erreurAuth(e)); } };
+  $('#google').onclick = async () => { direConnexion(''); try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { direConnexion(erreurAuth(e)); } };
+  $('#oubli').onclick = async () => {
+    const email = $('#email').value.trim(); if (!email) return direConnexion('Écris ton e-mail, puis touche « Mot de passe oublié ».');
+    try { await sendPasswordResetEmail(auth, email); direConnexion(''); $('#erreurConnexion').hidden = false; $('#erreurConnexion').textContent = 'Un e-mail pour changer ton mot de passe est parti. Regarde aussi dans les spams.'; }
+    catch (e) { direConnexion(erreurAuth(e)); }
+  };
+  $('#deconnexion').onclick = () => signOut(auth);
+  onAuthStateChanged(auth, u => {
+    const vrai = u && !u.isAnonymous;
+    montrer('#connexion', !vrai); montrer('#deconnexion', !!vrai); montrer('#mesJeux', !!vrai); montrer('#fiche', false);
+    if (vrai) chargerListe();
+  });
+
+  // ---------- Mes jeux ----------
+  async function chargerListe(message = '') {
+    montrer('#fiche', false); montrer('#mesJeux'); montrer('#accueil');
+    $('#messageListe').textContent = message; montrer('#messageListe', !!message);
+    $('#listeJeux').innerHTML = '<p class="doux">Chargement…</p>';
+    const r = await appel('moi');
+    if (!r.ok) { $('#listeJeux').innerHTML = `<p class="erreur">${MSG[r.statut] || 'Impossible de lire tes jeux.'}</p>`; return; }
+    $('#moiEmail').textContent = `Connecté : ${r.email}`;
+    if (!r.fiches.length) { $('#listeJeux').innerHTML = '<p class="doux">Pas encore de jeu. Touche « Ajouter un jeu » pour créer sa fiche.</p>'; return; }
+    $('#listeJeux').innerHTML = '';
+    for (const f of r.fiches) {
+      const d = document.createElement('div'); d.className = 'jeu';
+      const enLigneAncienne = f.enLigne && f.statut !== 'publie';
+      d.innerHTML = `<div class="jeu-tete"><b></b><span class="statut ${f.statut}">${STATUTS[f.statut] || f.statut}</span></div>
+        <p class="doux">${f.type === 'web' ? 'Jeu web' : 'Jeu mobile'}${enLigneAncienne ? ' · la version validée reste en ligne en attendant' : ''}</p>
+        ${f.mot && (f.statut === 'refuse' || f.statut === 'retire') ? '<p class="message mal"></p>' : ''}
+        ${f.stats ? `<div class="chiffres"><span>${f.stats.fiche} fiches ouvertes</span><span>${f.stats.partie} parties</span><span>${f.stats.magasin} vers le magasin</span><span>${f.stats.qr} QR codes</span><span>${f.stats.code} codes copiés</span><span class="doux">30 derniers jours</span></div>` : ''}
+        <div class="rangee"><button type="button" class="second" data-modifier>Modifier</button>${f.enLigne ? '' : '<button type="button" class="danger" data-supprimer>Supprimer</button>'}</div>`;
+      d.querySelector('b').textContent = f.nom; // textes du créateur : jamais en HTML
+      if (d.querySelector('.message')) d.querySelector('.message').textContent = `Mot de l’équipe : ${f.mot}`;
+      d.querySelector('[data-modifier]').onclick = () => ouvrirFiche(f.id);
+      d.querySelector('[data-supprimer]')?.addEventListener('click', async () => {
+        if (!confirm(`Supprimer la fiche « ${f.nom} » ?`)) return;
+        const s = await appel('supprimer', { id: f.id }); chargerListe(s.ok ? 'Fiche supprimée.' : (MSG[s.statut] || 'Suppression impossible.'));
+      });
+      $('#listeJeux').appendChild(d);
+    }
+  }
+  $('#ajouter').onclick = () => ouvrirFiche(null);
+  $('#retour').onclick = () => chargerListe();
+
+  // ---------- La fiche ----------
+  const CHAMPS = ['nom', 'accroche', 'description', 'createurs', 'android', 'ios', 'web', 'video', 'code'];
+  function choisirType(t) {
+    S.type = t; document.querySelectorAll('.choix button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.type === t)));
+    montrer('#champsMobile', t === 'mobile'); montrer('#champsWeb', t === 'web');
+  }
+  document.querySelectorAll('.choix button').forEach(b => { b.onclick = () => choisirType(b.dataset.type); });
+  async function ouvrirFiche(id) {
+    S.id = id; S.affiche = null; S.captures = [];
+    for (const c of CHAMPS) $(`#${c}`).value = '';
+    $('#accord').checked = false; effacerErreurs(); montrer('#messageFiche', false); montrer('#ficheMot', false);
+    $('#ficheTitre').textContent = id ? 'Modifier le jeu' : 'Nouveau jeu'; choisirType('mobile');
+    montrer('#mesJeux', false); montrer('#accueil', false); montrer('#fiche'); scrollTo({ top: 0 });
+    if (id) {
+      const r = await appel('lire', { id });
+      if (!r.ok) { dire(MSG[r.statut] || 'Impossible de lire la fiche.', true); return; }
+      const f = r.fiche;
+      for (const c of CHAMPS) $(`#${c}`).value = c === 'video' && f.video ? `https://youtu.be/${f.video}` : (f[c] || '');
+      choisirType(f.type === 'web' ? 'web' : 'mobile');
+      if (f.images?.a) S.affiche = { url: f.images.a, nouvelle: null };
+      for (const k of ['c0', 'c1', 'c2', 'c3', 'c4']) if (f.images?.[k]) S.captures.push({ url: f.images[k], nouvelle: null });
+      $('#accord').checked = f.accord?.v === ACCORD;
+      if (f.mot && (f.statut === 'refuse' || f.statut === 'retire')) { $('#ficheMot').textContent = `Mot de l’équipe : ${f.mot}`; montrer('#ficheMot'); }
+    }
+    dessinerImages();
+  }
+
+  // Les images sont réduites ici, avant l'envoi : affiche 720 px, captures 1080 px, en WebP (JPEG si le navigateur
+  // ne sait pas faire de WebP), moins de 400 Ko chacune.
+  async function reduire(fichier, cote) {
+    const img = await createImageBitmap(fichier), k = Math.min(1, cote / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    for (const q of [.82, .72, .6, .5]) {
+      let u = c.toDataURL('image/webp', q); if (!u.startsWith('data:image/webp')) u = c.toDataURL('image/jpeg', q);
+      if (u.length < 400000) return u;
+    }
+    throw new Error('trop-lourde');
+  }
+  function vignette(im, retirer) {
+    const v = document.createElement('div'); v.className = 'vignette';
+    const i = document.createElement('img'); i.src = im.url; i.alt = ''; v.appendChild(i);
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Retirer'; b.onclick = retirer; v.appendChild(b);
+    return v;
+  }
+  function boutonAjout(texte, multiple, f) {
+    const l = document.createElement('label'); l.className = 'ajout'; l.textContent = texte;
+    const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.multiple = multiple;
+    i.onchange = async () => { for (const x of [...i.files]) { try { await f(x); } catch { dire('Une image n’a pas pu être lue. Essaie un fichier JPEG ou PNG.', true); } } dessinerImages(); };
+    l.appendChild(i); return l;
+  }
+  function dessinerImages() {
+    const a = $('#imagesAffiche'), c = $('#imagesCaptures'); a.innerHTML = ''; c.innerHTML = '';
+    if (S.affiche) a.appendChild(vignette(S.affiche, () => { S.affiche = null; dessinerImages(); }));
+    else a.appendChild(boutonAjout('Choisir l’affiche', false, async x => { const u = await reduire(x, 720); S.affiche = { url: u, nouvelle: u }; }));
+    S.captures.forEach((im, i) => c.appendChild(vignette(im, () => { S.captures.splice(i, 1); dessinerImages(); })));
+    if (S.captures.length < 5) c.appendChild(boutonAjout('Ajouter des captures', true, async x => { if (S.captures.length >= 5) return; const u = await reduire(x, 1080); S.captures.push({ url: u, nouvelle: u }); }));
+  }
+
+  function effacerErreurs() { document.querySelectorAll('[data-erreur]').forEach(e => { e.hidden = true; e.textContent = ''; }); }
+  function dire(t, mal = false) { const m = $('#messageFiche'); m.textContent = t; m.classList.toggle('mal', mal); montrer('#messageFiche', !!t); }
+  async function enregistrer(envoyer) {
+    effacerErreurs(); dire('');
+    const fiche = Object.fromEntries(CHAMPS.map(c => [c, $(`#${c}`).value.trim()]));
+    fiche.type = S.type; fiche.accord = $('#accord').checked ? ACCORD : '';
+    // Une image déjà enregistrée reste sur le serveur ('garder') ; seules les nouvelles partent.
+    fiche.images = { a: S.affiche ? (S.affiche.nouvelle || 'garder') : null };
+    // Les captures gardées ne gardent leur place que si l'ordre ne change pas : on renvoie tout ce qui a bougé.
+    S.captures.forEach((im, i) => { fiche.images[`c${i}`] = im.nouvelle || im.url; });
+    for (const b of ['#envoyer', '#brouillon']) $(b).disabled = true;
+    const r = await appel('enregistrer', { id: S.id, fiche, envoyer });
+    for (const b of ['#envoyer', '#brouillon']) $(b).disabled = false;
+    if (r.statut === 'fiche') {
+      for (const [k, t] of Object.entries(r.erreurs || {})) { const e = document.querySelector(`[data-erreur="${k}"]`) || document.querySelector('[data-erreur="images"]'); e.textContent = t; e.hidden = false; }
+      dire('Il manque quelque chose : regarde les messages en rouge.', true); return;
+    }
+    if (!r.ok) { dire(MSG[r.statut] || 'L’enregistrement a échoué.', true); return; }
+    S.id = r.id;
+    chargerListe(envoyer ? 'Envoyé ! L’équipe de Kutɔnu Vibes va regarder ta fiche. Tu verras ici quand ton jeu sera en ligne.' : 'Brouillon enregistré.');
+  }
+  $('#envoyer').onclick = () => enregistrer(true);
+  $('#brouillon').onclick = () => enregistrer(false);
+</script>
+</body>
+</html>

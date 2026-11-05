@@ -126,7 +126,7 @@ export const geometriesVille = () => Object.values(VILLE).map(M => M.geo);
 
 // ---------- Repères à leur vraie place (reperes.js) ----------
 /** Le point de rue le plus proche de (x, z) sur une rue de quartier ou plus grande, et la demi-largeur de cette rue. */
-function rueProche(x, z) {
+export function rueProche(x, z) {
   let best = null, bd = 1e18;
   for (const L of roadLines) {
     if (L.cls > 4 || L.bridge) continue;

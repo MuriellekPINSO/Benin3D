@@ -7,6 +7,7 @@ import { camera, controls } from './scene.js';
 import { initVoirEnVrai } from './google.js';
 import { basculerMondeReel, maquetteVisible, recalerMondeReel } from './monde-reel.js';
 import { LIEUX, visibiliteLieux } from './lieux.js';
+import { ouvrirSalle } from './salle-jeux.js';
 import { etalPres, ouvrirBoutique, sitesAvecEtal } from './artisans.js';
 import { changerMeteo } from './meteo.js';
 import { basculerSatellite } from './satellite.js';
@@ -94,12 +95,14 @@ export function select(p) {
   $('#cardDot').style.setProperty('--k', KCOL[p.k]);
   $('#cardCoords').textContent = fmtLL(p.x ?? toXZ(p.lat, p.lon)[0], p.z ?? toXZ(p.lat, p.lon)[1]);
   $('#cardMarche').hidden = !sitesAvecEtal().has(p.id);
+  $('#cardSalle').hidden = p.id !== 'salle-jeux'; // les jeux des créateurs (salle-jeux.js)
   card.hidden = false; document.dispatchEvent(new Event('lieu-choisi'));
   p.btn.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
   flyTo(p.x, p.z, p.view);
 }
 $('#cardClose').addEventListener('click', () => { card.hidden = true; E.selected = null; LIEUX.focus = null; for (const q of PLACES) { q.btn.setAttribute('aria-pressed', 'false'); q.label?.classList.remove('sel'); } });
 $('#cardGo').addEventListener('click', () => E.selected && flyTo(E.selected.x, E.selected.z, E.selected.view));
+$('#cardSalle').addEventListener('click', () => ouvrirSalle());
 // Marché artisanal : on vole jusqu'à l'étal, puis la vendeuse accueille.
 $('#cardMarche').addEventListener('click', () => {
   const p = E.selected; if (!p) return; const e = etalPres(p.x, p.z, 400); if (!e) return;

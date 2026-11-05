@@ -15,6 +15,7 @@ import { accueil, initExplorer } from './explorer.js';
 import { TRIPO, chargerIndexTripo, urlTripo } from './batiments-tripo.js';
 import { chargerVille, poserReperes } from './ville-tripo.js';
 import { chargerFoule, etatFoule } from './foule-reelle.js';
+import { construireSalle } from './salle-jeux.js';
 import { detailsToits, STATS_TOITS } from './toits-details.js';
 import { chargerPersonnages, majPersonnages } from './personnages.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
@@ -82,6 +83,7 @@ const erreursVues = new Set();
 let ecart = 16.7, precedent = 0, sauter = false;
 function loop(now) {
   requestAnimationFrame(loop);
+  if (E.pauseRendu) return; // un jeu web de la salle de jeux est ouvert par-dessus (salle-jeux.js) : la ville attend
   ecart += (Math.min(100, now - precedent) - ecart) * .1; precedent = now; // écart moyen entre deux appels
   if (ecart < 10 && (sauter = !sauter)) return;
   try { image(now); } catch (err) { const k = String(err?.message); if (!erreursVues.has(k)) { erreursVues.add(k); console.error('image', err); } }
@@ -191,6 +193,7 @@ async function main() {
   chargerPersonnages(); // personnages animés (en tâche de fond : le jeu garde ses personnages en code en attendant)
   await construireLieux(data);
   detailsToits(); // citernes, paraboles et fers à béton sur les toits plats (toits-details.js)
+  construireSalle(); // la salle de jeux de Haie Vive : les jeux des créateurs (salle-jeux.js)
   if (import.meta.env.DEV) { window.__toits = STATS_TOITS; window.__foule = etatFoule; }
   construireLieuxVideos(data); construireOuidah(data.L); construireEtals(data.L); construireCaiCai(); construireStand(); construireMaquis();
   semeOne(data.L.semeOne); portailUAC(data.L.campus, data.L.lignes?.find(l => l.id === 'calavi')?.pts); construireTokpas();

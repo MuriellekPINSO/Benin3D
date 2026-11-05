@@ -1,5 +1,5 @@
 // Lieux, quartiers et plans d'eau affichés sur la carte.
-export const KCOL = { hotel: '#b07a3a', savoir: '#e07b39', monument: '#d6452f', marche: '#f2b705', eau: '#2f8fb0', transport: '#5b6bd6', culte: '#8a5cc2', plage: '#e2a35a', institution: '#3d9a6a', quartier: '#c96f3b' };
+export const KCOL = { jeux: '#7a4fd6', hotel: '#b07a3a', savoir: '#e07b39', monument: '#d6452f', marche: '#f2b705', eau: '#2f8fb0', transport: '#5b6bd6', culte: '#8a5cc2', plage: '#e2a35a', institution: '#3d9a6a', quartier: '#c96f3b' };
 export const PLACES = [
   { id: 'etoile', name: "Place de l'Étoile Rouge", kind: 'Monument', k: 'monument', lat: 6.37149, lon: 2.40979, h: 52, view: [270, 1.08, 0.7],
     text: "Le grand carrefour où se rejoignent cinq voies. Sur l'île centrale, deux étoiles rouges posées à plat, une flèche blanche et, au sommet, la statue de bronze d'un homme portant une houe et une gerbe. Le monument date du milieu des années 1970, sous Mathieu Kérékou." },
@@ -27,6 +27,8 @@ export const PLACES = [
     text: "La plage de l'ouest, le long de la route des Pêches : cocotiers, paillotes, buvettes et pirogues tirées sur le sable. La barre y est forte : la baignade est dangereuse." },
   { id: 'haievive', name: 'Haie Vive', kind: 'Quartier', k: 'quartier', lat: 6.3552, lon: 2.3976, h: 10, view: [380, 1.0, 0.4],
     text: "Le quartier des restaurants, des bars et des maquis, tout près de l'aéroport. Rues arborées et terrasses sous les parasols : c'est là que Cotonou sort le soir." },
+  { id: 'salle-jeux', name: 'Salle de jeux', kind: 'Jeux vidéo', k: 'jeux', lat: 6.35603, lon: 2.40076, h: 9, view: [60, 1.12, 0.6],
+    text: "La salle de jeux de Kutɔnu Vibes : les jeux des créateurs béninois. Un jeu web se joue ici même ; un jeu mobile se découvre, puis s'installe sur ton téléphone. Créateur ? Mets ton jeu sur kotonuvibes.com/createurs.html." },
   { id: 'nokoue', name: 'Lac Nokoué', kind: 'Lagune', k: 'eau', lat: 6.432, lon: 2.425, h: 6, view: [3600, 1.08, 0.3],
     text: "La grande lagune au nord de la ville. Les pêcheurs y plantent des acadjas, des enclos de branchages où le poisson vient se réfugier ; on les voit en lignes brunes à la surface de l'eau." },
   { id: 'bioguera', name: 'Carrefour Bio Guéra', kind: 'Monument', k: 'monument', lat: 6.35015, lon: 2.38752, h: 16, view: [210, 1.05, 0.9],

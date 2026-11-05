@@ -4,7 +4,7 @@
 // Une fois le bon code donné, un cookie le garde 90 jours sur l'appareil.
 import { next } from '@vercel/functions';
 
-export const config = { matcher: ['/tableau.html', '/tableau', '/api/paiements'] }; // les paiements aussi : le tableau les lit
+export const config = { matcher: ['/tableau.html', '/tableau', '/api/paiements', '/api/jeux-admin'] }; // les paiements et la validation des jeux aussi : le tableau les lit
 
 const SEL = 'ece9a2f5d556d8b4c502be71', EMPREINTE = '161ad9006c4aa650278acbd968ff19f3b4521a92111a2972accb891c0027dd0e';
 const TOURS = 100000, COOKIE = 'kv_tableau', JOURS = 90;

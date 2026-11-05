@@ -54,6 +54,19 @@
   .note { margin: 0; }
   .etat { margin: 0; padding: 14px 16px; border-radius: 16px; background: #fff6d6; color: #5a4300; }
   table.paiements tbody tr:first-child td { font-weight: 400; }
+  /* Jeux des créateurs (api/jeux-admin.js) : les fiches à valider en premier, avec leur affiche et leurs captures. */
+  .jeux-liste { display: grid; gap: 12px; }
+  .jeu-fiche { border: 1px solid var(--trait); border-radius: 18px; padding: 14px; display: grid; grid-template-columns: 96px 1fr; gap: 14px; }
+  .jeu-fiche > img { width: 96px; height: 128px; object-fit: cover; border-radius: 12px; background: var(--fond); }
+  .jeu-fiche h3 { margin: 0; font-size: 16px; } .jeu-fiche p { margin: 0; font-size: 14px; }
+  .jeu-fiche .meta { color: var(--encre-2); font-size: 13px; }
+  .jeu-fiche .captures { display: flex; gap: 6px; flex-wrap: wrap; } .jeu-fiche .captures img { height: 64px; border-radius: 8px; }
+  .jeu-fiche .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .jeu-fiche button { font: inherit; font-weight: 600; border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer; background: var(--fond); color: var(--encre); }
+  .jeu-fiche button.oui { background: var(--vert); color: #fff; }
+  .jeu-fiche .badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--fond); margin-left: 6px; }
+  .jeu-fiche .badge.attente { background: #fff2c2; } .jeu-fiche .badge.publie { background: var(--vert-clair); color: var(--vert); }
+  @media (max-width: 520px) { .jeu-fiche { grid-template-columns: 1fr; } }
   table.paiements th:nth-child(2), table.paiements td:nth-child(2) { text-align: left; white-space: normal; min-width: 180px; }
   table.paiements tbody td.paye { color: var(--vert); font-weight: 700; } table.paiements tbody td.rate { color: var(--encre-2); }
   /* Défi du jour de Zém Run : le classement d'un jour ou d'une semaine, et la partie d'un joueur à vérifier avant un lot. */
@@ -144,6 +157,13 @@
     <p class="note">Le défi d’un jour court de 20 h la veille à 20 h : le podium du jour se lit une fois 20 h passées. Le serveur a déjà refait l’addition de chaque score et vérifié que la course a vraiment duré ce qu’elle annonce. Avant de remettre un lot, ouvre la partie du gagnant : son trajet sur la carte (vert : départ, rouge : arrivée, jaune : clients déposés) et les contrôles. Un « ⚠ » n’est pas une preuve de triche, c’est ce qu’il faut regarder de plus près.</p>
   </section>
 
+  <section class="bloc" id="jeuxCreateurs">
+    <h2>Jeux des créateurs</h2>
+    <p class="note" id="jEtat">Lecture des fiches…</p>
+    <div class="jeux-liste" id="jListe"></div>
+    <p class="note">Les créateurs remplissent leur fiche sur <a href="/createurs.html">kotonuvibes.com/createurs.html</a>. « Valider » met le jeu dans la salle de jeux de la ville en une minute. « Refuser » renvoie la fiche au créateur avec ton mot. « Retirer » enlève un jeu en ligne.</p>
+  </section>
+
   <section class="bloc" id="paiements">
     <h2>Paiements Mobile Money</h2>
     <div class="totaux">
@@ -170,6 +190,41 @@
     $('#pListe').innerHTML = P.derniers.length ? P.derniers.map(t => { const [s, c] = t.statut === 'pending' && Date.now() - Date.parse(t.t) > 15 * 60e3 ? ['Non abouti', 'rate'] : STATUTS[t.statut] || [t.statut, '']; return `<tr><td>${new Date(t.t).toLocaleString('fr-FR', { timeZone: 'Africa/Porto-Novo', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td><td>${esc(t.quoi)}</td><td>${esc(t.operateur || '—')}</td><td>${F(t.montant)}</td><td class="${c}">${s}</td></tr>`; }).join('')
       : '<tr><td colspan="5">Aucun paiement pour l’instant.</td></tr>';
   }).catch(() => { $('#pObjets').textContent = 'Paiements indisponibles pour le moment : FedaPay ne répond pas. Recharge la page dans un instant.'; });
+
+  // Les jeux des créateurs (api/jeux-admin.js) : les fiches en attente d'abord.
+  const ETATS_JEU = { attente: 'À valider', publie: 'En ligne', refuse: 'Refusé', retire: 'Retiré', brouillon: 'Brouillon' };
+  async function jeuxCreateurs() {
+    let J; try { const r = await fetch('/api/jeux-admin', { cache: 'no-store' }); if (!r.ok) throw r.status; J = await r.json(); }
+    catch { $('#jEtat').textContent = 'Fiches indisponibles pour le moment. Recharge la page dans un instant.'; return; }
+    const ordre = { attente: 0, publie: 1, refuse: 2, retire: 3, brouillon: 4 }, F = J.fiches.sort((a, b) => (ordre[a.statut] ?? 9) - (ordre[b.statut] ?? 9));
+    const n = F.filter(f => f.statut === 'attente').length;
+    $('#jEtat').textContent = `${n ? `${n} fiche${n > 1 ? 's' : ''} à valider` : 'Aucune fiche à valider'} · ${F.filter(f => f.enLigne).length} jeu(x) en ligne${J.racine !== 'jeux' ? ' · ESSAIS LOCAUX (essais_jeux)' : ''}`;
+    $('#jListe').innerHTML = F.map(f => {
+      const img = k => `/api/jeux-admin?img=${encodeURIComponent(f.id)}&k=${k}&t=${f.modifie}`;
+      const lien = f.type === 'web' ? `<a href="${esc(f.web)}" target="_blank" rel="noopener">${esc(f.web)}</a>` : [f.android && `<a href="${esc(f.android)}" target="_blank" rel="noopener">Play Store</a>`, f.ios && `<a href="${esc(f.ios)}" target="_blank" rel="noopener">App Store</a>`].filter(Boolean).join(' · ');
+      return `<div class="jeu-fiche" data-id="${esc(f.id)}"><img src="${img('a')}" alt="" loading="lazy">
+        <div style="display:grid;gap:6px;min-width:0">
+          <h3>${esc(f.nom)}<span class="badge ${esc(f.statut)}">${ETATS_JEU[f.statut] || esc(f.statut)}</span></h3>
+          <p class="meta">${f.type === 'web' ? 'Jeu web' : 'Jeu mobile'} · ${esc(f.createurs || '')} · ${esc(f.email || '')} · modifié le ${new Date(f.modifie).toLocaleString('fr-FR')}</p>
+          ${f.accroche ? `<p><b>${esc(f.accroche)}</b></p>` : ''}<p>${esc(f.description || '')}</p>
+          <p>${lien}${f.video ? ` · <a href="https://youtu.be/${esc(f.video)}" target="_blank" rel="noopener">vidéo</a>` : ''}${f.code ? ` · code cadeau : <b>${esc(f.code)}</b>` : ''}</p>
+          <div class="captures">${Array.from({ length: f.nCaptures || 0 }, (_, i) => `<img src="${img(i)}" alt="" loading="lazy">`).join('')}</div>
+          ${f.mot ? `<p class="meta">Dernier mot : ${esc(f.mot)}</p>` : ''}
+          ${f.stats ? `<p class="meta">30 jours : ${f.stats.fiche} fiches ouvertes · ${f.stats.partie} parties · ${f.stats.magasin} vers le magasin · ${f.stats.qr} QR codes</p>` : ''}
+          <div class="actions">${f.statut === 'attente' ? '<button class="oui" data-a="valider">Valider</button><button data-a="refuser">Refuser…</button>' : ''}${f.enLigne ? '<button data-a="retirer">Retirer…</button>' : ''}</div>
+        </div></div>`;
+    }).join('') || '';
+    $('#jListe').querySelectorAll('button[data-a]').forEach(b => b.addEventListener('click', async () => {
+      const id = b.closest('[data-id]').dataset.id, action = b.dataset.a;
+      let mot = '';
+      if (action !== 'valider') { mot = prompt(action === 'refuser' ? 'Ton mot au créateur (ce qu’il doit corriger) :' : 'Pourquoi ce jeu est retiré (le créateur le verra) :'); if (mot === null) return; }
+      b.disabled = true;
+      const r = await fetch('/api/jeux-admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, id, mot }) });
+      if (!r.ok) { alert('Ça n’a pas marché. Réessaie dans un instant.'); b.disabled = false; return; }
+      jeuxCreateurs();
+    }));
+  }
+  jeuxCreateurs();
 </script>
 
 <script type="module">
