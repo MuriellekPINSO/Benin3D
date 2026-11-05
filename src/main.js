@@ -13,6 +13,7 @@ import { marquerSurRoute } from './chaussee.js';
 import { E } from './etat.js';
 import { accueil, initExplorer } from './explorer.js';
 import { TRIPO, chargerIndexTripo, urlTripo } from './batiments-tripo.js';
+import { chargerVille } from './ville-tripo.js';
 import { chargerPersonnages, majPersonnages } from './personnages.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
 import { JEU, initJeu, majJeu } from './jeu.js';
@@ -182,6 +183,7 @@ async function main() {
   extras.push(buildPalms(data.palms), buildContainers(data.containers), buildShips());
   status('Monuments, Ganvié et marché de Dantokpa…', 90); await frame();
   await chargerIndexTripo(); // bâtiments reconnaissables générés par Tripo, s'il y en a
+  chargerVille(); // objets et maisons de Cotonou d'après photo (ville-tripo.js) : en file, téléchargés en dernier
   chargerPersonnages(); // personnages animés (en tâche de fond : le jeu garde ses personnages en code en attendant)
   await construireLieux(data);
   construireLieuxVideos(data); construireOuidah(data.L); construireEtals(data.L); construireCaiCai(); construireStand(); construireMaquis();

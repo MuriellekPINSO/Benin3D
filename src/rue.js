@@ -1,13 +1,40 @@
 import * as THREE from 'three';
 import { dansTerrePlein } from './terre-pleins.js';
-import { LITE, hash, toXZ } from './base.js';
+import { LITE, SECOURS, hash, toXZ } from './base.js';
 import { camera, controls, scene } from './scene.js';
 import { dansParc, rectSansConstruction, sansConstruction, zoneBoutique } from './zones.js';
 import { ELARGIR, ilesDesRondsPoints, ROAD_W, roadLines } from './ville.js';
 import { texFacades } from './facades.js';
+import { texIA } from './textures-ia.js';
 import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
 import { MAX_DECOR, reduireImage } from './textures.js';
 import { preparerGeometries } from './memoire.js';
+import { plusTard } from './telechargements.js';
+import { VILLE, instancesVille, echelleSol, echelleHaut, surArriveeVille, geometriesVille } from './ville-tripo.js';
+
+// ---------- Vraies maisons et objets de Cotonou (modèles Tripo d'après photo, ville-tripo.js, 05/11) ----------
+// Une maison sur trois environ devient un modèle fait d'après une photo de Cotonou : la maison basse en tôle pour le
+// plain-pied à toit de tôle ; la maison R+1 à balcon (Akpakpa), la villa blanche ou la vieille maison à balcons de
+// Saint-Michel pour l'étage. Les autres restent dessinées : la rue garde ses couleurs. Les modèles arrivent après la
+// ville (téléchargés en dernier) : les carrés déjà faits sont refaits un à un, l'ancien restant en place jusque-là.
+const MAISONS_VILLE = ['maison-r1', 'villa-blanche', 'batisse-stmichel'];
+const OBJETS_VILLE = new Set(['poubelle', 'pousse', 'keke', 'maison-tole', ...MAISONS_VILLE]);
+function choixMaisonVille(etages, toit, x, z) {
+  const r = hash(Math.round(x * 3) + 7, Math.round(z * 3) + 11);
+  if (etages === 1) return toit === 1 && r < .3 && VILLE['maison-tole'] ? 'maison-tole' : null;
+  if (r >= .45) return null;
+  const ids = MAISONS_VILLE.filter(i => VILLE[i]);
+  return ids.length ? ids[Math.floor(hash(Math.round(x) + 3, Math.round(z) + 5) * ids.length)] : null;
+}
+// Hauteur du modèle par rapport à la maison dessinée qu'il remplace : la vieille maison de Saint-Michel a trois niveaux,
+// la maison en tôle porte son toit.
+const HAUT_VILLE = { 'batisse-stmichel': 1.45, 'maison-tole': 1.15 };
+let refaireVille = 0;
+surArriveeVille(id => {
+  if (!OBJETS_VILLE.has(id)) return;
+  clearTimeout(refaireVille); // les modèles arrivent à quelques secondes d'écart : un seul passage pour tous
+  refaireVille = setTimeout(() => { R.perimes = new Set(R.carres.keys()); }, 1500);
+});
 
 // Habillage des rues, d'après les vues Street View de Cotonou (2026) : dans une vraie
 // rue, il n'y a pas de sable vide entre la chaussée et les maisons. Les parcelles
@@ -150,6 +177,15 @@ function matieres() {
     const g = c.createLinearGradient(0, h * .72, 0, h); g.addColorStop(0, 'rgba(120,80,45,0)'); g.addColorStop(1, 'rgba(120,80,45,.55)'); c.fillStyle = g; c.fillRect(0, h * .72, w, h * .28);
   }) });
   metrique(MAT.mur, 3, 3);
+  { // l'enduit en photo (textures-ia.js) par-dessus le grain dessiné ; vMapUv est en mètres / 3 (metrique)
+    const avant = MAT.mur.onBeforeCompile, cle = MAT.mur.customProgramCacheKey;
+    MAT.mur.onBeforeCompile = s => {
+      avant(s); s.uniforms.uEnduit = { value: texIA('enduit') };
+      s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D uEnduit;')
+        .replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb *= max(vec3(0.0), 1.0 + (texture2D(uEnduit, vMapUv * 0.83).rgb * 2.0 - 1.0) * 1.8);');
+    };
+    MAT.mur.customProgramCacheKey = () => cle() + 'enduit';
+  }
   // Parpaings nus des murs en construction (40 × 20 cm, joints de mortier).
   MAT.parpaing = new THREE.MeshStandardMaterial({ roughness: .97, map: toile(256, 128, (c, w, h) => {
     c.fillStyle = '#8e8a82'; c.fillRect(0, 0, w, h);
@@ -165,6 +201,11 @@ function matieres() {
     c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(w / 2 - 2, 0, 4, h); c.fillRect(0, 0, w, 8); c.fillRect(0, h - 8, w, 8); c.fillRect(0, h * .45, w, 6);
     c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = 4; c.strokeRect(w * .58, h * .2, w * .3, h * .72);
   }) });
+  MAT.auvent = MAT.portail.clone(); // les auvents gardent la tôle dessinée
+  // Le portail en photo (scripts/textures-ia.mjs), gris, teinté par parcelle comme le dessin qu'il remplace.
+  if (!SECOURS) plusTard(() => new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}textures/ia/portail${LITE ? '-leger' : ''}.jpg`), true)
+    .then(t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; MAT.portail.map = t; MAT.portail.needsUpdate = true; })
+    .catch(e => console.warn('portail', e.message));
   MAT.pilier = new THREE.MeshStandardMaterial({ roughness: .9 });
   MAT.trottoir = new THREE.MeshStandardMaterial({ roughness: .95, map: toile(256, 256, (c, w, h) => {
     c.fillStyle = '#8d8e8b'; c.fillRect(0, 0, w, h);
@@ -172,7 +213,11 @@ function matieres() {
     for (let r = 0; r < 8; r++) for (let k = -1; k < 5; k++) { c.fillStyle = ['#a3a49f', '#9a9b96', '#aeaea8', '#96978f'][Math.floor(rnd() * 4)]; c.fillRect(k * lx + (r % 2 ? lx / 2 : 0) + 1.5, r * ly + 1.5, lx - 3, ly - 3); }
     for (let i = 0; i < 1200; i++) { c.fillStyle = 'rgba(80,60,40,.12)'; c.fillRect(rnd() * w, rnd() * h, 2, 2); }
   }) });
-  MAT.bordure = new THREE.MeshStandardMaterial({ color: '#cfccc4', roughness: .8, side: THREE.DoubleSide });
+  // Bordures peintes en noir et blanc, un mètre sur deux, comme le long des grands axes de Cotonou ; peinture usée.
+  MAT.bordure = new THREE.MeshStandardMaterial({ roughness: .8, side: THREE.DoubleSide, map: toile(128, 16, (c, w, h) => {
+    c.fillStyle = '#e9e6de'; c.fillRect(0, 0, w / 2, h); c.fillStyle = '#26282a'; c.fillRect(w / 2, 0, w / 2, h);
+    for (let i = 0; i < 260; i++) { c.fillStyle = rnd() < .5 ? 'rgba(120,96,70,.28)' : 'rgba(255,255,255,.1)'; c.fillRect(rnd() * w, rnd() * h, 2, 1.5); }
+  }) });
   MAT.lampe = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .6, metalness: .2 });
   MAT.boutique = new THREE.MeshStandardMaterial({ roughness: .8 });
   MAT.poteau = new THREE.MeshStandardMaterial({ color: '#b8b2a6', roughness: .9 });
@@ -255,10 +300,11 @@ function genererCarre(cx, cz) {
   const dedans = (x, z) => x >= x0 && x < x1 && z >= z0 && z < z1;
   const murs = [], chap = [], portails = [], piliers = [], boutiques = [], lampes = [], pubs = [], voitures = [], poteaux = [], fils = [], inscr = [], maisons = [], cuves = [];
   const occupe = new Set(), cellOcc = (x, z) => Math.floor(x / 2) + ',' + Math.floor(z / 2);
+  const poubelles = [], pousses = [], kekes = []; // objets de rue d'après photo (ville-tripo.js), quand ils sont arrivés
   const trot = { pos: [], uv: [], idx: [] };
   const groupe = new THREE.Group(); groupe.name = 'rue-' + cx + ',' + cz;
   const pasM = 1;
-  const bordure = { pos: [], idx: [] };
+  const bordure = { pos: [], uv: [], idx: [] };
   roadLines.forEach((L, li) => {
     if (L.bridge || L.cls > 5 || L.pts.length < 2) return;
     let lx0 = 1e9, lx1 = -1e9, lz0 = 1e9, lz1 = -1e9; for (const [x, z] of L.pts) { lx0 = Math.min(lx0, x); lx1 = Math.max(lx1, x); lz0 = Math.min(lz0, z); lz1 = Math.max(lz1, z); }
@@ -288,6 +334,8 @@ function genererCarre(cx, cz) {
       // libre[k] (fait au fond du trottoir) : on le revérifie là où il se plante. Au coin d'un carrefour, il tombait
       // sur la chaussée de la rue transversale (« des lampadaires en plein milieu de la voie », 26/10).
       if (grand) for (let k = (cote > 0 ? 0 : 15); k < ech.length; k += 30) if (libre[k]) { const [x, z] = ech[k], [nx, nz] = n(k), r = route ? .7 : sw - .5, px = x - nx * r, pz = z - nz * r; if (piedLibre(px, pz, li)) lampes.push([px, pz, Math.atan2(nz, -nx)]); }
+      // Poubelles vertes de la Mairie (« Une ville propre, des vies sauvées »), au bord du trottoir des grands axes, face à la rue.
+      if (grand && VILLE.poubelle) for (let k = (cote > 0 ? 50 : 95); k < ech.length; k += 140) if (libre[k] === 1 && hash(li * 5 + k, cote + 40) < .75) { const [x, z] = ech[k], [nx, nz] = n(k), r = route ? 1.4 : Math.max(.8, sw - 1.2), px = x - nx * r, pz = z - nz * r; if (piedLibre(px, pz, li)) poubelles.push([px, pz, Math.atan2(-nx, -nz)]); }
       // Panneau publicitaire de temps en temps, derrière les murs, tourné vers ceux qui arrivent.
       if (L.cls <= 2 || route) for (let k = 60; k < ech.length; k += 150) if (libre[k] === 1 && libre[Math.min(ech.length - 1, k + 4)] === 1 && hash(li * 7 + k, cote + 3) < .6) {
         const [x, z, dx, dz] = ech[k], [nx, nz] = n(k), sens = hash(li + k, 2) < .5 ? 1 : -1, fx = -nx * .75 - dx * .66 * sens, fz = -nz * .75 - dz * .66 * sens;
@@ -322,6 +370,8 @@ function genererCarre(cx, cz) {
           if (type === 'boutique') {
             const [cx2, cz2] = at(len / 2, prof / 2);
             boutiques.push([cx2, cz2, ang + (cote < 0 ? Math.PI : 0), len, 3.3 + (hsh > .82 ? 3.15 : 0), prof, coul]);
+            // Un pousse-pousse garé devant, de temps en temps (on y charge la marchandise).
+            if (VILLE.pousse && hash(a, 61) < .14) { const [px, pz] = at(len * (.2 + hash(a, 62) * .6), -Math.min(sw * .5, 1.6)); pousses.push([px, pz, ang + (hash(a, 63) < .5 ? 0 : Math.PI)]); }
           } else {
             const h = type === 'chantier' ? 1.4 + hsh : 2.2 + hsh * .5, cMur = type === 'chantier' ? GRIS_PARPAING : coul;
             // Portail en tôle : le mur s'interrompt, deux piliers l'encadrent.
@@ -342,7 +392,7 @@ function genererCarre(cx, cz) {
             // Inscription peinte sur le plus long morceau de mur.
             const mo = morceaux.reduce((b, m) => (m[1] - m[0] > b[1] - b[0] ? m : b));
             if (type === 'mur' && mo[1] - mo[0] > 4.5 && hash(a, 21) < (grand ? .4 : .14)) { const [ix, iz] = at((mo[0] + mo[1]) / 2, -.13); inscr.push([ix, iz, Math.atan2(-nx, -nz), Math.min(mo[1] - mo[0] - 1, 6), h * .55, Math.floor(hash(a, 22) * M.inscriptions.length)]); }
-            if (!grand && !route && hash(a, 23) < .12) { const [vx, vz] = at(len / 2, -(sw + .9)); voitures.push([vx, vz, ang, Math.floor(hash(a, 24) * 6)]); }
+            if (!grand && !route && hash(a, 23) < .12) { const [vx, vz] = at(len / 2, -(sw + .9)); if (VILLE.keke && hash(a, 64) < .4) kekes.push([vx, vz, ang]); else voitures.push([vx, vz, ang, Math.floor(hash(a, 24) * 6)]); }
             // Maison derrière le mur, là où OpenStreetMap n'a pas de bâtiment (le cas de la plupart des parcelles).
             if (type === 'mur' && len >= 8 && hash(a, 41) < .82) {
               const larg = Math.min(len - 2, 8 + hash(a, 43) * 6), pr = 6.5 + hash(a, 44) * 4.5, recul = 2.6 + hash(a, 42) * 2.6;
@@ -353,9 +403,9 @@ function genererCarre(cx, cz) {
               if (!echs.some(([x, z]) => dansBatiment(x, z) || zoneLibre(x, z) || presAutreRoute(x, z, -1, 1.5)) && !cells.some(c => occupe.has(c))) {
                 for (const c of cells) occupe.add(c);
                 const etages = hash(a, 46) < .26 ? 2 : 1, toit = etages === 1 && hash(a, 47) < .62 ? 1 : 0;
-                const [hx, hz] = at(tc, recul + pr / 2);
-                maisons.push([hx, hz, ang + (cote < 0 ? Math.PI : 0), larg, etages * 3.15 + .25, pr, COUL_MUR[Math.floor(hash(a, 48) * COUL_MUR.length)], 1, toit, Math.floor(hash(a, 49) * 16)]);
-                if (toit === 0 && hash(a, 50) < .55) { const [tx, tz] = at(tc + larg * .3, recul + pr * .7); cuves.push([tx, etages * 3.15 + .25, tz, hash(a, 51) < .7]); }
+                const [hx, hz] = at(tc, recul + pr / 2), idV = choixMaisonVille(etages, toit, hx, hz);
+                maisons.push([hx, hz, ang + (cote < 0 ? Math.PI : 0), larg, etages * 3.15 + .25, pr, COUL_MUR[Math.floor(hash(a, 48) * COUL_MUR.length)], 1, toit, Math.floor(hash(a, 49) * 16), idV]);
+                if (!idV && toit === 0 && hash(a, 50) < .55) { const [tx, tz] = at(tc + larg * .3, recul + pr * .7); cuves.push([tx, etages * 3.15 + .25, tz, hash(a, 51) < .7]); }
                 // Mur mitoyen avec la parcelle voisine, et parfois une seconde maison au fond de la cour.
                 const fond = recul + pr + 1.2;
                 if (![.3, .7].some(v => dansBatiment(...at(0, fond * v)))) { const [wx, wz] = at(0, fond / 2); murs.push([wx, wz, ang + Math.PI / 2, fond, 2.2, .2, coul, false]); }
@@ -378,7 +428,8 @@ function genererCarre(cx, cz) {
   });
   // ---------- Obstacles : on ne traverse ni les murs, ni les portails, ni les maisons (dansObstacleRue) ----------
   // Et ce qui se dresse sur le trottoir : lampadaires, poteaux électriques, voitures garées (on ne passe plus au travers).
-  const debout = [...lampes.map(([x, z]) => [x, z, 0, .3, .3]), ...poteaux.map(([x, z]) => [x, z, 0, .32, .32]), ...voitures.map(([x, z, a]) => [x, z, a, 4.2, 1.8])];
+  const debout = [...lampes.map(([x, z]) => [x, z, 0, .3, .3]), ...poteaux.map(([x, z]) => [x, z, 0, .32, .32]), ...voitures.map(([x, z, a]) => [x, z, a, 4.2, 1.8]),
+    ...poubelles.map(([x, z, a]) => [x, z, a, .9, .6]), ...pousses.map(([x, z, a]) => [x, z, a, 2.3, 1.1]), ...kekes.map(([x, z, a]) => [x, z, a, 2.8, 1.4])];
   groupe.userData.obstacles = indexerObstacles([...[...murs, ...portails, ...piliers, ...boutiques, ...maisons].map(([x, z, a, l, , e]) => [x, z, a, l, e]), ...debout]);
   groupe.userData.chantiers = murs.filter(m => m[7]).map(([x, z]) => [x, z]); // pour le bruit des chantiers (ambiance-salon.js)
   // ---------- Maillages instanciés ----------
@@ -399,7 +450,15 @@ function genererCarre(cx, cz) {
   // porte, toit de tôle à quatre pans ou dalle de béton avec sa citerne).
   const auvents = [];
   for (const b of boutiques) b.push(0, 0, 0);
-  const blocs = boutiques.concat(maisons);
+  const blocs = boutiques.concat(maisons.filter(m => !m[10]));
+  // Les maisons d'après photo : même emprise que la maison dessinée (largeur le long de la rue, profondeur, hauteur).
+  // Leur façade regarde +x dans le fichier ; un quart de tour la tourne vers la rue (−v ici).
+  const vt = {};
+  for (const [x, z, a, l, h, d, , , , , id] of maisons) if (id) { const t = VILLE[id].t; (vt[id] ||= []).push([x, 0, z, a + Math.PI / 2, d / t.x, h * (HAUT_VILLE[id] || 1) / t.y, l / t.z]); }
+  if (poubelles.length) { const k = echelleHaut('poubelle', 1.05); vt.poubelle = poubelles.map(([x, z, a]) => [x, HT, z, a, k, k, k]); }
+  if (pousses.length) { const k = echelleSol('pousse', 2.3); vt.pousse = pousses.map(([x, z, a]) => [x, HT, z, a, k, k, k]); }
+  if (kekes.length) { const k = echelleSol('keke', 2.75); vt.keke = kekes.map(([x, z, a]) => [x, 0, z, a, k, k, k]); }
+  for (const [id, liste] of Object.entries(vt)) { const m = instancesVille(id, liste); if (m) groupe.add(m); }
   if (blocs.length) {
     const g = new THREE.BufferGeometry(), pos = [], uv = [], nor = [], col = [], idx = [];
     const tri = (A, C, B, c) => { // triangle à normale plate (sommets donnés dans le sens horaire vu de dehors)
@@ -445,7 +504,7 @@ function genererCarre(cx, cz) {
   // Citernes en plastique sur les toits-terrasses (noires ou bleues).
   if (cuves.length) { const m = new THREE.InstancedMesh(G.cuve, M.cuve, cuves.length); cuves.forEach(([x, y, z, noire], i) => { m4.makeTranslation(x, y, z); m.setMatrixAt(i, m4); m.setColorAt(i, noire ? new THREE.Color('#2a2b2d') : new THREE.Color('#2f6fb0')); }); m.castShadow = !LITE; m.computeBoundingSphere(); groupe.add(m); }
   const eul = new THREE.Euler(0, 0, 0, 'YXZ');
-  inst(auvents, M.portail, ([x, z, a, l, c], i, m) => { m4.compose(p.set(x, 2.72, z), q.setFromEuler(eul.set(-.2, a, 0)), sc.set(l, .05, 1.35)); m.setMatrixAt(i, m4); m.setColorAt(i, c); });
+  inst(auvents, M.auvent, ([x, z, a, l, c], i, m) => { m4.compose(p.set(x, 2.72, z), q.setFromEuler(eul.set(-.2, a, 0)), sc.set(l, .05, 1.35)); m.setMatrixAt(i, m4); m.setColorAt(i, c); });
   if (lampes.length) { const m = new THREE.InstancedMesh(G.lampe, M.lampe, lampes.length); lampes.forEach(([x, z, a], i) => { m4.compose(p.set(x, 0, z), q.setFromAxisAngle(Y, a), sc.set(1, 1, 1)); m.setMatrixAt(i, m4); }); m.castShadow = !LITE; m.computeBoundingSphere(); groupe.add(m); }
   if (voitures.length) { const cc = ['#e8e8e4', '#9da3a6', '#1f2326', '#c8382f', '#2f6fb0', '#e2e2dc'].map(h => new THREE.Color(h)); const m = new THREE.InstancedMesh(G.voiture, M.voiture, voitures.length); voitures.forEach(([x, z, a, c], i) => { m4.compose(p.set(x, 0, z), q.setFromAxisAngle(Y, a), sc.set(1, 1, 1)); m.setMatrixAt(i, m4); m.setColorAt(i, cc[c]); }); m.castShadow = !LITE; m.computeBoundingSphere(); groupe.add(m); }
   if (poteaux.length) { const m = new THREE.InstancedMesh(G.poteau, M.poteau, poteaux.length); poteaux.forEach(([x, z], i) => { m4.makeTranslation(x, 0, z); m.setMatrixAt(i, m4); }); m.computeBoundingSphere(); groupe.add(m); }
@@ -476,7 +535,7 @@ function genererCarre(cx, cz) {
   if (trot.pos.length) {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(trot.pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(trot.uv, 2)); g.setIndex(trot.idx); g.computeVertexNormals();
     const m = new THREE.Mesh(g, M.trottoir); m.receiveShadow = true; groupe.add(m);
-    const gb = new THREE.BufferGeometry(); gb.setAttribute('position', new THREE.Float32BufferAttribute(bordure.pos, 3)); gb.setIndex(bordure.idx); gb.computeVertexNormals();
+    const gb = new THREE.BufferGeometry(); gb.setAttribute('position', new THREE.Float32BufferAttribute(bordure.pos, 3)); gb.setAttribute('uv', new THREE.Float32BufferAttribute(bordure.uv, 2)); gb.setIndex(bordure.idx); gb.computeVertexNormals();
     const mb = new THREE.Mesh(gb, M.bordure); mb.receiveShadow = true; groupe.add(mb);
   }
   groupe.userData.n = murs.length + boutiques.length;
@@ -485,7 +544,10 @@ function genererCarre(cx, cz) {
 const HT = .12; // hauteur du trottoir
 function ruban(run, T, Bd, cote, sw) {
   const base = T.pos.length / 3, bb = Bd.pos.length / 3;
+  let d = 0; // distance le long de la bordure : les bandes noires et blanches (2 m le motif)
   run.forEach(([x, z, dx, dz], i) => {
+    if (i) d += Math.hypot(x - run[i - 1][0], z - run[i - 1][1]);
+    Bd.uv.push(d / 2, 0, d / 2, 1, d / 2, 0, d / 2, 1);
     const nx = -dz * cote, nz = dx * cote; // n : vers les parcelles ; la chaussée est du côté -n
     const lb = sw - .2, bx = x - nx * lb, bz = z - nz * lb, ex = x - nx * sw, ez = z - nz * sw;
     T.pos.push(x, HT, z, bx, HT, bz); T.uv.push(i / 3, 0, i / 3, lb / 3);
@@ -505,9 +567,22 @@ function matBoutique() {
   matB = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .85 });
   matB.onBeforeCompile = s => {
     s.uniforms.uFacade = { value: texFacades() };
-    s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vU;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvU = uv;');
-    s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vU; uniform sampler2D uFacade;\nfloat hh2(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }')
+    for (const [u, nom] of [['uEnduit', 'enduit'], ['uTole', 'tole'], ['uDalle', 'dalle']]) s.uniforms[u] = { value: texIA(nom) };
+    s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vU; varying vec3 vWpB;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvU = uv; vWpB = (modelMatrix * vec4(position, 1.0)).xyz;');
+    s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vU; varying vec3 vWpB; uniform sampler2D uFacade, uEnduit, uTole, uDalle;\nfloat hh2(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        { // Les photos (textures-ia.js), comme les bâtiments de la ville (ville.js) : enduit sur les murs, tôle sur les
+          // toits à quatre pans (les ondes dans le sens de la pente), dalle sur les toits-terrasses.
+          vec3 nB = inverseTransformDirection(normal, viewMatrix); if (nB.y < 0.0) nB = -nB; // la normale du pan, exacte (celle des dérivées tremble à 2 km de l'origine)
+          vec2 gE = vec2(dot(vWpB.xz, normalize(vec2(-nB.z, nB.x) + 1e-5)), vWpB.y) / 3.6;
+          vec2 dT = length(nB.xz) > 0.08 ? normalize(nB.xz) : vec2(0.0, 1.0);
+          vec2 uvT = vec2(dot(vWpB.xz, vec2(-dT.y, dT.x)), dot(vWpB.xz, dT) / max(nB.y, 0.35)) / 1.8;
+          vec3 en = textureGrad(uEnduit, gE, dFdx(gE), dFdy(gE)).rgb * 2.0 - 1.0;
+          vec3 tl = textureGrad(uTole, uvT, dFdx(uvT), dFdy(uvT)).rgb * 2.0 - 1.0;
+          vec3 dl = textureGrad(uDalle, vWpB.xz / 6.0, dFdx(vWpB.xz / 6.0), dFdy(vWpB.xz / 6.0)).rgb * 2.0 - 1.0;
+          vec3 k = nB.y < 0.5 ? en * 1.8 : nB.y > 0.97 ? dl * 1.1 : tl * 1.1;
+          diffuseColor.rgb *= max(vec3(0.0), 1.0 + k);
+        }
         if (vU.x >= 0.0) {
           float maison = step(50.0, vU.y), style = floor((vU.y - 100.0) / 10.0) * maison;
           vec2 w = vec2(vU.x, vU.y - maison * (100.0 + style * 10.0));
@@ -666,7 +741,7 @@ export function rueRouteJeu(C, occupees = []) {
   R.routeJeu = set;
 }
 function vider() { for (const g of R.carres.values()) liberer(g); R.carres.clear(); }
-const PARTAGEES = () => new Set([GEO.boite, GEO.lampe, GEO.voiture, GEO.poteau, GEO.plan, GEO.cuve]);
+const PARTAGEES = () => new Set([GEO.boite, GEO.lampe, GEO.voiture, GEO.poteau, GEO.plan, GEO.cuve, ...geometriesVille()]);
 function liberer(g) { scene.remove(g); const p = PARTAGEES(); g.traverse(o => { if (o.geometry && !p.has(o.geometry)) o.geometry.dispose(); }); }
 let attente = 0;
 // Les obstacles d'un carré, rangés par cases de 8 m (coordonnées de la ville) : boîtes tournées { x, z, c, s, hl, he }.
@@ -725,5 +800,16 @@ export function majRue(dt, centre, proche) {
   }
   // preparerGeometries : le carré rend ses sommets côté JavaScript une fois envoyés (memoire.js). Les carrés faits après les
   // trois passages de main.js les gardaient : 10 Mo pour 30 carrés, mesuré sur ordinateur après une minute de marche.
-  if (best) { const t0 = performance.now(); const g = genererCarre(best[0], best[1]); STATS_RUE.ms = performance.now() - t0; STATS_RUE.n++; R.carres.set(best[2], g); scene.add(g); preparerGeometries(g); }
+  if (best) { const t0 = performance.now(); const g = genererCarre(best[0], best[1]); STATS_RUE.ms = performance.now() - t0; STATS_RUE.n++; R.carres.set(best[2], g); scene.add(g); preparerGeometries(g); return; }
+  // Des modèles d'après photo sont arrivés : les carrés déjà faits sont refaits un par un, le plus proche d'abord ; l'ancien
+  // reste affiché (et ses murs bloquent) jusqu'à ce que le nouveau le remplace.
+  if (R.perimes?.size) {
+    let pk = null, pd = 1e18;
+    for (const k of R.perimes) { if (!R.carres.has(k)) { R.perimes.delete(k); continue; } const [a, b] = k.split(',').map(Number), d = ((a + .5) * CARRE - c.x) ** 2 + ((b + .5) * CARRE - c.z) ** 2; if (d < pd) { pd = d; pk = k; } }
+    if (!pk) return;
+    R.perimes.delete(pk);
+    const [a, b] = pk.split(',').map(Number), g = genererCarre(a, b);
+    if (R.actif === false) g.visible = false;
+    liberer(R.carres.get(pk)); R.carres.set(pk, g); scene.add(g); preparerGeometries(g);
+  }
 }

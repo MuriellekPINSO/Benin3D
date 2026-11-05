@@ -1,16 +1,17 @@
 import * as THREE from 'three';
 import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { LITE, hash, toXZ, u8c } from './base.js';
-import { scene } from './scene.js';
+import { LITE, SECOURS, hash, toXZ, u8c } from './base.js';
+import { camera, scene } from './scene.js';
 import { parCarres } from './carres.js';
 import { ROAD_W, TABLIERS, roadLines } from './ville.js';
 import { surChaussee } from './chaussee.js';
 import { GRANDES_AFFICHES, matAffiche } from './publicites.js';
 import { poserSol } from './sols.js';
 import { ajouterPlace } from './zones.js';
-import { photoPlusTard } from './telechargements.js';
+import { photoPlusTard, plusTard } from './telechargements.js';
 import { chargeurGLB, reduireImage } from './textures.js';
+import { remplacerParVille, quandVille, instancesVille, echelleSol } from './ville-tripo.js';
 
 // ---------- Lieux détaillés ----------
 // Matières et primitives reprises du projet « 3D monde » (src/entities/Batisseur.ts),
@@ -1038,7 +1039,7 @@ export function pirogues(arr) {
   const n = arr.length / 4;
   const lac = [], mer = [], marche = [];
   for (let i = 0; i < n; i++) (arr[4 * i + 3] === 1 ? mer : arr[4 * i + 3] === 2 ? marche : lac).push(i);
-  const mk = (ids, geo, couleurs, pers, paniers) => {
+  const mk = (ids, geo, couleurs, pers, paniers, tripo) => {
     const coque = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial(), ids.length);
     const gens = pers ? new THREE.InstancedMesh(mergeGeometries([fouleCorps.clone().toNonIndexed(), fouleTete.clone().toNonIndexed()]), new THREE.MeshLambertMaterial(), ids.length) : null;
     const pan = paniers ? new THREE.InstancedMesh(new THREE.SphereGeometry(.45, 8, 5), new THREE.MeshLambertMaterial(), ids.length * 4) : null;
@@ -1061,12 +1062,15 @@ export function pirogues(arr) {
     maj(0);
     coque.userData.anim = maj;
     for (const m of [coque, gens, pan]) if (m) { m.userData.proche = 6000; detailsProches.push(m); scene.add(m); }
+    // Les modèles Tripo d'après photo (ville-tripo.js) prennent la place de la coque dessinée quand ils arrivent ; la pirogue
+    // chargée du marché porte déjà ses sacs : les paniers dessinés s'effacent.
+    if (tripo) remplacerParVille(coque, tripo, { cacher: paniers ? [pan] : [] });
   };
   const bois = ['#5b3f28', '#6b4a30', '#4e3624', '#7a5a3a'].map(h => new THREE.Color(h));
   const peintes = ['#2f6fb0', '#c8382f', '#e9b62c', '#2f8a4a', '#1f8f8a', '#f2efe6'].map(h => new THREE.Color(h));
-  mk(lac, pirogueGeo(7.5, 1.1, .7), bois, true, false);
-  mk(mer, pirogueGeo(13, 2, 1.2), peintes, true, false);
-  mk(marche, pirogueGeo(7, 1.3, .7), bois, true, true);
+  mk(lac, pirogueGeo(7.5, 1.1, .7), bois, true, false, 'pirogue-peche');
+  mk(mer, pirogueGeo(13, 2, 1.2), peintes, true, false, 'pirogue-peche');
+  mk(marche, pirogueGeo(7, 1.3, .7), bois, true, true, 'pirogue-chargee');
 }
 export function piroguesPlage(arr) {
   const n = arr.length / 3; if (!n) return;
@@ -1075,6 +1079,7 @@ export function piroguesPlage(arr) {
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0);
   for (let i = 0; i < n; i++) { q.setFromAxisAngle(Y, -arr[3 * i + 2] / 1000); m4.compose(new THREE.Vector3(arr[3 * i] / 10, .3, arr[3 * i + 1] / 10), q, new THREE.Vector3(1, 1, 1)); m.setMatrixAt(i, m4); m.setColorAt(i, peintes[Math.floor(hash(i, 97) * peintes.length)]); }
   m.castShadow = !LITE; m.userData.proche = 2500; detailsProches.push(m); scene.add(m);
+  remplacerParVille(m, 'pirogue-peche'); // la vraie pirogue de la route des Pêches, d'après photo (ville-tripo.js)
 }
 export function acadjas(arr) {
   const pos = [];
@@ -1118,6 +1123,17 @@ export function plage(Bc) {
     }
   });
   bake(g);
+  // Tables et tabourets en pneus peints (photo de la plage de Fidjrossè, ville-tripo.js), à côté d'une paillote sur deux.
+  quandVille('sieges-pneus', () => {
+    const liste = [], k = echelleSol('sieges-pneus', 2.8);
+    for (let i = 0; i < n; i++) {
+      if (Bc.pai[4 * i + 2] === 1 || hash(i, 131) > .5) continue;
+      const x = Bc.pai[4 * i] / 10, z = Bc.pai[4 * i + 1] / 10, a = hash(i, 132) * 6.28;
+      liste.push([x + Math.cos(a) * 3.4, 0, z + Math.sin(a) * 3.4, hash(i, 133) * 6.28, k, k, k]);
+    }
+    const m = instancesVille('sieges-pneus', liste); if (!m) return;
+    m.userData.proche = 1500; detailsProches.push(m); scene.add(m);
+  });
 }
 
 // ---------- Corniche Est d'Akpakpa ----------
@@ -1203,9 +1219,101 @@ export function ponts() {
 }
 
 // ---------- Arbres des rues ----------
+// Couronnes en feuillage photographié (31/10, scripts/textures-ia.mjs) : sur ordinateur, une fois les deux feuillages
+// arrivés, les arbres à moins de 230 m de la caméra troquent leurs volumes à facettes pour 30 à 60 cartes portant un
+// bouquet de feuilles détouré (au-delà, on ne verrait pas la différence, et la ville en a des dizaines de milliers :
+// toutes en cartes, on tombait de 60 à 9-19 images par seconde, mesuré sur Mac),
+// toujours de face pour la caméra (vues par la tranche, elles faisaient des lames au bord de la couronne), plus sombres
+// vers le cœur de l'arbre. Les trois silhouettes restent (rond, parasol, étagé),
+// et les arbres en fleurs deviennent des flamboyants. Sur téléphone, les volumes à facettes : moins de pixels à dessiner.
+/** Les cartes d'une couronne : [centre, rayons, nombre de cartes, taille, part tournée vers le ciel] par masse de feuillage. */
+const MASSES = [
+  [[[0, 5.2, 0], [3.4, 2.4, 3.4], 40, 2, .15], [[1.1, 6.3, -.7], [2.2, 1.6, 2.2], 14, 1.7, .2], [[-1.4, 4.9, 1], [1.9, 1.4, 1.9], 10, 1.6, .1]],
+  [[[0, 4.3, 0], [5.4, 1.4, 5.4], 48, 2.2, .55]],
+  [[[0, 3.4, 0], [4.2, .5, 4.2], 20, 1.9, .7], [[0, 4.4, 0], [3.2, .5, 3.2], 14, 1.8, .7], [[0, 5.3, 0], [2, .6, 2], 8, 1.7, .6]],
+];
+function couronneEnCartes(tronc, type) {
+  const pos = [], nor = [], uv = [], col = [], coin = [], v = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), a = new THREE.Vector3(), b = new THREE.Vector3();
+  let k = 0;
+  for (const [[cx, cy, cz], [rx, ry, rz], n, taille, ciel] of MASSES[type]) for (let i = 0; i < n; i++, k++) {
+    // Points répartis sur la masse (spirale de Fibonacci), un peu vers l'intérieur pour l'épaisseur.
+    const y = 1 - 2 * (i + .5) / n + (hash(k, 76) - .5) * .25, r = Math.sqrt(Math.max(0, 1 - y * y)), th = i * 2.39996 + type + (hash(k, 77) - .5) * .6, prof = .45 + .6 * hash(k, 71 + type);
+    const dir = new THREE.Vector3(Math.cos(th) * r, y, Math.sin(th) * r), c = new THREE.Vector3(cx + dir.x * rx * prof, cy + dir.y * ry * prof, cz + dir.z * rz * prof);
+    const face = dir.clone().lerp(up, ciel).normalize();
+    a.crossVectors(face, Math.abs(face.y) > .9 ? new THREE.Vector3(1, 0, 0) : up).normalize(); b.crossVectors(face, a);
+    const rot = hash(k, 73) * 6.28, s = taille * (.8 + .4 * hash(k, 74)) / 2, ca = Math.cos(rot) * s, sa = Math.sin(rot) * s;
+    const ax = a.clone().multiplyScalar(ca).addScaledVector(b, sa), bx = a.clone().multiplyScalar(-sa).addScaledVector(b, ca);
+    const coins = [[-1, -1, 0, 0], [1, -1, 1, 0], [1, 1, 1, 1], [-1, -1, 0, 0], [1, 1, 1, 1], [-1, 1, 0, 1]];
+    const ombre = Math.min(1, .38 + .55 * prof) * (.88 + .12 * hash(k, 78)); // le cœur de l'arbre, à l'ombre des feuilles du dehors
+    for (const [p, q, u, w] of coins) {
+      v.copy(c).addScaledVector(ax, p).addScaledVector(bx, q); pos.push(c.x, c.y, c.z); // le centre ; le coin est posé face à la caméra (matFeuillage)
+      coin.push(p * ca - q * sa, p * sa + q * ca);
+      const nn = new THREE.Vector3((v.x - cx) / (rx * rx), (v.y - cy) / (ry * ry), (v.z - cz) / (rz * rz)).normalize().lerp(up, .25).normalize(); // normale de la masse : un volume, pas des cartes
+      nor.push(nn.x, nn.y, nn.z); uv.push(hash(k, 75) < .5 ? u : 1 - u, w); col.push(ombre, ombre, ombre);
+    }
+  }
+  const t = tronc.toNonIndexed(), nt = t.attributes.position.count;
+  const ct = new Float32Array(nt * 3); for (let i = 0; i < nt; i++) { ct[3 * i] = .42; ct[3 * i + 1] = .33; ct[3 * i + 2] = .25; }
+  // Le tronc : pas de coin, et le milieu (opaque) du feuillage, pour que son ombre ne soit pas trouée par le test d'alpha.
+  t.setAttribute('color', new THREE.BufferAttribute(ct, 3)); t.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(nt * 2).fill(.5), 2)); t.setAttribute('coin', new THREE.BufferAttribute(new Float32Array(nt * 2), 2));
+  const f = new THREE.BufferGeometry();
+  f.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); f.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  f.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); f.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); f.setAttribute('coin', new THREE.Float32BufferAttribute(coin, 2));
+  const g = mergeGeometries([t, f], true); // groupe 0 : le tronc ; groupe 1 : les feuilles
+  g.computeBoundingSphere();
+  return g;
+}
+/** Le coin de chaque carte, posé dans le plan de l'écran autour de son centre, à l'échelle de l'arbre. */
+const faceCamera = s => {
+  s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 coin;').replace('#include <project_vertex>', `#include <project_vertex>
+    if (coin.x != 0.0 || coin.y != 0.0) { mvPosition.xy += coin * length(instanceMatrix[0].xyz); gl_Position = projectionMatrix * mvPosition; }`);
+};
+function matFeuillage(tex) {
+  const m = new THREE.MeshLambertMaterial({ map: tex, alphaTest: .5, side: THREE.DoubleSide, vertexColors: true });
+  // DoubleSide retourne la normale du revers : on la remet, la carte n'est qu'un morceau du volume de la couronne.
+  m.onBeforeCompile = s => { faceCamera(s); s.fragmentShader = s.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nnormal *= faceDirection;'); };
+  m.customProgramCacheKey = () => 'feuillage';
+  return m;
+}
+/** L'ombre portée des feuilles : les mêmes cartes, découpées par le même alpha. */
+function ombreFeuillage(tex) {
+  const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: tex, alphaTest: .5, side: THREE.DoubleSide });
+  m.onBeforeCompile = faceCamera; m.customProgramCacheKey = () => 'ombre-feuillage';
+  return m;
+}
+const ARBRES = { tous: [], proches: null, R: 230, cap: 2000, centre: new THREE.Vector2(1e9, 1e9), t: 0, U: { uPres: { value: new THREE.Vector2(1e9, 1e9) }, uR: { value: 0 } } };
+/** Les arbres à facettes s'effacent là où leur version en cartes est dessinée (autour du point de la dernière mise à jour). */
+const replier = s => {
+  s.uniforms.uPres = ARBRES.U.uPres; s.uniforms.uR = ARBRES.U.uR;
+  s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nuniform vec2 uPres; uniform float uR;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nif (distance(instanceMatrix[3].xz, uPres) < uR) transformed = vec3(0.0);');
+};
+/** Chaque image (animerLieux) : quand la caméra a bougé de 15 m, ou toutes les 1,5 s (un arbre écarté en course revient),
+ *  on recopie dans les maillages en cartes les arbres proches, matrices comprises : un arbre écarté (matrice nulle) le reste. */
+const m4a = new THREE.Matrix4();
+function majArbresProches() {
+  if (!ARBRES.proches) return;
+  const vis = ARBRES.tous.some(([m]) => m.visible); for (const p of ARBRES.proches) p.visible = vis; // Vue réelle : cachés avec les autres (monde-reel.js)
+  if (!vis) return;
+  const c = camera.position, now = performance.now();
+  if (Math.hypot(c.x - ARBRES.centre.x, c.z - ARBRES.centre.y) < 15 && now - ARBRES.t < 1500) return;
+  ARBRES.t = now; ARBRES.centre.set(c.x, c.z);
+  const R2 = c.y < 600 ? ARBRES.R ** 2 : 0, n = [0, 0, 0, 0]; // vu d'avion, rien en cartes
+  for (const [m, t, ids, couleur] of ARBRES.tous) {
+    const xz = m.userData.xz, P = ARBRES.proches[t], bs = m.boundingSphere;
+    if (bs && Math.hypot(bs.center.x - c.x, bs.center.z - c.z) > bs.radius + ARBRES.R) continue;
+    for (let k = 0; k < m.count && n[t] < ARBRES.cap; k++) {
+      const dx = xz[2 * k] - c.x, dz = xz[2 * k + 1] - c.z; if (dx * dx + dz * dz >= R2) continue;
+      m.getMatrixAt(k, m4a); if (m4a.elements[0] === 0 && m4a.elements[2] === 0) continue;
+      P.setMatrixAt(n[t], m4a); P.setColorAt(n[t], couleur(ids[k])); n[t]++;
+    }
+  }
+  ARBRES.proches.forEach((P, t) => { P.count = n[t]; P.instanceMatrix.needsUpdate = true; if (P.instanceColor) P.instanceColor.needsUpdate = true; });
+  ARBRES.U.uPres.value.set(c.x, c.z); ARBRES.U.uR.value = R2 ? ARBRES.R : 0;
+}
 export function arbres(T) {
-  const n = T.length / 4, CELL = 2000, parType = [new Map(), new Map(), new Map()];
-  for (let i = 0; i < n; i++) { if (LITE && i % 2) continue; const x = T[4 * i] / 10, z = T[4 * i + 1] / 10, t = T[4 * i + 2], k = Math.floor(x / CELL) + ',' + Math.floor(z / CELL); const m = parType[t]; if (!m.has(k)) m.set(k, []); m.get(k).push(i); }
+  const n = T.length / 4, CELL = 2000, parType = [new Map(), new Map(), new Map(), new Map()]; // 3 : les arbres en fleurs (flamboyants)
+  for (let i = 0; i < n; i++) { if (LITE && i % 2) continue; const x = T[4 * i] / 10, z = T[4 * i + 1] / 10, t = T[4 * i + 2] === 1 && hash(i, 33) < .08 ? 3 : T[4 * i + 2], k = Math.floor(x / CELL) + ',' + Math.floor(z / CELL); const m = parType[t]; if (!m.has(k)) m.set(k, []); m.get(k).push(i); }
   const tronc = new THREE.CylinderGeometry(.22, .34, 3.6, 5).translate(0, 1.8, 0);
   const geos = [
     mergeGeometries([tronc.toNonIndexed(), new THREE.IcosahedronGeometry(2.8, 0).scale(1.2, .8, 1.2).translate(0, 5, 0), new THREE.IcosahedronGeometry(2, 0).translate(1, 6, -.6)].map(x => x.index ? x.toNonIndexed() : x)),
@@ -1215,14 +1323,32 @@ export function arbres(T) {
   for (const g of geos) { const c = new Float32Array(g.attributes.position.count * 3); for (let i = 0; i < g.attributes.position.count; i++) { const y = g.attributes.position.getY(i); const tr = y < 3.2; c[3 * i] = tr ? .42 : 1; c[3 * i + 1] = tr ? .33 : 1; c[3 * i + 2] = tr ? .25 : 1; } g.setAttribute('color', new THREE.BufferAttribute(c, 3)); }
   const verts = ['#3f6b3c', '#4a7a3f', '#557f45', '#3a5f35', '#5d8a46'].map(h => new THREE.Color(h)), fleurs = new THREE.Color('#d9542f');
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), s = new THREE.Vector3(), p = new THREE.Vector3();
+  const tous = [];
   parType.forEach((cells, t) => {
     for (const ids of cells.values()) {
-      const m = new THREE.InstancedMesh(geos[t], new THREE.MeshLambertMaterial({ vertexColors: true }), ids.length);
-      ids.forEach((i, k) => { const sc = T[4 * i + 3] / 10; q.setFromAxisAngle(Y, hash(i, 31) * 6.28); m4.compose(p.set(T[4 * i] / 10, 0, T[4 * i + 1] / 10), q, s.set(sc, sc * (.9 + hash(i, 32) * .25), sc)); m.setMatrixAt(k, m4); m.setColorAt(k, t === 1 && hash(i, 33) < .08 ? fleurs : verts[Math.floor(hash(i, 34) * verts.length)]); });
+      const m = new THREE.InstancedMesh(geos[t === 3 ? 1 : t], new THREE.MeshLambertMaterial({ vertexColors: true }), ids.length);
+      ids.forEach((i, k) => { const sc = T[4 * i + 3] / 10; q.setFromAxisAngle(Y, hash(i, 31) * 6.28); m4.compose(p.set(T[4 * i] / 10, 0, T[4 * i + 1] / 10), q, s.set(sc, sc * (.9 + hash(i, 32) * .25), sc)); m.setMatrixAt(k, m4); m.setColorAt(k, t === 3 ? fleurs : verts[Math.floor(hash(i, 34) * verts.length)]); });
       m.userData.xz = Float32Array.from(ids.flatMap(i => [T[4 * i] / 10, T[4 * i + 1] / 10])); VEGETATION.push(m);
       m.computeBoundingSphere(); m.castShadow = !LITE; m.receiveShadow = true; m.userData.proche = 5500; detailsProches.push(m); scene.add(m);
+      tous.push([m, t, ids]);
     }
   });
+  if (LITE || SECOURS || new URLSearchParams(location.search).has('facettes')) return; // ?facettes : les volumes d'avant, pour comparer
+  const replies = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }); replies.onBeforeCompile = replier; replies.customProgramCacheKey = () => 'arbre-replie-ombre';
+  for (const [m] of tous) { m.material.onBeforeCompile = replier; m.material.customProgramCacheKey = () => 'arbre-replie'; m.customDepthMaterial = replies; }
+  const charger = nom => plusTard(() => new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}textures/ia/${nom}.webp`), true).then(x => { x.colorSpace = THREE.SRGBColorSpace; x.anisotropy = 4; return x; });
+  Promise.all([charger('feuillage'), charger('flamboyant')]).then(([feuilles, fl]) => {
+    const cartes = [0, 1, 2].map(t => couronneEnCartes(tronc, t)), tr = new THREE.MeshLambertMaterial({ vertexColors: true });
+    const mats = [[tr, matFeuillage(feuilles)], [tr, matFeuillage(fl)]], ombres = [ombreFeuillage(feuilles), ombreFeuillage(fl)];
+    // La photo porte déjà le vert : les teintes ne font plus que varier un peu d'un arbre à l'autre.
+    const clairs = ['#d9ebc8', '#cfe3bd', '#e4eccf', '#c6dcb4', '#dde6c4'].map(h => new THREE.Color(h)), blanc = new THREE.Color('#ffffff'); // un peu moins de rouge : la photo tire sur le jaune
+    ARBRES.tous = tous.map(([m, t, ids]) => [m, t, ids, t === 3 ? () => blanc : i => clairs[Math.floor(hash(i, 34) * clairs.length)]]);
+    ARBRES.proches = [0, 1, 2, 3].map(t => {
+      const P = new THREE.InstancedMesh(cartes[t === 3 ? 1 : t], mats[t === 3 ? 1 : 0], ARBRES.cap);
+      P.count = 0; P.frustumCulled = false; P.castShadow = true; P.receiveShadow = true; P.customDepthMaterial = ombres[t === 3 ? 1 : 0];
+      P.setColorAt(0, blanc); scene.add(P); return P;
+    });
+  }).catch(e => console.warn('feuillages', e.message));
 }
 
 // ---------- Haie Vive : terrasses de maquis ----------
@@ -1289,7 +1415,7 @@ export function visibiliteLieux(cam) {
     m.visible = !LIEUX.caches && cam.distanceTo(bs.center) - bs.radius < m.userData.proche;
   }
 }
-export function animerLieux(t) { for (const m of detailsProches) if (m.visible && m.userData.anim) m.userData.anim(t); }
+export function animerLieux(t) { for (const m of detailsProches) if (m.visible && m.userData.anim) m.userData.anim(t); majArbresProches(); }
 
 // ---------- Nouveaux lieux : UAC, Sèmè One ----------
 K.motif('facadeSeme', (c, t) => {

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
 import { $, LITE, coarse, reduceMotion, toXZ, SECOURS } from './base.js';
+import { texIA } from './textures-ia.js';
 
 // ---------- Scène ----------
 export const canvas = $('#scene');
@@ -102,15 +103,17 @@ const GLSL_BRUIT = `
 // sable et la latérite (clairs) n'en ont pas.
 export function grainSol(mat, nu = false, bitume = false) {
   mat.onBeforeCompile = s => {
+    s.uniforms.uSol = { value: texIA('sol') }; // le sable en photo, de près (textures-ia.js)
     s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vSolW;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvSolW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vSolW;' + GLSL_BRUIT)
+    s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vSolW; uniform sampler2D uSol;' + GLSL_BRUIT)
       .replace('#include <color_fragment>', `#include <color_fragment>
         {
           vec2 p = vSolW.xz; float d = length(vSolW - cameraPosition);
           float pres = 1.0 - smoothstep(80.0, 420.0, d), moyen = 1.0 - smoothstep(700.0, 3200.0, d);
           float n1 = bS(p * 0.06), n2 = bS(p * 0.45 + 3.7), n3 = bS(p * 3.1 + 9.1);
           vec3 c = diffuseColor.rgb * (0.9 + 0.16 * n1 + (0.1 * n2 - 0.05) * moyen + (0.1 * n3 - 0.05) * pres);
+          vec3 sable = (texture2D(uSol, p / 3.5).rgb * 2.0 - 1.0) * 1.8 + (texture2D(uSol, p / 21.0 + 0.37).rgb * 2.0 - 1.0) * 1.3; // grain et grandes plaques
           ${nu ? `float lat = smoothstep(0.6, 0.82, bS(p * 0.018 + 7.0)) * (0.55 + 0.45 * n2);
           c = mix(c, c * vec3(1.1, 0.78, 0.62), lat * 0.6);
           float herbe = smoothstep(0.68, 0.86, bS(p * 0.03 + 31.0)) * smoothstep(0.35, 0.75, n2 + 0.3 * n3);
@@ -127,7 +130,12 @@ export function grainSol(mat, nu = false, bitume = false) {
           }
           float peinte = smoothstep(0.35, 0.6, lum) * pres;
           c = mix(c, c * 0.6, peinte * smoothstep(0.55, 0.9, bS(p * 1.7 + 23.0)) * 0.55);` : ''}
-          diffuseColor.rgb = c;
+          // Le sable en photo, sur tout ce qui est couleur de sable : le sol, les parcelles, les rues en terre
+          // (pas le goudron, ni l'herbe, ni la peinture blanche des marquages).
+          vec3 d0 = diffuseColor.rgb;
+          float sab = pres * 0.9 * smoothstep(0.3, 0.42, dot(d0, vec3(0.333))) * smoothstep(1.04, 1.14, d0.r / max(d0.b, 0.01)) * smoothstep(-0.03, 0.01, d0.r - d0.g);
+          ${nu ? 'sab *= 1.0 - herbe * 0.7;' : ''}
+          diffuseColor.rgb = c * max(vec3(0.0), 1.0 + sable * sab);
         }`);
   };
   mat.customProgramCacheKey = () => 'grainSol' + nu + bitume;

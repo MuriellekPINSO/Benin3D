@@ -6,6 +6,7 @@ import { E } from './etat.js';
 import { VEGETATION } from './lieux.js';
 import { parCarres } from './carres.js';
 import { texFacades } from './facades.js';
+import { texIA } from './textures-ia.js';
 import { COUCHES_SOL, U, flatMat, grainSol, scene } from './scene.js';
 import { rectSansConstruction } from './zones.js';
 import { croiseesLe, dansCroisees } from './chaussee.js';
@@ -482,21 +483,31 @@ export const buildingMat = new THREE.MeshLambertMaterial({ vertexColors: true })
 buildingMat.onBeforeCompile = s => {
   s.uniforms.uRiseT = U.uRiseT; s.uniforms.uRiseO = U.uRiseO; s.uniforms.uNight = U.uNight;
   s.uniforms.uFacade = { value: texFacades() };
+  for (const [u, nom] of [['uEnduit', 'enduit'], ['uTole', 'tole'], ['uTuiles', 'tuiles'], ['uDalle', 'dalle']]) s.uniforms[u] = { value: texIA(nom) };
   s.vertexShader = s.vertexShader
-    .replace('#include <common>', '#include <common>\nattribute vec3 aw; varying vec3 vAw; varying float vY; uniform float uRiseT; uniform vec2 uRiseO;')
+    .replace('#include <common>', '#include <common>\nattribute vec3 aw; varying vec3 vAw; varying float vY; varying vec3 vWp; uniform float uRiseT; uniform vec2 uRiseO;')
     .replace('#include <begin_vertex>', `#include <begin_vertex>
       float dR = length(position.xz - uRiseO);
       float kR = clamp((uRiseT - dR / 3300.0) / 1.3, 0.0, 1.0);
       kR = 1.0 - pow(1.0 - kR, 3.0);
       transformed.y *= kR;
-      vAw = aw; vY = position.y;`);
+      vAw = aw; vY = position.y; vWp = position;`);
   s.fragmentShader = s.fragmentShader
     .replace('#include <common>', `#include <common>
-      varying vec3 vAw; varying float vY; uniform float uNight; uniform sampler2D uFacade;
+      varying vec3 vAw; varying float vY; varying vec3 vWp; uniform float uNight; uniform sampler2D uFacade, uEnduit, uTole, uTuiles, uDalle;
       float hh(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }`)
     .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      // Les photos (textures-ia.js) : coordonnées et dérivées prises ici, hors des branches murs/toits, où un groupe
+      // de 2 × 2 pixels à cheval sur un mur et un toit n'aurait plus de dérivées fiables.
+      vec2 gE = vec2(-vAw.x, vY) / 3.6 + vec2(mod(vAw.y, 100.0) * 0.137, mod(vAw.y, 100.0) * 0.291), dEx = dFdx(gE), dEy = dFdy(gE);
+      vec3 nT = inverseTransformDirection(normal, viewMatrix); if (nT.y < 0.0) nT = -nT; // la normale du pan, exacte (celle des dérivées tremble à 2 km de l'origine)
+      vec2 dT = length(nT.xz) > 0.08 ? normalize(nT.xz) : vec2(0.0, 1.0); // vers le bas de la pente
+      vec2 uvT = vec2(dot(vWp.xz, vec2(-dT.y, dT.x)), dot(vWp.xz, dT) / max(nT.y, 0.35)), dTx = dFdx(uvT), dTy = dFdy(uvT);
+      vec2 dDx = dFdx(vWp.xz), dDy = dFdy(vWp.xz);
       if (vAw.x >= 0.0) {
         float cat = floor(vAw.y / 100.0), seed = mod(vAw.y, 100.0), H = vAw.z;
+        // L'enduit : grain, coulures, fissures fines, sur la peinture de chaque maison (pas sur les cases en bois de Ganvié).
+        if (cat != 5.0) diffuseColor.rgb *= max(vec3(0.0), 1.0 + (textureGrad(uEnduit, gE, dEx, dEy).rgb * 2.0 - 1.0) * 1.8);
         // aw.x court d'un sommet du contour au suivant ; vu du dehors, ce sens va de la droite vers la gauche
         // (la normale du mur est (dz, -dx)), et tout le texte peint des enseignes sortait en miroir : « MERCERIE »
         // se lisait « ƎIЯƎƆЯƎM » (Murielle, 25/10). On lit donc l'atlas dans l'autre sens.
@@ -523,6 +534,11 @@ buildingMat.onBeforeCompile = s => {
         }
         // Éclaboussures de terre au pied des murs.
         diffuseColor.rgb *= mix(vec3(0.78, 0.66, 0.55), vec3(1.0), smoothstep(0.05, 0.85, vY));
+      } else if (vAw.z > 0.5) {
+        // Toits (aw.z) : 1 tôle ondulée, les ondes dans le sens de la pente ; 2 tuiles, les rangs le long du faîte ; 3 dalle de béton.
+        vec3 tx = vAw.z < 1.5 ? textureGrad(uTole, uvT / 1.8, dTx / 1.8, dTy / 1.8).rgb
+          : vAw.z < 2.5 ? textureGrad(uTuiles, uvT / 4.0, dTx / 4.0, dTy / 4.0).rgb : textureGrad(uDalle, vWp.xz / 6.0, dDx / 6.0, dDy / 6.0).rgb;
+        diffuseColor.rgb *= max(vec3(0.0), 1.0 + (tx * 2.0 - 1.0) * 1.1);
       }`);
 };
 export const buildingMeshes = [];
@@ -581,17 +597,17 @@ function ajouterBatiment(c, B, L, i, k) {
     I[q] = v; I[q + 1] = v + 2; I[q + 2] = v + 1; I[q + 3] = v; I[q + 4] = v + 3; I[q + 5] = v + 2;
     c.vi += 4; c.ii += 6;
   }
-  let rc;
+  let rc, toit;
   if (cat === 0) {
     const pick = l => l[Math.floor(hash(k, 2) * l.length)];
     // Vu du drone : surtout de la tôle grise ou rouillée et des dalles de béton ; la tuile reste rare hors des quartiers de villas.
-    if (L.roof[i]) rc = hash(k, 6) < (L.villa[i] ? 0.7 : 0.16) ? pick(PAL.tuile) : pick(PAL.tin);
-    else if (L.surf[i] < 650 && hash(k, 7) < (L.villa[i] ? 0.45 : 0.06)) rc = pick(PAL.tuile);
-    else rc = h < 4.8 && hash(k, 5) < 0.55 ? pick(PAL.tin) : pick(PAL.flat);
+    if (L.roof[i]) [rc, toit] = hash(k, 6) < (L.villa[i] ? 0.7 : 0.16) ? [pick(PAL.tuile), 2] : [pick(PAL.tin), 1];
+    else if (L.surf[i] < 650 && hash(k, 7) < (L.villa[i] ? 0.45 : 0.06)) [rc, toit] = [pick(PAL.tuile), 2];
+    else [rc, toit] = h < 4.8 && hash(k, 5) < 0.55 ? [pick(PAL.tin), 1] : [pick(PAL.flat), 3];
   }
-  else { const rl = PAL.roofCat[cat]; rc = rl[Math.floor(hash(k, 2) * rl.length)]; }
-  if (L.roof[i]) addHip(c, xs, zs, h, rc, seed);
-  else addFlat(c, xs, zs, n, h, rc, seed, v2);
+  else { const rl = PAL.roofCat[cat]; rc = rl[Math.floor(hash(k, 2) * rl.length)]; toit = cat === 5 ? 0 : L.roof[i] || cat === 4 || cat === 8 ? 1 : 3; } // entrepôts et ateliers : tôle
+  if (L.roof[i]) addHip(c, xs, zs, h, rc, seed, toit);
+  else addFlat(c, xs, zs, n, h, rc, seed, v2, toit);
 }
 function meshCellule(c) {
   const g = new THREE.BufferGeometry();
@@ -632,17 +648,18 @@ export function maillageLot(B, base = 0, ids = null) {
   for (let i = 0; i < L.N; i++) ajouterBatiment(c, B, L, i, graine(i));
   return meshCellule(c);
 }
-export function putV(c, x, y, z, nx, ny, nz, rgb, seed) {
+/** `toit` : 1 tôle, 2 tuiles, 3 dalle de béton, 0 sans texture (lu par le shader des bâtiments dans aw.z). */
+export function putV(c, x, y, z, nx, ny, nz, rgb, seed, toit = 0) {
   const v = c.vi++, o = v * 3;
   c.pos[o] = x; c.pos[o + 1] = y; c.pos[o + 2] = z;
   c.nrm[o] = nx; c.nrm[o + 1] = ny; c.nrm[o + 2] = nz;
   c.col[o] = rgb[0]; c.col[o + 1] = rgb[1]; c.col[o + 2] = rgb[2];
-  c.aw[v * 3] = -1; c.aw[v * 3 + 1] = seed; c.aw[v * 3 + 2] = 0;
+  c.aw[v * 3] = -1; c.aw[v * 3 + 1] = seed; c.aw[v * 3 + 2] = toit;
   return v;
 }
-export function addFlat(c, xs, zs, n, h, rgb, seed, v2) {
+export function addFlat(c, xs, zs, n, h, rgb, seed, v2, toit = 0) {
   const base = c.vi;
-  for (let j = 0; j < n; j++) putV(c, xs[j], h, zs[j], 0, 127, 0, rgb, seed);
+  for (let j = 0; j < n; j++) putV(c, xs[j], h, zs[j], 0, 127, 0, rgb, seed, toit);
   const need = 3 * (n - 2); let wrote = 0;
   const tri = (a, b, cc) => {
     const up = (zs[b] - zs[a]) * (xs[cc] - xs[a]) - (xs[b] - xs[a]) * (zs[cc] - zs[a]) > 0;
@@ -662,7 +679,7 @@ export function addFlat(c, xs, zs, n, h, rgb, seed, v2) {
   }
   while (wrote < need) { const I = c.idx, q = c.ii; I[q] = I[q + 1] = I[q + 2] = base; c.ii += 3; wrote += 3; }
 }
-export function addHip(c, xs, zs, h, rgb, seed) {
+export function addHip(c, xs, zs, h, rgb, seed, toit = 0) {
   const P = [0, 1, 2, 3].map(j => [xs[j], zs[j]]);
   const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
   // côtés longs : (0,1)/(2,3) ou (1,2)/(3,0)
@@ -681,7 +698,7 @@ export function addHip(c, xs, zs, h, rgb, seed) {
     let nz = (b[0] - a[0]) * (d[1] - a[1]) - (b[1] - a[1]) * (d[0] - a[0]);
     let flip = false; if (ny < 0) { nx = -nx; ny = -ny; nz = -nz; flip = true; }
     const l = Math.hypot(nx, ny, nz) || 1;
-    const ids = pts.map(q => putV(c, q[0], q[1], q[2], Math.round(nx / l * 127), Math.round(ny / l * 127), Math.round(nz / l * 127), rgb, seed));
+    const ids = pts.map(q => putV(c, q[0], q[1], q[2], Math.round(nx / l * 127), Math.round(ny / l * 127), Math.round(nz / l * 127), rgb, seed, toit));
     for (let j = 1; j < ids.length - 1; j++) {
       const I = c.idx, q = c.ii;
       I[q] = ids[0]; I[q + 1] = flip ? ids[j] : ids[j + 1]; I[q + 2] = flip ? ids[j + 1] : ids[j]; c.ii += 3;

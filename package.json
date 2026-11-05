@@ -18,7 +18,8 @@
     "personnages": "node scripts/personnages.mjs",
     "pubs": "node scripts/pubs.mjs",
     "recherche": "node scripts/recherche.mjs",
-    "trafic": "node scripts/trafic.mjs"
+    "trafic": "node scripts/trafic.mjs",
+    "textures": "node scripts/textures-ia.mjs"
   },
   "dependencies": {
     "@vercel/functions": "^3.10.3",

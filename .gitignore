@@ -20,3 +20,5 @@ artefact/cotonou-3d.html
 
 # Lien du projet Vercel (local)
 .vercel/
+# Textures photographiques d'origine (Higgsfield, 4096 px) : `npm run textures` en tire public/textures/ia/, versionné.
+sources/textures-ia/

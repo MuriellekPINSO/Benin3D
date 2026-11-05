@@ -1,0 +1,54 @@
+{
+ "poubelle": {
+  "triangles": 1498,
+  "octets": 42440
+ },
+ "pousse": {
+  "triangles": 2992,
+  "octets": 104720
+ },
+ "keke": {
+  "triangles": 3998,
+  "octets": 91036
+ },
+ "sieges-pneus": {
+  "triangles": 2500,
+  "octets": 82212
+ },
+ "pirogue-peche": {
+  "triangles": 3000,
+  "octets": 107228
+ },
+ "pirogue-chargee": {
+  "triangles": 3998,
+  "octets": 115308
+ },
+ "maison-tole": {
+  "triangles": 3826,
+  "octets": 130292
+ },
+ "maison-r1": {
+  "triangles": 4954,
+  "octets": 175968
+ },
+ "villa-blanche": {
+  "triangles": 6806,
+  "octets": 248100
+ },
+ "batisse-stmichel": {
+  "triangles": 7650,
+  "octets": 279084
+ },
+ "pharmacie-haievive": {
+  "triangles": 5788,
+  "octets": 209300
+ },
+ "eglise-akpakpa": {
+  "triangles": 9414,
+  "octets": 333548
+ },
+ "passerelle-dantokpa": {
+  "triangles": 4998,
+  "octets": 213024
+ }
+}

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { LITE, SECOURS } from './base.js';
+import { plusTard } from './telechargements.js';
 
 // Atlas de façades de Cotonou, d'après les vues Street View (2026) : rez-de-chaussée
 // à portes de garage en tôle, rideaux métalliques de boutique, portes et fenêtres à
@@ -8,6 +10,10 @@ import * as THREE from 'three';
 //
 // Grille 8 × 4 : ligne 0 = rez-de-chaussée, lignes 1 et 2 = étages (deux styles),
 // ligne 3 = étage inachevé (poteaux nus, fers à béton).
+//
+// Depuis le 31/10, les lignes 0 à 2 sont remplacées, une fois la ville affichée, par les photos détourées de
+// public/textures/ia/facades.webp (scripts/textures-ia.mjs : vraies persiennes, grilles, portails, boutiques) ;
+// les dessins ci-dessous restent l'image du départ, celle du mode de secours, et la ligne 3 de tout le monde.
 
 export const ATLAS = { cols: 8, lignes: 4, case: 256 };
 let tex = null;
@@ -16,7 +22,24 @@ export function texFacades(anisotropie = 8) {
   if (tex) return tex;
   const C = ATLAS.case, cv = document.createElement('canvas');
   cv.width = C * ATLAS.cols; cv.height = C * ATLAS.lignes;
-  const c = cv.getContext('2d');
+  peindre(cv.getContext('2d'), [0, 1, 2, 3]);
+  tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = anisotropie;
+  tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
+  // Les photos : 512 px par case sur ordinateur (4096 × 2048), 256 sur téléphone, la taille des dessins.
+  if (!SECOURS) plusTard(() => new THREE.ImageLoader().loadAsync(`${import.meta.env.BASE_URL}textures/ia/facades${LITE ? '-leger' : ''}.webp`), true).then(img => {
+    const k = img.height / 3 / C, cv2 = document.createElement('canvas');
+    cv2.width = img.width; cv2.height = img.height / 3 * ATLAS.lignes;
+    const c2 = cv2.getContext('2d');
+    c2.drawImage(img, 0, cv2.height - img.height); // lignes 0 à 2, en bas ; la ligne 3 en haut, dessinée
+    c2.save(); c2.scale(k, k); peindre(c2, [3]); c2.restore();
+    tex.image = cv2; tex.dispose(); tex.needsUpdate = true; // l'image change de taille : dispose() avant le nouvel envoi
+  }).catch(e => console.warn('façades', e.message));
+  return tex;
+}
+
+/** Dessine les lignes demandées de l'atlas, en cases de 256 px. */
+function peindre(c, lignes) {
+  const C = ATLAS.case;
   let s = 12345; const r = () => ((s = (s * 1103515245 + 12345) >>> 0) / 4294967296);
   const bruit = (x, y, w, h, n, cols, a = .25) => { for (let i = 0; i < n; i++) { c.globalAlpha = a * r(); c.fillStyle = cols[i % cols.length]; c.fillRect(x + r() * w, y + r() * h, 2, 2); } c.globalAlpha = 1; };
   const rect = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
@@ -67,11 +90,8 @@ export function texFacades(anisotropie = 8) {
     (x, y) => { rect(x + 30, y + 40, C - 60, 200, '#2f2c28'); balustrade(x + 30, y + 176, C - 60, 64, '#f2efe8'); },
   ];
   const inacheve = (x, y) => { rect(x, y, C, C, 'rgba(0,0,0,0)'); rect(x + 6, y, 26, C, '#9d9a92'); rect(x + C - 32, y, 26, C, '#9d9a92'); rect(x, y + C - 22, C, 22, '#a7a39a'); for (let i = 0; i < 6; i++) rect(x + 10 + i * 3, y, 1.5, 30, '#6b4a32'); for (let i = 0; i < 6; i++) rect(x + C - 28 + i * 3, y, 1.5, 30, '#6b4a32'); bruit(x + 32, y, C - 64, C, 200, ['#c9c4b8', '#aaa59a'], .6); c.globalAlpha = .55; rect(x + 32, y + 120, C - 64, C - 142, '#b5b0a5'); for (let j = 0; j < 5; j++) for (let k = 0; k < 4; k++) cadre(x + 34 + k * 48, y + 124 + j * 22, 46, 20, '#8f8b82', 2); c.globalAlpha = 1; };
-  rdc.forEach((f, i) => { const [x, y] = caseXY(i, 0); f(x, y); salete(x, y); });
-  etage.forEach((f, i) => { const [x, y] = caseXY(i, 1); f(x, y); });
-  etage2.forEach((f, i) => { const [x, y] = caseXY(i, 2); f(x, y); });
-  for (let i = 0; i < 8; i++) { const [x, y] = caseXY(i, 3); inacheve(x, y); }
-  tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = anisotropie;
-  tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
-  return tex;
+  if (lignes.includes(0)) rdc.forEach((f, i) => { const [x, y] = caseXY(i, 0); f(x, y); salete(x, y); });
+  if (lignes.includes(1)) etage.forEach((f, i) => { const [x, y] = caseXY(i, 1); f(x, y); });
+  if (lignes.includes(2)) etage2.forEach((f, i) => { const [x, y] = caseXY(i, 2); f(x, y); });
+  if (lignes.includes(3)) for (let i = 0; i < 8; i++) { const [x, y] = caseXY(i, 3); inacheve(x, y); }
 }
