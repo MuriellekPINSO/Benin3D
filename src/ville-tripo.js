@@ -58,12 +58,15 @@ function preparer(id, gltf) {
   return { geo, mat: m, t };
 }
 
+// Repères faits mais pas encore posés à leur vraie place (il faut leur emprise exacte) : pas téléchargés d'ici là.
+const PAS_ENCORE = new Set(['pharmacie-haievive', 'eglise-akpakpa', 'passerelle-dantokpa']);
 /** Lancé une fois au démarrage (main.js) : la liste, puis les modèles, chacun quand la file est libre. */
 export async function chargerVille() {
   if (SECOURS) return;
   let index;
   try { const r = await fetch(import.meta.env.BASE_URL + 'modeles/ville/index.json'); if (!r.ok || !/json/.test(r.headers.get('content-type') || '')) return; index = await r.json(); } catch { return; }
   for (const [id, i] of Object.entries(index)) {
+    if (PAS_ENCORE.has(id)) continue;
     plusTard(() => chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/ville/${id}.glb?v=${i.octets}`), { apres: true }).then(gltf => {
       const M = preparer(id, gltf); if (!M) return;
       VILLE[id] = M;
