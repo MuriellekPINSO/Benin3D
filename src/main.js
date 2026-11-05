@@ -14,6 +14,7 @@ import { E } from './etat.js';
 import { accueil, initExplorer } from './explorer.js';
 import { TRIPO, chargerIndexTripo, urlTripo } from './batiments-tripo.js';
 import { chargerVille, poserReperes } from './ville-tripo.js';
+import { chargerFoule, etatFoule } from './foule-reelle.js';
 import { detailsToits, STATS_TOITS } from './toits-details.js';
 import { chargerPersonnages, majPersonnages } from './personnages.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
@@ -186,10 +187,11 @@ async function main() {
   await chargerIndexTripo(); // bâtiments reconnaissables générés par Tripo, s'il y en a
   chargerVille(); // objets et maisons de Cotonou d'après photo (ville-tripo.js) : en file, téléchargés en dernier
   poserReperes(); // église d'Avotrou, pharmacie Haie Vive, passerelle de Dantokpa (reperes.js), à leur arrivée
+  chargerFoule(); // de vrais personnages à la place des silhouettes des foules, près de la caméra (foule-reelle.js)
   chargerPersonnages(); // personnages animés (en tâche de fond : le jeu garde ses personnages en code en attendant)
   await construireLieux(data);
   detailsToits(); // citernes, paraboles et fers à béton sur les toits plats (toits-details.js)
-  if (import.meta.env.DEV) window.__toits = STATS_TOITS;
+  if (import.meta.env.DEV) { window.__toits = STATS_TOITS; window.__foule = etatFoule; }
   construireLieuxVideos(data); construireOuidah(data.L); construireEtals(data.L); construireCaiCai(); construireStand(); construireMaquis();
   semeOne(data.L.semeOne); portailUAC(data.L.campus, data.L.lignes?.find(l => l.id === 'calavi')?.pts); construireTokpas();
   const sansArbres = degagerChaussees(VEGETATION); // pas d'arbre au milieu de la rue

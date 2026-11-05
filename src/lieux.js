@@ -12,6 +12,7 @@ import { ajouterPlace } from './zones.js';
 import { photoPlusTard, plusTard } from './telechargements.js';
 import { chargeurGLB, reduireImage } from './textures.js';
 import { remplacerParVille, quandVille, instancesVille, echelleSol } from './ville-tripo.js';
+import { ajouterFoule, majFoule } from './foule-reelle.js';
 
 // ---------- Lieux détaillés ----------
 // Matières et primitives reprises du projet « 3D monde » (src/entities/Batisseur.ts),
@@ -892,7 +893,7 @@ export function dantokpa(B, M) {
   foule(M.ppl, 0);
 }
 
-// ---------- Foule : silhouettes en pagne et tissus wax ----------
+// ---------- Foule : silhouettes en pagne et tissus wax (de près, de vrais personnages : foule-reelle.js) ----------
 export const detailsProches = [];
 /**
  * Ajoute à la scène des détails instanciés semés sur des kilomètres (pilotis des villages lacustres, tombes, herbiers),
@@ -946,6 +947,7 @@ export function foule(arr, graine, y = 0) {
     corps.setMatrixAt(i, m4); tetes.setMatrixAt(i, m4); corps.setColorAt(i, fouleTissus[Math.floor(hash(i, graine + 81) * fouleTissus.length)]);
   }
   for (const m of [corps, tetes]) { m.userData.proche = 1800; detailsProches.push(m); scene.add(m); }
+  ajouterFoule(arr, graine, y, corps, tetes); // de près, de vrais personnages à leur place (foule-reelle.js)
 }
 
 // ---------- Ganvié : maisons sur pilotis ----------
@@ -1414,6 +1416,7 @@ export function visibiliteLieux(cam) {
     const bs = m.boundingSphere;
     m.visible = !LIEUX.caches && cam.distanceTo(bs.center) - bs.radius < m.userData.proche;
   }
+  majFoule(cam, LIEUX.caches);
 }
 export function animerLieux(t) { for (const m of detailsProches) if (m.visible && m.userData.anim) m.userData.anim(t); majArbresProches(); }
 

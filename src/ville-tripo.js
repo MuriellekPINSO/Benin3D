@@ -29,7 +29,7 @@ export function surArriveeVille(f) { ecouteurs.push(f); }
 
 // Les fichiers sont quantifiés (entiers normalisés, et l'échelle dans le nœud) : on repasse en nombres à virgule avant
 // d'appliquer la matrice du nœud, sinon applyMatrix4 écrit des flottants dans un tableau d'entiers.
-function enFlottants(geo) {
+export function enFlottants(geo) {
   for (const [nom, a] of Object.entries(geo.attributes)) {
     if (a.array instanceof Float32Array && !a.isInterleavedBufferAttribute) continue;
     const f = new Float32Array(a.count * a.itemSize);
@@ -61,15 +61,19 @@ function preparer(id, gltf) {
   return { geo, mat: m, t };
 }
 
-// Modèles faits mais pas (encore) posés dans le jeu : pas téléchargés.
-const PAS_ENCORE = new Set();
+// Modèles faits mais pas (encore) posés dans le jeu : pas téléchargés. Et ceux qu'un autre module charge à sa façon
+// (la foule : plusieurs personnages dans un fichier, foule-reelle.js).
+const PAS_ENCORE = new Set(), A_PART = new Set(['foule']);
+let INDEX = null;
+/** La liste des modèles de public/modeles/ville (null si elle manque). */
+export const indexVille = () => INDEX ??= fetch(import.meta.env.BASE_URL + 'modeles/ville/index.json')
+  .then(r => r.ok && /json/.test(r.headers.get('content-type') || '') ? r.json() : null).catch(() => null);
 /** Lancé une fois au démarrage (main.js) : la liste, puis les modèles, chacun quand la file est libre. */
 export async function chargerVille() {
   if (SECOURS) return;
-  let index;
-  try { const r = await fetch(import.meta.env.BASE_URL + 'modeles/ville/index.json'); if (!r.ok || !/json/.test(r.headers.get('content-type') || '')) return; index = await r.json(); } catch { return; }
+  const index = await indexVille(); if (!index) return;
   for (const [id, i] of Object.entries(index)) {
-    if (PAS_ENCORE.has(id)) continue;
+    if (PAS_ENCORE.has(id) || A_PART.has(id)) continue;
     plusTard(() => chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/ville/${id}.glb?v=${i.octets}`), { apres: true }).then(gltf => {
       const M = preparer(id, gltf); if (!M) return;
       VILLE[id] = M;

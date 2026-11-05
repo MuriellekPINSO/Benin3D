@@ -50,5 +50,10 @@
  "passerelle-dantokpa": {
   "triangles": 4542,
   "octets": 204612
+ },
+ "foule": {
+  "triangles": 17167,
+  "octets": 344592,
+  "variantes": 24
  }
 }
