@@ -6,8 +6,11 @@
 // Photos : Wikimedia Commons, auteurs et licences dans scripts/ville-photos.json.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { LITE, SECOURS } from './base.js';
+import { LITE, SECOURS, toXZ } from './base.js';
 import { plusTard } from './telechargements.js';
+import { scene } from './scene.js';
+import { roadLines, ROAD_W } from './ville.js';
+import { REPERES } from './reperes.js';
 import { chargeurGLB } from './textures.js';
 
 /** id → { geo, mat, t } une fois arrivé : géométrie posée au sol et centrée, matériau, taille (x, y, z) en mètres du fichier. */
@@ -58,8 +61,8 @@ function preparer(id, gltf) {
   return { geo, mat: m, t };
 }
 
-// Repères faits mais pas encore posés à leur vraie place (il faut leur emprise exacte) : pas téléchargés d'ici là.
-const PAS_ENCORE = new Set(['pharmacie-haievive', 'eglise-akpakpa', 'passerelle-dantokpa']);
+// Modèles faits mais pas (encore) posés dans le jeu : pas téléchargés.
+const PAS_ENCORE = new Set();
 /** Lancé une fois au démarrage (main.js) : la liste, puis les modèles, chacun quand la file est libre. */
 export async function chargerVille() {
   if (SECOURS) return;
@@ -116,3 +119,48 @@ export const echelleSol = (id, L) => { const t = VILLE[id]?.t; return t ? L / Ma
 export const echelleHaut = (id, h) => { const t = VILLE[id]?.t; return t ? h / t.y : 1; };
 /** Les géométries partagées par les carrés de rue (à ne pas libérer avec eux). */
 export const geometriesVille = () => Object.values(VILLE).map(M => M.geo);
+
+// ---------- Repères à leur vraie place (reperes.js) ----------
+/** Le point de rue le plus proche de (x, z) sur une rue de quartier ou plus grande, et la demi-largeur de cette rue. */
+function rueProche(x, z) {
+  let best = null, bd = 1e18;
+  for (const L of roadLines) {
+    if (L.cls > 4 || L.bridge) continue;
+    const P = L.pts, hw = (L.w ?? ROAD_W[L.cls]) / 2;
+    for (let k = 1; k < P.length; k++) {
+      const [ax, az] = P[k - 1], [bx, bz] = P[k], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)), px = ax + dx * t, pz = az + dz * t, d = (x - px) ** 2 + (z - pz) ** 2;
+      if (d < bd) { bd = d; best = [px, pz, hw]; }
+    }
+  }
+  return best;
+}
+/** Pose les repères (main.js, une fois la ville construite) : chacun arrive avec les autres modèles, après la ville. */
+export function poserReperes() {
+  if (SECOURS) return;
+  for (const R of REPERES) quandVille(R.id, M => {
+    const t = M.t, g = new THREE.Group(); g.name = `repere-${R.id}`;
+    const m = new THREE.Mesh(M.geo, M.mat); m.castShadow = !LITE; m.receiveShadow = true; m.userData.garder = true; g.add(m);
+    if (R.de) { // passerelle : le long du pont, sa longueur, sa hauteur et son épaisseur données
+      const [ax, az] = toXZ(...R.de), [bx, bz] = toXZ(...R.a), L = Math.hypot(bx - ax, bz - az);
+      m.scale.set(R.epaisseur / t.x, R.hauteur / t.y, L / t.z);
+      g.position.set((ax + bx) / 2, 0, (az + bz) / 2); g.rotation.y = Math.atan2(bx - ax, bz - az);
+    } else {
+      const [cx, cz] = toXZ(...R.centre);
+      let dir; // vers où regarde la façade (le +x du fichier)
+      if (R.face) { const [fx, fz] = toXZ(...R.face); dir = [fx - cx, fz - cz]; }
+      else { const p = rueProche(cx, cz); dir = p ? [p[0] - cx, p[1] - cz] : [1, 0]; R._rue = p; }
+      const l = Math.hypot(...dir) || 1; dir = [dir[0] / l, dir[1] / l];
+      const k = R.hauteur ? R.hauteur / t.y : R.largeur / t.z;
+      m.scale.setScalar(k);
+      const prof = t.x * k;
+      let px = cx, pz = cz;
+      // Église : la façade au bord sud de l'emprise (la photo est prise de là) ; le reste de la nef n'est pas sur la photo.
+      if (R.longueur) { px = cx + dir[0] * (R.longueur / 2 - prof / 2); pz = cz + dir[1] * (R.longueur / 2 - prof / 2); }
+      // Pharmacie : la façade à 3 m du bord de la chaussée.
+      if (R._rue) { const [rx, rz, hw] = R._rue, recul = hw + 3 + prof / 2; px = rx - dir[0] * recul; pz = rz - dir[1] * recul; }
+      g.position.set(px, 0, pz); g.rotation.y = Math.atan2(-dir[1], dir[0]);
+    }
+    scene.add(g);
+  });
+}

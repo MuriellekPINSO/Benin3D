@@ -474,7 +474,9 @@ export const PAL = {
     pal(['#bdb9b0', '#c8c1b2', '#aeb0ad']), pal(['#7d5d3f', '#6f5139', '#8a6a48']), pal(['#f2f2ee']), pal(['#aaa69d', '#a19d94']),
     pal(['#b9a58a', '#8fa6b0', '#c9b79c', '#a4b8a0', '#d1c2a6', '#7f98a8']), pal(['#f1f0eb', '#e8e7e1']), pal(['#d9c7b8', '#cbb6a6', '#c9b9a3']), pal(['#ecc58f', '#e9d3a3', '#f0dcb0', '#e3b07c']),
   ],
-  tin: pal(['#9aa1a4', '#8c9396', '#777e82', '#6b7275', '#b3b8ba', '#a0684a', '#8f5f47', '#7a4a36', '#4f7fae', '#5f86a8']),
+  // Tôles : d'après les vidéos de drone relevées par les agents (05/11), surtout rouillées, brun-cacao, de teintes différentes
+  // d'un toit à l'autre ; quelques grises encore neuves, une bleue de temps en temps.
+  tin: pal(['#9aa1a4', '#8c9396', '#777e82', '#a0684a', '#8f5f47', '#7a4a36', '#6e4632', '#8b5a3c', '#5e4a3c', '#9a6b4f', '#7b5a46', '#4f7fae']),
   tuile: pal(['#a8503a', '#9c4b37', '#b25a40', '#8f4632', '#a4563f', '#bd6346']),
   flat: pal(['#b9b5ab', '#aba79e', '#c4c0b6', '#9f9c94', '#b0ada5', '#c9c5bc']),
   roofCat: [null, pal(['#d7cfc0', '#c9c4ba']), pal(['#a9653f', '#9a5a3c']), pal(['#bdb6aa']), pal(['#9fa6a8', '#8f979b', '#b8bec0']), pal(['#a8946b', '#8f979b', '#9a8660']), pal(['#d7cfc0']), pal(['#9d998f']), pal(['#a9653f', '#8f979b', '#9fa6a8', '#8c5b43', '#b8bec0']), pal(['#e6e5df', '#dcdbd4']), pal(['#cfc8bb']), pal(['#b9654a', '#9fa6a8', '#d7cfc0'])],
@@ -549,15 +551,15 @@ function preparerLot(B, id) {
   const roof = new Uint8Array(N), villa = new Uint8Array(N), surf = new Float32Array(N);
   for (let i = 0; i < N; i++) {
     const n = B.n[i], cat = B.c[i], h = B.h[i] / 4, k = id(i);
-    // Les quartiers de villas (Haie Vive, Cocotiers, Fidjrossè, Cadjèhoun, bord de mer d'Akpakpa)
-    // sont couverts de toits à quatre pans en tuiles rouge-orangé sur les vidéos de drone.
+    // Les quartiers de villas (Haie Vive, Cocotiers, Fidjrossè, Cadjèhoun, bord de mer d'Akpakpa) ont plus de toits à quatre
+    // pans qu'ailleurs, mais les vidéos relevées par les agents (05/11) y montrent surtout des dalles plates : 4 sur 10.
     const bx = B.x[i] / 10, bz = B.z[i] / 10;
     villa[i] = VILLAS.some(([vx, vz, r]) => (bx - vx) ** 2 + (bz - vz) ** 2 < r * r) ? 1 : 0;
     let pHip = 0;
     { let A = 0; const o = off[i]; for (let j = 0; j < n; j++) { const q = (j + 1) % n; A += B.p[o + 2 * j] * B.p[o + 2 * q + 1] - B.p[o + 2 * q] * B.p[o + 2 * j + 1]; } surf[i] = Math.abs(A) / 200; }
     if (n === 4 && cat === 0) {
       const m2 = surf[i];
-      pHip = villa[i] ? (m2 > 55 && m2 < 600 && h < 11 ? 0.82 : 0) : h < 4.8 ? 0.62 : (m2 < 320 && h < 11 ? 0.2 : 0);
+      pHip = villa[i] ? (m2 > 55 && m2 < 600 && h < 11 ? 0.4 : 0) : h < 4.8 ? 0.62 : (m2 < 320 && h < 11 ? 0.2 : 0);
     } else if (n === 4 && (cat === 4 || cat === 5 || cat === 8) && h < 4.8) pHip = cat === 8 ? 0.95 : 0.72;
     roof[i] = hash(k, 3) < pHip ? 1 : 0;
   }
@@ -600,15 +602,20 @@ function ajouterBatiment(c, B, L, i, k) {
   let rc, toit;
   if (cat === 0) {
     const pick = l => l[Math.floor(hash(k, 2) * l.length)];
-    // Vu du drone : surtout de la tôle grise ou rouillée et des dalles de béton ; la tuile reste rare hors des quartiers de villas.
-    if (L.roof[i]) [rc, toit] = hash(k, 6) < (L.villa[i] ? 0.7 : 0.16) ? [pick(PAL.tuile), 2] : [pick(PAL.tin), 1];
-    else if (L.surf[i] < 650 && hash(k, 7) < (L.villa[i] ? 0.45 : 0.06)) [rc, toit] = [pick(PAL.tuile), 2];
+    // Vu du drone : surtout de la tôle rouillée et des dalles de béton ; la tuile est rare, même chez les villas (« quelques
+    // petits toits en tuiles rouges », relevé des agents du 05/11 ; il y en avait sept sur dix chez les villas).
+    if (L.roof[i]) [rc, toit] = hash(k, 6) < (L.villa[i] ? 0.15 : 0.06) ? [pick(PAL.tuile), 2] : [pick(PAL.tin), 1];
+    else if (L.surf[i] < 650 && hash(k, 7) < (L.villa[i] ? 0.08 : 0.01)) [rc, toit] = [pick(PAL.tuile), 2];
     else [rc, toit] = h < 4.8 && hash(k, 5) < 0.55 ? [pick(PAL.tin), 1] : [pick(PAL.flat), 3];
   }
   else { const rl = PAL.roofCat[cat]; rc = rl[Math.floor(hash(k, 2) * rl.length)]; toit = cat === 5 ? 0 : L.roof[i] || cat === 4 || cat === 8 ? 1 : 3; } // entrepôts et ateliers : tôle
   if (L.roof[i]) addHip(c, xs, zs, h, rc, seed, toit);
   else addFlat(c, xs, zs, n, h, rc, seed, v2, toit);
+  // Toits-terrasses des maisons (pas des immeubles) : citernes, paraboles, fers à béton (toits-details.js).
+  if (TOITS_PLATS.collecte && cat === 0 && toit === 3 && h < 11) TOITS_PLATS.liste.push([cx, cz, h, k, Math.sqrt(L.surf[i]), xs.slice(0, n), zs.slice(0, n)]);
 }
+/** Toits plats des bâtiments OpenStreetMap, relevés pendant buildBuildings (les tuiles Google, chargées en route, n'y sont pas). */
+export const TOITS_PLATS = { collecte: false, liste: [] };
 function meshCellule(c) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(c.pos.subarray(0, c.vi * 3), 3));
@@ -631,10 +638,12 @@ export async function buildBuildings(B) {
     cellOf[i] = c; const [v, ix] = tailleBatiment(B, L, i); cells[c].v += v; cells[c].ix += ix;
   }
   const C = cells.map(c => nouvelleCellule(c.v, c.ix));
+  TOITS_PLATS.collecte = true;
   for (let i = 0; i < N; i++) {
     if (i % 6000 === 0) { status('Construction des bâtiments…', 14 + Math.round(60 * i / N)); await frame(); }
     if (!exclu[i]) ajouterBatiment(C[cellOf[i]], B, L, i, i);
   }
+  TOITS_PLATS.collecte = false;
   status('Assemblage…', 76); await frame();
   for (const c of C) { const m = meshCellule(c); scene.add(m); buildingMeshes.push(m); }
 }

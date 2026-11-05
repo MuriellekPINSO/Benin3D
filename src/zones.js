@@ -1,5 +1,6 @@
 import { toXZ } from './base.js';
 import { EMPLACEMENTS } from './emplacements.js';
+import { REPERES } from './reperes.js';
 
 // ---------- Zones où rien ne se construit ----------
 // La piste des vols découverte à Ouidah (vol.js) est posée à côté de la Porte du Non-Retour, sur un terrain où la carte a
@@ -89,6 +90,8 @@ export const lesPlaces = () => PLACES;
 /** À appeler avant de construire la ville (données des lieux : `data.L`). */
 export function initZones(L) {
   if (!PARCS.length) for (const p of PARCS_LATLON) parc(p);
+  // Les repères posés d'après photo (reperes.js) : le bâtiment de la carte cède sa place au modèle.
+  if (!Z.some(b => b.repere)) for (const R of REPERES) if (R.vider) { const [x, z] = toXZ(...R.centre); disque(x, z, R.vider); Z.at(-1).repere = R.id; }
   const P = L?.ouidah?.porte; if (!P) return;
   const { A, B } = pisteOuidah(P); bande(A, B, -25, 55, 35); // piste, bas-côtés, aire de stationnement, paillote, panneaux
   if (L.ouidah.arene) { const [x, z] = centreArene(L.ouidah.arene); disque(x, z, 80); } // jusqu'au mur d'enceinte (77 m)
