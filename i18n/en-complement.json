@@ -403,7 +403,15 @@
   "Arriver maintenant": "Arrive now",
   "Dehors": "Outside",
   "Hublot": "Window",
-  "Cabine": "Cabin"
+  "Cabine": "Cabin",
+  "Ciné de l’Amazone : des films sur l’histoire et la culture du Bénin, sur l’écran géant": "Amazone cinema: films about Benin’s history and culture, on the giant screen",
+  "Télécommande du ciné": "Cinema remote",
+  "Tous les films": "All films",
+  "Film précédent": "Previous film",
+  "Lancer le film choisi": "Play the selected film",
+  "Film suivant": "Next film",
+  "Quitter le ciné": "Leave the cinema",
+  "Ciné": "Cinema"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -3567,5 +3575,31 @@
   "'La prochaine fois, les rivales seront plus fortes. '": "'Next time, your rivals will be stronger. '",
   "Versé dans ta cagnotte (": "Added to your savings (",
   "'1re'": "'1st'"
+ },
+ "src/cinema.js": {
+  "'Bienvenue au Bénin'": "'Welcome to Benin'",
+  "'Les Agoudas, les origines'": "'The Agudas: the origins'",
+  "'Alain Foka'": "'Alain Foka'",
+  "'Abomey, les lieux sacrés'": "'Abomey, the sacred places'",
+  "'Cultures & Patrimoines Bénin'": "'Cultures & Patrimoines Bénin'",
+  "'Les Gardiens des Esprits'": "'The Guardians of the Spirits'",
+  "'Ouémé, le fleuve des dieux'": "'Ouémé, river of the gods'",
+  "'Voyages du bout du monde'": "'Voyages du bout du monde'",
+  "'72 heures dans le vaudou'": "'72 hours inside vodun'",
+  "'La rivière Noire'": "'The Black River'",
+  "'Ganvié, la Venise d’Afrique'": "'Ganvié, the Venice of Africa'",
+  "'Ganvié, le peuple du lac (VO)'": "'Ganvié, the lake people'",
+  "'Bénin, une autre Afrique'": "'Benin, another Africa'",
+  "'Échappées belles'": "'Échappées belles'",
+  "'Cotonou, la ville qui change'": "'Cotonou, a changing city'",
+  "'Tõnd Média'": "'Tõnd Média'",
+  "'Kolèwa xwé, le retour'": "'Kolèwa xwé, the return'",
+  "'Marie Eton'": "'Marie Eton'",
+  "'CINÉ DE L’AMAZONE'": "'AMAZONE CINEMA'",
+  "'Touche un film pour le lancer'": "'Tap a film to play it'",
+  "'Ce film ne peut pas passer ici pour l’instant : choisis-en un autre'": "'This film can’t play here right now: pick another one'",
+  "'Lancer le film choisi'": "'Play the selected film'",
+  "'Touche un film sur l’écran, ou choisis avec la télécommande'": "'Tap a film on the screen, or pick one with the remote'",
+  "'Reprendre'": "'Resume'"
  }
 }

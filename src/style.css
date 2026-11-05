@@ -818,6 +818,26 @@ button { font: inherit; color: inherit; }
 .ev-etat.bien { background: rgba(46, 160, 67, .14); border-left-color: #2ea043; }
 .ev-etat.mal { background: rgba(214, 69, 54, .13); border-left-color: #d64536; }
 .ev-quitter { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 20; border: 0; border-radius: 999px; padding: 12px 22px; font-weight: 800; background: var(--accent); color: var(--accent-ink); cursor: pointer; box-shadow: var(--shadow); }
+/* Ciné de l'Amazone (cinema.js) : le lecteur YouTube plaqué sur l'écran géant, et la télécommande à droite. */
+.cine-video { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.cine-video iframe { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; border: 0; background: #000; transform-origin: 0 0; pointer-events: auto; }
+.cine-tele { position: absolute; right: var(--gutter); top: 50%; transform: translateY(-50%); z-index: 7; display: grid; gap: 8px; padding: 10px 8px; border-radius: 30px; background: #1b1e24; box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.08); }
+.cine-tele button { width: 48px; height: 48px; border: 0; border-radius: 50%; display: grid; place-items: center; background: #2b3039; color: #fff; cursor: pointer; }
+.cine-tele button svg { width: 22px; height: 22px; }
+.cine-tele button:hover { background: #3a414d; }
+.cine-tele button:focus-visible { outline: 3px solid #f2b705; outline-offset: 2px; }
+.cine-tele button[aria-pressed="true"] { background: #4a4230; color: #f2b705; }
+.cine-tele .cine-lire { width: 56px; height: 56px; margin: 4px -4px; background: #f2b705; color: #17130c; }
+.cine-tele .cine-lire:hover { background: #ffc61a; }
+.cine-tele .cine-lire .ic-pause, .cine-tele .cine-lire.en-lecture .ic-lire { display: none; }
+.cine-tele .cine-lire.en-lecture .ic-pause { display: block; }
+.cine-tele .cine-quitter { margin-top: 6px; background: transparent; color: #c9ced6; box-shadow: inset 0 0 0 2px #3a414d; }
+.cine-titre { position: absolute; left: 50%; top: var(--gutter); transform: translateX(-50%); z-index: 7; max-width: calc(100% - 2 * var(--gutter) - 90px); margin: 0; padding: 9px 16px; border-radius: 999px; background: rgba(16,18,22,.86); color: #fff; font-weight: 700; font-size: 14px; text-align: center; box-shadow: var(--shadow); }
+#app.cine-portrait .cine-tele { top: auto; right: auto; left: 50%; bottom: calc(var(--gutter) + 8px); transform: translateX(-50%); grid-auto-flow: column; align-items: center; padding: 8px 10px; }
+#app.cine-portrait .cine-tele .cine-lire { margin: -4px 2px; }
+#app.cine-portrait .cine-tele .cine-quitter { margin: 0 0 0 6px; }
+@media (max-height: 480px) { .cine-tele { gap: 4px; padding: 6px; } .cine-tele button { width: 40px; height: 40px; } .cine-tele .cine-lire { width: 46px; height: 46px; } }
+#app.cine-ouvert .jouer-flottants, #app.cine-ouvert .mini-carte, #app.cine-ouvert #labels, #app.cine-ouvert .side, #app.cine-ouvert .hud, #app.cine-ouvert .card, #app.cine-ouvert .dock { display: none; } /* la télécommande remplace la barre du bas (sa croix fait sortir) */
 
 /* ---------- Boutique de mode (version de test) ---------- */
 .mode { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 31; width: min(940px, calc(100% - 2 * var(--gutter))); max-height: calc(100% - 2 * var(--gutter)); overflow-y: auto; padding: 18px 20px 16px; border-radius: var(--r-lg); }
