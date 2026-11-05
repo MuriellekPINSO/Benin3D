@@ -70,6 +70,9 @@ export function construireSalle() {
     return m;
   });
   scene.add(g); S.groupe = g;
+  // Devant la porte, sur le trottoir, face à la vitrine (« Aller… » de Vivre à Cotonou, salon.js) : le regard 0 = vers le sud.
+  const fx = Math.sin(g.rotation.y), fz = Math.cos(g.rotation.y), porte = [px + fx * D / 2, pz + fz * D / 2];
+  S.devant = [porte[0] + fx * 3.5, porte[1] + fz * 3.5, g.rotation.y + Math.PI]; S.porte = porte;
   // On ne la traverse pas, et rue.js ne pose pas de mur de parcelle devant sa vitrine.
   const coin = (u, v) => [px + u * Math.cos(g.rotation.y) + v * Math.sin(g.rotation.y), pz - u * Math.sin(g.rotation.y) + v * Math.cos(g.rotation.y)];
   ajouterEmprise([coin(-W / 2, -D / 2), coin(W / 2, -D / 2), coin(W / 2, D / 2), coin(-W / 2, D / 2)]);
@@ -81,6 +84,11 @@ export function construireSalle() {
   }))))).catch(() => { });
   return { x: px, z: pz };
 }
+
+/** Où « Aller… » dépose le joueur : [x, z, regard], devant la porte. */
+export const devantSalle = () => S.devant || null;
+/** Le joueur est-il devant la salle (à moins de 9 m de la porte) ? */
+export const presDeSalle = (x, z) => !!S.porte && Math.hypot(x - S.porte[0], z - S.porte[1]) < 9;
 
 // ---------- La salle : la liste des jeux, la fiche d'un jeu ----------
 function fenetre() {
@@ -94,6 +102,8 @@ function fenetre() {
 const corps = () => S.el.querySelector('.sj-corps');
 const sur = window.addEventListener.bind(window);
 sur('keydown', e => { if (e.key === 'Escape' && S.el && !S.el.hidden) { if (S.jeu) fermerJeu(); else fermerSalle(); } });
+// Salle ouverte : les touches restent à elle (sinon ZQSD faisait marcher le personnage de Vivre à Cotonou derrière).
+sur('keydown', e => { if (((S.el && !S.el.hidden) || S.jeu) && e.key !== 'Escape') e.stopImmediatePropagation(); }, true);
 
 /** Ouvre la salle (bouton de la fiche du lieu, interface.js). */
 export async function ouvrirSalle() {
