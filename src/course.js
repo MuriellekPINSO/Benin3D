@@ -256,7 +256,7 @@ export function finCourse(arrive) {
   if (arrive && place === 1) P.victoires = (P.victoires || 0) + 1;
   if (record) JEU.meilleur[L.id] = Math.round(st.finCourse);
   P.cagnotte += total; P.courses = (P.courses || 0) + 1; P.km = (P.km || 0) + st.parcouru / 1000; sauver();
-  el.querySelector('.jf-quiz').innerHTML = `<p class="jf-total">${gagne ? `Prix de la ${ORD(place)} place : <b>${fmtF(gagne)}</b>` : arrive ? 'Pas de prix cette fois : il faut finir dans les trois premiers.' : 'Pas de prix : la course n’est pas finie.'}${st.argent > 0 ? `<br><small>+ ${fmtF(st.argent)} ramassés en route</small>` : ''}<br><small>${record ? 'Ton meilleur temps sur cette course ! ' : ''}${place === 1 && arrive ? 'La prochaine fois, les rivales seront plus fortes. ' : ''}Versé dans ta cagnotte (${fmtF(P.cagnotte)}).</small></p>`;
+  el.querySelector('.jf-quiz').innerHTML = `<p class="jf-total">${gagne ? `Prix de la ${place === 1 ? '1re' : ORD(place)} place : <b>${fmtF(gagne)}</b>` : arrive ? 'Pas de prix cette fois : il faut finir dans les trois premiers.' : 'Pas de prix : la course n’est pas finie.'}${st.argent > 0 ? `<br><small>+ ${fmtF(st.argent)} ramassés en route</small>` : ''}<br><small>${record ? 'Ton meilleur temps sur cette course ! ' : ''}${place === 1 && arrive ? 'La prochaine fois, les rivales seront plus fortes. ' : ''}Versé dans ta cagnotte (${fmtF(P.cagnotte)}).</small></p>`;
   if (arrive) son(place === 1 ? 'piece' : 'arret');
   retirerBarreRivaux();
   el.hidden = false; $('#jeuHud').hidden = true;
