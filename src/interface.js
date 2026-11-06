@@ -7,7 +7,7 @@ import { camera, controls } from './scene.js';
 import { initVoirEnVrai } from './google.js';
 import { basculerMondeReel, maquetteVisible, recalerMondeReel } from './monde-reel.js';
 import { LIEUX, visibiliteLieux } from './lieux.js';
-import { ouvrirSalle } from './salle-jeux.js';
+import { visiterSalle } from './salle-jeux.js';
 import { etalPres, ouvrirBoutique, sitesAvecEtal } from './artisans.js';
 import { changerMeteo } from './meteo.js';
 import { basculerSatellite } from './satellite.js';
@@ -102,7 +102,7 @@ export function select(p) {
 }
 $('#cardClose').addEventListener('click', () => { card.hidden = true; E.selected = null; LIEUX.focus = null; for (const q of PLACES) { q.btn.setAttribute('aria-pressed', 'false'); q.label?.classList.remove('sel'); } });
 $('#cardGo').addEventListener('click', () => E.selected && flyTo(E.selected.x, E.selected.z, E.selected.view));
-$('#cardSalle').addEventListener('click', () => ouvrirSalle());
+$('#cardSalle').addEventListener('click', () => { $('#cardClose').click(); visiterSalle(); }); // on entre dans la salle, puis on s'assoit à un ordinateur (salle-jeux.js)
 // Marché artisanal : on vole jusqu'à l'étal, puis la vendeuse accueille.
 $('#cardMarche').addEventListener('click', () => {
   const p = E.selected; if (!p) return; const e = etalPres(p.x, p.z, 400); if (!e) return;

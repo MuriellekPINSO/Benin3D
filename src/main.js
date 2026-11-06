@@ -16,7 +16,7 @@ import { accueil, initExplorer } from './explorer.js';
 import { TRIPO, chargerIndexTripo, urlTripo } from './batiments-tripo.js';
 import { chargerVille, poserReperes } from './ville-tripo.js';
 import { chargerFoule, etatFoule } from './foule-reelle.js';
-import { construireSalle } from './salle-jeux.js';
+import { construireSalle, pieceVisitee } from './salle-jeux.js';
 import { detailsToits, STATS_TOITS } from './toits-details.js';
 import { chargerPersonnages, majPersonnages } from './personnages.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
@@ -135,7 +135,7 @@ function image(now) {
   majFeuxVille(U.uTime.value, JEU.actif || reelle); // feux tricolores cachés en jeu (le jeu a les siens) et en Vue réelle seule
   majMultijoueur(dt);
   majPersonnages(dt);
-  const hors = horsDeLaPiece(pieceDuSalon(), camera.position), avant = hors.map(o => o.visible); // dans une pièce : la ville n'est pas dessinée
+  const hors = horsDeLaPiece(pieceDuSalon() || pieceVisitee(), camera.position), avant = hors.map(o => o.visible); // dans une pièce : la ville n'est pas dessinée
   for (const o of hors) o.visible = false;
   if (SOIGNE.r && SOIGNE.voulu && !MR.actif) {
     SOIGNE.r.rendre(moodCur.night || 0);

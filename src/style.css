@@ -1952,3 +1952,11 @@ button.ff-ligne:hover { border-color: var(--accent); }
 .sj-jeu { position: fixed; inset: 0; z-index: 70; background: #000; display: grid; grid-template-rows: auto 1fr; }
 .sj-jeu-barre { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; padding-top: max(8px, env(safe-area-inset-top)); background: #15112a; color: #fff; }
 .sj-jeu iframe { width: 100%; height: 100%; border: 0; background: #000; }
+/* La visite de la salle depuis la fiche du lieu (06/11) : le fondu au noir à la porte, la barre « Voir les jeux · Sortir ». */
+.sj-voile { position: fixed; inset: 0; z-index: 65; background: #07050d; opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+.sj-voile.noir { opacity: 1; pointer-events: auto; }
+.sj-visite { position: fixed; z-index: 55; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 18px; border-radius: 999px; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); font-family: var(--font-body); max-width: calc(100vw - 32px); }
+.sj-visite[hidden] { display: none; }
+#app.salle-visite .jouer-flottants, #app.salle-visite .mini-carte, #app.salle-visite #labels, #app.salle-visite .side, #app.salle-visite .hud, #app.salle-visite .card, #app.salle-visite .dock { display: none; }
+.sj-visite b { font-size: 15px; white-space: nowrap; }
+@media (max-width: 420px) { .sj-visite b { display: none; } .sj-visite { padding-left: 8px; } }
