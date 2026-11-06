@@ -31,13 +31,16 @@ button{margin-top:12px;width:100%;font:inherit;font-weight:700;padding:13px;bord
 const pageCode = (erreur, statut = 401) => new Response(PAGE(erreur), { status: statut, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 
 export default async function middleware(request) {
-  if (request.method === 'POST') {
+  const api = new URL(request.url).pathname.startsWith('/api/');
+  // Le formulaire du code n'existe que sur la page. Un POST vers /api/jeux-admin (Valider, Refuser, Répondre…) passe par
+  // le cookie comme un GET : avant, il était pris pour le formulaire et recevait la page « Code incorrect. » (401).
+  if (request.method === 'POST' && !api) {
     const code = (await request.formData().catch(() => null))?.get('code')?.toString().trim();
     if (!(await bonCode(code))) return pageCode(true);
     return new Response(null, { status: 303, headers: { location: '/tableau.html', 'cache-control': 'no-store',
       'set-cookie': `${COOKIE}=${encodeURIComponent(code)}; Path=/; Max-Age=${JOURS * 86400}; HttpOnly; Secure; SameSite=Lax` } });
   }
   if (await bonCode(lireCookie(request.headers.get('cookie'), COOKIE))) return next({ headers: { 'cache-control': 'no-store' } });
-  if (new URL(request.url).pathname.startsWith('/api/')) return new Response('{"erreur":"code"}', { status: 401, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+  if (api) return new Response('{"erreur":"code"}', { status: 401, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
   return pageCode(false);
 }
