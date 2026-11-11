@@ -14,6 +14,7 @@ import { VIE, carburant, consommer, depenser, faireLePlein, manger, reservoir, s
 import { actionsNuit, arreterNuit, initNuit, majNuit } from './nuit.js';
 import { actionsVol, arreterVol, initVol, majAeroports, majVol } from './vol.js';
 import { actionsMetier, chocMetier, enService, initMetiers, majMetiers, quitterMetiers } from './metiers.js';
+import { arreterCourseVelo } from './course-velo.js';
 // Le nom du véhicule sur le compteur (des mots, traduits en anglais ; V.type reste le code).
 const COMPTEUR = { moto: 'Moto', voiture: 'Voiture', taxi: 'Taxi', tokpa: 'Tokpa-tokpa', zem: 'Zémidjan', velo: 'Vélo', citadine: 'Citadine', bolide: 'Bolide électrique', roadster: 'Tesla Roadster', jetour: 'Jetour X70' };
 
@@ -24,7 +25,7 @@ const COMPTEUR = { moto: 'Moto', voiture: 'Voiture', taxi: 'Taxi', tokpa: 'Tokpa
 // s'asseoir et manger, prendre l'avion pour Ouidah (vol.js). Chaque paiement est débité du portefeuille de
 // « Ma vie » et se voit (billet, objet).
 
-export const T = { mode: 'pied', veh: null, zem: null, gps: null, plat: null, repas: null, trans: null, conso: 0, panneDite: false, ctx: null, gpsT: 0 };
+export const T = { mode: 'pied', veh: null, zem: null, gel: false, gps: null, plat: null, repas: null, trans: null, conso: 0, panneDite: false, ctx: null, gpsT: 0 };
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 const v3 = new THREE.Vector3();
 let S = null, ligne = () => { }, bulleLocale = null;
@@ -124,7 +125,7 @@ function etiquette(texte) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); sp.scale.set(.145, .033, 1); sp.renderOrder = 30; return sp;
 }
 export function quitterMonde() {
-  quitterMetiers(); arreterVol(); arreterNuit(); moteurStop(); S.moi?.userData.velo?.(null); retirerVehicule(T.veh); T.veh = null; if (T.zem) retirerVehicule(T.zem.V); T.zem = null;
+  quitterMetiers(); arreterVol(); arreterNuit(); arreterCourseVelo(); moteurStop(); S.moi?.userData.velo?.(null); retirerVehicule(T.veh); T.veh = null; if (T.zem) retirerVehicule(T.zem.V); T.zem = null;
   retirerRuban(T.gps?.m); T.gps = null; jeterPlat(); T.repas = null; T.trans = null; T.mode = 'pied';
   if (S?.moi) S.moi.visible = true;
   cacherAide();
@@ -508,6 +509,7 @@ export function majTrajets(dt, av, tour) {
     if (panne && V.vol?.phase === 'croisiere' && performance.now() > (T.poseT || 0)) { T.poseT = performance.now() + 1000; atterrir(V); } // plus d'essence : elle va se poser sur la route la plus proche
     // Au doigt, la moto suit la rue (conduite.js). Le 04/11, ce commentaire avait avalé la suite de la ligne : plus de
     // bruit ni de vibration aux chocs, et les clients ne les comptaient plus.
+    if (T.gel) { av = 0; tour = 0; V.v = 0; } // tenu sur la ligne de départ d'une course à vélo (course-velo.js)
     const vol = V.vol, km0 = V.km, choc = piloter(V, av, tour, dt, { panne, aide: coarse });
     if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
     majBloque(V, av, dt);
