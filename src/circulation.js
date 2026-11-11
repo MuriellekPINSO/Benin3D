@@ -31,6 +31,7 @@ const TYPES = [ // part de la circulation, vitesse (m/s), demi-longueur et demi-
 ];
 const COULEURS = ['#e8e8e4', '#9da3a6', '#1f2326', '#7b2a2a', '#2c4a6e', '#c9c9c4'];
 const C = { pret: false, meshes: new Map(), vehicules: [], grille: null, bouts: null, routes: null, actif: false };
+if (import.meta.env.DEV) window.__circulation = C; // pour les tests
 const hasard = (a, b) => a + Math.random() * (b - a);
 
 // ---------- Les modèles (même repère que vehicules.js : l'avant vers +x) ----------
@@ -346,6 +347,10 @@ export function majCirculation(dt, J) {
     // Pas de file : celui que les autres ralentissent de moitié plus de 3 s, loin des yeux du joueur, s'en va ailleurs.
     V.fileT = viseVeh < V.vmax * .5 ? (V.fileT || 0) + dt : 0;
     if (V.fileT > 3 && !barre && !V.contour && horsDeVue(J, x, z)) { V.fileT = 0; V.R = null; continue; }
+    // Déjà dans une voiture garée (« les voitures s'entremêlent », Murielle, 11/11 : un taxi encastré dans son Jetour) :
+    // le garde-fou plus haut l'empêche d'y entrer davantage, mais aussi d'en sortir, et il restait là. Il va rouler ailleurs.
+    V.dedansT = dansObstacles(V, x, z, Math.atan2(fx, fz), obst) > .05 ? (V.dedansT || 0) + dt : 0;
+    if (V.dedansT > .5) { V.dedansT = 0; V.R = null; V.ailleurs = true; continue; }
     V.px = x; V.pz = z; V.fx = fx; V.fz = fz; V.cap = Math.atan2(fx, fz);
     if ((x - J.x) ** 2 + (z - J.z) ** 2 < 1600) E.circulation.push(V); // solide près du joueur (trafic.js, dansCirculation)
   }
@@ -397,5 +402,13 @@ function desserrer(dt, J) {
 }
 export function cacherCirculation() { C.actif = false; for (const ms of C.meshes.values()) for (const m of ms) m.visible = false; for (const V of C.vehicules) V.R = null; }
 /** Combien de véhicules roulent à moins de r mètres de (x, z) (pour le bruit de la circulation, ambiance-salon.js). */
+/** Toute la circulation, pas seulement celle qui entoure le joueur (E.circulation, 40 m) : pour garer sa voiture jusqu'à
+ *  150 m de lui sans la poser sur une voiture qui passe. Le rectangle entier (centre, cap, demi-longueur, demi-largeur) :
+ *  des points tous les 50 cm laissaient passer le coin d'une voiture en biais. */
+export function chevaucheTrafic(x, z, cap, hl, hw) {
+  let p = 0;
+  for (const V of C.vehicules) if (V.R && Math.abs(x - V.px) < hl + 8 && Math.abs(z - V.pz) < hl + 8) p = Math.max(p, chevauchement(x, z, cap, hl, hw, V.px, V.pz, V.cap, V.hl, V.hw));
+  return p;
+}
 export function densiteCirculation(x, z, r = 60) { let n = 0; for (const V of C.vehicules) if (V.R && Math.abs(V.px - x) < r && Math.abs(V.pz - z) < r) n += 2.5; return n; } // 40 au lieu de 110 : chacun compte pour plus, le bruit de la rue ne baisse pas
 if (import.meta.env.DEV) window.__circulation = C;

@@ -79,7 +79,10 @@ export function garerSonVehicule(ou = null) {
   const type = VIE.data?.vehicule; if (!type || !VEHICULES[type] || T.veh) return;
   const o = S.lieu ? arriveeDehors(S.lieu) : S; // dans un bâtiment (chez soi au réveil) : dans la rue, devant la porte
   const q = ou ? [ou.x, ou.z] : pointDeRoute(o.x + Math.sin(o.cap + Math.PI / 2) * 4, o.z + Math.cos(o.cap + Math.PI / 2) * 4, 0, 150); if (!q) return;
-  const p = ou ? [ou.x, ou.z, ou.cap] : saPlace(type, q) || [q[0], q[1], Math.atan2(q[0] - o.x, q[1] - o.z)];
+  // Pas de place libre à cet endroit de la rue (un carrefour, des voitures qui passent) : les rues autour, avant de la
+  // poser quand même — elle tombait alors sur une voiture de la circulation (« elles s'entremêlent », 11/11).
+  const ailleurs = () => { for (const r of [15, 30, 45]) for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, q2 = pointDeRoute(o.x + Math.sin(a) * r, o.z + Math.cos(a) * r, 0, 12), p2 = q2 && saPlace(type, q2); if (p2) return p2; } return null; };
+  const p = ou ? [ou.x, ou.z, ou.cap] : saPlace(type, q) || ailleurs() || [q[0], q[1], Math.atan2(q[0] - o.x, q[1] - o.z)];
   T.veh = creerVehicule(type, { couleur: couleurPerso(type), peinture: peintureDe(type) }); placer(T.veh, p[0], p[1], p[2]);
   // La Roadster s'appelait « Ta moto » (le nom par défaut) ; le bolide est « garé », pas « garée ».
   const nom = type === 'voiture' ? 'Ta voiture' : type === 'velo' ? 'Ton vélo' : type === 'citadine' ? 'Ta citadine' : type === 'bolide' ? 'Ton bolide' : type === 'roadster' ? 'Ta Roadster' : type === 'jetour' ? 'Ton Jetour' : 'Ta moto', e = etiquette(nom); e.position.y = ['voiture', 'citadine', 'bolide', 'roadster', 'jetour'].includes(type) ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;

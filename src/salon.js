@@ -1021,7 +1021,9 @@ function suivreClavier() {
  */
 function majGarees() {
   const L = E.garees; L.length = 0;
-  const mettre = V => { if (V?.g && V.g.visible !== false && V.D && (V.x - S.x) ** 2 + (V.z - S.z) ** 2 < 22500) L.push({ x: V.x, z: V.z, cap: V.cap, hl: V.D.long / 2, hw: V.D.larg / 2 }); };
+  // Jusqu'à 320 m : la circulation roule jusqu'à 300 m du joueur (circulation.js, LOIN). À 150 m, une voiture garée plus
+  // loin n'était plus un obstacle : la circulation lui passait au travers, et y restait encastrée quand on revenait.
+  const mettre = V => { if (V?.g && V.g.visible !== false && V.D && (V.x - S.x) ** 2 + (V.z - S.z) ** 2 < 320 * 320) L.push({ x: V.x, z: V.z, cap: V.cap, hl: V.D.long / 2, hw: V.D.larg / 2 }); };
   if (T.mode !== 'conduit' && T.mode !== 'apprenti') mettre(T.veh); // au volant, c'est le joueur lui-même (E.joueur)
   if (T.mode !== 'passager') mettre(T.zem?.V);
   for (const A of S.autres.values()) { mettre(A.garee); if (A.g?.visible) mettre(A.veh); }

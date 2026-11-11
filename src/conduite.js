@@ -9,6 +9,7 @@ import { animerMoto } from './roues.js';
 import { dansTerrePlein } from './terre-pleins.js';
 import { dansPlace } from './zones.js';
 import { chevauchement, dansCirculation } from './trafic.js';
+import { chevaucheTrafic } from './circulation.js';
 import { E } from './etat.js';
 import { CIEL_RUE, scene } from './scene.js';
 import { plusTard } from './telechargements.js';
@@ -744,7 +745,7 @@ export function departLibre(D, x, z, cap, { devant = 6, cote = 1.2, gares = [] }
     const px = x + s * a + c * b, pz = z + c * a - s * b;
     if (!surRoute(px, pz) || !horsMur(px, pz) || dansCirculation(px, pz, .05) > 0 || garee(px, pz)) return false;
   }
-  return true;
+  return chevaucheTrafic(x + s * devant / 2, z + c * devant / 2, cap, L + devant / 2, cote + .05) <= 0; // toute la circulation : on gare jusqu'à 150 m du joueur
 }
 // Quatre jets bleus sous la caisse, créés au premier vol.
 const FLAMME = { geo: null, mat: null };
