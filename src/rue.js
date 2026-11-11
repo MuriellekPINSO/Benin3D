@@ -4,6 +4,7 @@ import { LITE, SECOURS, hash, toXZ } from './base.js';
 import { camera, controls, scene } from './scene.js';
 import { dansParc, rectSansConstruction, sansConstruction, zoneBoutique } from './zones.js';
 import { ELARGIR, ilesDesRondsPoints, ROAD_W, roadLines } from './ville.js';
+import { profondeurEau } from './eau.js';
 import { texFacades } from './facades.js';
 import { texIA } from './textures-ia.js';
 import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
@@ -684,8 +685,25 @@ export function profilRoute(x, z, dx, dz) {
  * Un piéton peut-il se tenir en (x, z) : ni dans un bâtiment, ni sur une chaussée, ni sur un terre-plein.
  * Avec une direction de marche (dx, dz), les rues qui la croisent sont permises : on les traverse.
  */
+// L'eau (eau.js) : à pied, on peut entrer de PIEDS_DANS_L_EAU mètres dans les vagues ou au bord de la lagune, pas plus.
+// Sur un pont, la lagune passe dessous : ce n'est pas de l'eau.
+export const PIEDS_DANS_L_EAU = 2.5;
+/** Combien de mètres dans l'eau (négatif : sur la terre, ou sur un pont). */
+export function eauIci(x, z) { const p = profondeurEau(x, z); return p > 0 && surPont(x, z) ? -1 : p; }
+/** Combien de mètres au-delà de ce qu'on peut faire dans l'eau (0 : on peut y être). `marge` : ce qu'on y tolère. */
+export const dansLEau = (x, z, marge = PIEDS_DANS_L_EAU) => Math.max(0, eauIci(x, z) - marge);
+function surPont(x, z, marge = 1.5) {
+  const l = R.grilleR?.get(cle(x, z, CR)); if (!l) return false;
+  const S = R.segR;
+  for (const n of l) {
+    const o = n * 6; if (!roadLines[S[o]].bridge) continue;
+    const ax = S[o + 1], az = S[o + 2], ux = S[o + 3] - ax, uz = S[o + 4] - az, l2 = ux * ux + uz * uz || 1, t = Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / l2));
+    if (Math.hypot(ax + ux * t - x, az + uz * t - z) < S[o + 5] + marge) return true;
+  }
+  return false;
+}
 export function pietonOk(x, z, dx = 0, dz = 0) {
-  if (!R.grilleR || dansBatiment(x, z) || dansTerrePlein(x, z, .3) || dansObstacleRue(x, z, .25)) return false;
+  if (!R.grilleR || dansBatiment(x, z) || dansTerrePlein(x, z, .3) || dansObstacleRue(x, z, .25) || dansLEau(x, z, 0) > 0) return false; // ni dans l'eau (passants, vélo, Roadster qui se pose)
   for (const [ax, az, r0, r1] of R.anneaux) { const d = Math.hypot(x - ax, z - az); if (d > r0 - .3 && d < r1 + .3) return false; }
   const l = R.grilleR.get(cle(x, z, CR)); if (!l) return true;
   const S = R.segR;

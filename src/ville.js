@@ -10,6 +10,7 @@ import { texIA } from './textures-ia.js';
 import { COUCHES_SOL, U, flatMat, grainSol, scene } from './scene.js';
 import { rectSansConstruction } from './zones.js';
 import { croiseesLe, dansCroisees } from './chaussee.js';
+import { ajouterEau } from './eau.js';
 
 // ---------- Surfaces ----------
 export const KIND_STYLE = [
@@ -48,6 +49,7 @@ export function buildSurfaces(S) {
     }
     if (k === 1) rings.length = 1; // Ganvié : pilotis dans l'eau, pas sur des îlots
     if (k === 0 && !oceanRing) oceanRing = rings[0];
+    if (KIND_STYLE[k]?.water) ajouterEau(rings); // on n'y marche pas (eau.js, rue.js)
     if (!byKind.has(k)) byKind.set(k, []);
     byKind.get(k).push(rings);
   }

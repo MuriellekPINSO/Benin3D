@@ -17,7 +17,7 @@ import { startFlight } from './interface.js';
 import { JEU } from './jeu.js';
 import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personnagesPrets, telephone3d } from './personnages.js';
 import { placesDe, retirerRuban, stationLaPlusProche, surRoute } from './conduite.js';
-import { dansBatiment, obstaclesPres, profondeurRue } from './rue.js';
+import { dansBatiment, dansLEau, eauIci, obstaclesPres, profondeurRue } from './rue.js';
 import { hauteurSol } from './sols.js';
 import { PEIGNABLES, PEINTURES, PRIX_PEINTURE, actions, appelerZem, asseoir, asseoirSur, choisir, couleurValide, entrerMonde, garerSonVehicule, gps, pointDeRoute, initTrajets, majTrajets, peindreSonVehicule, peintureDe, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe, vehiculeGareDe } from './trajets.js';
 import { dansCirculation } from './trafic.js';
@@ -1376,8 +1376,10 @@ function gene(x, z) {
   if (S.lieu) return profondeurInterieur(S.lieu, x, z);
   if (dansBatiment(x, z)) return 99;
   const bord = ANNEAU.reduce((n, [u, v]) => n + (dansBatiment(x + u, z + v) ? 1 : 0), 0) * .04; // le corps frôle une façade
-  return Math.max(bord, profondeurRue(x, z), obstacleArene(x, z), corps(x, z));
+  return Math.max(bord, profondeurRue(x, z), obstacleArene(x, z), corps(x, z), dansLEau(x, z)); // la mer, la lagune : 2,5 m dans les vagues, pas plus (11/11)
 }
+/** Dans les vagues ou au bord de la lagune, on s'enfonce un peu : jusqu'aux mollets, l'eau cache les pieds (eau.js). */
+const solOuEau = (x, z) => hauteurSol(x, z) - Math.min(.3, Math.max(0, eauIci(x, z)) * .12);
 // Dehors, des marches et des estrades (sols.js) : on monte une marche de 0,45 m au plus ; plus haut, c'est un mur.
 // Contre un mur en biais, essayer seulement les deux axes ne suffisait pas, et le corps qui frôlait la façade ne pouvait
 // que s'en écarter : on restait collé, comme devant un « mur invisible » (testeurs, 22/10). On essaie donc aussi le même
@@ -1388,8 +1390,8 @@ function deplacer(nx, nz) {
   const essais = [[nx, nz], ...GLISSE.map(([c, s]) => [S.x + (dx * c - dz * s) * c, S.z + (dx * s + dz * c) * c]), [nx, S.z], [S.x, nz]];
   for (const [x, z] of essais) {
     const [cx, cz] = S.lieu ? limiter(S.lieu, x, z) : [x, z], p = gene(cx, cz);
-    if (!S.lieu && hauteurSol(cx, cz) - S.y > .45) continue;
-    if (p === 0 || p < ici - 1e-4 || (p < 1 && p <= ici + 1e-4)) { S.x = cx; S.z = cz; if (!S.lieu) S.y = hauteurSol(cx, cz); return; } // à 99, on est dans un bâtiment : on peut seulement en sortir
+    if (!S.lieu && solOuEau(cx, cz) - S.y > .45) continue;
+    if (p === 0 || p < ici - 1e-4 || (p < 1 && p <= ici + 1e-4)) { S.x = cx; S.z = cz; if (!S.lieu) S.y = solOuEau(cx, cz); return; } // à 99, on est dans un bâtiment : on peut seulement en sortir
   }
 }
 

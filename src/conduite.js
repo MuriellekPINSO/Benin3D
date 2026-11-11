@@ -3,7 +3,7 @@ import { TRIPO, urlTripo } from './batiments-tripo.js';
 import { construireReseau, itineraireCourt, itineraireGps } from './carrefours.js';
 import { personne } from './discussions.js';
 import { dansArbre, dansFoule } from './lieux.js';
-import { dansBatiment, dansObstacleRue, pietonOk } from './rue.js';
+import { dansBatiment, dansLEau, dansObstacleRue, pietonOk } from './rue.js';
 import { hauteurSol } from './sols.js';
 import { animerMoto } from './roues.js';
 import { dansTerrePlein } from './terre-pleins.js';
@@ -494,7 +494,8 @@ export function degager(V) {
 // promener sur les trottoirs ; ni dans un arbre, ni dans la foule d'un lieu. (pietonOk refusait le bord de la chaussée :
 // on restait bloqué à un mètre de la route.)
 // Au-delà, on peut encore s'approcher de la route : arrivé au bout en longeant la rue, on n'était plus bloqué que de face.
-const horsRouteOk = (V, x, z) => horsMur(x, z) && dansArbre(x, z) <= 0 && dansFoule(x, z) <= 0 && (Math.hypot(x - V.horsRoute.x, z - V.horsRoute.z) < 90 || bordRoute(x, z) < bordRoute(V.x, V.z) - 1e-3);
+// Ni dans la mer ni dans la lagune (posée sur la plage, elle roulait dans les vagues) ; si elle y est, elle peut en sortir.
+const horsRouteOk = (V, x, z) => horsMur(x, z) && dansArbre(x, z) <= 0 && dansFoule(x, z) <= 0 && (dansLEau(x, z, 0) <= 0 || dansLEau(x, z, 0) < dansLEau(V.x, V.z, 0)) && (Math.hypot(x - V.horsRoute.x, z - V.horsRoute.z) < 90 || bordRoute(x, z) < bordRoute(V.x, V.z) - 1e-3);
 const horsMur = (x, z, vole = false) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && (vole || hauteurSol(x, z) < .25); // ni sur des marches (sols.js) ; en vol, on passe au-dessus
 // Les autres véhicules : toute la caisse compte, pas seulement l'avant — en tournant, l'arrière et les flancs entraient
 // dans les voitures arrêtées. Et si l'on est déjà dedans (posé sur une voiture, ou serré par elle), on peut toujours s'en
