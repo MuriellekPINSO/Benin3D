@@ -4,6 +4,7 @@ import { LITE, hash } from './base.js';
 import { camera } from './scene.js';
 import { plusTard } from './telechargements.js';
 import { chargeurGLB } from './textures.js';
+import { actif, fetchActif } from './actifs.js';
 
 // ---------- Personnages béninois réalistes et animés ----------
 // scripts/personnages.mjs fabrique public/modeles/personnages/<id>.glb avec Tripo : un modèle
@@ -26,12 +27,12 @@ export function chargerPersonnages() { return PRETS ??= chargerTous(); }
 export const personnagesCharges = () => PRETS ?? Promise.resolve(false);
 async function chargerTous() {
   let idx = {};
-  try { const r = await fetch(import.meta.env.BASE_URL + 'modeles/personnages/index.json'); if (r.ok && /json/.test(r.headers.get('content-type') || '')) idx = await r.json(); } catch { }
+  try { const r = await fetchActif('modeles/personnages/index.json'); if (r.ok && /json/.test(r.headers.get('content-type') || '')) idx = await r.json(); } catch { }
   P.index = idx;
   const chargeur = chargeurGLB();
   await Promise.all(Object.entries(idx).map(async ([id, info]) => {
     try {
-      const g = await plusTard(() => chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/personnages/${id}.glb?v=${info.octets}`), true); // avant les monuments : on les voit de près
+      const g = await plusTard(() => chargeur.loadAsync(actif(`modeles/personnages/${id}.glb?v=${info.octets}`)), true); // avant les monuments : on les voit de près
       P.modeles[id] = preparer(id, g, info);
     } catch (e) { console.warn('personnage', id, e.message); }
   }));
@@ -44,10 +45,10 @@ async function chargerTous() {
 // Accessoires (modèles Tripo sans squelette) : bassines de fruits portées sur la tête…
 async function chargerAccessoires(chargeur) {
   let liste = {};
-  try { const r = await fetch(import.meta.env.BASE_URL + 'modeles/personnages/accessoires/index.json'); if (r.ok && /json/.test(r.headers.get('content-type') || '')) liste = await r.json(); } catch { }
+  try { const r = await fetchActif('modeles/personnages/accessoires/index.json'); if (r.ok && /json/.test(r.headers.get('content-type') || '')) liste = await r.json(); } catch { }
   await Promise.all(Object.entries(liste).map(async ([id, info]) => {
     try {
-      const s = (await chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/personnages/accessoires/${id}.glb?v=${info.octets}`)).scene;
+      const s = (await chargeur.loadAsync(actif(`modeles/personnages/accessoires/${id}.glb?v=${info.octets}`))).scene;
       const b = new THREE.Box3().setFromObject(s), t = b.getSize(new THREE.Vector3()), ech = (info.largeur || .55) / Math.max(t.x, t.z);
       s.scale.setScalar(ech); s.position.set(-(b.min.x + b.max.x) / 2 * ech, -b.min.y * ech, -(b.min.z + b.max.z) / 2 * ech);
       s.traverse(o => { if (o.isMesh) o.castShadow = !LITE; });
@@ -66,13 +67,13 @@ export const personnagesPrets = () => P.pret;
 // tirées au hasard pour les passants (ce sont des rôles, comme le policier).
 const TENUES = {};
 let INDEX_MODE = null;
-const indexMode = () => (INDEX_MODE ??= fetch(`${import.meta.env.BASE_URL}modeles/mode/index.json`).then(r => r.json()).catch(() => ({})));
+const indexMode = () => (INDEX_MODE ??= fetchActif('modeles/mode/index.json').then(r => r.json()).catch(() => ({})));
 /** Charge la tenue `id` (modèle animé) ; renvoie true si elle est prête. */
 export function chargerTenue(id, info) {
   if (P.modeles[id]) return Promise.resolve(true);
   TENUES[id] ??= (async () => {
     info ??= (await indexMode())[id] || {};
-    const [g] = await Promise.all([chargeurGLB().loadAsync(`${import.meta.env.BASE_URL}modeles/mode/${id}.glb?v=${info.octets || 0}`), personnagesCharges()]);
+    const [g] = await Promise.all([chargeurGLB().loadAsync(actif(`modeles/mode/${id}.glb?v=${info.octets || 0}`)), personnagesCharges()]);
     emprunterAnimations(g, P.modeles[info.femme ? 'etudiante' : 'jeune'] || Object.values(P.modeles).find(M => !M.mode && M.femme === !!info.femme));
     P.modeles[id] = Object.assign(preparer(id, g, info), { mode: true }); return true;
   })().catch(e => { delete TENUES[id]; console.warn('tenue', id, e.message); return false; });
@@ -99,7 +100,7 @@ export function chargerDanses() {
   const chargeur = chargeurGLB();
   P.danses = Promise.all(Object.entries(P.modeles).map(async ([id, M]) => {
     const o = P.index[id]?.danses; if (!o) return;
-    try { const g = await chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/personnages/${id}-danses.glb?v=${o}`); for (const c of g.animations) M.clips[c.name] = c; }
+    try { const g = await chargeur.loadAsync(actif(`modeles/personnages/${id}-danses.glb?v=${o}`)); for (const c of g.animations) M.clips[c.name] = c; }
     catch (e) { console.warn('danses', id, e.message); }
   }));
   return P.danses;

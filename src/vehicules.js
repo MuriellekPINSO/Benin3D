@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { LITE } from './base.js';
 import { chargeurGLB } from './textures.js';
+import { actif } from './actifs.js';
 
 // ---------- Véhicules : zémidjan, tokpa-tokpa, voitures, chèvres, marchandes ----------
 // Zém : moto rouge à selle longue, conducteur en chemise jaune numérotée (Cotonou), casque.
@@ -367,7 +368,7 @@ const matTrafic = map => new THREE.MeshStandardMaterial({ map, roughness: .7, me
 let traficEnRoute = null;
 export function chargerTrafic() {
   return traficEnRoute ??= (async () => {
-    const url = f => import.meta.env.BASE_URL + 'modeles/trafic/' + f;
+    const url = f => actif('modeles/trafic/' + f);
     try {
       const [voiture, taxi, moto, loin] = await Promise.all(['voiture.glb', 'taxi.glb', 'moto.glb', 'moto-loin.glb'].map(f => chargeur.loadAsync(url(f)).then(g => g.scene)));
       // Le redressement aligne l'axe long sans savoir où est l'avant (comme DEMI_TOUR dans conduite.js) : la voiture
@@ -390,7 +391,7 @@ export function chargerTrafic() {
 // que le téléphone construit la ville, au lieu d'attendre l'étape « Zémidjans ».
 let zemsEnRoute = null;
 export function prechargerZems() {
-  const url = f => import.meta.env.BASE_URL + 'modeles/' + f;
+  const url = f => actif('modeles/' + f);
   const charge = f => chargeur.loadAsync(url(f)).then(g => g.scene).catch(e => { console.warn(`modèle ${f} indisponible`, e); return null; });
   return zemsEnRoute ??= Promise.all([charge('moto-taxi.glb'), charge('zem-lod.glb'), charge('moto-taxi-lod.glb')]);
 }

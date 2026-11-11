@@ -7,6 +7,7 @@
 // façade, et les textures des modèles (personnages, monuments, véhicules).
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { avecRepli } from './actifs.js';
 import { LITE, SECOURS } from './base.js';
 
 /** Côté maximal d'une image, en pixels. Sur ordinateur on ne touche à rien. */
@@ -70,7 +71,8 @@ export function libererImages(racine) {
   return racine;
 }
 
-/** Le chargeur de modèles du jeu : meshopt, et les textures réduites à l'arrivée sur téléphone.
+/** Le chargeur de modèles du jeu : meshopt, et les textures réduites à l'arrivée sur téléphone. Un modèle demandé à
+ *  jsDelivr (actifs.js) est repris sur le site s'il n'en vient pas.
  *  `liberer` : modèles que seule la ville montre (bâtiments et véhicules Tripo, zémidjans), images rendues après l'envoi.
  *  `max` : côté maximal de leurs images, sur ordinateur aussi. */
 export function chargeurGLB({ liberer = false, max = MAX_TEX, dePres = false } = {}) {
@@ -79,7 +81,7 @@ export function chargeurGLB({ liberer = false, max = MAX_TEX, dePres = false } =
   // (« plus net », Murielle, 11/11) : elle garde le 1024 de sa version légère, 4 Mo de plus par voiture affichée.
   max = Math.min(max, dePres && LITE && !SECOURS ? 1024 : MAX_TEX);
   const charger = L.loadAsync.bind(L), brut = max === Infinity && !liberer;
-  L.loadAsync = (...a) => avecReprises(() => charger(...a)).then(g => { if (!brut) { reduireTextures(g.scene, max); if (liberer) libererImages(g.scene); } return g; });
+  L.loadAsync = (url, ...a) => avecReprises(() => avecRepli(url, u => charger(u, ...a))).then(g => { if (!brut) { reduireTextures(g.scene, max); if (liberer) libererImages(g.scene); } return g; });
   return L;
 }
 // « Quand la connexion est faible, on n'arrive pas à voir tous les modèles » (Murielle, 04/11). Mesuré en 1,5 Mb/s avec

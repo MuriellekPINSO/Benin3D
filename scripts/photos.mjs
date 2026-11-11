@@ -28,3 +28,4 @@ for (const [lieu, liste] of Object.entries(PHOTOS)) for (const [i, nom] of liste
 fs.mkdirSync('public/videos', { recursive: true });
 for (const [src, dst] of [['360/CORNICHE .mp4', 'corniche-drone.mp4'], ['360/TOUR.mp4', 'tour-drone.mp4']]) if (fs.existsSync(`${SRC}/${src}`)) fs.copyFileSync(`${SRC}/${src}`, `public/videos/${dst}`);
 console.log(`${n} photos dans public/photos, vidéos dans public/videos`);
+// Les vidéos copiées sont les originales (30 Mo) : les réduire ensuite avec scripts/reencoder-video.swift (débits en tête du fichier).

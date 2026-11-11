@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { LITE, SECOURS } from './base.js';
 import { plusTard } from './telechargements.js';
+import { actif, avecRepli } from './actifs.js';
 
 // Atlas de façades de Cotonou, d'après les vues Street View (2026) : rez-de-chaussée
 // à portes de garage en tôle, rideaux métalliques de boutique, portes et fenêtres à
@@ -26,7 +27,7 @@ export function texFacades(anisotropie = 8) {
   tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = anisotropie;
   tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
   // Les photos : 512 px par case sur ordinateur (4096 × 2048), 256 sur téléphone, la taille des dessins.
-  if (!SECOURS) plusTard(() => new THREE.ImageLoader().loadAsync(`${import.meta.env.BASE_URL}textures/ia/facades${LITE ? '-leger' : ''}.webp`), true).then(img => {
+  if (!SECOURS) plusTard(() => avecRepli(actif(`textures/ia/facades${LITE ? '-leger' : ''}.webp`), u => new THREE.ImageLoader().loadAsync(u)), true).then(img => {
     const k = img.height / 3 / C, cv2 = document.createElement('canvas');
     cv2.width = img.width; cv2.height = img.height / 3 * ATLAS.lignes;
     const c2 = cv2.getContext('2d');

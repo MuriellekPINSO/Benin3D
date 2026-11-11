@@ -13,6 +13,7 @@ import { photoPlusTard, plusTard } from './telechargements.js';
 import { chargeurGLB, reduireImage } from './textures.js';
 import { remplacerParVille, quandVille, instancesVille, echelleSol } from './ville-tripo.js';
 import { ajouterFoule, fouleAnimee, majFoule } from './foule-reelle.js';
+import { actif, avecRepli } from './actifs.js';
 
 // ---------- Lieux détaillés ----------
 // Matières et primitives reprises du projet « 3D monde » (src/entities/Batisseur.ts),
@@ -1347,7 +1348,7 @@ export function arbres(T) {
   if (LITE || SECOURS || new URLSearchParams(location.search).has('facettes')) return; // ?facettes : les volumes d'avant, pour comparer
   const replies = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }); replies.onBeforeCompile = replier; replies.customProgramCacheKey = () => 'arbre-replie-ombre';
   for (const [m] of tous) { m.material.onBeforeCompile = replier; m.material.customProgramCacheKey = () => 'arbre-replie'; m.customDepthMaterial = replies; }
-  const charger = nom => plusTard(() => new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}textures/ia/${nom}.webp`), true).then(x => { x.colorSpace = THREE.SRGBColorSpace; x.anisotropy = 4; return x; });
+  const charger = nom => plusTard(() => avecRepli(actif(`textures/ia/${nom}.webp`), u => new THREE.TextureLoader().loadAsync(u)), true).then(x => { x.colorSpace = THREE.SRGBColorSpace; x.anisotropy = 4; return x; });
   Promise.all([charger('feuillage'), charger('flamboyant')]).then(([feuilles, fl]) => {
     const cartes = [0, 1, 2].map(t => couronneEnCartes(tronc, t)), tr = new THREE.MeshLambertMaterial({ vertexColors: true });
     const mats = [[tr, matFeuillage(feuilles)], [tr, matFeuillage(fl)]], ombres = [ombreFeuillage(feuilles), ombreFeuillage(fl)];
@@ -1385,7 +1386,7 @@ export function terrasses(centre) {
 
 // Téléchargée dès que les données de la ville sont arrivées (main.js), pendant la construction des bâtiments.
 let amazoneEnRoute = null;
-export const prechargerAmazone = () => amazoneEnRoute ??= chargeurGLB().loadAsync(import.meta.env.BASE_URL + 'modeles/amazone.glb');
+export const prechargerAmazone = () => amazoneEnRoute ??= chargeurGLB().loadAsync(actif('modeles/amazone.glb'));
 
 // ---------- Assemblage ----------
 export async function construireLieux(data) {

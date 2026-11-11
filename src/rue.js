@@ -12,6 +12,7 @@ import { MAX_DECOR, reduireImage } from './textures.js';
 import { preparerGeometries } from './memoire.js';
 import { plusTard } from './telechargements.js';
 import { VILLE, instancesVille, echelleSol, echelleHaut, surArriveeVille, geometriesVille } from './ville-tripo.js';
+import { actif, avecRepli } from './actifs.js';
 
 // ---------- Vraies maisons et objets de Cotonou (modèles Tripo d'après photo, ville-tripo.js, 05/11) ----------
 // Une maison sur trois environ devient un modèle fait d'après une photo de Cotonou : la maison basse en tôle pour le
@@ -204,7 +205,7 @@ function matieres() {
   }) });
   MAT.auvent = MAT.portail.clone(); // les auvents gardent la tôle dessinée
   // Le portail en photo (scripts/textures-ia.mjs), gris, teinté par parcelle comme le dessin qu'il remplace.
-  if (!SECOURS) plusTard(() => new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}textures/ia/portail${LITE ? '-leger' : ''}.jpg`), true)
+  if (!SECOURS) plusTard(() => avecRepli(actif(`textures/ia/portail${LITE ? '-leger' : ''}.jpg`), u => new THREE.TextureLoader().loadAsync(u)), true)
     .then(t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; MAT.portail.map = t; MAT.portail.needsUpdate = true; })
     .catch(e => console.warn('portail', e.message));
   MAT.pilier = new THREE.MeshStandardMaterial({ roughness: .9 });

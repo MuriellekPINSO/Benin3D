@@ -122,6 +122,9 @@ const couper = boites => doc => {
     p.getIndices().setArray(new I.constructor(J));
   }
 };
+// Couleur des monuments en 1024 (11/11) : le jeu les réduit à 1024 dès leur arrivée (batiments-tripo.js, max 1024), le
+// 2048 se téléchargeait pour rien (−3 Mo sur les dix). Les véhicules, conduits et vus de près, gardent leur 2048.
+const VUS_DE_PRES = new Set(['voiture', 'voiture-perso', 'moto-perso', 'tokpa', 'avion-tourisme']);
 // Réglage « vehicule » : les véhicules du joueur, vus à deux mètres, gardent plus de détails que les monuments vus de la
 // rue (« plus net », Murielle, 11/11). La couleur est réduite de 4096 à 2048 puis rendue plus nette (Tripo la livre un peu
 // floue) ; le relief (joints de portière, calandre, poignées) passe de 512 à 2048, la rugosité de 512 à 1024.
@@ -165,7 +168,7 @@ async function alleger(id, cible = REGLAGES[id]?.triangles || (vehicule(id) ? 10
     simplify({ simplifier: MeshoptSimplifier, ratio: Math.min(1, cible / avant), error: 0.01 }),
     prune(),
     ...(vehicule(id) ? [texturesVehicule(REGLAGES[id] || {})] : [
-      textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [2048, 2048], slots: /baseColor/ }),
+      textureCompress({ encoder: sharp, targetFormat: 'jpeg', quality: 90, resize: VUS_DE_PRES.has(id) ? [2048, 2048] : [1024, 1024], slots: /baseColor/ }),
       textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [512, 512], slots: /normal|metallicRoughness/ }),
     ]),
     meshopt({ encoder: MeshoptEncoder, level: 'medium' }),

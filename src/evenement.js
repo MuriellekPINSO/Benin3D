@@ -14,6 +14,7 @@ import { fouleAnimee } from './foule-reelle.js';
 import { LITE } from './base.js';
 import { echecCertain, paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
 import { avatarPorte } from './mode.js';
+import { sourceMedia } from './actifs.js';
 
 // ---------- Événement en 3D : concert sur l'esplanade de l'Amazone (priorité 4) ----------
 // Une scène face à la statue, un grand écran, des lumières qui balaient, une foule qui danse et une
@@ -71,7 +72,7 @@ function construire() {
     else { tv.repeat.set(ecranA / a, 1); tv.offset.set((1 - ecranA / a) / 2, 0); }
     EV.video = tv;
   }, { once: true });
-  vid.src = `${import.meta.env.BASE_URL}videos/ecran.mp4`; EV.videoEl = vid;
+  sourceMedia(vid, 'videos/ecran.mp4'); EV.videoEl = vid;
   // Le fond de scène n'existe que pour l'image de l'écran : sans lui, on verrait le ciel derrière l'artiste.
   const fond = new THREE.Mesh(new THREE.PlaneGeometry(26, 12), new THREE.MeshBasicMaterial({ color: '#0a0c10' }));
   fond.position.set(sx, 5, sz + 4.6); fond.rotation.y = Math.PI; fond.layers.set(ECRAN); g.add(fond);

@@ -2,6 +2,7 @@
 // Photos du dossier « espace » de 3D monde (septembre 2026) et deux vidéos de drone
 // (« 360 ») : la Corniche, et un tour de ville dont on découpe les passages par lieu.
 // Fichiers produits par `npm run photos` dans public/photos et public/videos.
+import { actif, imageRepli, sourceMedia } from './actifs.js';
 
 const PH = (lieu, n) => Array.from({ length: n }, (_, i) => `photos/${lieu}-${i + 1}.jpg`);
 const TOUR = 'videos/tour-drone.mp4';
@@ -30,12 +31,12 @@ export function montrerSurPlace(el, p) {
   const vids = d.videos || [], photos = d.photos || [];
   el.innerHTML = `
     ${vids.length ? `<div class="sp-video"><video muted playsinline autoplay preload="metadata"></video>${vids.length > 1 ? `<div class="sp-passages">${vids.map((_, i) => `<button type="button" data-v="${i}" aria-pressed="${i === 0}">Passage ${i + 1}</button>`).join('')}</div>` : ''}</div>` : ''}
-    ${photos.length ? `<div class="sp-grande"><img alt=""></div><div class="sp-vignettes">${photos.map((f, i) => `<button type="button" data-i="${i}" aria-label="Photo ${i + 1}"><img src="${import.meta.env.BASE_URL + f}" loading="lazy" alt=""></button>`).join('')}</div>` : ''}`;
+    ${photos.length ? `<div class="sp-grande"><img alt=""></div><div class="sp-vignettes">${photos.map((f, i) => `<button type="button" data-i="${i}" aria-label="Photo ${i + 1}"><img src="${actif(f)}" loading="lazy" alt=""></button>`).join('')}</div>` : ''}`;
   const video = el.querySelector('video'), grande = el.querySelector('.sp-grande img');
+  el.querySelectorAll('.sp-vignettes img').forEach(imageRepli); if (grande) imageRepli(grande);
   const jouer = i => {
     const [src, t0, t1] = vids[i]; segment = [t0, t1];
-    const url = import.meta.env.BASE_URL + src;
-    if (!video.src.endsWith(url)) video.src = url;
+    if (video.dataset.actif !== src) sourceMedia(video, src); // un seul fichier par lieu : les passages en sont des extraits
     const go = () => { video.currentTime = t0; video.play().catch(() => { }); };
     if (video.readyState >= 1) go(); else video.addEventListener('loadedmetadata', go, { once: true });
     el.querySelectorAll('[data-v]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === i)));
@@ -45,7 +46,7 @@ export function montrerSurPlace(el, p) {
     el.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => jouer(+b.dataset.v)));
     jouer(0);
   }
-  const voir = i => { grande.src = import.meta.env.BASE_URL + photos[i]; el.querySelectorAll('[data-i]').forEach(b => b.setAttribute('aria-current', String(+b.dataset.i === i))); };
+  const voir = i => { grande.src = actif(photos[i]); el.querySelectorAll('[data-i]').forEach(b => b.setAttribute('aria-current', String(+b.dataset.i === i))); };
   if (grande) { el.querySelectorAll('[data-i]').forEach(b => b.addEventListener('click', () => voir(+b.dataset.i))); voir(0); if (video) el.querySelector('.sp-grande').hidden = true; el.querySelectorAll('[data-i]').forEach(b => b.addEventListener('click', () => { el.querySelector('.sp-grande').hidden = false; })); }
   return d.texte || 'Images prises sur place, filmées au drone en septembre 2026.';
 }

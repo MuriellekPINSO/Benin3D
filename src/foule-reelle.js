@@ -14,6 +14,7 @@ import { scene } from './scene.js';
 import { plusTard } from './telechargements.js';
 import { chargeurGLB } from './textures.js';
 import { enFlottants, indexVille } from './ville-tripo.js';
+import { actif } from './actifs.js';
 
 // Mètres (caméra comprise : de haut, on les voit moins) : finesse haute en deçà de PRES, basse jusqu'à LOIN. Cases de CASE m.
 const PRES = LITE ? 70 : 120, LOIN = LITE ? 200 : 350, CASE = 40;
@@ -29,7 +30,7 @@ export function variantesFoule(nom, { prioritaire = false } = {}) {
   return FICHIERS[nom] ??= (async () => {
     if (SECOURS) return null;
     const i = (await indexVille())?.[nom]; if (!i) return null;
-    const url = `${import.meta.env.BASE_URL}modeles/ville/${nom}.glb?v=${i.octets}`;
+    const url = actif(`modeles/ville/${nom}.glb?v=${i.octets}`);
     const g = await plusTard(() => chargeurGLB({ liberer: true, max: LITE ? 512 : 1024 }).loadAsync(url), prioritaire ? true : { apres: true });
     g.scene.updateMatrixWorld(true);
     let mat = null; const par = new Map();

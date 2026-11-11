@@ -6,6 +6,7 @@ import { JEU, fmtF, sauver } from './jeu.js';
 import { chargerTenue, personnage3d } from './personnages.js';
 import { echecCertain, paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
 import { chargeurGLB } from './textures.js';
+import { actif, fetchActif } from './actifs.js';
 
 // ---------- Boutique de mode (version de test) ----------
 // « Joue, trouve ton style, porte-le pour de vrai. » On essaie les tenues sur son personnage dans une
@@ -54,7 +55,7 @@ const fmtR = n => `${Math.round(n).toLocaleString('fr-FR')} F CFA`; // prix rée
 
 // ---------- Les listes de modèles (écrites par les scripts) ----------
 async function lireIndex(chemin) {
-  try { const r = await fetch(import.meta.env.BASE_URL + chemin); if (r.ok && /json/.test(r.headers.get('content-type') || '')) return await r.json(); } catch { }
+  try { const r = await fetchActif(chemin); if (r.ok && /json/.test(r.headers.get('content-type') || '')) return await r.json(); } catch { }
   return {};
 }
 async function index() {
@@ -91,7 +92,7 @@ function pagneObjet(motif) {
 const OBJ = {};
 function chargerObjet(id) {
   const info = MD.objets?.[id]; if (!info) return Promise.resolve(null);
-  OBJ[id] ??= chargeurGLB().loadAsync(`${import.meta.env.BASE_URL}modeles/mode/objets/${id}.glb?v=${info.octets}`)
+  OBJ[id] ??= chargeurGLB().loadAsync(actif(`modeles/mode/objets/${id}.glb?v=${info.octets}`))
     .then(g => { const s = g.scene, b = new THREE.Box3().setFromObject(s), t = b.getSize(new THREE.Vector3()), e = .36 / Math.max(t.x, t.y, t.z); s.scale.setScalar(e); s.position.set(-(b.min.x + b.max.x) / 2 * e, -b.min.y * e + .09, -(b.min.z + b.max.z) / 2 * e); return s; })
     .catch(e => { delete OBJ[id]; console.warn('objet', id, e.message); return null; });
   return OBJ[id].then(s => { if (!s) return null; const g = new THREE.Group(); g.add(s.clone()); return g; });

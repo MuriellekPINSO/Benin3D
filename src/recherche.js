@@ -1,5 +1,6 @@
 import { toXZ } from './base.js';
 import { QUARTIERS } from './donnees-lieux.js';
+import { fetchActif } from './actifs.js';
 
 // ---------- Chercher un lieu, une rue, un quartier (grande carte du salon) ----------
 // « Je dois pouvoir rechercher un itinéraire et avoir la localisation » (Murielle, 28/10). L'index vient d'OpenStreetMap
@@ -18,7 +19,7 @@ export const normaliser = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]
 
 /** Télécharge l'index une fois (les appels suivants attendent le même). */
 export function chargerRecherche() {
-  R.charge ??= fetch(`${import.meta.env.BASE_URL}donnees/recherche.json`).then(r => (r.ok ? r.json() : null)).then(d => {
+  R.charge ??= fetchActif('donnees/recherche.json').then(r => (r.ok ? r.json() : null)).then(d => {
     if (!d) return null;
     R.index = d;
     const vus = new Set(QUARTIERS.map(q => normaliser(q[0])));

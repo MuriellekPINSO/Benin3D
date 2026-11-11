@@ -1,4 +1,5 @@
 // ---------- Audio : radio, moteur, effets ----------
+import { fetchActif, sourceMedia } from './actifs.js';
 export const AUDIO = { ctx: null, buf: null, src: null, radio: false, moteur: null, gainR: null, muet: false };
 export function audioCtx() { try { if (!AUDIO.ctx) AUDIO.ctx = new (window.AudioContext || window.webkitAudioContext)(); if (AUDIO.ctx.state === 'suspended') AUDIO.ctx.resume(); } catch (e) { } return AUDIO.ctx; }
 // Radios béninoises en direct (annuaires libres Radio Browser et OnlineRadioBox) : leur musique, sans fichier à nous dont il faudrait les
@@ -29,7 +30,7 @@ export async function radio(on, station) {
     try { await el.play(); return AUDIO.flux === el ? true : null; } catch (e) { if (AUDIO.flux !== el) return null; console.warn('radio', S.nom, e.message); AUDIO.flux = null; return false; }
   }
   try {
-    if (!AUDIO.buf) { const res = await fetch(import.meta.env.BASE_URL + 'audio/radio.mp3'); if (!res.ok) return false; AUDIO.buf = await ctx.decodeAudioData(await res.arrayBuffer()); }
+    if (!AUDIO.buf) { const res = await fetchActif('audio/radio.mp3'); if (!res.ok) return false; AUDIO.buf = await ctx.decodeAudioData(await res.arrayBuffer()); }
     if (AUDIO.src || !AUDIO.radio) return true;
     const src = ctx.createBufferSource(); src.buffer = AUDIO.buf; src.loop = true;
     AUDIO.gainR = ctx.createGain(); AUDIO.gainR.gain.value = .55; src.connect(AUDIO.gainR).connect(ctx.destination); src.start(); AUDIO.src = src; return true;
@@ -39,7 +40,7 @@ export async function radio(on, station) {
 const VISITE = { el: null, fondu: 0 };
 export function dureeVisite() { const d = VISITE.el?.duration; return Number.isFinite(d) ? d : 248; }
 /** Prépare le morceau : seulement sa durée à l'accueil (4 Mo, la visite n'est pas toujours choisie) ; il se télécharge en jouant. */
-export function prechargerMusique() { if (!VISITE.el) { VISITE.el = new Audio(import.meta.env.BASE_URL + 'audio/agolo.mp3'); VISITE.el.preload = 'metadata'; } return VISITE.el; }
+export function prechargerMusique() { if (!VISITE.el) { VISITE.el = sourceMedia(new Audio(), 'audio/agolo.mp3'); VISITE.el.preload = 'metadata'; } return VISITE.el; }
 export async function musiqueVisite(on) {
   clearInterval(VISITE.fondu);
   if (on) {

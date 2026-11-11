@@ -8,6 +8,7 @@ import { personne } from './discussions.js';
 import { JEU, fmtF, sauver } from './jeu.js';
 import { parler, voixDe } from './voix.js';
 import { chargeurGLB, MAX_DECOR, reduireImage } from './textures.js';
+import { actif } from './actifs.js';
 
 // ---------- Marchés artisanaux des sites touristiques ----------
 // Des étals d'objets d'art (modèles 3D fournis, allégés par scripts/masques.mjs) près
@@ -27,7 +28,7 @@ const ART = { modeles: null, promesse: null };
 function chargerArt() {
   if (ART.promesse) return ART.promesse;
   const L = chargeurGLB();
-  ART.promesse = Promise.all(Object.keys(OBJETS).map(id => L.loadAsync(import.meta.env.BASE_URL + `modeles/${id}.glb`)
+  ART.promesse = Promise.all(Object.keys(OBJETS).map(id => L.loadAsync(actif(`modeles/${id}.glb`))
     .then(g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = !LITE; o.receiveShadow = true; if (o.material.metalness > .5) o.material.metalness = id === 'statue' ? .55 : .1; } }); return [id, g.scene]; })
     .catch(() => [id, null]))).then(l => (ART.modeles = Object.fromEntries(l)));
   return ART.promesse;

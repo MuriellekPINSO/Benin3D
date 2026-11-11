@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { LITE } from './base.js';
 import { plusTard } from './telechargements.js';
 import { chargeurGLB } from './textures.js';
+import { actif, fetchActif } from './actifs.js';
 
 // ---------- Bâtiments reconnaissables : modèles Tripo générés à partir de photos ----------
 // scripts/tripo.mjs fabrique public/modeles/batiments/<id>.glb à partir d'une photo
@@ -13,7 +14,7 @@ export const TRIPO = { dispo: new Set(), info: {}, leger: {} };
 /** À attendre avant de construire les lieux : quels modèles existent. */
 export async function chargerIndexTripo() {
   try {
-    const lire = async f => { const r = await fetch(import.meta.env.BASE_URL + `modeles/batiments/${f}`); return r.ok && /json/.test(r.headers.get('content-type') || '') ? r.json() : null; };
+    const lire = async f => { const r = await fetchActif(`modeles/batiments/${f}`); return r.ok && /json/.test(r.headers.get('content-type') || '') ? r.json() : null; };
     const [info, leger] = await Promise.all([lire('index.json'), LITE ? lire('leger/index.json').catch(() => null) : null]);
     if (info) { TRIPO.info = info; for (const id of Object.keys(info)) TRIPO.dispo.add(id); }
     if (leger) TRIPO.leger = leger;
@@ -23,7 +24,7 @@ export async function chargerIndexTripo() {
 /** Adresse du modèle `id` : sur téléphone, sa version allégée (scripts/leger.mjs) quand elle existe. La taille sert de version. */
 export function urlTripo(id) {
   const L = TRIPO.leger[id], i = L || TRIPO.info[id];
-  return import.meta.env.BASE_URL + `modeles/batiments/${L ? 'leger/' : ''}${id}.glb?v=${i?.octets || 0}`;
+  return actif(`modeles/batiments/${L ? 'leger/' : ''}${id}.glb?v=${i?.octets || 0}`);
 }
 export const tripoDispo = id => TRIPO.dispo.has(id);
 
