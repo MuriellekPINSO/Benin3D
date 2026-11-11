@@ -14,7 +14,10 @@ import sharp from 'sharp';
 const SOURCE = 'public/modeles/batiments', SORTIE = `${SOURCE}/leger`;
 // Triangles visés sur téléphone : monuments vus de loin ; voiture et tokpa de la circulation (trois à l'écran en course,
 // 59 000 triangles chacun avant) ; la moto et la voiture du joueur, vues de près, gardent les leurs.
-const CIBLES = { voiture: 12000, tokpa: 10000 }, DE_PRES = new Set(['voiture-perso', 'moto-perso', 'roadster-rouge', 'landcruiser', 'vitz', 'jetour-net']);
+// Les voitures du joueur faites d'après photo : 100 000 triangles sur ordinateur (« plus net », 11/11), 45 000 ici, et
+// leur relief en 512 (le jeu leur garde aussi leur couleur en 1024 : textures.js, dePres).
+const CIBLES = { voiture: 12000, tokpa: 10000, 'roadster-rouge': 45000, landcruiser: 45000, vitz: 45000, 'jetour-net': 45000 }, DE_PRES = new Set(['voiture-perso', 'moto-perso']);
+const RELIEF = { 'roadster-rouge': 512, landcruiser: 512, vitz: 512, 'jetour-net': 512 };
 const CIBLE = 30000;
 
 await MeshoptDecoder.ready; await MeshoptEncoder.ready; await MeshoptSimplifier.ready;
@@ -32,7 +35,8 @@ for (const id of ids) {
     ...(DE_PRES.has(id) || avant <= (CIBLES[id] || CIBLE) ? [] : [simplify({ simplifier: MeshoptSimplifier, ratio: (CIBLES[id] || CIBLE) / avant, error: 0.01 })]),
     prune(),
     textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [1024, 1024], slots: /baseColor/ }),
-    textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [256, 256], slots: /normal|metallicRoughness|occlusion/ }),
+    textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [RELIEF[id] || 256, RELIEF[id] || 256], slots: /normal/ }),
+    textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [256, 256], slots: /metallicRoughness|occlusion/ }),
     meshopt({ encoder: MeshoptEncoder, level: 'medium' }),
   );
   const out = `${SORTIE}/${id}.glb`; await io.write(out, doc);

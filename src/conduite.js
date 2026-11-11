@@ -10,11 +10,12 @@ import { dansTerrePlein } from './terre-pleins.js';
 import { dansPlace } from './zones.js';
 import { chevauchement, dansCirculation } from './trafic.js';
 import { E } from './etat.js';
-import { scene } from './scene.js';
+import { CIEL_RUE, scene } from './scene.js';
 import { plusTard } from './telechargements.js';
 import { ELARGIR, TABLIERS, mergeColored, roadLines } from './ville.js';
 import { B3, PEDALIER, TOKPA_3D, VITRE, ZEMS_3D, gabaritDe, matVeh, partsBolide, partsPedalier, partsRoadster, partsCitadine, partsTokpa, partsVelo, partsVoiture, partsZem } from './vehicules.js';
 import { chargeurGLB } from './textures.js';
+import { LITE } from './base.js';
 
 // ---------- Conduire dans la ville (Ma vie, salon entre amis) ----------
 // On monte sur sa moto ou dans sa voiture et on roule où l'on veut, mais sur les routes : la chaussée et
@@ -59,7 +60,9 @@ const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote aut
 const MODELES = { voiture: null, moto: null, taxi: null, roadster: null, citadine: null, jetour: null };
 if (import.meta.env.DEV) window.__vehicules = { MODELES }; // pour les tests : la voiture dessinée en code, en vidant MODELES
 const LONGUEURS = { voiture: 4.95, moto: 2, taxi: 4.3, roadster: 4.4, citadine: 3.95, jetour: 4.75 };
-const DEMI_TOUR = { voiture: false, moto: true, taxi: false, roadster: false, citadine: false, jetour: true };
+// Le Jetour est presque à 90° dans son fichier, pile à la limite où `redresser` (vehicules.js) choisit un sens ou l'autre :
+// sa version à 40 000 triangles sortait à l'envers (demi-tour), celle à 100 000 à l'endroit. À revérifier s'il est refait.
+const DEMI_TOUR = { voiture: false, moto: true, taxi: false, roadster: false, citadine: false, jetour: false };
 // Tripo fait les voitures 10 à 15 % trop hautes (Land Cruiser de 2,23 m au lieu de 1,91 m ; Vitz de 1,68 m au lieu de 1,50 m ;
 // Jetour de 2,09 m au lieu de 1,72 m) : on les tasse, les places (HABITACLES) sont mesurées après.
 const ECRASER = { voiture: .9, citadine: .9, jetour: .85 }; // le redressement aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu (phare devant)
@@ -67,13 +70,14 @@ const ECRASER = { voiture: .9, citadine: .9, jetour: .85 }; // le redressement a
 // au bord du réservoir, les hanches 15 cm au-dessus de la selle (profil relevé le 03/11). Le bassin au milieu de la selle.
 const SELLES = { moto: [.83, -.43] };
 export function chargerVehicules() {
-  const ch = chargeurGLB({ liberer: true });
+  const ch = chargeurGLB({ liberer: true, dePres: true });
   for (const [type, id] of [['voiture', 'landcruiser'], ['moto', 'moto-perso'], ['taxi', 'voiture'], ['roadster', 'roadster-rouge'], ['citadine', 'vitz'], ['jetour', 'jetour-net']]) { // taxi : celui de Zém Run
     if (!TRIPO.info[id]) continue;
     plusTard(() => ch.loadAsync(urlTripo(id))).then(g => {
       const m = gabaritDe(g.scene, { largeur: LONGUEURS[type] });
       if (COUPES[type]) couper(m, COUPES[type]);
       if (ECRASER[type]) m.scale.y = ECRASER[type];
+      if (VERNIS.has(type)) m.traverse(n => { if (n.isMesh) n.material = vernir(n.material, CORPS[type] || 'rouge'); });
       MODELES[type] = m;
     }).catch(e => console.warn(`modèle ${id}`, e.message));
   }
@@ -139,27 +143,65 @@ const PEINTS = new Map(), ORIGINES = new WeakMap(); // un matériau par (matéri
 // Les voitures blanches (Land Cruiser, Jetour) n'ont pas de rouge à remplacer : chez elles, la carrosserie est ce qui est
 // clair et sans couleur (`CORPS`, mode « blanc ») ; la peinture prend sa clarté, rapportée à celle d'un blanc à l'ombre (0,7).
 const CORPS = { voiture: 'blanc', jetour: 'blanc' };
-const PEINTURE_GLSL = {
+// Où est la carrosserie (k, de 0 à 1, d'après la couleur d'origine `c`) et sa clarté rapportée à la teinte moyenne.
+const CORPS_GLSL = {
   rouge: `float r = max(c.r, 1e-4);
     float k = (1. - smoothstep(.12, .2, max(c.g, c.b) / r)) * (1. - smoothstep(.06, .1, (c.g - c.b) / r)) * smoothstep(.015, .04, c.r);
-    diffuseColor.rgb = mix(c, min(uPeinture * (c.r / .35), vec3(1.)), k);`,
+    float clarte = c.r / .35;`,
   blanc: `float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b));
     float k = smoothstep(.22, .4, mx) * (1. - smoothstep(.08, .16, (mx - mn) / max(mx, 1e-4)));
-    diffuseColor.rgb = mix(c, min(uPeinture * (mx / .7), vec3(1.)), k);`,
+    float clarte = mx / .7;`,
 };
+// ---------- Le vernis : la carrosserie qui brille ----------
+// « Fais les reflets » (Murielle, 11/11). La carrosserie des modèles Tripo est déjà lisse (rugosité 0,05 à 0,10, mesurée sur
+// leurs textures), mais une peinture ne renvoie que 4 % du ciel quand on la regarde de face : sous le ciel clair du jeu
+// (scene.environment, ambiances.js), elle paraissait mate. Comme sur une vraie voiture, on la vernit (le « clearcoat » de
+// MeshPhysicalMaterial : un deuxième reflet, net, par-dessus la peinture), elle reflète la rue et pas seulement le ciel
+// (CIEL_RUE : la route, l'horizon d'arbres et de façades), et ce reflet compte REFLET fois plus sur la carrosserie seule
+// (le même masque que la peinture) : ni les pneus, ni les sièges, ni les feux.
+const VERNIS = new Set(['voiture', 'roadster', 'citadine', 'jetour']), REFLET = { value: 2.4 }; // 3,4 : la peinture devenait laiteuse
+if (import.meta.env.DEV) Object.assign(window.__vehicules, { REFLET }); // pour régler le reflet à l'œil
+function vernir(mat, mode) {
+  const p = new THREE.MeshPhysicalMaterial();
+  THREE.MeshStandardMaterial.prototype.copy.call(p, mat); // les cartes et réglages du modèle ; puis ce qui fait un « physique »
+  p.defines = { STANDARD: '', PHYSICAL: '' }; p.clearcoat = 1; p.clearcoatRoughness = .05; p.userData.vernis = mode;
+  // « Plus net » : vue de biais (une portière depuis l'avant), une texture se brouille sans filtrage anisotrope.
+  for (const t of [p.map, p.normalMap, p.roughnessMap]) if (t) t.anisotropy = LITE ? 4 : 8;
+  p.onBeforeCompile = sh => corps(sh, mode, false, true);
+  p.customProgramCacheKey = () => `vernis|${mode}`;
+  return p;
+}
+/** Le nuanceur de la carrosserie : `peint` la recolore (uPeinture), `vernis` la fait briller. */
+function corps(sh, mode, peint, vernis) {
+  let tete = 'float corpsK = 0.;'; // globale : lue plus bas, dans le reflet du ciel et dans le vernis
+  if (peint) tete += '\nuniform vec3 uPeinture;';
+  if (vernis) {
+    sh.uniforms.uReflet = REFLET; sh.uniforms.uCielRue = CIEL_RUE; tete += '\nuniform float uReflet;\nuniform sampler2D uCielRue;';
+    // Les deux cartes sortent du même PMREMGenerator (ambiances.js), à la même taille : les constantes CUBEUV_* de
+    // scene.environment valent aussi pour CIEL_RUE. La lumière diffuse, elle, vient toujours du ciel seul.
+    const reflet = THREE.ShaderChunk.envmap_physical_pars_fragment
+      .replace('textureCubeUV( envMap, envMapRotation * reflectVec, roughness )', 'textureCubeUV( uCielRue, envMapRotation * reflectVec, roughness )')
+      .replace('return envMapColor.rgb * envMapIntensity;', 'return envMapColor.rgb * envMapIntensity * mix(1., uReflet, corpsK);');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <envmap_physical_pars_fragment>', reflet)
+      .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\nmaterial.clearcoat *= corpsK;\n#endif');
+  }
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\n${tete}`).replace('#include <map_fragment>', `#include <map_fragment>
+  { vec3 c = diffuseColor.rgb; ${CORPS_GLSL[mode]} corpsK = k;${peint ? ' diffuseColor.rgb = mix(c, min(uPeinture * clarte, vec3(1.)), k);' : ''} }`);
+}
 function materiauPeint(mat, couleur, Z = null, mode = 'rouge') {
   if (!couleur && !Z) return mat;
+  const vernis = !!mat.userData.vernis;
   const cle = `${mat.uuid}|${couleur || ''}|${Z ? 'v' : ''}|${mode}`; let p = PEINTS.get(cle); if (p) return p;
   p = mat.clone(); const u = { value: new THREE.Color(couleur || '#000') }; // Color() passe le code en couleurs linéaires, comme la texture lue
   p.onBeforeCompile = sh => {
     sh.uniforms.uPeinture = u;
-    if (couleur) sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uPeinture;').replace('#include <map_fragment>', `#include <map_fragment>
-  { vec3 c = diffuseColor.rgb; ${PEINTURE_GLSL[mode]} }`);
+    if (couleur || vernis) corps(sh, mode, !!couleur, vernis);
     // Après la peinture dans le code, donc avant elle dans le nuanceur : c'est la texture d'origine qui dit où est la vitre (en
     // noir brillant, toute la carrosserie aurait passé pour une vitre). La vitre est dessinée à part (materiauVerre).
     if (Z) percer(sh, Z, 'if (vitreIci(diffuseColor.rgb)) discard;');
   };
-  p.customProgramCacheKey = () => `peinture|${couleur ? 'p' : ''}|${Z ? 'v' : ''}|${mode}`; // un seul programme pour toutes les couleurs : seule la variable change
+  p.customProgramCacheKey = () => `peinture|${couleur ? 'p' : ''}|${Z ? 'v' : ''}|${mode}|${vernis ? 'n' : ''}`; // un seul programme pour toutes les couleurs : seule la variable change
   PEINTS.set(cle, p); return p;
 }
 /** Repeint un véhicule déjà posé ; `couleur` nulle : il retrouve sa couleur d'origine. */

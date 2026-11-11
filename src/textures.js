@@ -73,9 +73,11 @@ export function libererImages(racine) {
 /** Le chargeur de modèles du jeu : meshopt, et les textures réduites à l'arrivée sur téléphone.
  *  `liberer` : modèles que seule la ville montre (bâtiments et véhicules Tripo, zémidjans), images rendues après l'envoi.
  *  `max` : côté maximal de leurs images, sur ordinateur aussi. */
-export function chargeurGLB({ liberer = false, max = MAX_TEX } = {}) {
+export function chargeurGLB({ liberer = false, max = MAX_TEX, dePres = false } = {}) {
   const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  max = Math.min(max, MAX_TEX);
+  // `dePres` : les véhicules du joueur, qu'on regarde à deux mètres. Sur téléphone, leur couleur en 512 était floue
+  // (« plus net », Murielle, 11/11) : elle garde le 1024 de sa version légère, 4 Mo de plus par voiture affichée.
+  max = Math.min(max, dePres && LITE && !SECOURS ? 1024 : MAX_TEX);
   const charger = L.loadAsync.bind(L), brut = max === Infinity && !liberer;
   L.loadAsync = (...a) => avecReprises(() => charger(...a)).then(g => { if (!brut) { reduireTextures(g.scene, max); if (liberer) libererImages(g.scene); } return g; });
   return L;

@@ -63,6 +63,8 @@ if (coarse) $('#help').innerHTML = '<b>Un doigt</b> pour se déplacer · <b>deux
 
 // Uniformes partagés
 export const U = { uRiseT: { value: reduceMotion ? 999 : 0 }, uRiseO: { value: new THREE.Vector2(...toXZ(6.366, 2.422)) }, uNight: { value: 0 }, uTime: { value: 0 } };
+/** Ce que reflètent les voitures : le ciel, la rue et l'horizon (refait avec l'ambiance : ambiances.js ; lu par conduite.js). */
+export const CIEL_RUE = { value: null };
 
 // Ciel
 export const skyMat = new THREE.ShaderMaterial({

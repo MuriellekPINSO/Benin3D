@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { majPortesDeNuit } from './interieurs.js';
 import { reduceMotion } from './base.js';
 import { E } from './etat.js';
-import { U, hemi, renderer, scene, skyMat, sun } from './scene.js';
+import { CIEL_RUE, U, hemi, renderer, scene, skyMat, sun } from './scene.js';
 
 // ---------- Ambiances ----------
 export const MOODS = {
@@ -77,5 +77,27 @@ function majCiel(m) {
   CIEL.scene ??= (() => { const s = new THREE.Scene(); s.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), skyMat)); return s; })();
   const rt = CIEL.pmrem.fromScene(CIEL.scene, 0, .1, 200); CIEL.rt?.dispose(); CIEL.rt = rt;
   scene.environment = rt.texture; scene.environmentIntensity = .2 + .45 * (1 - m.night);
+  CIEL.rue ??= sceneRue();
+  const jour = .06 + .94 * (1 - m.night);
+  CIEL.rue.traverse(o => { if (o.userData.teinte) o.material.color.copy(o.userData.teinte).multiplyScalar(jour); });
+  const rr = CIEL.pmrem.fromScene(CIEL.rue, 0, .1, 200); CIEL.rtRue?.dispose(); CIEL.rtRue = rr; CIEL_RUE.value = rr.texture;
+}
+// Ce que reflètent les voitures (CIEL_RUE, conduite.js). Avec le ciel seul, clair tout autour, une carrosserie vernie
+// paraissait délavée. Une vraie voiture coupe le monde en deux sur sa portière : le ciel en haut, la rue sombre en bas, et
+// entre les deux une ligne d'arbres et de façades. C'est cette ligne qui fait « vraie voiture » (Murielle, 11/11 : « fais
+// les reflets »). Le même ciel, une route sous l'horizon, et des blocs au hasard (toujours les mêmes) tout autour.
+function sceneRue() {
+  const s = new THREE.Scene(), bloc = new THREE.BoxGeometry(1, 1, 1).translate(0, .5, 0), sol = -1.2;
+  s.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), skyMat));
+  const peint = (geo, hex) => { const t = new THREE.Color(hex), o = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: t })); o.userData.teinte = t; s.add(o); return o; };
+  peint(new THREE.CircleGeometry(49, 48).rotateX(-Math.PI / 2), '#5b5b58').position.y = sol;
+  let g = 11; const hasard = () => (g = (g * 16807) % 2147483647) / 2147483647;
+  for (let a = 0; a < Math.PI * 2; a += .18 + hasard() * .22) {
+    const arbre = hasard() < .45, d = 24 + hasard() * 14, h = arbre ? 5 + hasard() * 6 : 3 + hasard() * 9;
+    // des gris : une façade beige, reflétée sur une carrosserie bleue, y faisait des taches roses
+    const o = peint(bloc, arbre ? '#2b3129' : ['#a7a7a3', '#c8c8c4', '#6c6c69', '#8e8e8a'][Math.floor(hasard() * 4)]);
+    o.position.set(Math.cos(a) * d, sol, Math.sin(a) * d); o.scale.set(4 + hasard() * 8, h, 2); o.lookAt(0, sol, 0);
+  }
+  return s;
 }
 

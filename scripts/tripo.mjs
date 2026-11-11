@@ -11,7 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { dequantize, weld, simplify, prune, dedup, textureCompress, meshopt } from '@gltf-transform/functions';
+import { dequantize, weld, simplify, prune, dedup, textureCompress, meshopt, listTextureSlots } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import sharp from 'sharp';
 
@@ -74,7 +74,7 @@ async function attendre(id, photo, task_id) {
 // Retouches de couleur par modèle (photo de nuit, dominante…) : scripts/tripo-reglages.json { id: { saturation, luminosite, teinte } }.
 const REGLAGES = fs.existsSync('scripts/tripo-reglages.json') ? JSON.parse(fs.readFileSync('scripts/tripo-reglages.json', 'utf8')) : {};
 async function retoucher(doc, r) {
-  if (!r) return;
+  if (!r || [r.saturation, r.luminosite, r.teinte, r.gris].every(x => x == null)) return;
   for (const mat of doc.getRoot().listMaterials()) {
     const t = mat.getBaseColorTexture(); if (!t) continue;
     let img = sharp(t.getImage()).modulate({ saturation: r.saturation ?? 1, brightness: r.luminosite ?? 1, hue: r.teinte ?? 0 });
@@ -119,7 +119,19 @@ const couper = boites => doc => {
     p.getIndices().setArray(new I.constructor(J));
   }
 };
-async function alleger(id, cible = 60000) {
+// Réglage « vehicule » : les véhicules du joueur, vus à deux mètres, gardent plus de détails que les monuments vus de la
+// rue (« plus net », Murielle, 11/11). La couleur est réduite de 4096 à 2048 puis rendue plus nette (Tripo la livre un peu
+// floue) ; le relief (joints de portière, calandre, poignées) passe de 512 à 2048, la rugosité de 512 à 1024.
+const texturesVehicule = r => async doc => {
+  for (const t of doc.getRoot().listTextures()) {
+    const slots = listTextureSlots(t).join(' ');
+    const [cote, net, q] = /baseColor/.test(slots) ? [r.couleur ?? 2048, r.nettete ?? .8, 90] : /normal/.test(slots) ? [r.relief ?? 2048, 0, 92] : [1024, 0, 88];
+    let img = sharp(Buffer.from(t.getImage())).resize(cote, cote, { kernel: 'lanczos3' });
+    if (net) img = img.sharpen({ sigma: net });
+    t.setImage(await img.jpeg({ quality: q, mozjpeg: true }).toBuffer()).setMimeType('image/jpeg');
+  }
+};
+async function alleger(id, cible = REGLAGES[id]?.vehicule ? 100000 : 60000) {
   await MeshoptDecoder.ready; await MeshoptEncoder.ready; await MeshoptSimplifier.ready;
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
   const tri = doc => doc.getRoot().listMeshes().flatMap(m => m.listPrimitives()).reduce((s, p) => s + (p.getIndices()?.getCount() ?? p.getAttribute('POSITION').getCount()) / 3, 0);
@@ -131,8 +143,10 @@ async function alleger(id, cible = 60000) {
     ...(REGLAGES[id]?.coupes ? [couper(REGLAGES[id].coupes)] : []),
     simplify({ simplifier: MeshoptSimplifier, ratio: Math.min(1, cible / avant), error: 0.01 }),
     prune(),
-    textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [2048, 2048], slots: /baseColor/ }),
-    textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [512, 512], slots: /normal|metallicRoughness/ }),
+    ...(REGLAGES[id]?.vehicule ? [texturesVehicule(REGLAGES[id])] : [
+      textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [2048, 2048], slots: /baseColor/ }),
+      textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [512, 512], slots: /normal|metallicRoughness/ }),
+    ]),
     meshopt({ encoder: MeshoptEncoder, level: 'medium' }),
   );
   fs.mkdirSync(SORTIE, { recursive: true });
