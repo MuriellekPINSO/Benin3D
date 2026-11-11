@@ -151,7 +151,7 @@ const alignerAxe = () => doc => {
   for (const m of meshes) transformMesh(m, M);
   console.log(`axe redressé de ${(a * 180 / Math.PI).toFixed(1)}°`);
 };
-async function alleger(id, cible = vehicule(id) ? 100000 : 60000) {
+async function alleger(id, cible = REGLAGES[id]?.triangles || (vehicule(id) ? 100000 : 60000)) {
   await MeshoptDecoder.ready; await MeshoptEncoder.ready; await MeshoptSimplifier.ready;
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
   const tri = doc => doc.getRoot().listMeshes().flatMap(m => m.listPrimitives()).reduce((s, p) => s + (p.getIndices()?.getCount() ?? p.getAttribute('POSITION').getCount()) / 3, 0);

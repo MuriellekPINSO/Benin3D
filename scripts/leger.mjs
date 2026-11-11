@@ -16,8 +16,8 @@ const SOURCE = 'public/modeles/batiments', SORTIE = `${SOURCE}/leger`;
 // 59 000 triangles chacun avant) ; la moto et la voiture du joueur, vues de près, gardent les leurs.
 // Les voitures du joueur faites d'après photo : 50 000 (P2) à 100 000 triangles sur ordinateur (« plus net », 11/11),
 // 40 000 à 45 000 ici, et leur relief en 512 (le jeu leur garde aussi leur couleur en 1024 : textures.js, dePres).
-const CIBLES = { voiture: 12000, tokpa: 10000, 'roadster-rouge': 45000, 'landcruiser-p2': 40000, vitz: 45000, 'jetour-net': 45000 }, DE_PRES = new Set(['voiture-perso', 'moto-perso']);
-const RELIEF = { 'roadster-rouge': 512, 'landcruiser-p2': 512, vitz: 512, 'jetour-net': 512 };
+const CIBLES = { voiture: 12000, tokpa: 10000, 'roadster-rouge': 45000, 'landcruiser-p2': 40000, vitz: 45000, 'jetour-net': 45000, 'velo-ride': 20000 }, DE_PRES = new Set(['voiture-perso', 'moto-perso']);
+const RELIEF = { 'roadster-rouge': 512, 'landcruiser-p2': 512, vitz: 512, 'jetour-net': 512, 'velo-ride': 512 };
 const CIBLE = 30000;
 
 await MeshoptDecoder.ready; await MeshoptEncoder.ready; await MeshoptSimplifier.ready;

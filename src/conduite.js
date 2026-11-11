@@ -58,28 +58,51 @@ const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote aut
 // crédits dans index.html) : la voiture du « Fils à papa » est un Toyota Land Cruiser 200 blanc, le plus vu dans les beaux
 // quartiers de Cotonou ; la citadine, une Toyota Vitz (la petite voiture la plus courante) ; la Roadster, la Tesla
 // Roadster de deuxième génération, rouge ; et le Jetour X70, blanc.
-const MODELES = { voiture: null, moto: null, taxi: null, roadster: null, citadine: null, jetour: null };
+const MODELES = { voiture: null, moto: null, taxi: null, roadster: null, citadine: null, jetour: null, velo: null };
 if (import.meta.env.DEV) window.__vehicules = { MODELES }; // pour les tests : la voiture dessinée en code, en vidant MODELES
-const LONGUEURS = { voiture: 4.95, moto: 2, taxi: 4.3, roadster: 4.4, citadine: 3.95, jetour: 4.75 };
+const LONGUEURS = { voiture: 4.95, moto: 2, taxi: 4.3, roadster: 4.4, citadine: 3.95, jetour: 4.75, velo: 1.7 };
 // Le redressement (vehicules.js, redresser) aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu, phares devant.
 // Le Jetour est presque à 90° dans son fichier, pile à la limite où il choisit un sens ou l'autre : à revérifier s'il est refait.
-const DEMI_TOUR = { voiture: true, moto: true, taxi: false, roadster: false, citadine: false, jetour: false };
+const DEMI_TOUR = { voiture: true, moto: true, taxi: false, roadster: false, citadine: false, jetour: false, velo: true };
 // Tripo fait les voitures trop hautes (Land Cruiser P2 de 2,18 m au lieu de 1,91 m ; Vitz de 1,68 m au lieu de 1,50 m ;
 // Jetour de 2,09 m au lieu de 1,72 m) : on les tasse, les places (HABITACLES) sont mesurées après.
 const ECRASER = { voiture: .88, citadine: .9, jetour: .85 };
+// ---------- Le vélo RideCorniche ----------
+// « Modélise-moi ce vélo avec ma clé Tripo, ça va remplacer les vélos qu'on a » (Murielle, 11/11) : le vélo jaune de RideCorniche,
+// loué sur la Corniche. Sa photo (deux vélos neufs, encore sous plastique) a d'abord été nettoyée par Tripo (un seul vélo, sur
+// fond gris, sans le film), puis Tripo en a fait le modèle. Mesures dans le repère du cycliste, pour un vélo de 1,70 m :
+// f vers l'avant, l vers la gauche, y vers le haut (scripts/mesure, window.points).
+const VELO_TRIPO = {
+  selle: [.91, -.23], // le bassin sur l'arrière de la selle, dont le dessus est à 0,945 m
+  pedalier: { x: 0, y: .318, r: .18, z: .13 }, // l'axe (x vers l'avant), la manivelle, l'écart des pédales
+  guidon: [.3, 1.155, .353], // les poignées : écart, hauteur, avancée
+  // Tripo a tourné le guidon de 24° et l'a penché de 7° (poignée gauche plus haute, et 30 cm plus en avant que la droite) :
+  // on le remet droit autour de la potence. Tout ce qui dépasse le haut du panier en fait partie. Il le faisait aussi trop
+  // large (76 cm, les bras en croix vus de dos) : 64 cm, comme un vrai guidon de ville.
+  potence: { f: .387, y: 1.02, lacet: .417, roulis: .122, dessus: .987, etroit: .84 },
+  // Ses manivelles et ses pédales sont figées : on les enlève (ce qui dépasse du cadre autour de l'axe), le pédalier qui tourne
+  // les remplace. La béquille aussi, sur la gauche : on la voyait baissée en roulant. [f min, f max, y max].
+  manivelles: { r: .265, l: -.0095, ecart: .08, bequille: [-.225, -.07, .265] },
+  // Le logo du garde-boue, illisible sur le modèle (« Rqu ») : repeint de chaque côté, d'après la photo nettoyée.
+  logo: { f: -.493, y: .579, larg: .23, cotes: [.053, -.071] },
+};
+// Le vélo dessiné en code (vehicules.js, partsVelo), tant que le modèle n'est pas là.
+const VELO_DESSINE = { pedalier: PEDALIER, guidon: [.23, 1.02, .39] };
 // Selle du modèle Tripo, mesurée : avec [1,02 ; −0,08] du zém, on s'asseyait sur le réservoir ; avec [0,86 ; −0,27], encore
 // au bord du réservoir, les hanches 15 cm au-dessus de la selle (profil relevé le 03/11). Le bassin au milieu de la selle.
-const SELLES = { moto: [.83, -.43] };
+const SELLES = { moto: [.83, -.43], velo: VELO_TRIPO.selle };
 export function chargerVehicules() {
   const ch = chargeurGLB({ liberer: true, dePres: true });
-  for (const [type, id] of [['voiture', 'landcruiser-p2'], ['moto', 'moto-perso'], ['taxi', 'voiture'], ['roadster', 'roadster-rouge'], ['citadine', 'vitz'], ['jetour', 'jetour-net']]) { // taxi : celui de Zém Run
+  for (const [type, id] of [['voiture', 'landcruiser-p2'], ['moto', 'moto-perso'], ['taxi', 'voiture'], ['roadster', 'roadster-rouge'], ['citadine', 'vitz'], ['jetour', 'jetour-net'], ['velo', 'velo-ride']]) { // taxi : celui de Zém Run
     if (!TRIPO.info[id]) continue;
     plusTard(() => ch.loadAsync(urlTripo(id))).then(g => {
       const m = gabaritDe(g.scene, { largeur: LONGUEURS[type] });
       if (COUPES[type]) couper(m, COUPES[type]);
       if (ECRASER[type]) m.scale.y = ECRASER[type];
       if (VERNIS.has(type)) m.traverse(n => { if (n.isMesh) n.material = vernir(n.material, CORPS[type] || 'rouge'); });
+      if (type === 'velo') preparerVelo(m);
       MODELES[type] = m;
+      if (type === 'velo') for (const f of QUAND_VELO.splice(0)) f(m);
     }).catch(e => console.warn(`modèle ${id}`, e.message));
   }
 }
@@ -99,6 +122,63 @@ function couper(gabarit, boites) {
     }
     geo.setIndex(garde);
   });
+}
+const QUAND_VELO = [];
+/** f(gabarit) dès que le modèle du vélo est chargé (le râtelier de Caï Caï, caicai.js). */
+export const quandVelo = f => { if (MODELES.velo) f(MODELES.velo); else QUAND_VELO.push(f); };
+/** Les retouches du vélo Tripo (VELO_TRIPO), dans le repère du gabarit : l'avant vers +x, ou vers −x en DEMI_TOUR. */
+function preparerVelo(gabarit) {
+  const a = DEMI_TOUR.velo ? -1 : 1, G = VELO_TRIPO, P = G.potence, K = G.manivelles, [b0, b1, by] = K.bequille;
+  gabarit.updateMatrixWorld(true);
+  const inv = gabarit.matrixWorld.clone().invert(), v = new THREE.Vector3(), c = new THREE.Vector3();
+  // Le guidon : le lacet autour de la potence, puis le roulis autour de l'axe avant-arrière ; en trois centimètres au-dessus
+  // du panier, pour ne pas déchirer la potence. `n` : une normale (pas de pivot).
+  const droit = (q, w, n) => {
+    let f = a * q.x, l = -a * q.z, y = q.y; const cl = Math.cos(P.lacet * w), sl = Math.sin(P.lacet * w), cr = Math.cos(P.roulis * w), sr = Math.sin(P.roulis * w);
+    const pf = n ? 0 : P.f, py = n ? 0 : P.y;
+    [l, f] = [l * cl + (f - pf) * sl, -l * sl + (f - pf) * cl + pf];
+    [l, y] = [l * cr + (y - py) * sr, -l * sr + (y - py) * cr + py];
+    if (!n) l *= 1 - (1 - P.etroit) * w;
+    return q.set(a * f, y, -a * l);
+  };
+  gabarit.traverse(n => {
+    if (!n.isMesh) return;
+    const geo = n.geometry, M = inv.clone().multiply(n.matrixWorld), Mi = M.clone().invert();
+    // En flottants : les modèles allégés ont leurs coordonnées compressées (vehicules.js, enFlottants).
+    for (const nom of ['position', 'normal']) {
+      const at = geo.attributes[nom]; if (!at || (at.array instanceof Float32Array && !at.normalized)) continue;
+      const fl = new Float32Array(at.count * 3); for (let i = 0; i < at.count; i++) { fl[3 * i] = at.getX(i); fl[3 * i + 1] = at.getY(i); fl[3 * i + 2] = at.getZ(i); }
+      geo.setAttribute(nom, new THREE.BufferAttribute(fl, 3));
+    }
+    const pos = geo.attributes.position, nor = geo.attributes.normal, N = new THREE.Matrix3().getNormalMatrix(M), Ni = new THREE.Matrix3().getNormalMatrix(Mi);
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(M); if (a * v.x < .05) continue;
+      const w = Math.min(1, (v.y - P.dessus) / .03); if (w <= 0) continue;
+      droit(v, w).applyMatrix4(Mi); pos.setXYZ(i, v.x, v.y, v.z);
+      if (nor) { droit(c.fromBufferAttribute(nor, i).applyMatrix3(N), w, true).applyMatrix3(Ni).normalize(); nor.setXYZ(i, c.x, c.y, c.z); }
+    }
+    const idx = geo.index;
+    if (idx) {
+      const garde = [];
+      for (let t = 0; t < idx.count; t += 3) {
+        c.set(0, 0, 0); for (let k = 0; k < 3; k++) c.add(v.fromBufferAttribute(pos, idx.getX(t + k))); c.multiplyScalar(1 / 3).applyMatrix4(M);
+        const f = a * c.x, l = -a * c.z, y = c.y;
+        const manivelle = Math.abs(l - K.l) > K.ecart && Math.hypot(f - G.pedalier.x, y - G.pedalier.y) < K.r, bequille = l - K.l > .07 && f > b0 && f < b1 && y < by;
+        if (!manivelle && !bequille) garde.push(idx.getX(t), idx.getX(t + 1), idx.getX(t + 2));
+      }
+      geo.setIndex(garde);
+    }
+    geo.computeBoundingBox(); geo.computeBoundingSphere();
+  });
+  // Le logo, de chaque côté du garde-boue, lisible de gauche à droite (un plan regarde +z, son « droite » est +x).
+  const L = G.logo, tex = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/ride-corniche.png`);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: .55, polygonOffset: true, polygonOffsetFactor: -2 });
+  const plan = new THREE.PlaneGeometry(L.larg, L.larg * 404 / 512);
+  for (const l of L.cotes) {
+    const m = new THREE.Mesh(plan, mat); m.position.set(a * L.f, L.y, -a * l); if (a * Math.sign(l) > 0) m.rotation.y = Math.PI;
+    m.receiveShadow = true; gabarit.add(m);
+  }
 }
 /** Un véhicule : modèle (avant vers +z du groupe) et état de conduite. `peinture` : la couleur choisie par son
  *  propriétaire (menu « Peindre mon véhicule ») ; sans elle, la couleur d'origine (`couleur`, ou la texture du modèle). */
@@ -127,7 +207,11 @@ export function creerVehicule(type, { couleur, peinture } = {}) {
   if (type === 'moto' || type === 'zem') { const axe = new THREE.Group(); axe.rotation.y = -Math.PI / 2; g.add(axe); anim = animerMoto(axe, { parent: scene }); }
   const V = { type, D, g, x: 0, z: 0, y: 0, cap: 0, v: 0, km: 0, anim, selle: (gabarit && MODELES[type] && SELLES[type]) || D.selle, modele: m, dessin, couleur, peinture: null, habitacle: H };
   // Le vélo : son pédalier à part, qui tourne sous les pieds du cycliste (trajets.js, asseoirSur ; personnages.js, poserVelo).
-  if (type === 'velo') { V.pedalier = new THREE.Mesh(mergeColored(partsPedalier()), matVeh); V.pedalier.position.set(PEDALIER.x, PEDALIER.y, 0); V.pedalier.castShadow = true; m.add(V.pedalier); }
+  // Il tourne dans le repère du vélo dessiné (l'avant vers +x), quel que soit le sens du modèle.
+  if (type === 'velo') {
+    const G = V.velo = gabarit ? VELO_TRIPO : VELO_DESSINE, axe = new THREE.Group(); axe.rotation.y = -Math.PI / 2; g.add(axe);
+    V.pedalier = new THREE.Mesh(mergeColored(partsPedalier(G.pedalier, gabarit ? '#26262a' : undefined)), matVeh); V.pedalier.position.set(G.pedalier.x, G.pedalier.y, 0); V.pedalier.castShadow = true; axe.add(V.pedalier);
+  }
   if (H?.vitres) vitrer(V, peinture);
   else if (peinture && gabarit && type !== 'zem') peindre(V, peinture); else V.peinture = peinture || null;
   return V;

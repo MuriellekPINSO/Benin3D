@@ -74,5 +74,9 @@
  "vitz": {
   "triangles": 99996,
   "octets": 1716740
+ },
+ "velo-ride": {
+  "triangles": 40000,
+  "octets": 1540860
  }
 }

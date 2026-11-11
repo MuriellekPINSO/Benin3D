@@ -17,5 +17,7 @@
  "roadster-rouge": { "vehicule": true },
  "landcruiser-p2": { "vehicule": true },
  "vitz": { "vehicule": true },
- "jetour-net": { "vehicule": true }
+ "jetour-net": { "vehicule": true },
+ "_velo-ride": "le vélo RideCorniche (11/11) : 40 000 triangles suffisent, les rayons restent entiers ; il y en a plusieurs à l'écran (râtelier de Caï Caï, amis)",
+ "velo-ride": { "vehicule": true, "triangles": 40000 }
 }

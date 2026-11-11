@@ -21,7 +21,7 @@ if (q.get('coupe')) { const boites = JSON.parse(q.get('coupe')); gab.updateMatri
     geo.setIndex(garde); }); }
 gab.rotation.y = -Math.PI / 2 + (q.get('demi') === '1' ? Math.PI : 0); if (q.get('miroir') === '1') gab.scale.z = -1;
 if (q.get('ey')) gab.scale.y = +q.get('ey'); // ECRASER de conduite.js
-g.add(gab); g.updateMatrixWorld(true);
+g.add(gab); g.updateMatrixWorld(true); window.__groupe = g;
 const boite = new THREE.Box3().setFromObject(g), taille = boite.getSize(new THREE.Vector3());
 // Quadrillage : traits tous les 10 cm (fins) et 50 cm (gras), dans les trois plans
 const grille = new THREE.Group(); scene.add(grille);
@@ -39,12 +39,12 @@ function quadrillage(vue) {
   const l = new THREE.LineSegments(geo, mat); l.renderOrder = 9; grille.add(l);
 }
 window.mesure = (vue, coupe = null) => {
-  const L = 2.8, cam = vue === '34' ? new THREE.PerspectiveCamera(32, W / H, .1, 100) : new THREE.OrthographicCamera(-L * W / H, L * W / H, L, -L, .1, 100);
+  const L = +(q.get('zoom') || 2.8), cam = vue === '34' ? new THREE.PerspectiveCamera(32, W / H, .1, 100) : new THREE.OrthographicCamera(-L * W / H, L * W / H, L, -L, .1, 100);
   if (vue === 'cote') { cam.position.set(20, taille.y / 2, 0); cam.lookAt(0, taille.y / 2, 0); } // de la gauche (+x) : l'avant (+z) à gauche de l'image
   if (vue === 'face') { cam.position.set(0, taille.y / 2, 20); cam.lookAt(0, taille.y / 2, 0); }
   if (vue === 'dessus') { cam.position.set(0, 20, 0); cam.up.set(0, 0, -1); cam.lookAt(0, 0, 0); }
   if (vue === 'arriere') { cam.position.set(0, taille.y / 2, -20); cam.lookAt(0, taille.y / 2, 0); }
-  if (vue === '34') { cam.position.set(6.5, 3.2, 7.5); cam.lookAt(0, .7, 0); }
+  if (vue === '34') { const k = L / 2.8; cam.position.set(6.5 * k, 3.2 * k, 7.5 * k); cam.lookAt(0, .7 * Math.min(1, k * 1.4), 0); }
   quadrillage(vue === 'arriere' ? 'face' : vue); grille.visible = vue !== '34';
   // coupe : ne garder que ce qui est d'un côté d'un plan (pour voir dedans)
   renderer.clippingPlanes = coupe ? [new THREE.Plane(new THREE.Vector3(...coupe.n), coupe.d)] : [];
@@ -67,4 +67,14 @@ window.profil = () => {
 // Toutes les couches traversées par un rayon vertical en (x, z) : [y…] de haut en bas
 window.couches = (x, z) => { ray.set(new THREE.Vector3(x, 10, z), new THREE.Vector3(0, -1, 0)); return ray.intersectObjects(meshes, false).map(h => +h.point.y.toFixed(3)); };
 window.pret = true;
+</script>
+<script type="module">
+// window.points(n) : n sommets pris au hasard, dans le repère du jeu (pour trouver la selle, le pédalier, le guidon d'un vélo)
+const attendre = () => new Promise(r => { const t = setInterval(() => { if (window.pret) { clearInterval(t); r(); } }, 100); });
+window.points = async (n = 30000) => {
+  await attendre(); const out = [], v = new (await import('three')).Vector3();
+  window.__groupe.traverse(m => { if (!m.isMesh) return; const p = m.geometry.attributes.position, pas = Math.max(1, Math.floor(p.count / n));
+    for (let i = 0; i < p.count; i += pas) { v.fromBufferAttribute(p, i).applyMatrix4(m.matrixWorld); out.push([+v.x.toFixed(3), +v.y.toFixed(3), +v.z.toFixed(3)]); } });
+  return out;
+};
 </script>

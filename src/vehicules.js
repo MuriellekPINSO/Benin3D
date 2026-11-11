@@ -49,11 +49,11 @@ export const CAI = { cadre: '#f4f6f7', jante: '#0c8fd0', canard: '#f9912b', pneu
 /** Le pédalier du vélo qu'on conduit : deux manivelles et leurs pédales, autour de l'axe (repère du vélo, l'avant vers +x).
  *  La manivelle gauche (côté −z du vélo, la gauche du cycliste) pointe vers +x à l'angle 0 ; on le tourne autour de z. */
 export const PEDALIER = { x: -.02, y: .33, r: .17, z: .12 };
-export function partsPedalier() {
+export function partsPedalier(p = PEDALIER, bras = CAI.acier) {
   const P = [], add = (g, hex) => P.push([g, hex]);
   for (const k of [1, -1]) { // 1 : gauche (−z), −1 : droite (+z), à l'opposé
-    add(B3(PEDALIER.r, .022, .02).translate(k * PEDALIER.r / 2, 0, -k * .1), CAI.acier);
-    add(B3(.11, .025, .055).translate(k * PEDALIER.r, 0, -k * PEDALIER.z), '#2a2622');
+    add(B3(p.r, .022, .02).translate(k * p.r / 2, 0, -k * (p.z - .02)), bras);
+    add(B3(.11, .025, .055).translate(k * p.r, 0, -k * p.z), '#2a2622');
   }
   return P;
 }

@@ -10,7 +10,6 @@ import { allumerLesPortes, arriveeDehors, comptoirProche, devantChaise, siegePro
 import { payerEtRecevoir, remettre } from './remise.js';
 import { scene } from './scene.js';
 import { porterCasque } from './casque.js';
-import { PEDALIER } from './vehicules.js';
 import { VIE, carburant, consommer, depenser, faireLePlein, manger, reservoir, sauverVie } from './vie.js';
 import { actionsNuit, arreterNuit, initNuit, majNuit } from './nuit.js';
 import { actionsVol, arreterVol, initVol, majAeroports, majVol } from './vol.js';
@@ -541,9 +540,9 @@ export function majTrajets(dt, av, tour) {
 const angleVelo = V => -V.km * 1000 / 2.2 * Math.PI * 2;
 /** Où sont le pédalier et le guidon du vélo, vus du personnage en selle (son repère : l'avant vers +z, la gauche vers +x). */
 function veloSous(V) {
-  const y0 = V.selle[0] - .48, z0 = V.selle[1], a = angleVelo(V);
+  const y0 = V.selle[0] - .48, z0 = V.selle[1], a = angleVelo(V), P = V.velo.pedalier, [gx, gy, gz] = V.velo.guidon; // conduite.js, VELO_TRIPO
   if (V.pedalier) V.pedalier.rotation.z = a;
-  return { a, bb: [0, PEDALIER.y - y0, PEDALIER.x - z0], r: PEDALIER.r, ecart: PEDALIER.z + .01, guidon: [.23, 1.02 - y0, .39 - z0] };
+  return { a, bb: [0, P.y - y0, P.x - z0], r: P.r, ecart: P.z + .01, guidon: [gx, gy - y0, gz - z0] };
 }
 /** `passager` : vrai ou faux sur un deux-roues ; en voiture, le numéro de la place (conduite.js, siege ; vrai : l'avant droite). */
 export function asseoirSur(p, V, passager) {

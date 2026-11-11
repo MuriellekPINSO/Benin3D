@@ -5,6 +5,7 @@ import { groupeLieu } from './lieux.js';
 import { mergeColored } from './ville.js';
 import { MAX_DECOR, reduireImage } from './textures.js';
 import { poserObstacles } from './rue.js';
+import { quandVelo } from './conduite.js';
 
 // ---------- Caï Caï Vélo ----------
 // Le loueur de vélos du jeu. Le nom est inventé (« caï caï », le cri du canard) : on s'inspire des
@@ -77,6 +78,8 @@ export function construireCaiCai() {
   for (let i = 0; i < 4; i++) {
     const v = new THREE.Mesh(mergeColored(partsVelo({ panier: i === 1 })), matVeh); v.castShadow = true;
     v.position.set(-3.6, 0, -1.4 + i * .95); v.rotation.y = Math.PI / 2 + (i % 2 ? .12 : -.1); g.add(v);
+    // Puis le vrai vélo (RideCorniche, conduite.js), dès qu'il est chargé : son avant est vers −x, d'où le demi-tour.
+    quandVelo(modele => { const c = modele.clone(); c.position.copy(v.position); c.rotation.y = v.rotation.y + Math.PI; g.add(c); g.remove(v); v.geometry.dispose(); });
   }
   // Solide : on passait au travers du conteneur, et la caméra entrait dedans — l'écran devenait bleu
   // pendant quatre secondes (vidéo d'un testeur, 25/10). Le conteneur et son comptoir, le râtelier et ses
