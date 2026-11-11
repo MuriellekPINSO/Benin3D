@@ -12,7 +12,7 @@ import { chevauchement } from './trafic.js';
 import { T, asseoirSur, pointDeRoute } from './trajets.js';
 import { VIE, gagner } from './vie.js';
 
-// ---------- Les courses à vélo de Caï Caï Vélo (« Vivre à Cotonou ») ----------
+// ---------- Les courses à vélo de RideCorniche (ex-Caï Caï Vélo, « Vivre à Cotonou ») ----------
 // « Ajoute les courses de vélo aussi dans Vivre à Cotonou, avec des ordinateurs » (Murielle, 11/11). Comme la course de
 // motos de Zém Run (course.js), mais en ville, sur son vélo loué : devant la boutique, « Course à vélo », un parcours, et
 // l'on part au milieu de trois cyclistes conduits par le jeu, chacun avec son nom et sa façon de rouler. Le parcours suit
@@ -204,7 +204,7 @@ function arrivee(horsDelai = false) {
     : `Arrivée en ${temps} : tu finis ${place(rang)} sur ${C.rivaux.length + 1}.${prix ? ` Tu gagnes ${fmt(prix)}.` : ''}${rang === 1 ? ' Les autres s’entraîneront pour la prochaine fois.' : ''}`);
   const P = C.P;
   setTimeout(() => X.choisir(rang === 1 ? `1re place, en ${temps} !` : `${place(rang)} place, en ${temps}`, [
-    { texte: 'Rejouer ce parcours', sous: 'Retour au départ, devant Caï Caï Vélo', f: () => { if (!surVelo()) return X.ligne('Remonte sur ton vélo pour rejouer.'); arreter(); partir(P); } },
+    { texte: 'Rejouer ce parcours', sous: 'Retour au départ, devant RideCorniche', f: () => { if (!surVelo()) return X.ligne('Remonte sur ton vélo pour rejouer.'); arreter(); partir(P); } },
   ], { annuler: 'Fermer' }), 1500);
 }
 /** Le gros texte du milieu de l'écran : 3, 2, 1, Partez !, la place à l'arrivée. */

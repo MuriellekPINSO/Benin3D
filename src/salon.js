@@ -1046,7 +1046,7 @@ export function majSalon(dt) {
   majVie(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
   for (const A of S.autres.values()) { const G = A.garee; if (G?.g.visible && (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < 1600) E.circulation.push({ px: G.x, pz: G.z, cap: G.cap, hl: G.D.long / 2, hw: G.D.larg / 2, v: 0, type: G.type }); } // vidée à chaque image (main.js)
   majGarees();
-  majCourseVelo(dt, S); // la course à vélo de Caï Caï : ses cyclistes roulent, et deviennent des obstacles (course-velo.js)
+  majCourseVelo(dt, S); // la course à vélo de RideCorniche : ses cyclistes roulent, et deviennent des obstacles (course-velo.js)
   // Après un rechargement, la moto du patron revient dès qu'on est dehors et à pied (au réveil, en sortant de chez soi ;
   // tout de suite si l'on arrive dans la rue, à côté d'un ami) : jamais dans une pièce (testeur, 03/11).
   if (S.reprise && !S.lieu && T.mode === 'pied' && !T.trans) { S.reprise = false; reprendreJournee(); }
@@ -1512,7 +1512,7 @@ export function initSalon(data) {
   guideSalon = creerGuide({ cle: 'cotonou3d.guide', el: $('#slGuide'), titre: 'Prise en main', etapes: etapesSalon() });
   initCommerces({ S, T, ligne, choisir, allerVers }); // devenir patron (commerces.js)
   initLancePierre({ S, ligne, choisir }); // le stand de la plage de Fidjrossè (lancepierre.js)
-  initCourseVelo({ S, ligne, choisir }); // les courses à vélo de Caï Caï (course-velo.js)
+  initCourseVelo({ S, ligne, choisir }); // les courses à vélo de RideCorniche (course-velo.js)
   initFauxFrere({ S, ligne, choisir, dehors, bulleDe: (u, t) => { const A = u === S.R?.id ? S : S.autres.get(u); if (A) bulle(A, t); } }); // le maquis de la plage (fauxfrere.js)
   initChapitres({ ligne, guide: () => !$('#slGuide').hidden }); // la prochaine étape, toujours affichée (chapitres.js)
   initJournee({ ligne }); // les missions du jour et le classement (journee.js, palmares.js)
