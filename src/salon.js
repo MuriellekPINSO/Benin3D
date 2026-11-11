@@ -43,6 +43,7 @@ import { taire } from './voix.js';
 import { camera, canvas, controls, scene } from './scene.js';
 import { filtrer } from './moderation.js';
 import { actionsLancePierre, cameraTir, fovTir, initLancePierre, majLancePierre, tirEnCours } from './lancepierre.js';
+import { actionsCourseVelo, initCourseVelo, majCourseVelo } from './course-velo.js';
 import { STICKERS, elementSticker, stickerDe, texteSticker, toileSticker } from './stickers.js';
 import { SIEGES as SIEGES_MAQUIS, actionsFauxFrere, initFauxFrere, majFauxFrere, quitterFauxFrere } from './fauxfrere.js';
 import { SAISIE } from './saisie.js';
@@ -577,7 +578,7 @@ async function prendreVelo() {
   const avait = VIE.data?.vehicule;
   if (!(await louerVelo())) return;
   reprendreVehicule(); garerSonVehicule(POSE_VELO); son('piece'); // sa voiture, garée plus loin, est mise de côté
-  ligne(`Vélo loué pour ${HEURES_VELO} h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ».${avait ? ' Ta voiture est mise de côté : tu la retrouves en rendant le vélo.' : ''}`);
+  ligne(`Vélo loué pour ${HEURES_VELO} h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ». En selle devant la boutique, « Course à vélo » te fait courir contre trois cyclistes.${avait ? ' Ta voiture est mise de côté : tu la retrouves en rendant le vélo.' : ''}`);
 }
 async function rendreVelo() {
   if (!reprendreVehicule()) return ligne('Descends d’abord du vélo.');
@@ -1043,6 +1044,7 @@ export function majSalon(dt) {
   majVie(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
   for (const A of S.autres.values()) { const G = A.garee; if (G?.g.visible && (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < 1600) E.circulation.push({ px: G.x, pz: G.z, cap: G.cap, hl: G.D.long / 2, hw: G.D.larg / 2, v: 0, type: G.type }); } // vidée à chaque image (main.js)
   majGarees();
+  majCourseVelo(dt, S); // la course à vélo de Caï Caï : ses cyclistes roulent, et deviennent des obstacles (course-velo.js)
   // Après un rechargement, la moto du patron revient dès qu'on est dehors et à pied (au réveil, en sortant de chez soi ;
   // tout de suite si l'on arrive dans la rue, à côté d'un ami) : jamais dans une pièce (testeur, 03/11).
   if (S.reprise && !S.lieu && T.mode === 'pied' && !T.trans) { S.reprise = false; reprendreJournee(); }
@@ -1205,7 +1207,7 @@ export function majSalon(dt) {
     : occupe() ? actionsMaison() // couché : se lever ; sous la douche, aux fourneaux : arrêter
     : S.gradin ? [{ texte: 'Se lever', f: leverGradins }, ...actionsAppel()]
     : tir ? actionsLancePierre(S, T)
-    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsSalle(S, T), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
+    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCourseVelo(S), ...actionsSalle(S, T), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
   // La touche de chaque bouton : celle de la manette si l'on joue avec (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
   // Une manette branchée mais posée affichait ses boutons même au clavier : c'est la dernière saisie qui compte (saisie.js).
   const touches = SAISIE.manette ? (SAISIE.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
@@ -1506,6 +1508,7 @@ export function initSalon(data) {
   guideSalon = creerGuide({ cle: 'cotonou3d.guide', el: $('#slGuide'), titre: 'Prise en main', etapes: etapesSalon() });
   initCommerces({ S, T, ligne, choisir, allerVers }); // devenir patron (commerces.js)
   initLancePierre({ S, ligne, choisir }); // le stand de la plage de Fidjrossè (lancepierre.js)
+  initCourseVelo({ S, ligne, choisir }); // les courses à vélo de Caï Caï (course-velo.js)
   initFauxFrere({ S, ligne, choisir, dehors, bulleDe: (u, t) => { const A = u === S.R?.id ? S : S.autres.get(u); if (A) bulle(A, t); } }); // le maquis de la plage (fauxfrere.js)
   initChapitres({ ligne, guide: () => !$('#slGuide').hidden }); // la prochaine étape, toujours affichée (chapitres.js)
   initJournee({ ligne }); // les missions du jour et le classement (journee.js, palmares.js)

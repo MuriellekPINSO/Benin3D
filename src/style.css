@@ -1116,6 +1116,15 @@ button { font: inherit; color: inherit; }
 .vh-vitesse { font: 800 15px/1 var(--font-display); display: flex; align-items: baseline; gap: 5px; }
 .vh-vitesse small { align-self: center; font: 800 10px/1 var(--font-body); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); }
 .vh-vitesse span { font-size: 26px; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+/* La course à vélo de Caï Caï (course-velo.js) : la place et ce qui reste, comme le compteur ; le compte à rebours au milieu. */
+.vh-course { font: 800 15px/1 var(--font-display); display: flex; align-items: baseline; gap: 5px; color: var(--ink); }
+.vh-course small { align-self: center; font: 800 10px/1 var(--font-body); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); }
+.vh-course span { font-size: 24px; font-variant-numeric: tabular-nums; color: #1A7D52; }
+.cv-decompte { position: fixed; left: 50%; top: 34%; transform: translate(-50%, -50%); z-index: 40; pointer-events: none; font: 900 clamp(56px, 14vw, 120px)/1 var(--font-display); color: #F5B700; text-shadow: 0 4px 0 #17130c, 0 0 24px rgba(0, 0, 0, .45); white-space: nowrap; }
+.cv-decompte.cv-pop { animation: cv-pop .45s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes cv-pop { from { transform: translate(-50%, -50%) scale(.4); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cv-decompte.cv-pop { animation: none; } }
+#app:has(#cvDecompte:not([hidden])) .sl-astuce { display: none; } /* l'astuce « Maintiens ↑ pour avancer » passait sous le 3, 2, 1 */
 .vh-mission { font-size: 12px; line-height: 1.3; color: var(--ink); border-left: 3px solid var(--accent); padding-left: 6px; }
 .vh-boutons { display: flex; flex-wrap: wrap; gap: 6px; }
 .vh-louer { justify-self: start; border: 0; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 12px; padding: 5px 10px; cursor: pointer; }
@@ -1126,7 +1135,7 @@ button { font: inherit; color: inherit; }
 /* Replié : trois pastilles (l'argent, la faim, l'essence) et « Travailler ». Le reste tient dans le menu, derrière
    l'icône de la barre de droite — l'écran du jeu n'a plus de panneau posé dessus. */
 .vie-hud:not(.ouvert) { width: auto; max-width: min(430px, calc(100% - 2 * var(--gutter))); padding: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.vie-hud:not(.ouvert) :is(.vh-tete, .vh-faim, .vh-heure, .vh-vitesse, .vh-gps) { display: flex; align-items: center; gap: 6px; background: var(--chip); border-radius: 999px; padding: 4px 10px 4px 8px; }
+.vie-hud:not(.ouvert) :is(.vh-tete, .vh-faim, .vh-heure, .vh-vitesse, .vh-gps, .vh-course) { display: flex; align-items: center; gap: 6px; background: var(--chip); border-radius: 999px; padding: 4px 10px 4px 8px; }
 .vie-hud:not(.ouvert) .vh-faim span { display: none; }
 .vie-hud:not(.ouvert) .vh-faim i { width: 34px; }
 .vie-hud:not(.ouvert) .vh-mission { flex: 1 0 100%; }
@@ -1855,6 +1864,8 @@ button.ff-ligne:hover { border-color: var(--accent); }
    débordaient sur la mini-carte (debout) ou sous la barre « En ville » (couché). */
 @media (max-width: 720px), (pointer: coarse) and (orientation: landscape) and (max-height: 540px) {
   .vie-hud:not(.ouvert) .vh-heure { position: absolute; top: calc(100% + 4px); left: 0; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+  /* La place en course à vélo, à côté de l'heure : dans la ligne, elle passait sous la mini-carte (course-velo.js). */
+  .vie-hud:not(.ouvert) .vh-course { position: absolute; top: calc(100% + 4px); left: 64px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); white-space: nowrap; }
 }
 
 /* La mention © OpenStreetMap reste lisible là où les crédits complets sont cachés : en course, dans la ville de « Vivre à
