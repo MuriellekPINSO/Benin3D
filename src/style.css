@@ -1020,8 +1020,9 @@ button { font: inherit; color: inherit; }
 .sl-bulle[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
 .sl-bulle b { position: absolute; top: -2px; right: -2px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #d64536; color: #fff; font: 700 12px/20px var(--font-body); text-align: center; }
 .sl-bulle b[hidden] { display: none; }
-.sl-haut { position: absolute; top: var(--gutter); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; border-radius: 999px; max-width: calc(100% - 2 * var(--gutter)); flex-wrap: wrap; justify-content: center; }
-.sl-haut div { display: grid; line-height: 1.2; margin-right: 4px; }
+/* La barre du haut ne dit plus que combien on est en ville : Inviter et Quitter sont dans le menu (11/11). */
+.sl-haut { position: absolute; top: var(--gutter); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 9px 20px; border-radius: 999px; max-width: calc(100% - 2 * var(--gutter)); justify-content: center; text-align: center; }
+.sl-haut div { display: grid; line-height: 1.2; }
 .sl-haut b { font: 800 15px/1.2 var(--font-display); }
 .sl-haut small { color: var(--ink-2); font-size: 12px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sl-chat { position: absolute; left: var(--gutter); bottom: calc(var(--gutter) + 62px); width: min(340px, calc(100% - 2 * var(--gutter))); padding: 10px; border-radius: var(--r-lg); display: none; gap: 8px; }
@@ -1064,12 +1065,11 @@ button { font: inherit; color: inherit; }
 .sl-courir { position: absolute; left: 28px; bottom: 146px; border: 0; border-radius: 999px; padding: 9px 16px; font-weight: 800; font-size: 14px; background: var(--panel-solid); color: var(--ink); box-shadow: var(--shadow); touch-action: manipulation; }
 .sl-courir[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 .sl-courir[hidden] { display: none; }
-.sl-haut button:disabled { opacity: .45; cursor: default; }
 .sl-joy i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: var(--accent); transform: translate(var(--jx, 0px), var(--jy, 0px)); }
 @media (max-width: 720px) {
   /* Téléphone : rien d'écrit en bas. À gauche le joystick, « Courir » et la bulle de discussion empilés ; à droite
      les actions du moment ; en haut à droite la mini-carte et la barre d'icônes. */
-  .sl-haut { top: 8px; padding: 4px 4px 4px 12px; gap: 4px; flex-wrap: nowrap; }
+  .sl-haut { top: 8px; padding: 6px 14px; }
   .sl-haut b { font-size: 14px; }
   .sl-haut small { display: none; }
   .sl-rail { top: calc(var(--sl-bandeau, 182px) + 8px); right: 8px; gap: 6px; }
@@ -1378,7 +1378,7 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
    barre du salon, l'argent et la mini-carte ; en bas le joystick à gauche, les boutons à droite, les actions entre les deux ;
    la discussion et les gestes à la demande ; le guide et l'étape du chapitre en haut, sur le ciel. */
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 540px) {
-  .sl-haut { top: 6px; padding: 3px 3px 3px 10px; gap: 4px; flex-wrap: nowrap; }
+  .sl-haut { top: 6px; padding: 5px 12px; }
   .sl-haut b { font-size: 13px; }
   .sl-haut small { display: none; }
   .vie-hud { top: 6px; left: 8px; width: auto; max-width: 30%; padding: 5px 9px; gap: 2px; font-size: 11px; }
@@ -1529,7 +1529,7 @@ body:has(#app.mode-salon) .leger-offre { top: 96px; } /* sous la barre du salon,
   .sl-courir { padding: 11px 18px; }
 }
 @media (pointer: coarse) and (max-width: 720px) {
-  .sl-haut { padding: 6px 6px 6px 12px; gap: 6px; }
+  .sl-haut { padding: 8px 14px; }
   .sl-haut b { font-size: 14px; }
   .sl-guide { padding: 10px 14px; font-size: 13px; }
   .sl-guide .ev-sur { font-size: 10px; }

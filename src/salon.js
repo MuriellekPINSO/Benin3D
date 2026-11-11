@@ -1542,9 +1542,6 @@ export function initSalon(data) {
   $('#slCode')?.addEventListener('keydown', e => { if (e.key === 'Enter') parCode(); });
   $('#slNom')?.addEventListener('keydown', e => { if (e.key === 'Enter') (!$('#slCodeBloc').hidden && $('#slCode').value ? parCode() : entrerChoisi()); });
   $('#slNom')?.addEventListener('input', e => e.target.setCustomValidity(''));
-  $('#slInviter')?.addEventListener('click', inviter);
-  $('#slCopier')?.addEventListener('click', copier);
-  $('#slQuitter')?.addEventListener('click', () => choisir('Quitter la partie ?', [{ texte: 'Quitter', sous: 'Ton argent, ton logement et ta journée de travail sont gardés.', f: quitter }], { annuler: 'Rester' }));
   $('#slVue2')?.addEventListener('click', changerVue);
   $('#slAllerBtn')?.addEventListener('click', menuAller);
   $('#slMenuBtn')?.addEventListener('click', () => menu(!S.menu)); // le rond à droite : le menu, et ses tuiles (objectifs, travailler, aller, gestes, m’habiller, vue)
@@ -1560,7 +1557,9 @@ export function initSalon(data) {
   $('#vhTravail')?.addEventListener('click', menuTravail); $('#slTravail')?.addEventListener('click', menuTravail);
   $('#vhReprendre')?.addEventListener('click', () => menu(false)); $('#vhVoile')?.addEventListener('click', () => menu(false));
   $('#vhSon')?.addEventListener('click', () => { AUDIO.muet = !AUDIO.muet; if (AUDIO.muet) { taire(); moteurMaj(0, false); } else audioCtx(); majSon(); });
-  $('#vhInviter')?.addEventListener('click', () => { menu(false); $('#slInviter')?.click(); }); $('#vhQuitter')?.addEventListener('click', () => { menu(false); $('#slQuitter')?.click(); });
+  // Inviter et Quitter ne sont plus que dans le menu : la barre du haut ne dit plus que combien on est en ville (11/11).
+  $('#vhInviter')?.addEventListener('click', () => { menu(false); inviter(); });
+  $('#vhQuitter')?.addEventListener('click', () => { menu(false); choisir('Quitter la partie ?', [{ texte: 'Quitter', sous: 'Ton argent, ton logement et ta journée de travail sont gardés.', f: quitter }], { annuler: 'Rester' }); });
   $('#vieHud')?.addEventListener('click', e => { if (S.menu && e.target.closest('.vh-boutons button:not(.vh-menu), .vh-tuile')) menu(false); }); // une tuile, Commerces, Louer, Pause… : la fenêtre qui s'ouvre passe devant
   $('#vhPause')?.addEventListener('click', basculerPause);
   $('#vhFinir')?.addEventListener('click', () => choisir('Finir ta journée ?', [{ texte: 'Oui, j’arrête pour aujourd’hui', f: finirJournee }], { annuler: 'Non, je continue' }));
