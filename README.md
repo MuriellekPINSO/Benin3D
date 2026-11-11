@@ -9,9 +9,20 @@ ou dans un tokpa-tokpa.
 
 ## Tester
 
-**En ligne, sans rien installer** : https://tours-two-ashen.vercel.app — projet Vercel « tours », relié
-à ce dépôt : chaque envoi sur `main` le republie. La clé Google y est une variable d'environnement
-du projet (`VITE_GOOGLE_MAPS_KEY`), à restreindre au domaine dans la console Google Cloud.
+**En ligne, sans rien installer** : https://kotonuvibes.com. Le site est mis en ligne à la main (CLI Vercel),
+pas à chaque envoi sur `main`. La clé Google y est une variable d'environnement du projet
+(`VITE_GOOGLE_MAPS_KEY`), à restreindre au domaine dans la console Google Cloud.
+
+**Les fichiers lourds viennent de jsDelivr** (`src/actifs.js`) : modèles, données de la ville, images, sons et
+vidéos sont lus dans ce dépôt GitHub public, au commit mis en ligne ; Vercel ne sert que la page, le code et l'API
+(son offre gratuite s'arrête à 100 Go par mois). Pour mettre en ligne :
+
+```bash
+git push origin <commit>:refs/tags/en-ligne-<date>    # le commit doit être sur GitHub pour jsDelivr
+vercel deploy --prod --build-env VITE_ACTIFS=$(git rev-parse HEAD)
+```
+
+Sans `VITE_ACTIFS`, tout vient du site, comme en local. Un fichier que jsDelivr ne donne pas est repris sur le site.
 
 **Sur son ordinateur** (Node.js 20 ou plus) :
 

@@ -12,6 +12,7 @@ import { scene } from './scene.js';
 import { roadLines, ROAD_W } from './ville.js';
 import { REPERES } from './reperes.js';
 import { chargeurGLB } from './textures.js';
+import { actif, fetchActif } from './actifs.js';
 
 /** id → { geo, mat, t } une fois arrivé : géométrie posée au sol et centrée, matériau, taille (x, y, z) en mètres du fichier. */
 export const VILLE = {};
@@ -66,7 +67,7 @@ function preparer(id, gltf) {
 const PAS_ENCORE = new Set(), A_PART = new Set(['foule', 'concert', 'gradins']);
 let INDEX = null;
 /** La liste des modèles de public/modeles/ville (null si elle manque). */
-export const indexVille = () => INDEX ??= fetch(import.meta.env.BASE_URL + 'modeles/ville/index.json')
+export const indexVille = () => INDEX ??= fetchActif('modeles/ville/index.json')
   .then(r => r.ok && /json/.test(r.headers.get('content-type') || '') ? r.json() : null).catch(() => null);
 /** Lancé une fois au démarrage (main.js) : la liste, puis les modèles, chacun quand la file est libre. */
 export async function chargerVille() {
@@ -74,7 +75,7 @@ export async function chargerVille() {
   const index = await indexVille(); if (!index) return;
   for (const [id, i] of Object.entries(index)) {
     if (PAS_ENCORE.has(id) || A_PART.has(id)) continue;
-    plusTard(() => chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/ville/${id}.glb?v=${i.octets}`), { apres: true }).then(gltf => {
+    plusTard(() => chargeur.loadAsync(actif(`modeles/ville/${id}.glb?v=${i.octets}`)), { apres: true }).then(gltf => {
       const M = preparer(id, gltf); if (!M) return;
       VILLE[id] = M;
       for (const f of attentes.get(id) || []) f(M);

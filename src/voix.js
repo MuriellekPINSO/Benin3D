@@ -1,5 +1,6 @@
 import { hash } from './base.js';
 import { AUDIO } from './audio.js';
+import { fetchActif } from './actifs.js';
 
 // ---------- Les voix : les gens de Zém Run parlent à voix haute ----------
 // Synthèse vocale du navigateur (Web Speech API) : gratuite, sans clé, en français.
@@ -48,7 +49,7 @@ const CLIPS = new Map(ENREGISTREES.map((t, i) => [cleDe(t), { n: String(i + 1).p
 /** Les fichiers sont petits (une vingtaine de Ko chacun) : on les télécharge au premier geste et on les décode tous à la première phrase dite. */
 function telechargerClips() {
   if (!VOIX.on) return;
-  for (const c of CLIPS.values()) c.octets ??= fetch(`${import.meta.env.BASE_URL}audio/voix/${c.n}.m4a`).then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+  for (const c of CLIPS.values()) c.octets ??= fetchActif(`audio/voix/${c.n}.m4a`).then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
 }
 /** L'enregistrement de cette phrase, s'il y en a un et que le son du jeu tourne. Le premier appel décode tous les fichiers
  * (quelques dizaines de millisecondes) : lancer() attend le sien plutôt que de passer à la synthèse. */

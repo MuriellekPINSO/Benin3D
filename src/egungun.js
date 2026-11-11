@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { LITE } from './base.js';
 import { chargeurGLB, MAX_DECOR, reduireImage } from './textures.js';
+import { actif } from './actifs.js';
 
 // Egungun, les masques des revenants (culte des ancêtres yoruba, très présents
 // à Porto-Novo et Ouidah). D'après les photos fournies : costumes en étages de
@@ -101,7 +102,7 @@ export const MASQUES = { modeles: null, promesse: null };
 export function chargerMasques() {
   if (MASQUES.promesse) return MASQUES.promesse;
   const L = chargeurGLB();
-  MASQUES.promesse = Promise.all(Object.entries(FICHIERS).map(([cle, [f]]) => L.loadAsync(import.meta.env.BASE_URL + `modeles/${f}.glb`)
+  MASQUES.promesse = Promise.all(Object.entries(FICHIERS).map(([cle, [f]]) => L.loadAsync(actif(`modeles/${f}.glb`))
     .then(g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = !LITE; o.receiveShadow = true; if (o.material.metalness > .5) o.material.metalness = .15; } }); return [cle, g.scene]; })
     .catch(e => { console.warn(`masque ${f} indisponible`, e); return [cle, null]; })))
     .then(l => (MASQUES.modeles = Object.fromEntries(l)));

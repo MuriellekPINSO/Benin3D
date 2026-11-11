@@ -6,6 +6,7 @@ import { ajouterEmprises, tuileCachee } from './rue.js';
 import { lireJsonGz } from './chargement.js';
 import { rectDansParc, rectSansConstruction } from './zones.js';
 import { preparerGeometries } from './memoire.js';
+import { fetchActif } from './actifs.js';
 
 // ---------- Bâtiments Google Open Buildings ----------
 // Google détecte les bâtiments sur ses images satellite et publie leurs emprises
@@ -32,7 +33,7 @@ function horsChaussee(T) {
 }
 export async function initBatimentsGoogle() {
   try {
-    const r = await fetch(import.meta.env.BASE_URL + 'donnees/batiments/index.json'); if (!r.ok) return 0;
+    const r = await fetchActif('donnees/batiments/index.json'); if (!r.ok) return 0;
     const j = await r.json(); BG.index = j.tuiles; BG.taille = j.taille / 10;
     return Object.values(BG.index).reduce((s, n) => s + n, 0);
   } catch { return 0; }
@@ -40,7 +41,7 @@ export async function initBatimentsGoogle() {
 async function charger(k) {
   const e = { mesh: null, mort: false }; BG.tuiles.set(k, e); BG.enCours++;
   try {
-    const brut = await lireJsonGz(import.meta.env.BASE_URL + `donnees/batiments/${k}.json.gz`);
+    const brut = await lireJsonGz(`donnees/batiments/${k}.json.gz`);
     if (e.mort) return;
     const [tx, tz] = k.split('_').map(Number), { T, ids } = horsChaussee(brut);
     e.mesh = maillageLot(T, 2e6 + Math.floor(hash(tx * 977 + tz, 5) * 1e6), ids);

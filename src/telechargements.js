@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { camera } from './scene.js';
 import { E } from './etat.js';
 import { libererApresEnvoi, reduireImage } from './textures.js';
+import { actif, avecRepli } from './actifs.js';
 
 const F = { demarre: false, attente: [], enCours: 0, max: 3, veille: 0 };
 const PROCHE = 1500;
@@ -54,7 +55,7 @@ export function photoPlusTard(fichier, teinte = '#cbbfa8') {
   const cv = document.createElement('canvas'); cv.width = cv.height = 1;
   const g = cv.getContext('2d'); g.fillStyle = teinte; g.fillRect(0, 0, 1, 1);
   const t = libererApresEnvoi(new THREE.Texture(cv)); t.needsUpdate = true; // la photo n'est envoyée qu'une fois : son image est rendue (textures.js)
-  plusTard(() => new THREE.ImageLoader().loadAsync(import.meta.env.BASE_URL + fichier))
+  plusTard(() => avecRepli(actif(fichier), u => new THREE.ImageLoader().loadAsync(u)))
     .then(img => { t.image = reduireImage(img); t.dispose(); t.needsUpdate = true; })
     .catch(e => console.warn(`photo ${fichier}`, e.message));
   return t;

@@ -1,4 +1,5 @@
 import { $, SECOURS, VIENT_DE_PLANTER } from './base.js';
+import { fetchActif } from './actifs.js';
 // ---------- Chargement ----------
 export const loadTxt = $('#loadTxt'), loadBar = $('#loadBar');
 export const status = (t, p) => { loadTxt.textContent = t; if (p != null) loadBar.style.width = p + '%'; };
@@ -44,8 +45,8 @@ export const frame = () => new Promise(r => {
 // entier, lecture comprise : sur iPhone en 4G, c'est souvent en cours de route que ça coupe (« Load failed » au
 // tout début de la barre, iPhone 13 d'un testeur, 26/10), et seule la requête était réessayée.
 const ESSAIS = 4;
-async function telecharger(url, progres) {
-  const res = await fetch(url);
+async function telecharger(chemin, progres) {
+  const res = await fetchActif(chemin);
   if (!res.ok) { const e = new Error(`Données introuvables (${res.status}). Lancez « npm run donnees ».`); e.definitif = true; throw e; }
   // On lit le fichier morceau par morceau pour montrer où en est le téléchargement : sur une 4G lente, ses 2,8 Mo
   // prennent dix à vingt secondes, et un écran figé sur « Décompression » faisait partir les joueurs.
@@ -61,7 +62,7 @@ async function telecharger(url, progres) {
 export async function decode(progres) {
   let buf;
   for (let k = 1; ; k++) {
-    try { buf = await telecharger(import.meta.env.BASE_URL + 'donnees/cotonou.json.gz', progres); break; }
+    try { buf = await telecharger('donnees/cotonou.json.gz', progres); break; }
     catch (e) {
       if (e.definitif || k >= ESSAIS) throw e;
       status(`La connexion a coupé : nouvel essai (${k + 1} sur ${ESSAIS})…`, 2);
@@ -75,9 +76,9 @@ export async function decode(progres) {
   }
   return JSON.parse(new TextDecoder().decode(buf));
 }
-/** JSON gzippé (ou déjà décompressé par le serveur, selon l'en-tête Content-Encoding). */
-export async function lireJsonGz(url) {
-  const res = await fetch(url); if (!res.ok) throw new Error(`${url} : ${res.status}`);
+/** JSON gzippé de public/ (ou déjà décompressé par le serveur, selon l'en-tête Content-Encoding). */
+export async function lireJsonGz(chemin) {
+  const res = await fetchActif(chemin); if (!res.ok) throw new Error(`${chemin} : ${res.status}`);
   const buf = new Uint8Array(await res.arrayBuffer());
   if (buf[0] === 0x1f && buf[1] === 0x8b) return JSON.parse(await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
   return JSON.parse(new TextDecoder().decode(buf));
