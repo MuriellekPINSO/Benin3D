@@ -11,7 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { dequantize, weld, simplify, prune, dedup, textureCompress, meshopt, listTextureSlots } from '@gltf-transform/functions';
+import { dequantize, weld, simplify, prune, dedup, textureCompress, meshopt, listTextureSlots, transformMesh } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import sharp from 'sharp';
 
@@ -44,13 +44,16 @@ async function genererTexte(id, prompt) {
   console.log(`${id} : tâche ${task_id}`);
   return attendre(id, prompt, task_id);
 }
+// TRIPO_OPTIONS='{"geometry_quality":"detailed"}' : des réglages de génération en plus (doc : generation-image-to-model),
+// par exemple la géométrie « Ultra » (+20 crédits) ou le modèle P2 ("model":"P2-20260801", formes nettes, peu de faces).
+const OPTIONS = process.env.TRIPO_OPTIONS ? JSON.parse(process.env.TRIPO_OPTIONS) : {};
 async function generer(id, photo, reprise = null) {
   fs.mkdirSync(SOURCES, { recursive: true });
   if (reprise) return attendre(id, photo, reprise);
   const ext = path.extname(photo).slice(1).toLowerCase().replace('jpg', 'jpeg');
   const fd = new FormData(); fd.append('file', new Blob([fs.readFileSync(photo)], { type: `image/${ext}` }), path.basename(photo));
   const { file_token } = await api('POST', '/files', fd);
-  const { task_id } = await api('POST', '/generation/image-to-model', { input: file_token, model: MODELE, texture: true, pbr: true, texture_quality: 'detailed', texture_version: 'v3.5-20260815', delight: true, enable_image_autofix: true });
+  const { task_id } = await api('POST', '/generation/image-to-model', { input: file_token, model: MODELE, texture: true, pbr: true, texture_quality: 'detailed', texture_version: 'v3.5-20260815', delight: true, enable_image_autofix: true, ...OPTIONS });
   console.log(`${id} : tâche ${task_id}`);
   return attendre(id, photo, task_id);
 }
@@ -131,7 +134,24 @@ const texturesVehicule = r => async doc => {
     t.setImage(await img.jpeg({ quality: q, mozjpeg: true }).toBuffer()).setMimeType('image/jpeg');
   }
 };
-async function alleger(id, cible = REGLAGES[id]?.vehicule ? 100000 : 60000) {
+const vehicule = id => REGLAGES[id]?.vehicule || process.env.TRIPO_VEHICULE === '1'; // TRIPO_VEHICULE=1 : le réglage « vehicule » pour un essai
+// Un véhicule doit être couché dans l'axe x ou z de son fichier : la Vitz du modèle P2 est sortie à 45°, comme sur la
+// photo de trois quarts, et le jeu la mettait à l'échelle d'après sa boîte, gonflée en biais (vehicules.js, gabaritDe).
+// On la tourne autour de la verticale d'après l'axe principal de ses sommets (le même calcul que redresser).
+const alignerAxe = () => doc => {
+  const P = []; const v = [];
+  const meshes = doc.getRoot().listMeshes();
+  for (const m of meshes) for (const p of m.listPrimitives()) { const a = p.getAttribute('POSITION'); for (let i = 0; i < a.getCount(); i += 5) { a.getElement(i, v); P.push([v[0], v[2]]); } }
+  const mx = P.reduce((s, p) => s + p[0], 0) / P.length, mz = P.reduce((s, p) => s + p[1], 0) / P.length;
+  let xx = 0, zz = 0, xz = 0; for (const [x, z] of P) { xx += (x - mx) ** 2; zz += (z - mz) ** 2; xz += (x - mx) * (z - mz); }
+  let a = .5 * Math.atan2(2 * xz, xx - zz); // angle de l'axe long, de x vers z
+  a = Math.atan2(Math.sin(2 * a), Math.cos(2 * a)) / 2; if (Math.abs(a) < .03 || Math.abs(Math.abs(a) - Math.PI / 2) < .03) return; // déjà droit
+  const c = Math.cos(a), s = Math.sin(a); // x' = x cos a + z sin a, z' = −x sin a + z cos a : l'axe à a degrés revient sur x
+  const M = [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]; // colonne par colonne
+  for (const m of meshes) transformMesh(m, M);
+  console.log(`axe redressé de ${(a * 180 / Math.PI).toFixed(1)}°`);
+};
+async function alleger(id, cible = vehicule(id) ? 100000 : 60000) {
   await MeshoptDecoder.ready; await MeshoptEncoder.ready; await MeshoptSimplifier.ready;
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
   const tri = doc => doc.getRoot().listMeshes().flatMap(m => m.listPrimitives()).reduce((s, p) => s + (p.getIndices()?.getCount() ?? p.getAttribute('POSITION').getCount()) / 3, 0);
@@ -139,11 +159,12 @@ async function alleger(id, cible = REGLAGES[id]?.vehicule ? 100000 : 60000) {
   await retoucher(doc, REGLAGES[id]);
   await doc.transform(
     dequantize(), dedup(), weld(),
+    ...(vehicule(id) ? [alignerAxe()] : []),
     ...(REGLAGES[id]?.principal ? [seulPrincipal()] : []),
     ...(REGLAGES[id]?.coupes ? [couper(REGLAGES[id].coupes)] : []),
     simplify({ simplifier: MeshoptSimplifier, ratio: Math.min(1, cible / avant), error: 0.01 }),
     prune(),
-    ...(REGLAGES[id]?.vehicule ? [texturesVehicule(REGLAGES[id])] : [
+    ...(vehicule(id) ? [texturesVehicule(REGLAGES[id] || {})] : [
       textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [2048, 2048], slots: /baseColor/ }),
       textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [512, 512], slots: /normal|metallicRoughness/ }),
     ]),

@@ -59,20 +59,20 @@
   "triangles": 35000,
   "octets": 828168
  },
+ "jetour-net": {
+  "triangles": 99998,
+  "octets": 1886612
+ },
+ "landcruiser-p2": {
+  "triangles": 50824,
+  "octets": 2102184
+ },
  "roadster-rouge": {
   "triangles": 100000,
   "octets": 1754224
  },
- "landcruiser": {
-  "triangles": 99996,
-  "octets": 2009148
- },
  "vitz": {
   "triangles": 99996,
   "octets": 1716740
- },
- "jetour-net": {
-  "triangles": 99998,
-  "octets": 1886612
  }
 }

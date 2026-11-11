@@ -13,9 +13,9 @@
   "_coupes": "façade vers +x : voitures sous l\u2019auvent, câble vert devant l\u2019aile droite, bloc gris du voisin à l\u2019angle et sa dalle qui dépasse du flanc est",
   "coupes": [[0.757, 1, 0, 0.065, 0.19, 0.83], [0.757, 1, 0, 0.14, 0.85, 1], [0.9, 1, 0.28, 0.6, 0, 0.22], [0.915, 1, 0, 0.28, 0, 0.22], [0, 1, 0.2, 0.3, 0.925, 1], [0, 1, 0.12, 0.21, 0.915, 1]]
  },
- "_vehicule": "véhicule du joueur, vu de près : 100 000 triangles, couleur 2048 plus nette, relief 2048 (scripts/tripo.mjs, texturesVehicule)",
+ "_vehicule": "véhicule du joueur, vu de près : couché dans l'axe, 100 000 triangles au plus, couleur 2048 plus nette, relief 2048 (scripts/tripo.mjs, texturesVehicule). Les -p2 : modèle P2 de Tripo (TRIPO_OPTIONS={\"model\":\"P2-20260801\",\"face_limit\":50000}), carrosserie lisse",
  "roadster-rouge": { "vehicule": true },
- "landcruiser": { "vehicule": true },
+ "landcruiser-p2": { "vehicule": true },
  "vitz": { "vehicule": true },
  "jetour-net": { "vehicule": true }
 }

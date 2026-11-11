@@ -61,18 +61,18 @@ const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote aut
 const MODELES = { voiture: null, moto: null, taxi: null, roadster: null, citadine: null, jetour: null };
 if (import.meta.env.DEV) window.__vehicules = { MODELES }; // pour les tests : la voiture dessinée en code, en vidant MODELES
 const LONGUEURS = { voiture: 4.95, moto: 2, taxi: 4.3, roadster: 4.4, citadine: 3.95, jetour: 4.75 };
-// Le Jetour est presque à 90° dans son fichier, pile à la limite où `redresser` (vehicules.js) choisit un sens ou l'autre :
-// sa version à 40 000 triangles sortait à l'envers (demi-tour), celle à 100 000 à l'endroit. À revérifier s'il est refait.
-const DEMI_TOUR = { voiture: false, moto: true, taxi: false, roadster: false, citadine: false, jetour: false };
-// Tripo fait les voitures 10 à 15 % trop hautes (Land Cruiser de 2,23 m au lieu de 1,91 m ; Vitz de 1,68 m au lieu de 1,50 m ;
+// Le redressement (vehicules.js, redresser) aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu, phares devant.
+// Le Jetour est presque à 90° dans son fichier, pile à la limite où il choisit un sens ou l'autre : à revérifier s'il est refait.
+const DEMI_TOUR = { voiture: true, moto: true, taxi: false, roadster: false, citadine: false, jetour: false };
+// Tripo fait les voitures trop hautes (Land Cruiser P2 de 2,18 m au lieu de 1,91 m ; Vitz de 1,68 m au lieu de 1,50 m ;
 // Jetour de 2,09 m au lieu de 1,72 m) : on les tasse, les places (HABITACLES) sont mesurées après.
-const ECRASER = { voiture: .9, citadine: .9, jetour: .85 }; // le redressement aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu (phare devant)
+const ECRASER = { voiture: .88, citadine: .9, jetour: .85 };
 // Selle du modèle Tripo, mesurée : avec [1,02 ; −0,08] du zém, on s'asseyait sur le réservoir ; avec [0,86 ; −0,27], encore
 // au bord du réservoir, les hanches 15 cm au-dessus de la selle (profil relevé le 03/11). Le bassin au milieu de la selle.
 const SELLES = { moto: [.83, -.43] };
 export function chargerVehicules() {
   const ch = chargeurGLB({ liberer: true, dePres: true });
-  for (const [type, id] of [['voiture', 'landcruiser'], ['moto', 'moto-perso'], ['taxi', 'voiture'], ['roadster', 'roadster-rouge'], ['citadine', 'vitz'], ['jetour', 'jetour-net']]) { // taxi : celui de Zém Run
+  for (const [type, id] of [['voiture', 'landcruiser-p2'], ['moto', 'moto-perso'], ['taxi', 'voiture'], ['roadster', 'roadster-rouge'], ['citadine', 'vitz'], ['jetour', 'jetour-net']]) { // taxi : celui de Zém Run
     if (!TRIPO.info[id]) continue;
     plusTard(() => ch.loadAsync(urlTripo(id))).then(g => {
       const m = gabaritDe(g.scene, { largeur: LONGUEURS[type] });
@@ -85,7 +85,7 @@ export function chargerVehicules() {
 }
 // Ce que la photo avait en trop. La Roadster rouge a été photographiée toit de verre relevé : Tripo en a fait un aileron
 // de 1,5 m au-dessus de l'arrière. On l'enlève, et elle devient décapotée — on voit qui est dedans. Boîtes dans le repère du
-// gabarit (l'avant vers +x, la gauche vers −z) : [xmin, xmax, ymin] ; un triangle dont le centre y tombe disparaît.
+// gabarit (l'avant vers +x, ou vers −x pour un modèle en DEMI_TOUR) : [xmin, xmax, ymin] ; un triangle dont le centre y tombe disparaît.
 const COUPES = { roadster: [[-3, -.75, .97], [-.75, .05, 1.1]] };
 function couper(gabarit, boites) {
   gabarit.updateMatrixWorld(true);
