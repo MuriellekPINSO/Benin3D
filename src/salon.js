@@ -75,7 +75,7 @@ const PHRASES = ['Salut !', 'Ça va ?', 'On y va !', 'On mange où ?', 'Attends-
 // Lieux de rendez-vous : id dans PLACES, nom dans le menu, « je vais … », décalage du point d'arrivée (mètres,
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
-const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['dome', 'Le Dôme du Sofitel (La Nuit Kutɔnu Vibes)', 'au Dôme du Sofitel', 0, 0, 0, 'dome-sofitel'], ['caicai', 'Caï Caï Vélo (location)', 'chez Caï Caï Vélo', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0], ['salle-jeux', 'Salle de jeux (jeux des créateurs)', 'à la salle de jeux de Haie Vive', 0, 0, 0, 'salle-jeux']]; // 7e : intérieur dont on arrive devant la porte
+const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['dome', 'Le Dôme du Sofitel (La Nuit Kutɔnu Vibes)', 'au Dôme du Sofitel', 0, 0, 0, 'dome-sofitel'], ['caicai', 'RideCorniche (location de vélos)', 'chez RideCorniche', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0], ['salle-jeux', 'Salle de jeux (jeux des créateurs)', 'à la salle de jeux de Haie Vive', 0, 0, 0, 'salle-jeux']]; // 7e : intérieur dont on arrive devant la porte
 const ACTION_DE = { porte: 0, action2: 1, action3: 2 }; // les touches des trois boutons d'action (E, R, F)
 const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
@@ -566,7 +566,7 @@ function destination(L) {
   if (I) { const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; }
   const [x, z] = toXZ(p.lat, p.lon); return [x + L[3], z + L[4], L[5]];
 }
-// ---------- Caï Caï Vélo : louer au comptoir ----------
+// ---------- RideCorniche (ex-Caï Caï Vélo) : louer au comptoir ----------
 function actionsCaiCai() {
   if (T.mode !== 'pied' || S.lieu || !PRES_DE_CAI(S.x, S.z)) return [];
   if (VIE.data?.vehicule === 'velo') return [...(S.balade ? [] : [{ texte: 'Partir en balade', f: choisirBalade }]), { texte: 'Rendre le vélo', f: rendreVelo }];
@@ -583,7 +583,7 @@ async function rendreVelo() {
   if (!reprendreVehicule()) return ligne('Descends d’abord du vélo.');
   S.balade = null; const garde = !!VIE.data?.garde; await rendreLocation();
   if (garde) garerSonVehicule(); // sa voiture revient, devant la boutique
-  ligne(`Vélo rendu. Merci, à bientôt chez Caï Caï !${garde ? ' Ta voiture est de retour.' : ''}`);
+  ligne(`Vélo rendu. Merci, à bientôt chez RideCorniche !${garde ? ' Ta voiture est de retour.' : ''}`);
 }
 // ---------- Les balades en groupe ----------
 // Le meneur annonce chaque étape dans la discussion ; les autres n'ont qu'à cliquer « Y aller ». Rien à
@@ -596,7 +596,7 @@ function choisirBalade() {
 }
 function lancerBalade(B) {
   S.balade = { id: B.id, etape: 0 };
-  annoncerEtape(B, 0, `Je pars en balade « ${B.nom} » avec Caï Caï`);
+  annoncerEtape(B, 0, `Je pars en balade « ${B.nom} » avec RideCorniche`);
 }
 function annoncerEtape(B, i, debut) {
   const id = B.etapes[i], L = LIEUX.find(l => l[0] === id); if (!L) return;

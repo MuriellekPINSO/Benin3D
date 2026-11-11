@@ -183,7 +183,7 @@ export async function assurerVie(local, { nom, modele }) {
   payerLoyers(); await versementEchu();
   if (VIE.data.vehiculeFin && Date.now() > VIE.data.vehiculeFin && (VIE.data.vehicule === 'moto' || VIE.data.vehicule === 'velo')) {
     const velo = VIE.data.vehicule === 'velo', garde = !!VIE.data.garde; ecrire(finLocation());
-    VIE.alerte ||= velo ? `Ton vélo Caï Caï est rendu : les deux heures sont passées.${garde ? ' Ta voiture t’attend.' : ''}` : 'Ta location de moto est terminée : tu peux en relouer une.';
+    VIE.alerte ||= velo ? `Ton vélo RideCorniche est rendu : les deux heures sont passées.${garde ? ' Ta voiture t’attend.' : ''}` : 'Ta location de moto est terminée : tu peux en relouer une.';
   }
   VIE.faimT = 0; rendreVie();
   return VIE.data;
@@ -271,14 +271,14 @@ function majHeure() {
   const h = new Date(Date.now() + 36e5).toISOString().slice(11, 16); if (h === VIE.heure) return;
   VIE.heure = h; const el = $('#vhHeure'); if (el) el.textContent = h;
 }
-/** Loue un vélo chez Caï Caï Vélo, pour deux heures. */
+/** Loue un vélo chez RideCorniche (ex-Caï Caï Vélo), pour deux heures. */
 // Louer un vélo alors qu'on a sa voiture (ou sa moto) : « je n'arrive pas à louer un vélo Caï Caï » (Murielle, 31/10) —
 // un seul véhicule à la fois, et le bouton n'apparaissait pas. La sienne est mise de côté pendant la location, avec son
 // essence (`garde` : « roadster:7.5 »), et revient quand on rend le vélo ou que les deux heures sont passées.
 export async function louerVelo() {
   if (!VIE.data || VIE.data.vehicule === 'velo') return false;
   if (vehiculeLoue(VIE.data)) { annonce('Rends d’abord ton véhicule loué.'); return false; }
-  if (!(await depenser(LOCATION_VELO, `location d’un vélo Caï Caï (${HEURES_VELO} h)`))) { annonce(`Il te faut ${fmt(LOCATION_VELO)} pour louer un vélo.`); return false; }
+  if (!(await depenser(LOCATION_VELO, `location d’un vélo RideCorniche (${HEURES_VELO} h)`))) { annonce(`Il te faut ${fmt(LOCATION_VELO)} pour louer un vélo.`); return false; }
   const garde = VIE.data.vehicule ? `${VIE.data.vehicule}:${Math.round((VIE.data.carburant || 0) * 100) / 100}` : '';
   await ecrire({ vehicule: 'velo', carburant: 0, vehiculeFin: Date.now() + HEURES_VELO * 36e5, ...(garde ? { garde } : {}) }); signaler('velo'); rendreVie(); return true;
 }

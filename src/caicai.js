@@ -7,12 +7,13 @@ import { MAX_DECOR, reduireImage } from './textures.js';
 import { poserObstacles } from './rue.js';
 import { quandVelo } from './conduite.js';
 
-// ---------- Caï Caï Vélo ----------
-// Le loueur de vélos du jeu. Le nom est inventé (« caï caï », le cri du canard) : on s'inspire des
-// loueurs de Cotonou sans porter l'enseigne de personne. Sa boutique est au bord de l'esplanade de
-// l'Amazone : c'est là que les joueurs se retrouvent, et c'est de là que partent leurs balades. Une
-// boutique en conteneur, l'auvent de tôle, le panneau au canard, et des vélos rangés au râtelier.
-// On loue en s'approchant du comptoir.
+// ---------- RideCorniche ----------
+// Le loueur de vélos du jeu : RideCorniche, les vélos jaunes de la Corniche de Cotonou. Leur fondateur a demandé d'avoir
+// sa marque à la place de « Caï Caï Vélo », le nom inventé d'avant (06/11) ; Murielle a dit oui le 11/11, avec leur vélo
+// en 3D (conduite.js, VELO_TRIPO). Les identifiants (caicai, CAI…) restent : les lieux enregistrés s'en servent.
+// La boutique est au bord de l'esplanade de l'Amazone : c'est là que les joueurs se retrouvent, et c'est de là que partent
+// leurs balades. Une boutique en conteneur aux couleurs de la marque (jaune et noir), l'auvent de tôle, le panneau au
+// logo, et des vélos rangés au râtelier. On loue en s'approchant du comptoir.
 const LAT = 6.34895, LON = 2.40755; // la place de l'Amazone ; la boutique est au bord de l'esplanade
 const [AX, AZ] = toXZ(LAT, LON);
 // Le comptoir et l'auvent regardent le sud (+z dans le repère du jeu) : la boutique n'est pas pivotée,
@@ -33,35 +34,40 @@ export const BALADES = [
   { id: 'picnic', nom: 'Vélo Picnic', etapes: ['fidjrosse', 'amazone'] },
 ];
 
-/** Le panneau de la boutique : le canard et le nom, peints sur une tôle. */
+// Les couleurs de la boutique. La vitre reste claire : les couleurs sont rangées en linéaire par mergeColored, et tout ce
+// qui est déjà sombre y devient noir — un bleu nuit faisait un trou dans le conteneur.
+const RC = { jaune: '#f2b705', noir: '#2a2a2c', vitre: '#9aa4ab' };
+/** Le panneau de la boutique : le logo RideCorniche (le même que sur le garde-boue des vélos) et un vélo dessiné, sans
+ *  mot à traduire. Noir le temps que le logo arrive. */
 function panneau() {
-  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 160;
-  const c = cv.getContext('2d');
-  c.fillStyle = CAI.cadre; c.fillRect(0, 0, 512, 160);
-  c.fillStyle = CAI.jante; c.fillRect(0, 132, 512, 28);
-  c.fillStyle = CAI.canard; // le canard de l'enseigne, de profil
-  c.beginPath(); c.ellipse(74, 86, 34, 26, -.15, 0, 7); c.fill();
-  c.beginPath(); c.ellipse(70, 46, 19, 21, 0, 0, 7); c.fill();
-  c.beginPath(); c.moveTo(86, 40); c.lineTo(126, 50); c.lineTo(86, 60); c.closePath(); c.fill();
-  c.fillStyle = '#ffffff'; c.beginPath(); c.arc(66, 40, 8, 0, 7); c.fill();
-  c.fillStyle = '#1c1c1e'; c.beginPath(); c.arc(68, 40, 4, 0, 7); c.fill();
-  c.fillStyle = '#17130c'; c.font = '800 46px "Google Sans", system-ui, sans-serif';
-  c.fillText('CAÏ CAÏ', 136, 72); c.fillText('VÉLO', 136, 120);
-  const t = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1), new THREE.MeshLambertMaterial({ map: t }));
+  const mat = new THREE.MeshLambertMaterial({ color: '#1f1f1f' }), img = new Image();
+  img.onload = () => {
+    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 160;
+    const c = cv.getContext('2d');
+    c.fillStyle = '#1f1f1f'; c.fillRect(0, 0, 512, 160); // le fond du logo
+    c.fillStyle = RC.jaune; c.fillRect(0, 150, 512, 10);
+    c.drawImage(img, 14, 4, 182, 144);
+    c.strokeStyle = RC.jaune; c.lineWidth = 7; c.lineCap = c.lineJoin = 'round'; // un vélo, de profil
+    for (const x of [330, 450]) { c.beginPath(); c.arc(x, 100, 34, 0, 7); c.stroke(); }
+    c.beginPath(); c.moveTo(330, 100); c.lineTo(385, 100); c.lineTo(440, 58); c.lineTo(370, 58); c.lineTo(330, 100); c.moveTo(385, 100); c.lineTo(366, 50);
+    c.moveTo(352, 44); c.lineTo(378, 44); c.moveTo(450, 100); c.lineTo(436, 40); c.lineTo(456, 38); c.stroke();
+    const t = new THREE.CanvasTexture(reduireImage(cv, MAX_DECOR)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+    mat.map = t; mat.color.set('#ffffff'); mat.needsUpdate = true;
+  };
+  img.src = `${import.meta.env.BASE_URL}textures/ride-corniche.png`;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1), mat);
   m.position.set(0, 3.25, 1.32); return m;
 }
 /** La boutique seule (sans les vélos ni le panneau) : séparée pour pouvoir la regarder hors du jeu. */
 export function partsCaiCai() {
   const P = [], add = (geo, hex) => P.push([geo, hex]);
-  add(B3(6, 2.6, 2.5).translate(0, 1.3, 0), CAI.cadre); // le conteneur
-  add(B3(6.1, .36, 2.6).translate(0, 2.62, 0), CAI.jante); // le bandeau bleu du haut
-  // La façade est à l'ombre (le soleil passe derrière) : elle ne reçoit que la lumière du ciel. Les
-  // couleurs sont rangées en linéaire par mergeColored, donc tout ce qui est déjà sombre y devient noir —
-  // un bleu nuit faisait un trou dans le conteneur. Il faut un bleu clair pour que la vitre se voie.
-  add(B3(4.2, 1.4, .08).translate(0, 1.55, 1.28), CAI.jante); // la vitre du guichet, du bleu de la marque (un aplat noir faisait un trou)
-  add(B3(4.36, .12, .16).translate(0, 2.3, 1.3), CAI.jante); add(B3(4.36, .1, .16).translate(0, .86, 1.3), CAI.jante); // l'encadrement
-  for (const x of [-1.4, 0, 1.4]) add(B3(.08, 1.4, .1).translate(x, 1.55, 1.32), CAI.cadre); // les montants
+  add(B3(6, 2.6, 2.5).translate(0, 1.3, 0), RC.jaune); // le conteneur
+  add(B3(6.1, .36, 2.6).translate(0, 2.62, 0), RC.noir); // le bandeau noir du haut
+  // La façade est à l'ombre (le soleil passe derrière) : elle ne reçoit que la lumière du ciel. Il faut une vitre
+  // claire pour qu'elle se voie (RC).
+  add(B3(4.2, 1.4, .08).translate(0, 1.55, 1.28), RC.vitre); // la vitre du guichet
+  add(B3(4.36, .12, .16).translate(0, 2.3, 1.3), RC.noir); add(B3(4.36, .1, .16).translate(0, .86, 1.3), RC.noir); // l'encadrement
+  for (const x of [-1.4, 0, 1.4]) add(B3(.08, 1.4, .1).translate(x, 1.55, 1.32), RC.noir); // les montants
   add(B3(4.3, .14, .5).translate(0, .78, 1.45), '#caa06a'); // le comptoir
   for (const x of [-2.9, 2.9]) add(C3(.07, .07, 2.4, 6).translate(x, 1.2, 2.7), CAI.acier); // poteaux de l'auvent
   add(B3(6.4, .08, 1.6).rotateX(-.12).translate(0, 2.52, 2.1), '#9aa1a7'); // la tôle

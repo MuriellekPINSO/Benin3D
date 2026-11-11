@@ -41,11 +41,12 @@ export function partsZem(c = {}) {
   }
   return P;
 }
-// ---------- Vélo Caï Caï (le loueur du jeu, voir caicai.js) ----------
-// Leurs vélos de ville, d'après leurs photos : cadre blanc, jantes bleu ciel, guidon relevé, porte-bagages
-// arrière. Le canard orange de leur logo est peint sur le cadre. Le cycliste est en option : sur un vélo
-// garé il n'y a personne, et celui que le joueur enfourche le montre, lui, avec son propre personnage.
-export const CAI = { cadre: '#f4f6f7', jante: '#0c8fd0', canard: '#f9912b', pneu: '#1c1c1e', acier: '#b9bdc1' };
+// ---------- Vélo RideCorniche (le loueur du jeu, voir caicai.js) ----------
+// Le vélo dessiné en code, tant que le vrai (modèle Tripo, conduite.js VELO_TRIPO) n'est pas chargé : leur vélo de ville
+// jaune, jantes noires, guidon relevé. Jusqu'au 11/11, celui de « Caï Caï Vélo » (cadre blanc, jantes bleu ciel, canard
+// orange peint sur le cadre : `canard`, à demander). Le cycliste est en option : sur un vélo garé il n'y a personne, et
+// celui que le joueur enfourche le montre, lui, avec son propre personnage.
+export const CAI = { cadre: '#f2b705', jante: '#262628', canard: '#f9912b', pneu: '#1c1c1e', acier: '#b9bdc1' };
 /** Le pédalier du vélo qu'on conduit : deux manivelles et leurs pédales, autour de l'axe (repère du vélo, l'avant vers +x).
  *  La manivelle gauche (côté −z du vélo, la gauche du cycliste) pointe vers +x à l'angle 0 ; on le tourne autour de z. */
 export const PEDALIER = { x: -.02, y: .33, r: .17, z: .12 };
@@ -85,7 +86,7 @@ export function partsVelo(c = {}) {
   }
   add(B3(.3, .025, .22).translate(-.5, .78, 0), CAI.acier); // porte-bagages
   for (const z of [.09, -.09]) tube(-.42, .78, -.55, .36, .015, CAI.acier, z);
-  if (c.canard !== false) add(new THREE.SphereGeometry(.055, 7, 5).scale(1.5, 1, .35).translate(.16, .56, .035), CAI.canard); // le canard peint sur le tube diagonal
+  if (c.canard) add(new THREE.SphereGeometry(.055, 7, 5).scale(1.5, 1, .35).translate(.16, .56, .035), CAI.canard); // le canard peint sur le tube diagonal
   if (c.pilote) { // en selle, le dos droit et les mains sur le guidon : un vélo de ville, pas un coureur
     const haut = c.haut || '#2f6fb0', peau = c.peau || '#5a3a26', bas = c.bas || '#2b2f36';
     tube(-.26, .97, -.17, 1.44, .145, haut); // le buste, de la selle aux épaules

@@ -34,7 +34,7 @@ export const VEHICULES = {
   taxi: { nom: 'taxi', long: 4.3, larg: 1.8, vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
   tokpa: { nom: 'tokpa-tokpa', long: 5, larg: 1.9, vmax: 20, accel: 3.8, frein: 7.5, recul: 2.5, braquage: 1.05, reservoir: 10, kmParLitre: 4, cache: true }, // l'apprenti se tient à la porte latérale, à droite (metiers.js)
   zem: { nom: 'zém', long: 2, larg: .8, vmax: 18, accel: 5, frein: 9, recul: 2, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.62 },
-  // Le vélo Caï Caï : lent, nerveux au démarrage, il tourne court. `pedale` : pas d'essence, donc jamais
+  // Le vélo RideCorniche : lent, nerveux au démarrage, il tourne court. `pedale` : pas d'essence, donc jamais
   // de panne sèche et rien à consommer (trajets.js saute le carburant pour lui).
   velo: { nom: 'vélo', long: 1.8, larg: .6, vmax: 7, accel: 2.8, frein: 7, recul: 1.2, braquage: 2.3, reservoir: 0, kmParLitre: 0, pedale: true, selle: [.95, -.3], arriere: -.5 },
   // Deux voitures à s'offrir quand on a de quoi. La citadine, celle qu'on croise par milliers à Cotonou :
@@ -124,7 +124,7 @@ function couper(gabarit, boites) {
   });
 }
 const QUAND_VELO = [];
-/** f(gabarit) dès que le modèle du vélo est chargé (le râtelier de Caï Caï, caicai.js). */
+/** f(gabarit) dès que le modèle du vélo est chargé (le râtelier de la boutique, caicai.js). */
 export const quandVelo = f => { if (MODELES.velo) f(MODELES.velo); else QUAND_VELO.push(f); };
 /** Les retouches du vélo Tripo (VELO_TRIPO), dans le repère du gabarit : l'avant vers +x, ou vers −x en DEMI_TOUR. */
 function preparerVelo(gabarit) {
