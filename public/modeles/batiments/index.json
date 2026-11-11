@@ -1,39 +1,39 @@
 {
  "congres": {
   "triangles": 79998,
-  "octets": 1305140
+  "octets": 1103728
  },
  "etoile": {
   "triangles": 79998,
-  "octets": 1453408
+  "octets": 1107892
  },
  "porte": {
   "triangles": 80000,
-  "octets": 1310192
+  "octets": 1080432
  },
  "cathedrale": {
   "triangles": 80000,
-  "octets": 1880916
+  "octets": 1367828
  },
  "dome": {
   "triangles": 79998,
-  "octets": 1390792
+  "octets": 1090664
  },
  "bioguera": {
   "triangles": 80000,
-  "octets": 1326184
+  "octets": 1104580
  },
  "dantokpa": {
   "triangles": 80000,
-  "octets": 1484372
+  "octets": 1215260
  },
  "sofitel": {
   "triangles": 80000,
-  "octets": 1434968
+  "octets": 1193296
  },
  "bceao": {
   "triangles": 80000,
-  "octets": 1819568
+  "octets": 1357576
  },
  "voiture": {
   "triangles": 59996,
@@ -45,7 +45,7 @@
  },
  "moov": {
   "triangles": 52730,
-  "octets": 1127520
+  "octets": 905556
  },
  "voiture-perso": {
   "triangles": 40000,

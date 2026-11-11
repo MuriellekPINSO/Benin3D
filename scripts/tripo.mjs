@@ -119,6 +119,9 @@ const couper = boites => doc => {
     p.getIndices().setArray(new I.constructor(J));
   }
 };
+// Couleur des monuments en 1024 (11/11) : le jeu les réduit à 1024 dès leur arrivée (batiments-tripo.js, max 1024), le
+// 2048 se téléchargeait pour rien (−3 Mo sur les dix). Les véhicules, conduits et vus de près, gardent leur 2048.
+const VUS_DE_PRES = new Set(['voiture', 'voiture-perso', 'moto-perso', 'tokpa', 'avion-tourisme']);
 async function alleger(id, cible = 60000) {
   await MeshoptDecoder.ready; await MeshoptEncoder.ready; await MeshoptSimplifier.ready;
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
@@ -131,7 +134,7 @@ async function alleger(id, cible = 60000) {
     ...(REGLAGES[id]?.coupes ? [couper(REGLAGES[id].coupes)] : []),
     simplify({ simplifier: MeshoptSimplifier, ratio: Math.min(1, cible / avant), error: 0.01 }),
     prune(),
-    textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [2048, 2048], slots: /baseColor/ }),
+    textureCompress({ encoder: sharp, targetFormat: 'jpeg', quality: 90, resize: VUS_DE_PRES.has(id) ? [2048, 2048] : [1024, 1024], slots: /baseColor/ }),
     textureCompress({ encoder: sharp, targetFormat: 'jpeg', resize: [512, 512], slots: /normal|metallicRoughness/ }),
     meshopt({ encoder: MeshoptEncoder, level: 'medium' }),
   );
