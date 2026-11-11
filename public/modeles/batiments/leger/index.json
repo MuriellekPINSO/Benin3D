@@ -58,5 +58,21 @@
  "avion-tourisme": {
   "triangles": 29996,
   "octets": 504548
+ },
+ "roadster-rouge": {
+  "triangles": 40000,
+  "octets": 603016
+ },
+ "landcruiser": {
+  "triangles": 39996,
+  "octets": 670900
+ },
+ "vitz": {
+  "triangles": 40000,
+  "octets": 594216
+ },
+ "jetour-net": {
+  "triangles": 40000,
+  "octets": 642852
  }
 }

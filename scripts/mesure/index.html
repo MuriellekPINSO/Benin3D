@@ -1,0 +1,70 @@
+<!doctype html><meta charset="utf-8"><title>Mesure d'un véhicule</title>
+<style>body{margin:0;background:#fff}canvas{display:block}</style>
+<script type="module">
+// Mesure d'un véhicule Tripo dans le repère du jeu (creerVehicule : avant vers +z, gauche vers +x, haut +y).
+// ?glb=/modeles/batiments/roadster.glb&long=4.4&demi=1 → window.mesure(vue) : photo quadrillée ; window.profil() : relevés.
+import * as THREE from 'three';
+import { chargeurGLB } from '/src/textures.js';
+import { gabaritDe } from '/src/vehicules.js';
+const q = new URLSearchParams(location.search);
+const W = 1100, H = 700, renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.outputColorSpace = THREE.SRGBColorSpace; document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#ffffff');
+scene.add(new THREE.HemisphereLight('#ffffff', '#888888', 2.2)); const sol = new THREE.DirectionalLight('#ffffff', 1.6); sol.position.set(3, 6, 4); scene.add(sol);
+const g = new THREE.Group(); scene.add(g);
+const gltf = await chargeurGLB().loadAsync(q.get('glb'));
+const gab = gabaritDe(gltf.scene, { largeur: +q.get('long') });
+// ?coupe=[[xmin,xmax,ymin],…] : la même coupe que conduite.js (COUPES), dans le repère du gabarit
+if (q.get('coupe')) { const boites = JSON.parse(q.get('coupe')); gab.updateMatrixWorld(true); const inv = gab.matrixWorld.clone().invert(), v = new THREE.Vector3(), c = new THREE.Vector3();
+  gab.traverse(n => { if (!n.isMesh || !n.geometry.index) return; const geo = n.geometry, pos = geo.attributes.position, idx = geo.index, M = inv.clone().multiply(n.matrixWorld), garde = [];
+    for (let i = 0; i < idx.count; i += 3) { c.set(0, 0, 0); for (let k = 0; k < 3; k++) c.add(v.fromBufferAttribute(pos, idx.getX(i + k)).applyMatrix4(M)); c.multiplyScalar(1 / 3); if (!boites.some(([x0, x1, y0]) => c.x >= x0 && c.x < x1 && c.y > y0)) garde.push(idx.getX(i), idx.getX(i + 1), idx.getX(i + 2)); }
+    geo.setIndex(garde); }); }
+gab.rotation.y = -Math.PI / 2 + (q.get('demi') === '1' ? Math.PI : 0); if (q.get('miroir') === '1') gab.scale.z = -1;
+if (q.get('ey')) gab.scale.y = +q.get('ey'); // ECRASER de conduite.js
+g.add(gab); g.updateMatrixWorld(true);
+const boite = new THREE.Box3().setFromObject(g), taille = boite.getSize(new THREE.Vector3());
+// Quadrillage : traits tous les 10 cm (fins) et 50 cm (gras), dans les trois plans
+const grille = new THREE.Group(); scene.add(grille);
+const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: .55, depthTest: false });
+function quadrillage(vue) {
+  grille.clear(); const P = [], C = [];
+  const seg = (a, b, gras) => { P.push(...a, ...b); const c = gras ? [.85, .15, .15] : [.6, .7, .85]; C.push(...c, ...c); };
+  for (let t = -30; t <= 30; t++) {
+    const v = t / 10, gras = t % 5 === 0;
+    if (vue === 'cote') { seg([-5, Math.max(0, v), -3], [-5, Math.max(0, v), 3], gras); seg([-5, 0, v], [-5, 3, v], gras); }
+    if (vue === 'face') { seg([-3, Math.max(0, v), 6], [3, Math.max(0, v), 6], gras); seg([v, 0, 6], [v, 3, 6], gras); }
+    if (vue === 'dessus') { seg([-3, 4, v], [3, 4, v], gras); seg([v, 4, -3], [v, 4, 3], gras); }
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  const l = new THREE.LineSegments(geo, mat); l.renderOrder = 9; grille.add(l);
+}
+window.mesure = (vue, coupe = null) => {
+  const L = 2.8, cam = vue === '34' ? new THREE.PerspectiveCamera(32, W / H, .1, 100) : new THREE.OrthographicCamera(-L * W / H, L * W / H, L, -L, .1, 100);
+  if (vue === 'cote') { cam.position.set(20, taille.y / 2, 0); cam.lookAt(0, taille.y / 2, 0); } // de la gauche (+x) : l'avant (+z) à gauche de l'image
+  if (vue === 'face') { cam.position.set(0, taille.y / 2, 20); cam.lookAt(0, taille.y / 2, 0); }
+  if (vue === 'dessus') { cam.position.set(0, 20, 0); cam.up.set(0, 0, -1); cam.lookAt(0, 0, 0); }
+  if (vue === 'arriere') { cam.position.set(0, taille.y / 2, -20); cam.lookAt(0, taille.y / 2, 0); }
+  if (vue === '34') { cam.position.set(6.5, 3.2, 7.5); cam.lookAt(0, .7, 0); }
+  quadrillage(vue === 'arriere' ? 'face' : vue); grille.visible = vue !== '34';
+  // coupe : ne garder que ce qui est d'un côté d'un plan (pour voir dedans)
+  renderer.clippingPlanes = coupe ? [new THREE.Plane(new THREE.Vector3(...coupe.n), coupe.d)] : [];
+  renderer.render(scene, cam); return renderer.domElement.toDataURL('image/jpeg', .88);
+};
+// Relevés au rayon : hauteur du dessus le long de l'axe (x = 0 et x = ±0,4), et largeur à chaque hauteur.
+const ray = new THREE.Raycaster(), meshes = []; g.traverse(n => { if (n.isMesh) meshes.push(n); });
+const dessus = (x, z) => { ray.set(new THREE.Vector3(x, 10, z), new THREE.Vector3(0, -1, 0)); const h = ray.intersectObjects(meshes, false); return h.length ? +h[0].point.y.toFixed(3) : null; };
+const dessous = (x, z, y0) => { ray.set(new THREE.Vector3(x, y0, z), new THREE.Vector3(0, 1, 0)); const h = ray.intersectObjects(meshes, false); return h.length ? +h[0].point.y.toFixed(3) : null; };
+const cote = (y, z) => { ray.set(new THREE.Vector3(10, y, z), new THREE.Vector3(-1, 0, 0)); const h = ray.intersectObjects(meshes, false); return h.length ? +h[0].point.x.toFixed(3) : null; };
+window.profil = () => {
+  const zs = []; for (let z = Math.ceil(boite.min.z * 10) / 10; z <= boite.max.z; z += .1) zs.push(+z.toFixed(2));
+  return {
+    boite: { min: boite.min.toArray().map(v => +v.toFixed(3)), max: boite.max.toArray().map(v => +v.toFixed(3)), taille: taille.toArray().map(v => +v.toFixed(3)) },
+    dessus: zs.map(z => [z, dessus(0, z), dessus(.4, z), dessus(-.4, z)]),
+    flanc: [.3, .5, .7, .9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8].filter(y => y < taille.y).map(y => [y, ...[-1.2, -.6, 0, .6, 1.2].map(z => cote(y, z))]),
+    triangles: meshes.reduce((s, m) => s + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0),
+  };
+};
+// Toutes les couches traversées par un rayon vertical en (x, z) : [y…] de haut en bas
+window.couches = (x, z) => { ray.set(new THREE.Vector3(x, 10, z), new THREE.Vector3(0, -1, 0)); return ray.intersectObjects(meshes, false).map(h => +h.point.y.toFixed(3)); };
+window.pret = true;
+</script>

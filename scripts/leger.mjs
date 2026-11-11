@@ -14,7 +14,7 @@ import sharp from 'sharp';
 const SOURCE = 'public/modeles/batiments', SORTIE = `${SOURCE}/leger`;
 // Triangles visés sur téléphone : monuments vus de loin ; voiture et tokpa de la circulation (trois à l'écran en course,
 // 59 000 triangles chacun avant) ; la moto et la voiture du joueur, vues de près, gardent les leurs.
-const CIBLES = { voiture: 12000, tokpa: 10000 }, DE_PRES = new Set(['voiture-perso', 'moto-perso']);
+const CIBLES = { voiture: 12000, tokpa: 10000 }, DE_PRES = new Set(['voiture-perso', 'moto-perso', 'roadster-rouge', 'landcruiser', 'vitz', 'jetour-net']);
 const CIBLE = 30000;
 
 await MeshoptDecoder.ready; await MeshoptEncoder.ready; await MeshoptSimplifier.ready;

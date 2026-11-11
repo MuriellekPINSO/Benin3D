@@ -411,7 +411,11 @@
   "Lancer le film choisi": "Play the selected film",
   "Film suivant": "Next film",
   "Quitter le ciné": "Leave the cinema",
-  "Ciné": "Cinema"
+  "Ciné": "Cinema",
+  "(CC BY 2.0), Toyota Land Cruiser": "(CC BY 2.0), Toyota Land Cruiser",
+  ", Toyota Vitz": ", Toyota Vitz",
+  ", Jetour X70": ", Jetour X70",
+  "(CC BY-SA 4.0 ; les modèles sont sous la même licence) · rues ©": "(CC BY-SA 4.0; the models are under the same licence) · streets ©"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -1102,7 +1106,10 @@
   "'Peindre ma moto'": "'Paint my motorbike'",
   "'Peindre ma voiture'": "'Paint my car'",
   "Ton vélo Caï Caï est rendu : les deux heures sont passées.": "Your Caï Caï bike is back at the shop: the two hours are up.",
-  "' Ta voiture t’attend.'": "' Your car is waiting for you.'"
+  "' Ta voiture t’attend.'": "' Your car is waiting for you.'",
+  "'Toyota Vitz'": "'Toyota Vitz'",
+  "'Jetour X70'": "'Jetour X70'",
+  "'Le grand SUV qui arrive à Cotonou : haut, large, confortable'": "'The big SUV arriving in Cotonou: tall, wide, comfortable'"
  },
  "src/trajets.js": {
   "'Ta voiture'": "'Your car'",
@@ -1234,7 +1241,15 @@
   "'Tu montes à 110 m. Pilote comme au sol, puis « Atterrir ici » au-dessus de l’endroit où tu veux te poser.'": "'You climb to 110 m. Fly it like on the ground, then “Land here” above the spot where you want to land.'",
   " : assieds-toi pour manger, à une table ou sur un banc.": ": sit down to eat, at a table or on a bench.",
   "'La Roadster est posée là où tu voulais.'": "'The Roadster landed right where you wanted.'",
-  "'Coincée ? Appuie un instant sur « Propulseurs » : elle saute par-dessus'": "'Stuck? Tap “Thrusters”: it jumps over'"
+  "'Coincée ? Appuie un instant sur « Propulseurs » : elle saute par-dessus'": "'Stuck? Tap “Thrusters”: it jumps over'",
+  "'Jetour X70'": "'Jetour X70'",
+  "'Ton Jetour'": "'Your Jetour'",
+  "Ton Jetour est garé sur la route, à ": "Your Jetour is parked on the road, ",
+  "'Tesla Roadster'": "'Tesla Roadster'",
+  "'ta Roadster'": "'your Roadster'",
+  "'de la Roadster'": "'of the Roadster'",
+  "'ton Jetour'": "'your Jetour'",
+  "'du Jetour'": "'of the Jetour'"
  },
  "src/conduite.js": {
   "'zém'": "'zém'",

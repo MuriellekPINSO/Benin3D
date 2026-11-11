@@ -28,7 +28,7 @@ import { chargeurGLB } from './textures.js';
 // l'essence qu'elle coûte (metiers.js). `cache` : on est dedans (portières, toit) — on le voit à travers les vitres (HABITACLES).
 export const VEHICULES = {
   moto: { nom: 'moto', long: 2, larg: .8, vmax: 22, accel: 5.5, frein: 9, recul: 2.5, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.8 }, // le passager au fond de la selle, derrière la pilote reculée (03/11)
-  voiture: { nom: 'voiture', long: 4.4, larg: 1.8, vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
+  voiture: { nom: 'voiture', long: 4.9, larg: 2, vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
   taxi: { nom: 'taxi', long: 4.3, larg: 1.8, vmax: 25, accel: 5, frein: 8.5, recul: 3.5, braquage: 1.3, reservoir: 6, kmParLitre: 6, cache: true },
   tokpa: { nom: 'tokpa-tokpa', long: 5, larg: 1.9, vmax: 20, accel: 3.8, frein: 7.5, recul: 2.5, braquage: 1.05, reservoir: 10, kmParLitre: 4, cache: true }, // l'apprenti se tient à la porte latérale, à droite (metiers.js)
   zem: { nom: 'zém', long: 2, larg: .8, vmax: 18, accel: 5, frein: 9, recul: 2, braquage: 1.9, reservoir: 3, kmParLitre: 12, selle: [1.02, -.08], arriere: -.62 },
@@ -40,9 +40,11 @@ export const VEHICULES = {
   // en ville : silencieux et vif. Pas de `pedale` sur l'électrique, malgré la tentation de dire qu'elle ne
   // consomme pas : ce drapeau autorise aussi à rouler sur les trottoirs. On lui donne une grosse réserve et
   // beaucoup de kilomètres au litre — une charge qui dure.
-  citadine: { nom: 'citadine', long: 3.7, larg: 1.7, vmax: 23, accel: 4.6, frein: 8.2, recul: 3.2, braquage: 1.5, reservoir: 5, kmParLitre: 14, cache: true },
+  citadine: { nom: 'citadine', long: 3.9, larg: 1.75, vmax: 23, accel: 4.6, frein: 8.2, recul: 3.2, braquage: 1.5, reservoir: 5, kmParLitre: 14, cache: true },
   bolide: { nom: 'bolide électrique', long: 4.3, larg: 1.9, vmax: 33, accel: 9, frein: 11, recul: 4, braquage: 1.45, reservoir: 9, kmParLitre: 60, cache: true },
   roadster: { nom: 'Roadster', long: 4.4, larg: 2, vmax: 38, accel: 11, frein: 12, recul: 4.2, braquage: 1.4, reservoir: 10, kmParLitre: 70, cache: true, propulseurs: true },
+  // Le Jetour X70 (11/11, « Jetour et autres ») : le grand SUV chinois qu'on voit arriver à Cotonou. Haut, posé, moins vif.
+  jetour: { nom: 'Jetour', long: 4.75, larg: 1.95, vmax: 26, accel: 5.2, frein: 8.5, recul: 3.5, braquage: 1.25, reservoir: 7, kmParLitre: 8, cache: true },
 };
 export const PRIX_LITRE = 680; // à la pompe (Zém Run : 680 F à la station, 500 F le kpayo)
 const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote automatique
@@ -50,19 +52,48 @@ const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote aut
 // Modèles réalistes : voiture et moto du joueur générées par Tripo (public/modeles/batiments/, sans pilote :
 // c'est son personnage qu'on voit dessus), zémidjan de « 3D monde » (gilet jaune, casque). Gabarits : avant vers
 // +x (vehicules.js). Tant qu'ils ne sont pas chargés, les modèles dessinés en code.
-const MODELES = { voiture: null, moto: null, taxi: null };
+// Depuis le 11/11, les voitures sont faites d'après de vraies photos (Wikimedia Commons, trouvées par les agents de Kevin,
+// crédits dans index.html) : la voiture du « Fils à papa » est un Toyota Land Cruiser 200 blanc, le plus vu dans les beaux
+// quartiers de Cotonou ; la citadine, une Toyota Vitz (la petite voiture la plus courante) ; la Roadster, la Tesla
+// Roadster de deuxième génération, rouge ; et le Jetour X70, blanc.
+const MODELES = { voiture: null, moto: null, taxi: null, roadster: null, citadine: null, jetour: null };
 if (import.meta.env.DEV) window.__vehicules = { MODELES }; // pour les tests : la voiture dessinée en code, en vidant MODELES
-const LONGUEURS = { voiture: 4.4, moto: 2, taxi: 4.3 };
-const DEMI_TOUR = { voiture: true, moto: true, taxi: false }; // le redressement aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu (phare devant)
+const LONGUEURS = { voiture: 4.95, moto: 2, taxi: 4.3, roadster: 4.4, citadine: 3.95, jetour: 4.75 };
+const DEMI_TOUR = { voiture: false, moto: true, taxi: false, roadster: false, citadine: false, jetour: true };
+// Tripo fait les voitures 10 à 15 % trop hautes (Land Cruiser de 2,23 m au lieu de 1,91 m ; Vitz de 1,68 m au lieu de 1,50 m ;
+// Jetour de 2,09 m au lieu de 1,72 m) : on les tasse, les places (HABITACLES) sont mesurées après.
+const ECRASER = { voiture: .9, citadine: .9, jetour: .85 }; // le redressement aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu (phare devant)
 // Selle du modèle Tripo, mesurée : avec [1,02 ; −0,08] du zém, on s'asseyait sur le réservoir ; avec [0,86 ; −0,27], encore
 // au bord du réservoir, les hanches 15 cm au-dessus de la selle (profil relevé le 03/11). Le bassin au milieu de la selle.
 const SELLES = { moto: [.83, -.43] };
 export function chargerVehicules() {
   const ch = chargeurGLB({ liberer: true });
-  for (const [type, id] of [['voiture', 'voiture-perso'], ['moto', 'moto-perso'], ['taxi', 'voiture']]) { // taxi : celui de Zém Run
+  for (const [type, id] of [['voiture', 'landcruiser'], ['moto', 'moto-perso'], ['taxi', 'voiture'], ['roadster', 'roadster-rouge'], ['citadine', 'vitz'], ['jetour', 'jetour-net']]) { // taxi : celui de Zém Run
     if (!TRIPO.info[id]) continue;
-    plusTard(() => ch.loadAsync(urlTripo(id))).then(g => { MODELES[type] = gabaritDe(g.scene, { largeur: LONGUEURS[type] }); }).catch(e => console.warn(`modèle ${id}`, e.message));
+    plusTard(() => ch.loadAsync(urlTripo(id))).then(g => {
+      const m = gabaritDe(g.scene, { largeur: LONGUEURS[type] });
+      if (COUPES[type]) couper(m, COUPES[type]);
+      if (ECRASER[type]) m.scale.y = ECRASER[type];
+      MODELES[type] = m;
+    }).catch(e => console.warn(`modèle ${id}`, e.message));
   }
+}
+// Ce que la photo avait en trop. La Roadster rouge a été photographiée toit de verre relevé : Tripo en a fait un aileron
+// de 1,5 m au-dessus de l'arrière. On l'enlève, et elle devient décapotée — on voit qui est dedans. Boîtes dans le repère du
+// gabarit (l'avant vers +x, la gauche vers −z) : [xmin, xmax, ymin] ; un triangle dont le centre y tombe disparaît.
+const COUPES = { roadster: [[-3, -.75, .97], [-.75, .05, 1.1]] };
+function couper(gabarit, boites) {
+  gabarit.updateMatrixWorld(true);
+  const inv = gabarit.matrixWorld.clone().invert(), v = new THREE.Vector3(), c = new THREE.Vector3();
+  gabarit.traverse(n => {
+    if (!n.isMesh || !n.geometry.index) return;
+    const geo = n.geometry, pos = geo.attributes.position, idx = geo.index, M = inv.clone().multiply(n.matrixWorld), garde = [];
+    for (let i = 0; i < idx.count; i += 3) {
+      c.set(0, 0, 0); for (let k = 0; k < 3; k++) c.add(v.fromBufferAttribute(pos, idx.getX(i + k)).applyMatrix4(M)); c.multiplyScalar(1 / 3);
+      if (!boites.some(([x0, x1, y0]) => c.x >= x0 && c.x < x1 && c.y > y0)) garde.push(idx.getX(i), idx.getX(i + 1), idx.getX(i + 2));
+    }
+    geo.setIndex(garde);
+  });
 }
 /** Un véhicule : modèle (avant vers +z du groupe) et état de conduite. `peinture` : la couleur choisie par son
  *  propriétaire (menu « Peindre mon véhicule ») ; sans elle, la couleur d'origine (`couleur`, ou la texture du modèle). */
@@ -75,7 +106,7 @@ export function creerVehicule(type, { couleur, peinture } = {}) {
   else if (gabarit) m = gabarit.clone();
   else {
     // Les voitures dessinées : leurs vitres à part (VITRE), transparentes, pour qu'on voie qui est dedans.
-    const pieces = c => (type === 'velo' ? partsVelo({ pedalier: false }) : type === 'citadine' ? partsCitadine(c || '#c9342c', { vitres: true }) : type === 'bolide' ? partsBolide(c || '#eceff2', { vitres: true }) : type === 'roadster' ? partsRoadster(c || '#dfe3e7', { vitres: true }) : type === 'voiture' || type === 'taxi' ? partsVoiture(type === 'taxi' ? '#f2c21b' : c || '#7a1f2b', { vitres: true }) : partsZem({ pilote: type === 'zem', carrosserie: c, chemise: '#f2c21b' }));
+    const pieces = c => (type === 'velo' ? partsVelo({ pedalier: false }) : type === 'citadine' ? partsCitadine(c || '#c9342c', { vitres: true }) : type === 'bolide' ? partsBolide(c || '#eceff2', { vitres: true }) : type === 'roadster' ? partsRoadster(c || '#dfe3e7', { vitres: true }) : type === 'voiture' || type === 'taxi' || type === 'jetour' ? partsVoiture(type === 'taxi' ? '#f2c21b' : c || (type === 'jetour' ? '#e9ebec' : '#7a1f2b'), { vitres: true }) : partsZem({ pilote: type === 'zem', carrosserie: c, chemise: '#f2c21b' }));
     dessin = c => mergeColored(pieces(c).filter(([, h]) => h !== VITRE));
     m = new THREE.Mesh(dessin(peinture || couleur), matVeh); m.castShadow = true; m.receiveShadow = true; // le vélo est vide : c'est le personnage du joueur qu'on voit dessus
     const vitres = pieces(couleur).filter(([, h]) => h === VITRE);
@@ -105,21 +136,30 @@ export function creerVehicule(type, { couleur, peinture } = {}) {
 // la peinture, en gardant ses reflets et ses ombres (sa clarté, rapportée à celle d'un rouge moyen, 0,35).
 const PEINTS = new Map(), ORIGINES = new WeakMap(); // un matériau par (matériau d'origine, couleur) : deux joueurs en bleu roi se le partagent
 /** Le matériau d'origine `mat`, repeint de `couleur` et/ou percé à ses vitres (`Z` : ses uniformes, vitrer). */
-function materiauPeint(mat, couleur, Z = null) {
+// Les voitures blanches (Land Cruiser, Jetour) n'ont pas de rouge à remplacer : chez elles, la carrosserie est ce qui est
+// clair et sans couleur (`CORPS`, mode « blanc ») ; la peinture prend sa clarté, rapportée à celle d'un blanc à l'ombre (0,7).
+const CORPS = { voiture: 'blanc', jetour: 'blanc' };
+const PEINTURE_GLSL = {
+  rouge: `float r = max(c.r, 1e-4);
+    float k = (1. - smoothstep(.12, .2, max(c.g, c.b) / r)) * (1. - smoothstep(.06, .1, (c.g - c.b) / r)) * smoothstep(.015, .04, c.r);
+    diffuseColor.rgb = mix(c, min(uPeinture * (c.r / .35), vec3(1.)), k);`,
+  blanc: `float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b));
+    float k = smoothstep(.22, .4, mx) * (1. - smoothstep(.08, .16, (mx - mn) / max(mx, 1e-4)));
+    diffuseColor.rgb = mix(c, min(uPeinture * (mx / .7), vec3(1.)), k);`,
+};
+function materiauPeint(mat, couleur, Z = null, mode = 'rouge') {
   if (!couleur && !Z) return mat;
-  const cle = `${mat.uuid}|${couleur || ''}|${Z ? 'v' : ''}`; let p = PEINTS.get(cle); if (p) return p;
+  const cle = `${mat.uuid}|${couleur || ''}|${Z ? 'v' : ''}|${mode}`; let p = PEINTS.get(cle); if (p) return p;
   p = mat.clone(); const u = { value: new THREE.Color(couleur || '#000') }; // Color() passe le code en couleurs linéaires, comme la texture lue
   p.onBeforeCompile = sh => {
     sh.uniforms.uPeinture = u;
     if (couleur) sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uPeinture;').replace('#include <map_fragment>', `#include <map_fragment>
-  { vec3 c = diffuseColor.rgb; float r = max(c.r, 1e-4);
-    float k = (1. - smoothstep(.12, .2, max(c.g, c.b) / r)) * (1. - smoothstep(.06, .1, (c.g - c.b) / r)) * smoothstep(.015, .04, c.r);
-    diffuseColor.rgb = mix(c, min(uPeinture * (c.r / .35), vec3(1.)), k); }`);
+  { vec3 c = diffuseColor.rgb; ${PEINTURE_GLSL[mode]} }`);
     // Après la peinture dans le code, donc avant elle dans le nuanceur : c'est la texture d'origine qui dit où est la vitre (en
     // noir brillant, toute la carrosserie aurait passé pour une vitre). La vitre est dessinée à part (materiauVerre).
     if (Z) percer(sh, Z, 'if (vitreIci(diffuseColor.rgb)) discard;');
   };
-  p.customProgramCacheKey = () => `peinture|${couleur ? 'p' : ''}|${Z ? 'v' : ''}`; // un seul programme pour toutes les couleurs : seule la variable change
+  p.customProgramCacheKey = () => `peinture|${couleur ? 'p' : ''}|${Z ? 'v' : ''}|${mode}`; // un seul programme pour toutes les couleurs : seule la variable change
   PEINTS.set(cle, p); return p;
 }
 /** Repeint un véhicule déjà posé ; `couleur` nulle : il retrouve sa couleur d'origine. */
@@ -130,7 +170,7 @@ export function peindre(V, couleur) {
   V.modele.traverse(n => {
     if (!n.isMesh || n.userData.verre) return; // la vitre ne se peint pas
     if (!ORIGINES.has(n)) ORIGINES.set(n, n.material);
-    n.material = materiauPeint(ORIGINES.get(n), couleur, V.habitacle?.vitres ? VITRES_U.get(ORIGINES.get(n)) : null);
+    n.material = materiauPeint(ORIGINES.get(n), couleur, V.habitacle?.vitres ? VITRES_U.get(ORIGINES.get(n)) : null, CORPS[V.type]);
   });
 }
 
@@ -152,11 +192,24 @@ const HABITACLES = {
   // sont percés à leur plan, mesuré sur le toit (point de la vitre sous le toit et au ras du capot ou du coffre).
   'taxi:tripo': { miroir: true, places: cinq([.38, .68, .14, 1.56], [.44, .69, -.62, 1.59]), plancher: .5, volant: [.38, 1.04, .5], pied: .62,
     vitres: { zones: [[[-.72, 1.16, .28], [.72, 1.72, 1.25], [0, .825, .566, 1.546]], [[-.74, 1.34, -1.78], [.74, 1.72, -.96], [0, .842, -.539, 1.957]]], teinte: [.24, .5, 0] } }, // le joint du bas reste noir : percé, il s'effilochait
-  // La voiture du joueur (Tripo) est une coque fermée, vitres teintées comprises : on perce tout ce qui est sombre et gris
-  // entre le bas des vitres (1,12 m) et le toit, et l'on pose dedans un habitacle (bac sombre, sièges, tableau de bord, volant).
-  'voiture:tripo': { places: cinq([.38, .55, 0, 1.57], [.42, .55, -.86, 1.52]), plancher: .45, volant: [.38, 1.1, .46], pied: .6,
-    vitres: { zones: [[[-1.1, 1.12, -2.25], [1.1, 1.62, 1.4], null]], teinte: [.24, .55, 0] },
-    interieur: { bac: [.72, .95, 1.12, -1.85, .95], dos: 1.42, dosAr: 1.32, tableau: [.62, 1.0, .95, 1.17] } }, // le bac va jusqu'au coffre, sous la lunette
+  // Les voitures du joueur faites d'après photo (11/11) sont des coques fermées, vitres teintées comprises : on perce tout ce
+  // qui est sombre et gris entre le bas des vitres et le toit, et l'on pose dedans un habitacle (bac sombre, sièges, tableau
+  // de bord, volant). Relevés sur une vue de côté quadrillée tous les 10 cm (scripts/mesure), après ECRASER.
+  // Le Land Cruiser : vitres de 1,30 à 1,78 m, pare-brise de z = 0,96 (bas) à 0,48 (haut), lunette à −2,3 ; toit à 1,87.
+  'voiture:tripo': { places: cinq([.42, .9, -.05, 1.82], [.45, .92, -.98, 1.82]), plancher: .7, volant: [.42, 1.28, .48], pied: .55,
+    vitres: { zones: [[[-1.2, 1.28, -2.35], [1.2, 1.82, 1.0], null]], teinte: [.24, .55, 0] },
+    interieur: { bac: [.86, 1.12, 1.3, -2.2, 1.0], dos: 1.66, dosAr: 1.6, tableau: [.55, .98, 1.12, 1.32] } },
+  // La Vitz : vitres de 0,96 à 1,40 m, pare-brise de z = 0,94 à 0,28, hayon à −1,95 ; toit à 1,52.
+  'citadine:tripo': { places: cinq([.37, .55, 0, 1.45], [.4, .55, -.82, 1.42]), plancher: .35, volant: [.37, .93, .42], pied: .58,
+    vitres: { zones: [[[-1.05, .95, -1.95], [1.05, 1.43, .98], null]], teinte: [.24, .55, 0] },
+    interieur: { bac: [.72, .76, .96, -1.75, .92], dos: 1.24, dosAr: 1.18, tableau: [.52, .92, .76, .98] } },
+  // Le Jetour X70 : vitres de 1,14 à 1,65 m, pare-brise de z = 0,88 à 0, lunette à −2,1 ; toit à 1,73. La photo ne
+  // montrait pas l'arrière (une voiture garée derrière, effacée avant Tripo) : Tripo l'a inventé, il est vraisemblable.
+  'jetour:tripo': { places: cinq([.42, .8, -.25, 1.64], [.45, .82, -1.15, 1.62]), plancher: .55, volant: [.42, 1.15, .28], pied: .55,
+    vitres: { zones: [[[-1.2, 1.13, -2.2], [1.2, 1.67, .9], null]], teinte: [.24, .55, 0] },
+    interieur: { bac: [.84, .98, 1.14, -2.1, .85], dos: 1.5, dosAr: 1.45, tableau: [.4, .85, .98, 1.18] } },
+  // La Roadster rouge est décapotée (COUPES) et a ses vrais sièges, bas : on s'y pose, sans bac ni vitres.
+  'roadster:tripo': { places: deux([.37, .4, -.2, 2.2]), plancher: .3, volant: [.37, .76, .22], pied: .7, incline: .35 },
   // Les voitures dessinées sont des blocs pleins jusqu'au bas des vitres : une plaque sombre fait le plancher visible.
   voiture: { places: cinq([.38, .6, .12, 1.6], [.42, .6, -.9, 1.6]), plancher: .4, volant: [.38, 1.18, .5], pied: .6,
     interieur: { plaque: [.79, 1.045, -1.38, .88], dos: 1.42, dosAr: 1.34, tableau: [.62, .88, 1.045, 1.18] } },
@@ -175,6 +228,7 @@ const HABITACLES = {
     interieur: { bac: [.8, .75, 2.3, 1.12, 1.55], tableau: [1.55, 1.98, .75, 1.75] } }, // sous le toit bombé, qui descend à 2,35 m sur les bords
 };
 HABITACLES.taxi = HABITACLES.voiture; // le taxi dessiné : la voiture dessinée, en jaune
+HABITACLES.jetour = HABITACLES.voiture; // tant que le modèle n'est pas là, le Jetour est la voiture dessinée, en blanc
 /** Combien de places compte le véhicule, conducteur compris : 5 dans une voiture, 2 dans les coupés et sur une moto. */
 export const placesDe = V => V?.habitacle?.places.length ?? (V?.D.cache ? 1 : 2);
 const MAT_VITRE = new THREE.MeshStandardMaterial({ color: '#1d2b34', roughness: .08, metalness: .25, transparent: true, opacity: .32, depthWrite: false });
@@ -240,7 +294,7 @@ function vitrer(V, peinture) {
       });
     }
     const Z = VITRES_U.get(mat);
-    n.material = materiauPeint(mat, peinture, Z);
+    n.material = materiauPeint(mat, peinture, Z, CORPS[V.type]);
     const verre = new THREE.Mesh(n.geometry, materiauVerre(mat, Z)); verre.userData.verre = true; verre.renderOrder = 3; n.add(verre);
   }
   V.peinture = peinture || null;
