@@ -3,7 +3,7 @@ import { TRIPO, urlTripo } from './batiments-tripo.js';
 import { construireReseau, itineraireCourt, itineraireGps } from './carrefours.js';
 import { personne } from './discussions.js';
 import { dansArbre, dansFoule } from './lieux.js';
-import { dansBatiment, dansLEau, dansObstacleRue, pietonOk } from './rue.js';
+import { anneauxDeBitume, dansBatiment, dansLEau, dansObstacleRue, pietonOk } from './rue.js';
 import { hauteurSol } from './sols.js';
 import { animerMoto } from './roues.js';
 import { dansTerrePlein } from './terre-pleins.js';
@@ -16,7 +16,7 @@ import { plusTard } from './telechargements.js';
 import { ELARGIR, TABLIERS, mergeColored, roadLines } from './ville.js';
 import { B3, PEDALIER, TOKPA_3D, VITRE, ZEMS_3D, gabaritDe, matVeh, partsBolide, partsPedalier, partsRoadster, partsCitadine, partsTokpa, partsVelo, partsVoiture, partsZem } from './vehicules.js';
 import { chargeurGLB } from './textures.js';
-import { LITE } from './base.js';
+import { LITE, toXZ } from './base.js';
 
 // ---------- Conduire dans la ville (Ma vie, salon entre amis) ----------
 // On monte sur sa moto ou dans sa voiture et on roule où l'on veut, mais sur les routes : la chaussée et
@@ -470,6 +470,18 @@ function indexer() {
   G.cases = g; G.seg = new Float32Array(seg); G.ponts = p;
 }
 const projeter = (x, z, ax, az, bx, bz) => { const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2)); return [Math.hypot(ax + dx * t - x, az + dz * t - z), t]; };
+// Les anneaux de trois ronds-points ne sont pas des rues d'OSM : l'Étoile Rouge (lieux.js), Bio Guéra et l'aéroport
+// (lieux-videos.js, anneauDeBitume : 10 m de bitume autour de l'île) dessinent le leur. Le goudron était là, mais la
+// voiture et le GPS y butaient sans rien voir (« vois s'il y a des murs invisibles en conduisant », 12/11 : bloqué à
+// 17 m du départ autour de l'Étoile, et dans le virage du boulevard de la Marina à Bio Guéra). Mêmes centres et rayons
+// que les dessins ; l'île du milieu et sa bordure restent hors de la chaussée.
+let ANNEAUX_LIEUX = null;
+function surAnneau(x, z) {
+  ANNEAUX_LIEUX ??= [[...toXZ(6.35015, 2.38752), 19.6, 29.5], [...toXZ(6.35231, 2.38605), 17.6, 27.5]];
+  for (const [cx, cz, r0, r1] of anneauxDeBitume()) { const d = Math.hypot(x - cx, z - cz); if (d > r0 + .2 && d < r1) return true; }
+  for (const [cx, cz, r0, r1] of ANNEAUX_LIEUX) { const d = Math.hypot(x - cx, z - cz); if (d > r0 && d < r1) return true; }
+  return false;
+}
 /** Vrai si l'on peut rouler en (x, z) : sur une route ou une place pavée où l'on roule (zones.js), hors des bâtiments et des
  *  terre-pleins. Un terre-plein seulement peint (moins de 1 m) se franchit : il n'y a rien à heurter (testeur, 04/11). */
 export function surRoute(x, z) {
@@ -477,7 +489,7 @@ export function surRoute(x, z) {
   const l = G.cases.get(cle(x, z)), S = G.seg;
   let ok = false;
   if (l) for (const n of l) { const o = n * 5; if (projeter(x, z, S[o], S[o + 1], S[o + 2], S[o + 3])[0] <= S[o + 4]) { ok = true; break; } }
-  if (!ok && !dansPlace(x, z, true)) return false;
+  if (!ok && !dansPlace(x, z, true) && !surAnneau(x, z)) return false;
   return !dansBatiment(x, z) && !dansTerrePlein(x, z, 0, false) && !dansObstacleRue(x, z, .2); // ni bâtiment, ni terre-plein central, ni mur de parcelle
 }
 /** Hauteur sous les roues : le tablier d'un pont si l'on y est monté (par sa rampe), sinon le sol. */

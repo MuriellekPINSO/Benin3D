@@ -155,7 +155,9 @@ function eviter(r, st, C, latJ, K) {
     if (sautable && (r.saute || r.coince > 4) && d < 6 && r.y === 0 && (r.v > 7 || r.coince > 4)) { r.vy = 7.2; return 99; } // elle saute le trou (même la prudente, coincée)
     // Une file libre à côté ? On change (la plus proche du milieu d'abord).
     if (r.latCible === r.lat || Math.abs(r.latCible - r.lat) < .05) {
-      const files = (r.coince > 2 ? [-2, -1, 0, 1, 2] : [-1, 0, 1]).map(f => f * LANE) // coincée : le bas-côté aussi.filter(l => Math.abs(l - r.lat) > .1).sort((a, b) => Math.abs(a - r.lat) - Math.abs(b - r.lat) || Math.abs(a) - Math.abs(b));
+      // Coincée : le bas-côté aussi. (Ce commentaire, écrit en bout de ligne, avalait le filtre et le tri : la coincée
+      // essayait le bas-côté de gauche avant la file voisine — relevé par un relecteur le 12/11.)
+      const files = (r.coince > 2 ? [-2, -1, 0, 1, 2] : [-1, 0, 1]).map(f => f * LANE).filter(l => Math.abs(l - r.lat) > .1).sort((a, b) => Math.abs(a - r.lat) - Math.abs(b - r.lat) || Math.abs(a) - Math.abs(b));
       for (const l of files) if (!devant(l, -3.5, voit + 6) && libreACote(r, l, st, latJ, K)) { r.latCible = l; return 99; }
     }
     limite = vo + Math.max(0, d - LONG - 1.5) * 1.2; // derrière lui : on le suit

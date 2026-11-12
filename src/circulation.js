@@ -224,7 +224,7 @@ export function majCirculation(dt, J) {
       if (dansObstacles(V, P.x, P.z, P.cap, obst) <= dansObstacles(V, V.px, V.pz, V.cap, obst) + 1e-3) {
         D.t += dt; V.px = P.x; V.pz = P.z; V.fx = P.hx; V.fz = P.hz; V.cap = P.cap;
         if (k >= 1) { V.dir = -D.dir0; V.s = D.s0; V.lane = V.laneN = D.r; V.demi = null; V.bloque = 0; V.v = 0; }
-      }
+      } else if ((D.attente = (D.attente || 0) + dt) > 3) { partir(V, J); continue; } // arrêtée en travers : elle s'efface au lieu d'attendre que le joueur recule (relecteur, 12/11)
       if ((V.px - J.x) ** 2 + (V.pz - J.z) ** 2 < 1600) E.circulation.push(V);
       continue;
     }

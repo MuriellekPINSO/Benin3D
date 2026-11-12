@@ -793,6 +793,8 @@ export function chantierProche(x, z) {
   for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const [cx, cz] of R.carres.get((kx + i) + ',' + (kz + j))?.userData.chantiers || []) d = Math.min(d, Math.hypot(cx - x, cz - z));
   return d;
 }
+/** Les anneaux de bitume des ronds-points dessinés par lieux.js (l'Étoile Rouge) : [x, z, rayon intérieur, extérieur]. */
+export const anneauxDeBitume = () => R.anneaux;
 /** Pour les tests : les obstacles (murs…) autour de (x, z). */
 export function obstaclesPres(x, z) { const kx = Math.floor(x / CARRE), kz = Math.floor(z / CARRE), out = new Set(); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const l of R.carres.get((kx + i) + ',' + (kz + j))?.userData.obstacles?.values() || []) for (const o of l) if (Math.hypot(o.x - x, o.z - z) < 60) out.add(o); return [...out]; }
 export const STATS_RUE = { ms: 0, n: 0 };

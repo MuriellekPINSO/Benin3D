@@ -54,7 +54,12 @@ export function construireReseau() {
   // Quatrième champ de l'arête : 0 à double sens, 1 dans le sens autorisé d'une rue à sens unique, −1 à contresens.
   // On garde l'arête interdite dans le graphe (le réseau reste connexe pour noeudsPres, rueSous et le demi-tour) ;
   // c'est l'itinéraire qui refuse de l'emprunter. Les rues de Cotonou sont à sens unique dans l'ordre de L.pts.
-  const lier = (a, b, cls, sens) => { if (a === b || adj[a].some(e => e[0] === b)) return; const d = Math.hypot(X[a] - X[b], Z[a] - Z[b]); adj[a].push([b, d, cls, sens ? 1 : 0]); adj[b].push([a, d, cls, sens ? -1 : 0]); };
+  // Entre Dantokpa et la cathédrale, OSM a trois chaussées parallèles et le terre-plein dessiné (gazon, buissons) en
+  // recouvre une : le GPS y faisait rouler 250 m sur l'herbe, et la voiture qui suivait les chevrons butait (12/11).
+  // Une arête dont deux points sur trois sont sous un terre-plein qu'on ne franchit pas coûte 12 fois sa longueur :
+  // le GPS prend la chaussée visible d'à côté, et le réseau reste entier là où il n'y a rien d'autre.
+  const sousTP = (a, b) => [.25, .5, .75].filter(f => dansTerrePlein(X[a] + (X[b] - X[a]) * f, Z[a] + (Z[b] - Z[a]) * f, 0, false)).length >= 2;
+  const lier = (a, b, cls, sens) => { if (a === b || adj[a].some(e => e[0] === b)) return; const d = Math.hypot(X[a] - X[b], Z[a] - Z[b]) * (sousTP(a, b) ? 12 : 1); adj[a].push([b, d, cls, sens ? 1 : 0]); adj[b].push([a, d, cls, sens ? -1 : 0]); };
   let precLigne = -1, prec = -1;
   for (const S of segs) {
     const [li, , ax, az, bx, bz, coupes] = S, cls = roadLines[li].cls, sens = !!roadLines[li].sens;

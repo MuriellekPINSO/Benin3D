@@ -167,7 +167,7 @@ function rouler(dt, J) {
     for (const O of obst) {
       if (O.R === R) continue;
       const dx = O.x - V.x, dz = O.z - V.z, av = dx * sx + dz * cz, lat = Math.abs(dx * cz - dz * sx);
-      if (av > 0 && av < 6 && lat < .9 + O.hw && av - O.hl < devant) { devant = av - O.hl - LONG / 2; vDevant = O.v; }
+      if (av > 0 && av < 6 && lat < LARG / 2 + O.hw + .15 && av - O.hl < devant) { devant = av - O.hl - LONG / 2; vDevant = O.v; }
     }
     if (devant < 3.5) { vmax = Math.min(vmax, Math.max(0, vDevant - .2 + devant * .5)); R.bloque += dt; } else R.bloque = Math.max(0, R.bloque - dt);
     if (R.bloque > .6) doubler(R, obst);
@@ -188,7 +188,7 @@ function doubler(R, obst) {
   for (const f of [R.file + 1, R.file - 1, R.file + 2, R.file - 2]) {
     if (f < 0 || f >= FILES.length) continue;
     const d = FILES[f] - FILES[R.file], sx = Math.sin(V.cap), cz = Math.cos(V.cap), x = V.x + cz * d, z = V.z - sx * d;
-    const libre = obst.every(O => { if (O.R === R) return true; const dx = O.x - x, dz = O.z - z, av = dx * sx + dz * cz, lat = Math.abs(dx * cz - dz * sx); return !(av > -2 && av < 7 && lat < 1 + O.hw); });
+    const libre = obst.every(O => { if (O.R === R) return true; const dx = O.x - x, dz = O.z - z, av = dx * sx + dz * cz, lat = Math.abs(dx * cz - dz * sx); return !(av > -2 && av < 7 && lat < LARG / 2 + O.hw + .25); }); // files à 1 m : avec 1 + O.hw, la voisine n'était jamais libre (relecteur, 12/11)
     if (libre) { R.file = f; R.P.pts = C.files[f]; R.bloque = 0; return; }
   }
   R.bloque = 0; // pas de place : il attend un peu avant de réessayer
