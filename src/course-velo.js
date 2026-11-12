@@ -104,6 +104,7 @@ function partir(P) {
   // Le joueur dans sa file, face au parcours ; les autres de part et d'autre.
   const pose = (i, recul = 0) => { const [x, z] = files[i][0]; return [x - Math.sin(cap) * recul, z - Math.cos(cap) * recul]; };
   const [jx, jz] = pose(FILE_JOUEUR); placer(T.veh, jx, jz, cap); T.gel = true;
+  E.routeFermee = true; // la rue est fermée : plus de voitures, de zéms ni de tokpas jusqu'à la fin (circulation.js, main.js)
   let r = 0;
   for (let i = 0; i < FILES.length; i++) {
     if (i === FILE_JOUEUR) continue;
@@ -114,7 +115,7 @@ function partir(P) {
     C.rivaux.push({ ...st, V, p, file: i, P: { pts: files[i], i: 1 }, k: 1, s: 0, fini: 0, vmax: st.vmax * force, bloque: 0 });
   }
   $('#vhCourse').hidden = false;
-  X.ligne(`Course « ${P.nom} » : ${Math.round(tr.total / 10) * 10} m contre ${RIVAUX.map(s => `${s.nom} (${s.titre})`).join(', ')}. Suis les chevrons jusqu’à l’arrivée !`);
+  X.ligne(`Course « ${P.nom} » : ${Math.round(tr.total / 10) * 10} m contre ${RIVAUX.map(s => `${s.nom} (${s.titre})`).join(', ')}. Suis les chevrons jusqu’à l’arrivée ! La rue est fermée aux voitures pendant la course.`);
 }
 
 // ---------- À chaque image ----------
@@ -223,7 +224,7 @@ export function arreterCourseVelo(message = '') { arreter(message); }
 function arreter(message = '') {
   if (!C) return;
   for (const R of C.rivaux) { retirerVehicule(R.V); scene.remove(R.p); R.p.userData.liberer?.(); }
-  retirerRuban(C.ruban); C = null; T.gel = false;
+  retirerRuban(C.ruban); C = null; T.gel = false; E.routeFermee = false; // la circulation revient, loin, hors de vue
   const h = $('#vhCourse'); if (h) h.hidden = true; const d = $('#cvDecompte'); if (d) d.hidden = true;
   if (message) X.ligne(message);
 }

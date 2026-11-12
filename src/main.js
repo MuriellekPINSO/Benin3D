@@ -126,8 +126,8 @@ function image(now) {
   animerLieux(U.uTime.value); animerOuidah(U.uTime.value, camera.position); animerEtals(U.uTime.value, camera.position);
   const reelle = vueReelleSeule(); for (const e of extras) e.visible = E.riseDone && !reelle; avionsVisibles(!reelle); // Vue réelle seule : ni palmiers, ni conteneurs, ni bateaux, ni avions
   E.circulation.length = 0; E.zemsPres.length = 0; // refaites par updateZems / majTokpas, vides quand la circulation est cachée
-  if (E.zems) { E.zems.visible = E.zemOn && E.riseDone && dist < 5000 && !JEU.actif && !reelle; if (E.zemsProches) E.zemsProches.visible = E.zems.visible; if (E.zems.visible) updateZems(dt); }
-  if (E.tokpas) { E.tokpas.visible = E.zemOn && E.riseDone && dist < 6000 && !JEU.actif && !reelle; if (E.tokpas.visible) majTokpas(dt); }
+  if (E.zems) { E.zems.visible = E.zemOn && E.riseDone && dist < 5000 && !JEU.actif && !reelle && !E.routeFermee; if (E.zemsProches) E.zemsProches.visible = E.zems.visible; if (E.zems.visible) updateZems(dt); }
+  if (E.tokpas) { E.tokpas.visible = E.zemOn && E.riseDone && dist < 6000 && !JEU.actif && !reelle && !E.routeFermee; if (E.tokpas.visible) majTokpas(dt); } // ni zéms ni tokpas pendant une course à vélo (E.routeFermee)
   majCirculation(dt, E.joueur); // dans « Vivre à Cotonou » : voitures, taxis, camions, vélos autour du joueur (circulation.js)
   majConcertDehors(camera.position, dt); // les soirs de concert : la scène de l'Amazone se voit de loin (evenement.js)
   majMondeReel(JEU.actif && JEU.joueur ? JEU.joueur.position : t, JEU.actif);

@@ -211,7 +211,12 @@ export function majCirculation(dt, J) {
   for (const W of E.zemsPres) if (W.arret) obst.push({ x: W.px, z: W.pz, cap: W.cap, hl: W.hl, hw: W.hw });
   // Celui qui fait demi-tour est en travers de la rue, hors de sa file : les autres le voient là où il est vraiment.
   for (const W of C.vehicules) if (W.demi) obst.push({ x: W.px, z: W.pz, cap: W.cap, hl: W.hl, hw: W.hw, W });
+  // « Pendant la course, on ne doit pas voir les véhicules passer, ou il ne faut pas qu'ils nous cognent : quand ils nous
+  // cognent, on n'arrive plus à continuer » (Murielle, 12/11). Pendant une course à vélo, la rue est fermée, comme pour
+  // une vraie course : chacun s'en va (partir : effacé hors de vue, rétracté en une demi-seconde sous les yeux du joueur,
+  // plus solide dès cet instant) et personne ne revient avant la fin ; puis ils réapparaissent loin, hors de vue.
   for (const V of C.vehicules) {
+    if (E.routeFermee) { if (V.R && !(V.part > 0)) partir(V, J); if (!V.R) continue; }
     if (V.part > 0) { V.part -= dt; if (V.part <= 0) { V.part = 0; V.R = null; V.ailleurs = true; } continue; } // il s'efface (partir) : ni avance, ni obstacle
     if (!V.R || Math.hypot(V.px - J.x, V.pz - J.z) > LOIN) { const loin = !!V.R || V.ailleurs; if (!placer(V, J.x, J.z, loin ? 150 : 20, loin ? 260 : 240)) { V.R = null; continue; } V.ailleurs = false; } // réapparaît hors de vue
     if (V.demi) { // il fait demi-tour (demiTourPossible) ; si quelqu'un entre dans son arc, il s'arrête et attend

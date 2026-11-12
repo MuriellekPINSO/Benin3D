@@ -15,6 +15,8 @@ export const E = {
   // ceux des autres joueurs (garés ou au volant). Refaits à chaque image par le salon : { x, z, cap, hl, hw } ; la
   // circulation les contourne au lieu de passer au travers (testeur, 04/11).
   garees: [],
+  // Course à vélo (course-velo.js) : la rue est fermée, sans circulation, ni zéms, ni tokpas, jusqu'à la fin de la course.
+  routeFermee: false,
   lamps: null, foamMat: null,
   showQ: true, selected: null,
   riseDone: reduceMotion, frameN: 0,
