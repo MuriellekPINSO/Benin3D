@@ -603,7 +603,11 @@ function passe(V, x, z) {
   const vole = (V.alt || 0) > 1.5;
   if (!(horsMur(fx, fz, vole) && horsMur(fx + cz * W, fz - sx * W, vole) && horsMur(fx - cz * W, fz + sx * W, vole))) return false;
   if (vole) return true; // en vol, on passe au-dessus des zémidjans et des voitures
-  const p = dansLeTrafic(V, x, z); return p === 0 || p < dansLeTrafic(V, V.x, V.z) - 1e-3;
+  // Déjà serré contre un véhicule, on peut aussi glisser le long, pourvu qu'on n'y entre pas davantage. Il fallait
+  // s'en écarter, et à l'arrêt le guidon ne tourne pas : collé de côté contre un cycliste de la course, on ne repartait
+  // plus, et lui non plus (« lorsque je cogne une voiture, je ne suis pas bloquée lorsque je suis en course », 12/11).
+  const p = dansLeTrafic(V, x, z); if (p === 0) return true;
+  const avant = dansLeTrafic(V, V.x, V.z); return avant > 0 && p <= avant + 1e-6;
 }
 function avancer(V, dt, contraint) {
   const nx = V.x + Math.sin(V.cap) * V.v * dt, nz = V.z + Math.cos(V.cap) * V.v * dt; let choc = null;
