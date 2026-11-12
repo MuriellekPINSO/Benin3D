@@ -704,6 +704,14 @@
   "'Écris à tout le monde… (Entrée)'": "'Write to everyone… (Enter)'",
   "'Écris à tes amis… (Entrée)'": "'Write to your friends… (Enter)'",
   "'RideCorniche (location de vélos)'": "'RideCorniche (bike rental)'",
+  "'Cathédrale Notre-Dame (Ganhi)'": "'Notre-Dame Cathedral (Ganhi)'",
+  "'à la cathédrale Notre-Dame'": "'to Notre-Dame Cathedral'",
+  "'Marché Ganhi'": "'Ganhi Market'",
+  "'au marché Ganhi'": "'to Ganhi Market'",
+  "'Église Sainte-Trinité (Akpakpa)'": "'Holy Trinity Church (Akpakpa)'",
+  "'à l’église Sainte-Trinité d’Akpakpa'": "'to Holy Trinity Church in Akpakpa'",
+  "'De la Corniche à Akpakpa'": "'From the Corniche to Akpakpa'",
+  "'De la Corniche à Ganhi'": "'From the Corniche to Ganhi'",
   "'chez RideCorniche'": "'to RideCorniche'",
   "'Partir en balade'": "'Start a group ride'",
   "'Rendre le vélo'": "'Return the bike'",
@@ -933,7 +941,7 @@
   " a raccroché.": " hung up.",
   " · encore ": " · ",
   " s…": " s left…",
-  " h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ». En selle devant la boutique, « Course à vélo » te fait courir contre trois cyclistes.": " h. It's parked in front of the shop: walk up to it and “Get on your bike”. On the saddle outside the shop, “Bike race” pits you against three cyclists."
+  " h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ». En selle devant la boutique : « Course à vélo » jusqu’à la cathédrale contre trois cyclistes, ou « Partir en balade ».": " h. It's parked in front of the shop: walk up to it and “Get on your bike”. On the saddle in front of the shop: “Bike race” to the cathedral against three cyclists, or “Start a group ride”."
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -3619,6 +3627,7 @@
   "'Reprendre'": "'Resume'"
  },
  "src/course-velo.js": {
+  "'De la Corniche à la cathédrale'": "'From the Corniche to the cathedral'",
   "'Sprint du Palais des Congrès'": "'Palais des Congrès sprint'",
   "'Jusqu’à la Cité ministérielle'": "'To the Cité ministérielle'",
   "'Jusqu’au siège de Moov'": "'To Moov’s headquarters'",

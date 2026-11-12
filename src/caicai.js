@@ -11,14 +11,18 @@ import { quandVelo } from './conduite.js';
 // Le loueur de vélos du jeu : RideCorniche, les vélos jaunes de la Corniche de Cotonou. Leur fondateur a demandé d'avoir
 // sa marque à la place de « Caï Caï Vélo », le nom inventé d'avant (06/11) ; Murielle a dit oui le 11/11, avec leur vélo
 // en 3D (conduite.js, VELO_TRIPO). Les identifiants (caicai, CAI…) restent : les lieux enregistrés s'en servent.
-// La boutique est au bord de l'esplanade de l'Amazone : c'est là que les joueurs se retrouvent, et c'est de là que partent
-// leurs balades. Une boutique en conteneur aux couleurs de la marque (jaune et noir), l'auvent de tôle, le panneau au
+// La boutique est sur la Corniche Est d'Akpakpa, au bord du boulevard (« tu enlèves ça de l'Amazone pour la Corniche »,
+// Murielle, 12/11 ; elle était au bord de l'esplanade de l'Amazone) : c'est de là que partent les balades et la course à
+// vélo (course-velo.js). Une boutique en conteneur aux couleurs de la marque (jaune et noir), l'auvent de tôle, le panneau au
 // logo, et des vélos rangés au râtelier. On loue en s'approchant du comptoir.
-const LAT = 6.34895, LON = 2.40755; // la place de l'Amazone ; la boutique est au bord de l'esplanade
+const LAT = 6.3555, LON = 2.4508; // la Corniche Est (donnees-lieux.js, 'corniche')
 const [AX, AZ] = toXZ(LAT, LON);
 // Le comptoir et l'auvent regardent le sud (+z dans le repère du jeu) : la boutique n'est pas pivotée,
 // pour que le point d'arrivée devant elle tombe au bon endroit. On s'arrête à 4,2 m, hors de l'auvent.
-export const CAI_LIEU = { x: AX + 38, z: AZ - 62 };
+// 130 m à l'est du point de la Corniche, côté ville : le premier terrain libre au bord du boulevard (ni bâtiment, ni
+// arbre, ni poteau, ni eau sous la boutique, le râtelier et le vélo posé), à 8 m de la chaussée ; le comptoir regarde le
+// boulevard, et la mer derrière lui. Cherché dans le jeu le 12/11 (session 2deab2d3, scratchpad velo/lieu2.mjs).
+export const CAI_LIEU = { x: AX + 130, z: AZ - 13 };
 export const DEVANT_CAI = [CAI_LIEU.x, CAI_LIEU.z + 4.2, Math.PI]; // x, z, et le regard vers la boutique
 // Où le loueur pose le vélo : à trois pas du comptoir, hors de l'auvent, roue vers la ville.
 export const POSE_VELO = { x: CAI_LIEU.x - 2.4, z: CAI_LIEU.z + 4, cap: 0 };
@@ -27,12 +31,16 @@ export const PRES_DE_CAI = (x, z) => Math.hypot(x - CAI_LIEU.x, z - CAI_LIEU.z) 
 // Les balades en groupe de la boutique, chacune par des lieux de rendez-vous du jeu
 // (les identifiants de LIEUX dans salon.js). Le meneur annonce les étapes une à une dans la discussion :
 // chaque annonce donne aux autres un bouton « Y aller », et tout le monde roule au même endroit.
+// Depuis le 12/11, deux balades au départ de la Corniche (« tu peux aller de la Corniche à Akpakpa, ou de la Corniche à
+// Ganhi, l'église cathédrale », Murielle) ; les quatre d'avant partaient de l'Amazone.
 export const BALADES = [
-  { id: 'nuit', nom: 'Cotonou by Night', etapes: ['amazone', 'moov', 'haievive'] },
-  { id: 'dimanche', nom: 'Vélo Dimanche', etapes: ['amazone', 'fidjrosse'] },
-  { id: 'gourmandes', nom: 'Pédales gourmandes', etapes: ['cite', 'haievive'] },
-  { id: 'picnic', nom: 'Vélo Picnic', etapes: ['fidjrosse', 'amazone'] },
+  { id: 'akpakpa', nom: 'De la Corniche à Akpakpa', etapes: ['caicai', 'akpakpa'] },
+  { id: 'ganhi', nom: 'De la Corniche à Ganhi', etapes: ['caicai', 'cathedrale', 'ganhi'] },
 ];
+// Le rendez-vous d'Akpakpa : sur le parvis de l'église Sainte-Trinité d'Avotrou (reperes.js, 'eglise-akpakpa'), à 9 m de
+// sa façade, face à elle. Ce n'est pas un lieu de la carte (PLACES) : salon.js le traite comme la boutique.
+const [EX, EZ] = toXZ(6.376862, 2.475893);
+export const RDV_AKPAKPA = [EX + 4, EZ + 9, -2.94];
 
 // Les couleurs de la boutique. La vitre reste claire : les couleurs sont rangées en linéaire par mergeColored, et tout ce
 // qui est déjà sombre y devient noir — un bleu nuit faisait un trou dans le conteneur.

@@ -23,10 +23,13 @@ import { VIE, gagner } from './vie.js';
 // devant, ils lèvent le pied ; derrière, ils appuient. Chaque victoire les rend un peu plus forts.
 // Seul le joueur les voit : en ville ou entre amis, les autres joueurs voient seulement son vélo.
 
+// Un seul parcours depuis le 12/11 : « pour la course, c'est de la Corniche à l'église cathédrale, c'est tout » (Murielle),
+// la boutique étant passée de l'Amazone à la Corniche Est. Environ 2 km, par l'ancien pont.
 const PARCOURS = [
-  { id: 'congres', nom: 'Sprint du Palais des Congrès', vers: 'congres', prix: [500, 250, 100] },
-  { id: 'cite', nom: 'Jusqu’à la Cité ministérielle', vers: 'cite', prix: [800, 400, 150] },
-  { id: 'moov', nom: 'Jusqu’au siège de Moov', vers: 'moov', prix: [1200, 600, 250] },
+  // `arrivee` : décalage depuis le point de la cathédrale (donnees-lieux.js). Sans lui, l'arrivée tombait sur la route la
+  // plus proche du centre, un sentier derrière la nef, d'où on ne la voyait pas ; ici, la grande rue du côté de sa façade
+  // (l'ouest), au rendez-vous « Cathédrale Notre-Dame » de salon.js.
+  { id: 'cathedrale', nom: 'De la Corniche à la cathédrale', vers: 'cathedrale', arrivee: [-32, 2], prix: [1500, 750, 300] },
 ];
 // vmax en m/s (le vélo du joueur : 7), accel en m/s², et la graine de leur personnage.
 const RIVAUX = [
@@ -53,7 +56,7 @@ function trace(P) {
   const dep = pointDeRoute(CAI_LIEU.x, CAI_LIEU.z + 8, 0, 60), lieu = PLACES.find(q => q.id === P.vers);
   let t = null;
   if (dep && lieu) {
-    const [x, z] = toXZ(lieu.lat, lieu.lon), arr = pointDeRoute(x, z, 0, 80);
+    const [x, z] = toXZ(lieu.lat, lieu.lon), [ax, az] = P.arrivee || [0, 0], arr = pointDeRoute(x + ax, z + az, 0, 80);
     const pts = arr && itineraire(dep[0], dep[1], null, arr[0], arr[1]);
     if (pts && pts.length > 1) { const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); t = { pts, cum, total: longueur(pts) }; }
   }
