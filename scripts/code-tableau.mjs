@@ -1,6 +1,6 @@
 // Empreinte du code du tableau de bord (middleware.js). Le dépôt est public : on n'y met jamais le code, seulement
 // son empreinte PBKDF2 (lente à calculer, donc lente à deviner).
-//   node scripts/code-tableau.mjs <nouveau code>   puis recopier SEL et EMPREINTE dans middleware.js
+//   node scripts/code-tableau.mjs <nouveau code>   puis recopier SEL et EMPREINTE dans api/_tableau.js
 import { pbkdf2Sync, randomBytes } from 'crypto';
 
 const code = process.argv[2];

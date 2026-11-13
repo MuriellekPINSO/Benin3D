@@ -7,7 +7,7 @@
 // Le nom commence par « _ » : Vercel n'en fait pas une adresse.
 
 export const COOKIE = 'kv_tableau', JOURS = 90;
-const SEL = 'ece9a2f5d556d8b4c502be71', EMPREINTE = '161ad9006c4aa650278acbd968ff19f3b4521a92111a2972accb891c0027dd0e';
+const SEL = '44be1d0eead8b5bd6e7b8b7a', EMPREINTE = 'd2d4a766af733aa5dec2a074d625558a4c2a6a1c403d740503914d3d640a95f0';
 const TOURS = 100000;
 
 async function empreinte(code) {
