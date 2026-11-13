@@ -1,21 +1,10 @@
 // Le tableau de bord (public/tableau.html) est réservé : Vercel passe ici avant de servir la page, et demande un code.
-// Le dépôt est public : il ne contient que l'empreinte du code (PBKDF2), jamais le code lui-même.
-// Changer le code : node scripts/code-tableau.mjs <nouveau code>, puis remplacer SEL et EMPREINTE ci-dessous.
+// Le code, son empreinte et le cookie sont dans api/_tableau.js (les fonctions réservées le revérifient elles-mêmes).
 // Une fois le bon code donné, un cookie le garde 90 jours sur l'appareil.
 import { next } from '@vercel/functions';
+import { COOKIE, JOURS, bonCode, lireCookie } from './api/_tableau.js';
 
-export const config = { matcher: ['/tableau.html', '/tableau', '/api/paiements', '/api/jeux-admin'] }; // les paiements et la validation des jeux aussi : le tableau les lit
-
-const SEL = 'ece9a2f5d556d8b4c502be71', EMPREINTE = '161ad9006c4aa650278acbd968ff19f3b4521a92111a2972accb891c0027dd0e';
-const TOURS = 100000, COOKIE = 'kv_tableau', JOURS = 90;
-
-async function empreinte(code) {
-  const t = new TextEncoder(), cle = await crypto.subtle.importKey('raw', t.encode(code), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: t.encode(SEL), iterations: TOURS }, cle, 256);
-  return [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
-const bonCode = async code => !!code && code.length <= 100 && (await empreinte(code.trim())) === EMPREINTE;
-const lireCookie = (h, nom) => { const m = (h || '').match(new RegExp(`(?:^|;\\s*)${nom}=([^;]*)`)); try { return m ? decodeURIComponent(m[1]) : null; } catch { return null; } };
+export const config = { matcher: ['/tableau.html', '/tableau', '/api/paiements', '/api/jeux-admin', '/api/paiements.js', '/api/jeux-admin.js'] }; // les paiements et la validation des jeux aussi : le tableau les lit
 
 const PAGE = erreur => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>Tableau de bord · Kutɔnu Vibes</title><style>

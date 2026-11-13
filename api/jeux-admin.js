@@ -8,6 +8,7 @@
 // (cache de /api/jeux?liste). Refuser laisse un mot au créateur, qui corrige et renvoie. Retirer enlève un jeu en ligne.
 import { BASE, origineAdmise } from './fedapay.js';
 import { baseAdmin } from './_admin.js';
+import { accesTableau, refuser } from './_tableau.js';
 import { fil, image, lireCorpsGrand, racine, totaux, versionPublique } from './jeux.js';
 
 const ID = /^[a-z0-9-]{3,48}$/;
@@ -52,6 +53,7 @@ export async function admin(q, { secret = process.env.FIREBASE_DB_SECRET, base =
 }
 
 export default async function handler(req, res, secrets = {}) {
+  if (!(await accesTableau(req))) return refuser(res); // même code que le tableau, vérifié ici aussi (voir api/_tableau.js)
   const secret = secrets.secret ?? process.env.FIREBASE_DB_SECRET;
   try {
     if (req.method === 'GET') {

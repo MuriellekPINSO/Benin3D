@@ -25,7 +25,7 @@ const apiLocale = () => {
     const secrets = { fedapay: cle, paiements: cle, 'faux-frere': { secret: base.FIREBASE_DB_SECRET }, recharge: { cle, secret: base.FIREBASE_DB_SECRET, compte: base.FIREBASE_SERVICE_ACCOUNT }, 'lance-pierre': { secret: base.FIREBASE_DB_SECRET }, epargne: { secret: base.FIREBASE_DB_SECRET }, 'jeux-admin': { secret: base.FIREBASE_DB_SECRET }, jeux: { secret: base.FIREBASE_DB_SECRET } };
     for (const nom of ['fedapay', 'paiements', 'faux-frere', 'recharge', 'lance-pierre', 'epargne', 'jeux-admin', 'jeux']) {
       const api = pathToFileURL(path.resolve(`api/${nom}.js`)).href; // adresse absolue : Vite ne réécrit pas cet import
-      server.middlewares.use(`/api/${nom}`, async (req, res) => (await import(/* @vite-ignore */ `${api}?v=${fs.statSync(`api/${nom}.js`).mtimeMs}`)).default(req, res, secrets[nom]));
+      server.middlewares.use(`/api/${nom}`, async (req, res) => (req.tableauLocal = true, await import(/* @vite-ignore */ `${api}?v=${fs.statSync(`api/${nom}.js`).mtimeMs}`)).default(req, res, secrets[nom]));
     }
   };
   return { name: 'api-locale', configureServer: brancher, configurePreviewServer: brancher };

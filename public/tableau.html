@@ -274,7 +274,7 @@
     onValue(ref(db, 'zem_presence'), s => {
       const par = {}; s.forEach(c => { const o = c.val()?.ou || 'carte'; par[o] = (par[o] || 0) + 1; });
       $('#enLigne').textContent = nb(s.size);
-      $('#ou').innerHTML = Object.entries(par).map(([o, n]) => `<span>${nb(n)} · ${NOMS[o] || o}</span>`).join('');
+      $('#ou').innerHTML = Object.entries(par).map(([o, n]) => `<span>${nb(n)} · ${NOMS[o] || String(o).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)}</span>`).join('');
       etat('');
     }, e => etat(`Impossible de lire qui est en ligne (${e.code || e.message}). Les règles Firebase sont-elles déployées ?`));
     onValue(ref(db, 'zem_stats/jours'), s => {
