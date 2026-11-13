@@ -3,7 +3,7 @@ import { dansTerrePlein } from './terre-pleins.js';
 import { LITE, SECOURS, hash, toXZ } from './base.js';
 import { camera, controls, scene } from './scene.js';
 import { dansParc, rectSansConstruction, sansConstruction, zoneBoutique } from './zones.js';
-import { ELARGIR, ilesDesRondsPoints, ROAD_W, roadLines } from './ville.js';
+import { ELARGIR, ilesDesRondsPoints, oceanRing, ROAD_W, roadLines } from './ville.js';
 import { profondeurEau } from './eau.js';
 import { texFacades } from './facades.js';
 import { texIA } from './textures-ia.js';
@@ -162,6 +162,34 @@ function surTrajet(x, z) {
   const l = R.trajet?.get(Math.floor(x / 8) + ',' + Math.floor(z / 8)); if (!l) return false;
   for (let k = 0; k < l.length; k += 3) if ((x - l[k]) ** 2 + (z - l[k + 1]) ** 2 < l[k + 2]) return true;
   return false;
+}
+// Au bord de la plage, pas de maisons : « enlève tous ces trucs au bord de la plage, il n'y a pas ces maisons » (Murielle,
+// 13/11, sur la Corniche Est). Un bout de parcelle est « au bord de la plage » si, en descendant droit vers l'océan (le
+// sud), on arrive au rivage sans traverser aucune autre rue : alors ni mur, ni boutique, ni maison, ni trottoir à cet
+// endroit. Une rue d'abord, c'est un pâté de maisons de la ville, qui reste ; le côté nord d'une rue aussi (la mer est
+// derrière la rue). Seulement l'océan : le lac Nokoué et la lagune ont leurs maisons. Les vrais bâtiments (OpenStreetMap,
+// Google) ne changent pas.
+const COTE = new Map(), MER = new Map();
+/** Le z du rivage de l'océan le plus au nord pour x (par tranches de 16 m), d'après son contour (ville.js) ; null sinon. */
+function rivage(x) {
+  const k = Math.floor(x / 16); if (COTE.has(k)) return COTE.get(k);
+  const O = oceanRing; if (!O) return null;
+  const xm = (k + .5) * 16; let best = null;
+  for (let i = 1; i < O.length; i++) {
+    const a = O[i - 1], b = O[i]; if (Math.abs(a.y) > 30000 || Math.abs(b.y) > 30000 || (a.x - xm) * (b.x - xm) > 0 || a.x === b.x) continue;
+    const z = a.y + (b.y - a.y) * (xm - a.x) / (b.x - a.x); if (best === null || z < best) best = z;
+  }
+  COTE.set(k, best); return best;
+}
+function auBordDeLaMer(x, z, nz, li) {
+  if (nz < -.3) return false; // le côté nord de sa rue : la rue est entre lui et la mer
+  const zr = rivage(x); if (zr === null || zr < z || zr - z > 320) return false;
+  const k = li + ':' + Math.round(x / 4) + ',' + Math.round(z / 4);
+  let v = MER.get(k); if (v !== undefined) return v;
+  v = true;
+  for (let pz = z + 2; pz < zr; pz += 4) if (presAutreRoute(x, pz, li, .5)) { v = false; break; }
+  if (MER.size > 80000) MER.clear();
+  MER.set(k, v); return v;
 }
 const zoneLibre = (x, z) => sansConstruction(x, z) || dansParc(x, z) || zoneBoutique(x, z) || dansTerrePlein(x, z, .6) || R.zonesLibres.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || R.rectsLibres.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1) || R.zonesJeu.some(([zx, zz, r]) => (x - zx) ** 2 + (z - zz) ** 2 < r * r) || surTrajet(x, z);
 
@@ -322,6 +350,7 @@ function genererCarre(cx, cz) {
         if (!dedans(x, z)) return 0;
         if (zoneLibre(x, z) || presAutreRoute(x, z, li, 1.2)) return 0;
         const nx = -dz * cote, nz = dx * cote;
+        if (auBordDeLaMer(x, z, nz, li)) return 0;
         if (dansBatiment(x, z) || dansBatiment(x + nx * .8, z + nz * .8)) return 2;
         return sansMur(x, z) ? 3 : 1; // 3 : le trottoir continue, mais ni mur, ni boutique, ni maison (ajouterZoneSansMur)
       });
