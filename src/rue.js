@@ -50,7 +50,7 @@ surArriveeVille(id => {
 const CARRE = 400;
 // Du bord de la chaussée jusqu'aux murs des parcelles ; élargis avec les voies (ville.js, ELARGIR, testeur, 04/11).
 const TROTTOIR = Object.fromEntries(Object.entries({ 0: 4, 1: 3.5, 2: 3, 3: 2.2, 4: 1.3, 5: .9 }).map(([c, m]) => [c, m * ELARGIR]));
-const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, segR: null, zonesLibres: [], rectsLibres: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [], tuiles: new Set(), tuilesVues: new Set() };
+const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, segR: null, zonesLibres: [], rectsLibres: [], rectsSansMur: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [], tuiles: new Set(), tuilesVues: new Set() };
 
 // ---------- Index spatiaux ----------
 const CB = 50, CR = 40;
@@ -323,7 +323,7 @@ function genererCarre(cx, cz) {
         if (zoneLibre(x, z) || presAutreRoute(x, z, li, 1.2)) return 0;
         const nx = -dz * cote, nz = dx * cote;
         if (dansBatiment(x, z) || dansBatiment(x + nx * .8, z + nz * .8)) return 2;
-        return 1;
+        return sansMur(x, z) ? 3 : 1; // 3 : le trottoir continue, mais ni mur, ni boutique, ni maison (ajouterZoneSansMur)
       });
       const n = k => { const e = ech[k]; return [-e[3] * cote, e[2] * cote]; }; // vers l'intérieur des parcelles
       // Trottoir pavé et bordure (grands axes et trajet du jeu).
@@ -630,6 +630,17 @@ function rangerEmprise(r, bb, tuile = null) {
 /** Rectangle [x0, z0, x1, z1] sans murs de parcelles, boutiques ni poteaux (une place reconstruite par lieux-*.js).
  *  Un rectangle plutôt qu'un disque : un mur coupé en biais par le bord d'un cercle laissait des bouts de mur isolés. */
 export function ajouterZoneLibre(rect) { R.rectsLibres.push(rect); }
+/** Rectangle [x0, z0, x1, z1] où le trottoir continue, mais sans mur de parcelle, boutique, maison ni poubelle : la façade
+ *  d'un lieu du jeu qui doit se voir de la rue. Le mur de clôture passait devant RideCorniche et la cachait (Murielle,
+ *  13/11). Un carré déjà fait est refait. */
+export function ajouterZoneSansMur(rect) {
+  R.rectsSansMur.push(rect);
+  for (const k of R.carres.keys()) {
+    const [a, b] = k.split(',').map(Number);
+    if (rect[2] > a * CARRE && rect[0] < (a + 1) * CARRE && rect[3] > b * CARRE && rect[1] < (b + 1) * CARRE) (R.perimes ??= new Set()).add(k);
+  }
+}
+const sansMur = (x, z) => R.rectsSansMur.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
 export function ajouterEmprise(anneau) {
   if (!R.grilleB || !anneau || anneau.length < 3) return;
   const r = new Float32Array(anneau.length * 2), bb = [1e9, 1e9, -1e9, -1e9];

@@ -4,7 +4,7 @@ import { B3, C3, CAI, matVeh, partsVelo } from './vehicules.js';
 import { groupeLieu } from './lieux.js';
 import { mergeColored } from './ville.js';
 import { MAX_DECOR, reduireImage } from './textures.js';
-import { poserObstacles } from './rue.js';
+import { ajouterZoneSansMur, poserObstacles } from './rue.js';
 import { quandVelo } from './conduite.js';
 
 // ---------- RideCorniche ----------
@@ -100,5 +100,8 @@ export function construireCaiCai() {
   // vélos, les deux poteaux de l'auvent : [x, z, angle, longueur, épaisseur] (rue.js).
   const { x, z } = CAI_LIEU;
   poserObstacles('caicai', [[x, z + .2, 0, 6.1, 2.95], [x - 3.65, z - .25, 0, 1.3, 3.9], [x - 2.9, z + 2.7, 0, .25, .25], [x + 2.9, z + 2.7, 0, .25, .25]]);
+  // Entre la boutique et le boulevard, rue.js posait un mur de clôture : on ne voyait plus que le haut du panneau
+  // (« enlève le mur là, ça empêche de voir l'entreprise », Murielle, 13/11). Le trottoir va jusqu'au comptoir.
+  ajouterZoneSansMur([x - 10, z - 3, x + 10, z + 14]);
   return g;
 }

@@ -38,6 +38,11 @@ const RIVAUX = [
   { nom: 'Tonton Basile', titre: 'le vieux routier', vmax: 6.75, accel: 2.5, graine: 6203, femme: false },
 ];
 const FILES = [-1.5, -.5, .5, 1.5]; // m, de part et d'autre du parcours ; le joueur part dans la 3e
+// La grille de départ, comme dans Zém Run (course.js) : les trois cyclistes partent DEVANT le joueur, à gauche et à droite
+// de sa file, pour qu'il les voie dès le départ et leur coure après. Côte à côte, ils sortaient du cadre, puis roulaient
+// derrière lui (« je ne vois pas les autres vélos qui font la course avec moi, comme sur Zém Run », Murielle, 13/11).
+// Une place par rival, dans l'ordre de RIVAUX : sa file et son avance sur le joueur, en mètres.
+const GRILLE = [{ file: 1, avance: 6 }, { file: 3, avance: 6 }, { file: 0, avance: 3 }];
 const FILE_JOUEUR = 2, DECOMPTE = 3, PRES = 30; // s de compte à rebours ; m de la boutique pour s'inscrire
 const LONG = 1.8, LARG = .6; // le vélo (conduite.js, VEHICULES.velo)
 const CLE_VICTOIRES = 'kutonu.velo.victoires';
@@ -68,6 +73,14 @@ function decaler(pts, d) {
     const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1;
     return [p[0] + dz / l * d, p[1] - dx / l * d];
   });
+}
+/** Le point à `s` mètres le long de `pts` : [x, z, cap, k], k étant l'indice du point suivant (pour suivreChemin). */
+function aDistance(pts, s) {
+  for (let k = 1; k < pts.length; k++) {
+    const [ax, az] = pts[k - 1], [bx, bz] = pts[k], l = Math.hypot(bx - ax, bz - az);
+    if (s <= l || k === pts.length - 1) { const f = Math.min(1, s / (l || 1)); return [ax + (bx - ax) * f, az + (bz - az) * f, Math.atan2(bx - ax, bz - az), k]; }
+    s -= l;
+  }
 }
 /** Où en est (x, z) sur le tracé, en mètres depuis le départ ; `k` : le segment trouvé la dernière fois (jamais en arrière). */
 function progres(tr, x, z, k) {
@@ -104,21 +117,18 @@ function partir(P) {
   const files = FILES.map(d => decaler([...tr.pts, [yb + (yb - ya) / lf * 10, zb + (zb - za) / lf * 10]], d)), [ax, az] = tr.pts[0], [bx, bz] = tr.pts[1], cap = Math.atan2(bx - ax, bz - az);
   const force = 1 + .02 * Math.min(4, victoires()); // un peu plus forts à chaque victoire (+8 % au plus)
   C = { P, tr, files, phase: 'decompte', t: DECOMPTE, n: 0, msgT: 0, temps: 0, ruban: ruban(tr.pts), rivaux: [], joueur: { k: 1, s: 0, fini: 0 }, horsT: 0, horsDit: 0, hudT: 0, finT: 0 };
-  // Le joueur dans sa file, face au parcours ; les autres de part et d'autre.
-  const pose = (i, recul = 0) => { const [x, z] = files[i][0]; return [x - Math.sin(cap) * recul, z - Math.cos(cap) * recul]; };
-  const [jx, jz] = pose(FILE_JOUEUR); placer(T.veh, jx, jz, cap); T.gel = true;
+  // Le joueur dans sa file, face au parcours ; les autres devant lui, sur le parcours (GRILLE).
+  const [jx, jz] = files[FILE_JOUEUR][0]; placer(T.veh, jx, jz, cap); T.gel = true;
   E.routeFermee = true; // la rue est fermée : plus de voitures, de zéms ni de tokpas jusqu'à la fin (circulation.js, main.js)
-  let r = 0;
-  for (let i = 0; i < FILES.length; i++) {
-    if (i === FILE_JOUEUR) continue;
-    const st = RIVAUX[r++], V = creerVehicule('velo'), [x, z] = pose(i), p = personne(st.graine, { femme: st.femme });
-    placer(V, x, z, cap);
+  RIVAUX.forEach((st, r) => {
+    const { file, avance } = GRILLE[r], [x, z, c, k] = aDistance(files[file], avance), V = creerVehicule('velo'), p = personne(st.graine, { femme: st.femme });
+    placer(V, x, z, c);
     const et = etiquette(st.nom); et.position.y = 2.05; V.g.add(et);
     scene.add(p); asseoirSur(p, V, false);
-    C.rivaux.push({ ...st, V, p, file: i, P: { pts: files[i], i: 1 }, k: 1, s: 0, fini: 0, vmax: st.vmax * force, bloque: 0 });
-  }
+    C.rivaux.push({ ...st, V, p, file, P: { pts: files[file], i: k }, k, s: avance, fini: 0, vmax: st.vmax * force, bloque: 0 });
+  });
   $('#vhCourse').hidden = false;
-  X.ligne(`Course « ${P.nom} » : ${Math.round(tr.total / 10) * 10} m contre ${RIVAUX.map(s => `${s.nom} (${s.titre})`).join(', ')}. Suis les chevrons jusqu’à l’arrivée ! La rue est fermée aux voitures pendant la course.`);
+  X.ligne(`Course « ${P.nom} » : ${Math.round(tr.total / 10) * 10} m contre ${RIVAUX.map(s => `${s.nom} (${s.titre})`).join(', ')}. Ils partent devant toi : rattrape-les ! Suis les chevrons jusqu’à l’arrivée. La rue est fermée aux voitures pendant la course.`);
 }
 
 // ---------- À chaque image ----------
