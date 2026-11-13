@@ -1118,7 +1118,9 @@
   "' Ta voiture t’attend.'": "' Your car is waiting for you.'",
   "'Toyota Vitz'": "'Toyota Vitz'",
   "'Jetour X70'": "'Jetour X70'",
-  "'Le grand SUV qui arrive à Cotonou : haut, large, confortable'": "'The big SUV arriving in Cotonou: tall, wide, comfortable'"
+  "'Le grand SUV qui arrive à Cotonou : haut, large, confortable'": "'The big SUV arriving in Cotonou: tall, wide, comfortable'",
+  "'Berline'": "'Sedan'",
+  "'Basse et confortable. La portière s’ouvre quand tu montes'": "'Low and comfortable. The door opens when you get in'"
  },
  "src/trajets.js": {
   "'Ta voiture'": "'Your car'",
@@ -1258,7 +1260,11 @@
   "'ta Roadster'": "'your Roadster'",
   "'de la Roadster'": "'of the Roadster'",
   "'ton Jetour'": "'your Jetour'",
-  "'du Jetour'": "'of the Jetour'"
+  "'du Jetour'": "'of the Jetour'",
+  "'Berline'": "'Sedan'",
+  "'Ta berline'": "'Your sedan'",
+  "'ta berline'": "'your sedan'",
+  "'de la berline'": "'of the sedan'"
  },
  "src/conduite.js": {
   "'zém'": "'zém'",

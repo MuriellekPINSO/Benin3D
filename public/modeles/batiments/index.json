@@ -78,5 +78,9 @@
  "velo-ride": {
   "triangles": 40000,
   "octets": 1540860
+ },
+ "berline": {
+  "triangles": 61930,
+  "octets": 2780844
  }
 }
