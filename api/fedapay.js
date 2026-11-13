@@ -50,6 +50,7 @@ export async function lireTransaction(id, cle) {
   const r = await appeler(cle, 'GET', `/transactions/${id}`);
   return { ok: r.ok, statut: r.statut, t: r.ok ? r.d?.['v1/transaction'] || r.d?.transaction || r.d || {} : null };
 }
+const OBJETS_JEU = ['concert', 'commerce', 'boutique', 'recharge']; // custom_metadata.objet que le jeu pose à la création
 export async function verifierPaiement(id, min = MONTANT_MIN, cle = process.env.FEDAPAY_SECRET_KEY, mode = '', objet = '') {
   if (!cle) return { code: 503, corps: { paye: false, statut: 'non-configure' } };
   if (mode && mode !== modeDe(cle)) return { code: 500, corps: { paye: false, statut: 'cles-incoherentes' } };
@@ -58,8 +59,10 @@ export async function verifierPaiement(id, min = MONTANT_MIN, cle = process.env.
   if (!r.ok) return { code: 502, corps: { paye: false, statut: r.statut ? `fedapay-${r.statut}` : 'fedapay-injoignable' } };
   const t = r.d?.['v1/transaction'] || r.d?.transaction || r.d || {};
   // Un paiement ne vaut que pour ce qu'il a payé : le billet du concert n'ouvre pas un commerce.
+  // Le compte FedaPay est partagé avec Qualiwo : une transaction sans objet du jeu n'est pas la nôtre, on n'en dit rien
+  // (ni statut ni montant), et elle n'ouvre rien (13/11 : n'importe quel numéro de transaction payée ouvrait le billet).
   const pour = t.custom_metadata?.objet;
-  if (objet && pour && pour !== objet) return { code: 200, corps: { paye: false, statut: 'autre-objet' } };
+  if (!OBJETS_JEU.includes(pour) || (objet && pour !== objet)) return { code: 200, corps: { paye: false, statut: 'autre-objet' } };
   const attendu = Math.max(MONTANT_MIN, Number(min) || 0);
   return { code: 200, corps: { paye: PAYES.includes(t.status) && Number(t.amount) >= attendu, statut: t.status, montant: Number(t.amount) } };
 }

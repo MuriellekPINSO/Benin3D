@@ -3,6 +3,8 @@
 // garde que les transactions du jeu, reconnues à leur custom_metadata.objet (concert, commerce, boutique, recharge).
 // Aucune donnée du client (nom, numéro) n'est renvoyée.
 //   GET /api/paiements → { recus, montant, aujourdhui, semaine, tentatives, parObjet, derniers, lu }
+import { accesTableau, refuser } from './_tableau.js';
+
 const OBJETS = ['concert', 'commerce', 'boutique', 'recharge'];
 const PAYES = ['approved', 'transferred'];
 const OPERATEURS = { mtn_open: 'MTN', moov: 'Moov', sbin: 'Celtiis', mtn_open_ci: 'MTN Côte d’Ivoire', moov_tg: 'Moov Togo' };
@@ -35,6 +37,7 @@ export async function paiementsDuJeu(cle) {
 }
 
 export default async function handler(req, res, cle = process.env.FEDAPAY_SECRET_KEY) { // en local, vite.config.js passe la clé de .env.local
+  if (!(await accesTableau(req))) return refuser(res); // même code que le tableau, vérifié ici aussi (voir api/_tableau.js)
   let code = 200, corps;
   if (!cle) { code = 503; corps = { erreur: 'non-configure' }; }
   else try { corps = await paiementsDuJeu(cle); } catch (e) { console.error('paiements', e?.message); code = 502; corps = { erreur: 'fedapay-injoignable' }; }
