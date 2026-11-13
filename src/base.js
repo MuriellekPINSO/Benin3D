@@ -34,6 +34,10 @@ const signe = () => { if (!document.hidden) ecrireLS(CLE_VU, String(Date.now()))
 addEventListener('pagehide', () => ecrireLS(CLE_SESSION, 'fermee')); // quittée ou rechargée : pas un plantage
 document.addEventListener('visibilitychange', () => ecrireLS(CLE_SESSION, document.hidden ? 'fermee' : 'ouverte')); // mise de côté, puis reprise
 export const LITE = SECOURS || choixLeger === '1' || (choixLeger !== '0' && (coarse || small));
+// La haute qualité (main.js, qualite) est-elle voulue au démarrage ? Sur ordinateur, d'office, sauf si le joueur l'a enlevée
+// (menu Plus) ; ?hq / ?hq=0 pour comparer. Les textures dessinées par le jeu (lieux.js) se font alors deux fois plus fines.
+const Q_DEPART = new URLSearchParams(location.search);
+export const HQ_DEPART = !LITE && !Q_DEPART.has('brut') && (Q_DEPART.has('hq') ? Q_DEPART.get('hq') !== '0' : lireLS('cotonou3d.hq') !== '0');
 
 // Projection locale (mètres) autour de 6,37° N / 2,415° E : x vers l'est, z vers le sud
 export const LAT0 = 6.37, LON0 = 2.415, KX = 111320 * Math.cos(LAT0 * Math.PI / 180), KZ = 110574;

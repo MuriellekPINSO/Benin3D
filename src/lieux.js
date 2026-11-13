@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { LITE, SECOURS, hash, toXZ, u8c } from './base.js';
+import { HQ_DEPART, LITE, SECOURS, hash, toXZ, u8c } from './base.js';
 import { camera, scene } from './scene.js';
 import { parCarres } from './carres.js';
 import { ROAD_W, TABLIERS, roadLines } from './ville.js';
@@ -81,7 +81,9 @@ export const K = (() => {
     get racine() { return cible; },
     into(g, fn) { const p = cible; cible = g; try { fn(); } finally { cible = p; } return g; },
     geo(cle, fab) { if (!geos.has(cle)) geos.set(cle, fab()); return geos.get(cle); },
-    toile(motif) { if (!toiles.has(motif)) { const cv = document.createElement('canvas'); const [w, h] = tailles[motif] || [256, 256]; cv.width = w; cv.height = h; graine = 1; D[motif](cv.getContext('2d'), w); toiles.set(motif, cv); } return toiles.get(motif); },
+    toile(motif) { if (!toiles.has(motif)) { const cv = document.createElement('canvas'); // Haute qualité : la toile deux fois plus fine, le motif dessiné à sa taille d'origine et agrandi par le contexte (scale) — les
+      // motifs écrits en pixels (maison.js) remplissent ainsi toute la toile. Leur hauteur : t × hauteur / largeur de la toile.
+      const [w, h] = tailles[motif] || [256, 256], k = HQ_DEPART && Math.max(w, h) <= 1024 ? 2 : 1; cv.width = w * k; cv.height = h * k; graine = 1; const c = cv.getContext('2d'); c.scale(k, k); D[motif](c, w); toiles.set(motif, cv); } return toiles.get(motif); },
     mat(couleur, o = {}) {
       const cle = `u${couleur}|${o.rugosite}|${o.metal}|${o.transparent}|${o.face2}|${o.emissif}`;
       if (!mats.has(cle)) mats.set(cle, new THREE.MeshStandardMaterial({ color: couleur, roughness: o.rugosite ?? .85, metalness: o.metal ?? 0, transparent: o.transparent !== undefined, opacity: o.transparent ?? 1, side: o.face2 ? THREE.DoubleSide : THREE.FrontSide, emissive: o.emissif ?? '#000000' }));
@@ -91,7 +93,7 @@ export const K = (() => {
       const cle = `t${motif}|${rx}|${ry}|${teinte}|${o.metal}|${o.face2}|${o.vc}`;
       if (!mats.has(cle)) {
         const carte = new THREE.CanvasTexture(K.toile(motif));
-        carte.colorSpace = THREE.SRGBColorSpace; carte.wrapS = carte.wrapT = THREE.RepeatWrapping; carte.repeat.set(rx, ry); carte.anisotropy = 4;
+        carte.colorSpace = THREE.SRGBColorSpace; carte.wrapS = carte.wrapT = THREE.RepeatWrapping; carte.repeat.set(rx, ry); carte.anisotropy = HQ_DEPART ? 16 : 4; // vue de biais (le sol), elle reste nette au loin
         mats.set(cle, new THREE.MeshStandardMaterial({ map: carte, color: teinte, roughness: o.rugosite ?? .82, metalness: o.metal ?? 0, side: o.face2 ? THREE.DoubleSide : THREE.FrontSide, vertexColors: !!o.vc }));
       }
       return mats.get(cle);
@@ -100,7 +102,7 @@ export const K = (() => {
     photo(fichier, o = {}) {
       const cle = `p${fichier}|${o.rx}|${o.ry}|${o.alpha}`;
       if (!mats.has(cle)) {
-        const ch = (f, teinte) => { const t = photoPlusTard(f, teinte); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(o.rx ?? 1, o.ry ?? 1); t.anisotropy = 8; return t; };
+        const ch = (f, teinte) => { const t = photoPlusTard(f, teinte); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(o.rx ?? 1, o.ry ?? 1); t.anisotropy = HQ_DEPART ? 16 : 8; return t; };
         const map = ch(fichier); map.colorSpace = THREE.SRGBColorSpace;
         const m = new THREE.MeshStandardMaterial({ map, roughness: o.rugosite ?? .85, metalness: o.metal ?? 0, side: o.face2 ? THREE.DoubleSide : THREE.FrontSide });
         if (o.alpha) { m.alphaMap = ch(o.alpha, '#ffffff'); m.alphaTest = .5; }

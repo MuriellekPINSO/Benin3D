@@ -46,7 +46,7 @@ K.motif('mosquee', (c, t) => { // enduit blanc, baies en arc vert bouteille
   c.fillStyle = '#d8d4ca'; c.fillRect(0, t * .9, t, t * .1); c.fillRect(0, 0, t, t * .06);
 });
 K.motif('triangles', (c, t) => { // dalles beige rosé en triangles séparées de bandes claires (couleurs relevées sur la vue satellite Google, éclaircies)
-  const W = t, H = c.canvas.height;
+  const W = t, H = t * c.canvas.height / c.canvas.width; // (haute qualité : la toile est deux fois plus grande que t, lieux.js)
   const vert = ['#bda898', '#b8a393', '#c1ac9c', '#b5a090'];
   for (let r = 0; r < 2; r++) for (let k = -1; k < 3; k++) {
     const y0 = r * H / 2, y1 = y0 + H / 2, x0 = k * W + (r % 2 ? W / 2 : 0);
@@ -140,7 +140,7 @@ const F_BCEAO = [.10, .06, .085, .06]; // fractions de largeur, de chaque bord v
 function faceBceao(w) {
   const cle = 'bceaoFace' + w.toFixed(1);
   K.motif(cle, (c, t) => {
-    const H = c.canvas.height, px = t / w, etage = H / 17;
+    const H = t * c.canvas.height / c.canvas.width, px = t / w, etage = H / 17;
     c.fillStyle = '#e4dfd5'; c.fillRect(0, 0, t, H);
     for (let i = 0; i < 260; i++) { c.strokeStyle = 'rgba(160,150,135,.18)'; c.lineWidth = 1; c.beginPath(); const x = Math.random() * t, y = Math.random() * H; c.moveTo(x, y); c.lineTo(x + 18, y + 9); c.stroke(); }
     const a1 = F_BCEAO[0] * w, b1 = a1 + F_BCEAO[1] * w, a2 = b1 + F_BCEAO[2] * w, b2 = a2 + F_BCEAO[3] * w;

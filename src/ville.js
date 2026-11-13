@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { LITE, hash, pal, toXZ, u8c } from './base.js';
+import { hash, HQ_DEPART, LITE, pal, toXZ, u8c } from './base.js';
 import { frame, status } from './chargement.js';
 import { E } from './etat.js';
 import { VEGETATION } from './lieux.js';
@@ -156,23 +156,30 @@ export function ribbon(pts, w, pos, idx, col, rgb, y = 0) {
 }
 // Marquages des grands axes (lignes de rive, axe, files), comme sur le boulevard de la Marina ; files = 1 : rue de
 // quartier goudronnée, seulement l'axe en tirets (les deux sens se voient, demande des testeurs du 22/10).
-function texMarquage(files) {
-  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 256; const c = cv.getContext('2d');
+// Haute qualité (base.js, HQ_DEPART) : la toile quatre fois plus fine (128 px pour 15 m de chaussée, c'était 12 cm par
+// pixel : le bitume était flou à nos pieds), le même dessin agrandi par le contexte, et un grain de bitume plus fin et plus dense.
+const KR = HQ_DEPART ? 4 : 1;
+function toileRoute() {
+  const cv = document.createElement('canvas'); cv.width = 128 * KR; cv.height = 256 * KR; const c = cv.getContext('2d'); c.scale(KR, KR);
   c.fillStyle = '#56585c'; c.fillRect(0, 0, 128, 256);
-  for (let i = 0; i < 900; i++) { c.fillStyle = Math.random() < .5 ? '#5f6165' : '#4e5054'; c.fillRect(Math.random() * 128, Math.random() * 256, 2, 2); }
+  const g = 2 / KR; // le grain : toujours 2 px de la toile, donc plus fin et plus dense dans la grande
+  for (let i = 0, n = KR > 1 ? 900 * KR * 3 : 900; i < n; i++) { c.fillStyle = Math.random() < .5 ? '#5f6165' : '#4e5054'; c.fillRect(Math.random() * 128, Math.random() * 256, g, g); }
+  if (KR > 1) for (let i = 0; i < 2500; i++) { c.fillStyle = Math.random() < .5 ? 'rgba(40,41,44,.55)' : 'rgba(120,121,124,.45)'; c.fillRect(Math.random() * 128, Math.random() * 256, .35, .35); } // les gravillons
+  return [cv, c];
+}
+function texMarquage(files) {
+  const [cv, c] = toileRoute();
   c.fillStyle = '#ecebe4';
   if (files >= 2) for (const u of [.045, .955]) c.fillRect(u * 128 - 1.5, 0, 3, 256);
   if (files === 4) { c.fillRect(.485 * 128 - 1.5, 0, 3, 256); c.fillRect(.515 * 128 - 1.5, 0, 3, 256); for (const u of [.275, .725]) c.fillRect(u * 128 - 1.5, 0, 3, 64); }
   else if (files === 2) c.fillRect(64 - 1.5, 0, 3, 96);
   else if (files === 1) c.fillRect(64 - 2, 0, 4, 80); // files = 0 : le bitume seul, au milieu d'un carrefour
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = HQ_DEPART ? 16 : 8; return t;
 }
 // Chaussée à sens unique de `n` voies (moitié d'un boulevard) : lignes de rive continues, voies séparées
 // par des tirets, pas de ligne centrale.
 function texMarquageSens(n) {
-  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 256; const c = cv.getContext('2d');
-  c.fillStyle = '#56585c'; c.fillRect(0, 0, 128, 256);
-  for (let i = 0; i < 900; i++) { c.fillStyle = Math.random() < .5 ? '#5f6165' : '#4e5054'; c.fillRect(Math.random() * 128, Math.random() * 256, 2, 2); }
+  const [cv, c] = toileRoute();
   c.fillStyle = '#ecebe4';
   for (const u of [.05, .95]) c.fillRect(u * 128 - 1.5, 0, 3, 256);
   for (let k = 1; k < n; k++) { const u = .05 + .9 * k / n; c.fillRect(u * 128 - 1.5, 0, 3, 80); }

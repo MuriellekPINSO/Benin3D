@@ -59,8 +59,36 @@ import { buildBuildings, buildContainers, buildFoam, buildPalms, buildRoads, bui
 const Q_RENDU = new URLSearchParams(location.search), SOIGNE = { r: null, voulu: (!LITE && !SECOURS && !Q_RENDU.has('brut')) || Q_RENDU.has('soigne'), force: Q_RENDU.has('soigne'), lent: 0 }; // ?soigne : même sur une machine lente (essais)
 function chargerRenduSoigne() {
   if (!SOIGNE.voulu || SOIGNE.charge) return; SOIGNE.charge = true;
-  import('./rendu-soigne.js').then(m => { SOIGNE.r = m.creerRenduSoigne(renderer, scene, camera); }).catch(e => { console.warn('rendu soigné', e.message); SOIGNE.voulu = false; });
+  import('./rendu-soigne.js').then(m => { SOIGNE.r = m.creerRenduSoigne(renderer, scene, camera); qualite(SOIGNE.hq); }).catch(e => { console.warn('rendu soigné', e.message); SOIGNE.voulu = false; });
 }
+// La haute qualité (rendu-soigne.js) : l'image à la pleine finesse de l'écran (×2 au plus, au lieu de ×1,5), des ombres
+// quatre fois plus fines autour du joueur (carte de 4096 au lieu de 2048, posée sur 360 m au lieu de 600 au ras du sol),
+// l'ombre des recoins en pleine résolution et l'étalonnage de l'image. Sur ordinateur, d'office ; le menu Plus l'enlève
+// (« Haute qualité »), et elle s'enlève d'elle-même si l'ordinateur ne suit plus (plus de 34 ms par image pendant 4 s).
+// ?hq / ?hq=0 : pour comparer.
+const CLE_HQ = 'cotonou3d.hq', lireHQ = () => { try { return localStorage.getItem(CLE_HQ); } catch { return null; } };
+SOIGNE.hq = SOIGNE.voulu && (Q_RENDU.has('hq') ? Q_RENDU.get('hq') !== '0' : lireHQ() !== '0');
+function qualite(hq, garder = false) {
+  SOIGNE.hq = hq && SOIGNE.voulu; SOIGNE.lentHQ = 0;
+  if (garder) try { localStorage.setItem(CLE_HQ, hq ? '1' : '0'); } catch { /* navigation privée */ }
+  renderer.setPixelRatio(Math.min(devicePixelRatio, SECOURS ? 1 : LITE ? 1.25 : SOIGNE.hq ? 2 : 1.5));
+  const carte = SOIGNE.hq ? 4096 : 2048;
+  if (sun.shadow.mapSize.x !== carte) { sun.shadow.mapSize.set(carte, carte); sun.shadow.map?.dispose(); sun.shadow.map = null; shadowSize = 0; }
+  SOIGNE.r?.qualite(SOIGNE.hq); resize(); if (SOIGNE.hq) affiner();
+  const b = $('#togHQ'); if (b) { b.hidden = !SOIGNE.voulu; b.setAttribute('aria-pressed', String(SOIGNE.hq)); }
+}
+// Le filtrage le plus fin que permet la carte graphique, sur toutes les images posées en motif (sol, murs, toits, routes) :
+// vues de biais, elles restaient floues au bout de quelques mètres. Refait de temps en temps (les quartiers arrivent en marchant).
+const MAX_ANISO = renderer.capabilities.getMaxAnisotropy(), CARTES = ['map', 'normalMap', 'roughnessMap', 'aoMap', 'bumpMap'];
+function affiner() {
+  if (!SOIGNE.hq || MAX_ANISO <= 1) return;
+  const vus = new Set();
+  scene.traverse(o => {
+    const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : null; if (!ms) return;
+    for (const m of ms) { if (vus.has(m)) continue; vus.add(m); for (const c of CARTES) { const t = m[c]; if (t?.isTexture && !t.isVideoTexture && t.image && t.anisotropy < MAX_ANISO) { t.anisotropy = MAX_ANISO; t.needsUpdate = true; } } }
+  });
+}
+setInterval(affiner, 8000);
 if (import.meta.env.DEV) window.__soigne = SOIGNE; // pour les tests
 let W = 1, H = 1;
 function resize() {
@@ -108,7 +136,7 @@ function image(now) {
   const dist = camera.position.distanceTo(t);
   applyMood(dt);
   sun.position.copy(t).addScaledVector(sunDir, 4000); sun.target.position.copy(t);
-  const want = THREE.MathUtils.clamp(dist * 0.85, 300, 6000);
+  const want = THREE.MathUtils.clamp(dist * 0.85, SOIGNE.hq ? 180 : 300, 6000);
   if (Math.abs(want - shadowSize) / want > 0.15) {
     shadowSize = want; const c = sun.shadow.camera; c.left = c.bottom = -want; c.right = c.top = want; c.updateProjectionMatrix();
   }
@@ -140,7 +168,8 @@ function image(now) {
   if (SOIGNE.r && SOIGNE.voulu && !MR.actif) {
     SOIGNE.r.rendre(moodCur.night || 0);
     SOIGNE.lent = dt > .045 ? SOIGNE.lent + dt : Math.max(0, SOIGNE.lent - dt);
-    if (SOIGNE.lent > 4 && !SOIGNE.force) { SOIGNE.voulu = false; console.info('rendu soigné : l’ordinateur ne suit pas, rendu direct'); }
+    if (SOIGNE.hq && !SOIGNE.force) { SOIGNE.lentHQ = dt > .034 ? (SOIGNE.lentHQ || 0) + dt : Math.max(0, (SOIGNE.lentHQ || 0) - dt); if (SOIGNE.lentHQ > 4) { qualite(false); SOIGNE.lent = 0; console.info('haute qualité : l’ordinateur ne suit pas, qualité normale'); } }
+    if (SOIGNE.lent > 4 && !SOIGNE.force) { SOIGNE.voulu = false; qualite(false); console.info('rendu soigné : l’ordinateur ne suit pas, rendu direct'); }
   } else renderer.render(scene, camera);
   hors.forEach((o, i) => { o.visible = avant[i]; });
   updateLabels(dist, W, H, JEU.actif && JEU.joueur ? JEU.joueur.position : null); // en jeu : les lieux proches du zém, pour se repérer
@@ -206,6 +235,7 @@ async function main() {
   if (TRIPO.info.tokpa) plusTard(() => chargerTokpa(urlTripo('tokpa'))).then(t => { if (t.geo && E.tokpas) { E.tokpas.geometry = t.geo; E.tokpas.material = t.mat; E.tokpas.castShadow = !LITE; } });
   buildZems(); zemsDetailles(); buildLamps(); buildLabels();
   initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initCinema(); initBoutique(); initOffre(); initMode(); initSalon(data); initLeger();
+  $('#togHQ')?.addEventListener('click', () => qualite(!SOIGNE.hq, true)); qualite(SOIGNE.hq);
   if (reduceMotion) finishRise();
   // Les routes, marquages, terre-pleins et surfaces sont posés à quelques centimètres du sol sans écrire leur profondeur.
   // Sur un téléphone, au loin, le test de profondeur hésitait entre eux et le sol d'une image à l'autre : ils clignotaient.
