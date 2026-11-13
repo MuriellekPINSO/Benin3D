@@ -291,7 +291,7 @@ function menuAller() {
 }
 
 // ---------- Retrouver un ami ----------
-const VEHICULES = ['moto', 'voiture', 'taxi', 'zem', 'tokpa', 'velo', 'citadine', 'bolide', 'roadster', 'jetour', 'berline'];
+const VEHICULES = ['moto', 'voiture', 'taxi', 'zem', 'tokpa', 'velo', 'citadine', 'bolide', 'roadster', 'jetour', 'berline', 'supercar', 'suv', 'pickup'];
 /** « à côté d'Aïcha », « à côté de Kossi ». */
 const deNom = n => (/^[aeiouyàâäéèêëîïôöùûü]/i.test(n) ? `d’${n}` : `de ${n}`);
 /**
@@ -1283,10 +1283,10 @@ function majSon() {
 // descend aussi. Dans la ville publique, c'est pareil avec quelqu'un qu'on vient de rencontrer.
 // Son véhicule garé se voit aussi chez les autres (`gv`), et l'on peut s'y installer en l'attendant : quand il prend le
 // volant, on part avec lui. Le propriétaire peut faire descendre qui il veut (`ex`) ; celui-là ne remonte pas avant 2 min.
-const AMI_VEH = ['moto', 'voiture', 'taxi', 'citadine', 'bolide', 'roadster', 'jetour', 'berline']; // ceux où l'on monte avec un ami
+const AMI_VEH = ['moto', 'voiture', 'taxi', 'citadine', 'bolide', 'roadster', 'jetour', 'berline', 'supercar', 'suv', 'pickup']; // ceux où l'on monte avec un ami
 const VEH_AMIS = [...AMI_VEH, 'zem', 'tokpa', 'velo']; // ceux qu'on dessine sous un ami
 const VEH_GARES = [...AMI_VEH, 'velo']; // ceux qu'on voit garés chez les autres
-const ETIQUETTE_GARE = { moto: n => `Moto ${deNom(n)}`, voiture: n => `Voiture ${deNom(n)}`, taxi: n => `Taxi ${deNom(n)}`, citadine: n => `Citadine ${deNom(n)}`, bolide: n => `Bolide ${deNom(n)}`, roadster: n => `Roadster ${deNom(n)}`, jetour: n => `Jetour ${deNom(n)}`, berline: n => `Berline ${deNom(n)}`, velo: n => `Vélo ${deNom(n)}` };
+const ETIQUETTE_GARE = { moto: n => `Moto ${deNom(n)}`, voiture: n => `Voiture ${deNom(n)}`, taxi: n => `Taxi ${deNom(n)}`, citadine: n => `Citadine ${deNom(n)}`, bolide: n => `Bolide ${deNom(n)}`, roadster: n => `Roadster ${deNom(n)}`, jetour: n => `Jetour ${deNom(n)}`, berline: n => `Berline ${deNom(n)}`, supercar: n => `Supercar ${deNom(n)}`, suv: n => `SUV ${deNom(n)}`, pickup: n => `Pick-up ${deNom(n)}`, velo: n => `Vélo ${deNom(n)}` };
 /** Le véhicule où l'on peut être avec A : celui qu'il conduit, sinon celui qu'il a garé. */
 function vehiculeAmi(A) {
   const e = A?.etat; if (!e) return null;

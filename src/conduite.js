@@ -50,6 +50,11 @@ export const VEHICULES = {
   // La berline (13/11, « des versions finales de quelques voitures modélisées et leurs animations, tu peux t'en servir ») :
   // modèle original de l'équipe, sans marque, textures CC0 (Poly Haven, ambientCG). Basse, souple, entre la Vitz et le Jetour.
   berline: { nom: 'berline', long: 4.6, larg: 1.84, vmax: 28, accel: 6, frein: 9, recul: 3.6, braquage: 1.35, reservoir: 6, kmParLitre: 12, cache: true },
+  // Les trois autres du même dossier (« tu n'as pas intégré les voitures », Murielle, 13/11) : la supercar (basse, deux
+  // places, très vive), le SUV (haut, cinq places) et le grand pick-up à benne (6,5 m, lourd, il tourne large).
+  supercar: { nom: 'supercar', long: 4.7, larg: 2, vmax: 36, accel: 10, frein: 12, recul: 4, braquage: 1.4, reservoir: 8, kmParLitre: 9, cache: true },
+  suv: { nom: 'SUV', long: 4.37, larg: 1.86, vmax: 27, accel: 5.8, frein: 9, recul: 3.5, braquage: 1.3, reservoir: 7, kmParLitre: 10, cache: true },
+  pickup: { nom: 'pick-up', long: 6.5, larg: 2.02, vmax: 25, accel: 4.8, frein: 8, recul: 3.2, braquage: 1.05, reservoir: 9, kmParLitre: 7, cache: true },
 };
 export const PRIX_LITRE = 680; // à la pompe (Zém Run : 680 F à la station, 500 F le kpayo)
 const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote automatique
@@ -61,12 +66,12 @@ const D_ACCEL = 4.5; // accélération du zém (ou du tokpa-tokpa) en pilote aut
 // crédits dans index.html) : la voiture du « Fils à papa » est un Toyota Land Cruiser 200 blanc, le plus vu dans les beaux
 // quartiers de Cotonou ; la citadine, une Toyota Vitz (la petite voiture la plus courante) ; la Roadster, la Tesla
 // Roadster de deuxième génération, rouge ; et le Jetour X70, blanc.
-const MODELES = { voiture: null, moto: null, taxi: null, roadster: null, citadine: null, jetour: null, velo: null, berline: null };
+const MODELES = { voiture: null, moto: null, taxi: null, roadster: null, citadine: null, jetour: null, velo: null, berline: null, supercar: null, suv: null, pickup: null };
 if (import.meta.env.DEV) window.__vehicules = { MODELES }; // pour les tests : la voiture dessinée en code, en vidant MODELES
-const LONGUEURS = { voiture: 4.95, moto: 2, taxi: 4.3, roadster: 4.4, citadine: 3.95, jetour: 4.75, velo: 1.7, berline: 4.6 };
+const LONGUEURS = { voiture: 4.95, moto: 2, taxi: 4.3, roadster: 4.4, citadine: 3.95, jetour: 4.75, velo: 1.7 }; // les vrais modèles de jeu (VRAIS) gardent leur taille : ils sont en mètres
 // Le redressement (vehicules.js, redresser) aligne l'axe long mais ne sait pas où est l'avant : vérifié en jeu, phares devant.
 // Le Jetour est presque à 90° dans son fichier, pile à la limite où il choisit un sens ou l'autre : à revérifier s'il est refait.
-const DEMI_TOUR = { voiture: true, moto: true, taxi: false, roadster: false, citadine: false, jetour: false, velo: true, berline: true }; // la berline a ses phares vers −z (glTF)
+const DEMI_TOUR = { voiture: true, moto: true, taxi: false, roadster: false, citadine: false, jetour: false, velo: true, berline: true, supercar: false, suv: false, pickup: true }; // la berline et le pick-up ont leurs phares vers −z
 // Tripo fait les voitures trop hautes (Land Cruiser P2 de 2,18 m au lieu de 1,91 m ; Vitz de 1,68 m au lieu de 1,50 m ;
 // Jetour de 2,09 m au lieu de 1,72 m) : on les tasse, les places (HABITACLES) sont mesurées après.
 const ECRASER = { voiture: .88, citadine: .9, jetour: .85 };
@@ -96,7 +101,7 @@ const VELO_DESSINE = { pedalier: PEDALIER, guidon: [.23, 1.02, .39] };
 const SELLES = { moto: [.83, -.43], velo: VELO_TRIPO.selle };
 export function chargerVehicules() {
   const ch = chargeurGLB({ liberer: true, dePres: true });
-  for (const [type, id] of [['voiture', 'landcruiser-p2'], ['moto', 'moto-perso'], ['taxi', 'voiture'], ['roadster', 'roadster-rouge'], ['citadine', 'vitz'], ['jetour', 'jetour-net'], ['velo', 'velo-ride'], ['berline', 'berline']]) { // taxi : celui de Zém Run
+  for (const [type, id] of [['voiture', 'landcruiser-p2'], ['moto', 'moto-perso'], ['taxi', 'voiture'], ['roadster', 'roadster-rouge'], ['citadine', 'vitz'], ['jetour', 'jetour-net'], ['velo', 'velo-ride']]) { // les vrais modèles de jeu : à la demande (chargerVrai) // taxi : celui de Zém Run
     if (!TRIPO.info[id]) continue;
     plusTard(() => ch.loadAsync(urlTripo(id))).then(g => {
       const m = gabaritDe(g.scene, { largeur: LONGUEURS[type] });
@@ -104,7 +109,6 @@ export function chargerVehicules() {
       if (ECRASER[type]) m.scale.y = ECRASER[type];
       if (VERNIS.has(type)) m.traverse(n => { if (n.isMesh) n.material = vernir(n.material, CORPS[type] || 'rouge'); });
       if (type === 'velo') preparerVelo(m);
-      if (type === 'berline') preparerBerline(m, g.animations);
       MODELES[type] = m;
       if (type === 'velo') for (const f of QUAND_VELO.splice(0)) f(m);
     }).catch(e => console.warn(`modèle ${id}`, e.message));
@@ -127,43 +131,101 @@ function couper(gabarit, boites) {
     geo.setIndex(garde);
   });
 }
-// ---------- La berline ----------
-// Un vrai modèle de jeu, pièce par pièce : caisse, capot, quatre portières, roues et pivots de direction à part, un
-// habitacle (sièges, tableau de bord, volant à gauche), 11 animations (portières, capot, roues, braquage). Ses vitres sont
-// presque noires (opacité 0,8) : on les éclaircit, pour voir qui est au volant. Les animations restent sur le gabarit.
-const CLIPS = {};
-function preparerBerline(gabarit, clips) {
-  gabarit.traverse(n => {
-    if (!n.isMesh) return;
-    if (n.material?.name === 'vitre') { n.material = n.material.clone(); Object.assign(n.material, { opacity: .3, depthWrite: false }); n.material.color.set('#1d2b34'); n.userData.verre = true; n.castShadow = false; }
-  });
-  CLIPS.berline = clips || []; // pas dans userData : clone() le recopie en JSON, et les animations s'y perdaient
+// ---------- Les vrais modèles de jeu (versions_finales, 13/11) ----------
+// « Des versions finales de quelques voitures modélisées et leurs animations, tu peux t'en servir » (Murielle, 13/11) : la
+// berline, la supercar, le SUV et le pick-up de l'équipe. Pièce par pièce : caisse, portières, roues et pivots de direction à
+// part, un habitacle, des animations (portières, capot, roues). Ils sont en mètres : on garde leur taille. Leurs vitres sont
+// presque noires ou teintées : on les éclaircit, pour voir qui est au volant ; ce qui sert aux dégâts (bibliothèques de
+// matériaux, bosses et rayures) est caché. Les roues tournent selon la distance (vers l'avant, l'angle diminue autour de x
+// dans le repère des pièces, l'avant y étant −z), les roues avant braquent selon le virage (à gauche, l'angle augmente
+// autour de y), dans la limite où le pneu ne sort pas de l'aile (supercar : 8°, d'après sa fiche ; SUV : 17°).
+// Ils ne sont chargés qu'à la demande — quand on en possède un, ou qu'on en croise un — : 13 Mo à eux quatre, on ne les
+// télécharge pas à chaque visite. En attendant : la voiture dessinée.
+// Pas encore publiés : la provenance des maillages de la supercar, du SUV et du pick-up reste à vérifier (LICENCES.md du dossier).
+const VRAIS = {
+  berline: { roues: ['roue_GAV', 'roue_DAV', 'roue_GAR', 'roue_DAR'], pivots: ['direction_GAV', 'direction_DAV'], rayon: .35, empattement: 2.74, braqMax: .55,
+    porte: { clip: 'porte_GAV_ouvrir_fermer' }, peinture: ['peinture'], verre: ['vitre'] },
+  // La supercar : portières en élytre (elles pivotent vers le haut et l'avant, 55°, d'après le nœud DOOR_LEFT), pas d'animation.
+  supercar: { roues: ['wheel_front_left', 'wheel_front_right', 'wheel_rear_left', 'wheel_rear_right'], pivots: ['steer_front_left', 'steer_front_right'], rayon: .345, empattement: 2.66, braqMax: .15,
+    porte: { noeud: 'DOOR_LEFT', axe: 'x', angle: -55 * Math.PI / 180, duree: 1.6 }, peinture: ['MAT_BODY_RED'], verre: ['MAT_WINDOW_INTACT'], cacher: /^matlib_/ },
+  suv: { roues: ['wheel_front_left', 'wheel_front_right', 'wheel_rear_left', 'wheel_rear_right'], pivots: ['direction_front_left', 'direction_front_right'], rayon: .355, empattement: 2.67, braqMax: .3,
+    porte: { clip: 'door_front_left_open_close' }, peinture: ['MAT_PAINT_TURQUOISE'], verre: ['MAT_GLASS'], cacher: /^damage_material_library$/ },
+  // Le pick-up n'a pas de pivots de direction : on en glisse un au-dessus de chaque roue avant (preparerVrai). Le dossier de
+  // sa banquette avant était posé devant l'assise, contre le tableau de bord : on le remet derrière.
+  pickup: { roues: ['rig_spin_fl', 'rig_spin_fr', 'rig_spin_rl', 'rig_spin_rr'], pivotsACreer: ['rig_spin_fl', 'rig_spin_fr'], rayon: .455, empattement: 3.77, braqMax: .55,
+    porte: { clip: 'Action_Door_F', cible: 'door_f_l' }, peinture: ['MAT_PAINT_SILVER'], verre: ['MAT_GLASS_TINT'], cacher: /^dg_/, deplacer: { in_seat_back_f: { z: -.1 } },
+    // Gris métal à 85 % et jantes d'acier à 95 % : ils reflétaient le bas du ciel, beige, et tout le pick-up paraissait beige.
+    matieres: { MAT_PAINT_SILVER: { metalness: .45, roughness: .38 }, MAT_RIM_STEEL: { metalness: .55, roughness: .45 } } },
+};
+export const estVrai = type => !!VRAIS[type];
+const CLIPS = {}, EN_COURS = {}, QUAND_MODELE = {};
+const DESSIN_VRAI = { berline: '#0b3a5a', supercar: '#b3122e', suv: '#2fa9a5', pickup: '#b9bcbf' }; // la voiture dessinée, en attendant, dans sa couleur
+/** Charge le vrai modèle `type` (une seule fois) ; la promesse rend le gabarit, ou null s'il n'existe pas. */
+export function chargerVrai(type) {
+  if (!VRAIS[type] || !TRIPO.info[type]) return Promise.resolve(null);
+  if (MODELES[type]) return Promise.resolve(MODELES[type]);
+  return EN_COURS[type] ??= chargeurGLB({ liberer: true }).loadAsync(urlTripo(type)).then(g => {
+    const m = gabaritDe(g.scene, {}); // ni largeur ni hauteur : la taille du fichier
+    preparerVrai(type, m, g.animations); MODELES[type] = m;
+    for (const f of (QUAND_MODELE[type] || []).splice(0)) f(m);
+    return m;
+  }).catch(e => { console.warn(`modèle ${type}`, e.message); delete EN_COURS[type]; return null; });
 }
-// Les roues tournent selon la distance parcourue (rayon 0,35 m ; vers l'avant, l'angle diminue autour de x, comme dans
-// l'animation « roue_rouler »), et les deux roues avant braquent selon le virage pris (empattement 2,74 m ; à gauche,
-// l'angle augmente autour de y, comme « direction_braquage »). Dans le repère des pièces : le véhicule entier est retourné.
-function rouesBerline(V, m) {
-  const roues = ['GAV', 'DAV', 'GAR', 'DAR'].map(c => m.getObjectByName(`roue_${c}`)).filter(Boolean), pivots = ['GAV', 'DAV'].map(c => m.getObjectByName(`direction_${c}`)).filter(Boolean);
+/** f() dès que le vrai modèle `type` est là (tout de suite s'il l'est déjà). */
+export function quandModele(type, f) { if (MODELES[type]) f(MODELES[type]); else { (QUAND_MODELE[type] ??= []).push(f); chargerVrai(type); } }
+function preparerVrai(type, gabarit, clips) {
+  const R = VRAIS[type], cacher = [];
+  gabarit.traverse(n => {
+    if (R.cacher?.test(n.name)) cacher.push(n);
+    if (R.deplacer?.[n.name]) Object.assign(n.position, R.deplacer[n.name]);
+    if (!n.isMesh) return;
+    const mt = R.matieres?.[n.material?.name]; if (mt && !n.material.userData.retouche) { Object.assign(n.material, mt); n.material.userData.retouche = true; }
+    if (R.verre.includes(n.material?.name)) { n.material = n.material.clone(); Object.assign(n.material, { opacity: .3, transparent: true, depthWrite: false }); n.material.color.set('#1d2b34'); n.userData.verre = true; n.castShadow = false; }
+  });
+  for (const n of cacher) n.visible = false;
+  for (const nom of R.pivotsACreer || []) { // un pivot de direction au-dessus de la roue
+    const r = gabarit.getObjectByName(nom); if (!r?.parent) continue;
+    const p = new THREE.Object3D(); p.name = `pivot_${nom}`; p.position.copy(r.position); r.parent.add(p); r.position.set(0, 0, 0); p.add(r);
+  }
+  CLIPS[type] = clips || []; // pas dans userData : clone() le recopie en JSON, et les animations s'y perdaient
+}
+const AX = new THREE.Vector3(1, 0, 0), AY = new THREE.Vector3(0, 1, 0), QT = new THREE.Quaternion();
+function rouesVraies(V, m) {
+  const R = VRAIS[V.type], prendre = noms => noms.map(n => m.getObjectByName(n)).filter(Boolean).map(o => ({ o, q0: o.quaternion.clone() }));
+  const roues = prendre(R.roues), pivots = prendre(R.pivots || (R.pivotsACreer || []).map(n => `pivot_${n}`));
   let a = 0, cap = null, braq = 0;
   return {
     maj(v, dt) {
-      a -= v * dt / .35; for (const r of roues) r.rotation.x = a;
+      a -= v * dt / R.rayon; QT.setFromAxisAngle(AX, a); for (const r of roues) r.o.quaternion.copy(r.q0).multiply(QT);
       const dc = cap === null ? 0 : Math.atan2(Math.sin(V.cap - cap), Math.cos(V.cap - cap)); cap = V.cap;
-      const voulu = Math.abs(v) > .3 ? THREE.MathUtils.clamp(Math.atan(2.74 * dc / (v * Math.max(dt, .001))), -.55, .55) : braq;
-      braq += (voulu - braq) * Math.min(1, dt * 10); for (const p of pivots) p.rotation.y = braq;
+      const voulu = Math.abs(v) > .3 ? THREE.MathUtils.clamp(Math.atan(R.empattement * dc / (v * Math.max(dt, .001))), -R.braqMax, R.braqMax) : braq;
+      braq += (voulu - braq) * Math.min(1, dt * 10); QT.setFromAxisAngle(AY, braq); for (const p of pivots) p.o.quaternion.copy(p.q0).multiply(QT);
     },
     liberer() { },
   };
 }
-/** La portière du conducteur s'ouvre et se referme (montée, descente) : l'animation du modèle, jouée à part de la boucle du jeu. */
+/** La portière du conducteur s'ouvre et se referme (montée, descente), à part de la boucle du jeu : l'animation du modèle,
+ *  jouée à l'envers ensuite si elle ne fait que l'ouvrir ; ou, sans animation (la supercar), le pivot de la portière. */
 export function portiere(V) {
-  if (V?.type !== 'berline' || V.dessin) return;
-  const clip = CLIPS.berline?.find(c => c.name === 'porte_GAV_ouvrir_fermer'); if (!clip) return;
+  const R = VRAIS[V?.type]; if (!R || V.dessin) return;
+  const P = R.porte, fin = f => requestAnimationFrame(f);
+  if (P.noeud) {
+    const o = V.modele.getObjectByName(P.noeud); if (!o) return;
+    const q0 = (o.userData.q0 ??= o.quaternion.clone()), axe = P.axe === 'y' ? AY : AX, t0 = performance.now(), q = new THREE.Quaternion();
+    const image = () => { const k = Math.min(1, (performance.now() - t0) / (P.duree * 1000)); o.quaternion.copy(q0).multiply(q.setFromAxisAngle(axe, P.angle * Math.sin(Math.PI * k))); if (k < 1) fin(image); };
+    return fin(image);
+  }
+  const clip = (CLIPS[V.type] || []).find(c => c.name === P.clip && (!P.cible || c.tracks.some(t => t.name.startsWith(`${P.cible}.`)))); if (!clip) return;
+  const piste = clip.tracks[0], n = piste.values.length / piste.times.length, aller = ![...Array(n).keys()].every(k => Math.abs(piste.values[k] - piste.values[piste.values.length - n + k]) < 1e-3); // l'animation ne fait que l'ouvrir ?
   V.mixer ??= new THREE.AnimationMixer(V.modele);
-  const act = V.mixer.clipAction(clip); act.setLoop(THREE.LoopOnce, 1); act.clampWhenFinished = false; act.reset().play();
-  let t = performance.now(); const fin = t + clip.duration * 1000 + 100;
-  const image = () => { const n = performance.now(); V.mixer.update((n - t) / 1000); t = n; if (n < fin) requestAnimationFrame(image); else act.stop(); };
-  requestAnimationFrame(image);
+  const act = V.mixer.clipAction(clip); act.setLoop(THREE.LoopOnce, 1); act.clampWhenFinished = true; act.timeScale = 1; act.reset().play();
+  const d = clip.duration * 1000, retour = aller ? d + 500 : 0; let t = performance.now(); const t0 = t;
+  const image = () => {
+    const now = performance.now(); if (retour && !act.retourne && now - t0 > d + 500) { act.retourne = true; act.paused = false; act.timeScale = -1; act.play(); }
+    V.mixer.update((now - t) / 1000); t = now;
+    if (now - t0 < d + retour + 100) fin(image); else { act.stop(); act.retourne = false; }
+  };
+  fin(image);
 }
 const QUAND_VELO = [];
 /** f(gabarit) dès que le modèle du vélo est chargé (le râtelier de la boutique, caicai.js). */
@@ -233,7 +295,7 @@ export function creerVehicule(type, { couleur, peinture } = {}) {
   else if (gabarit) m = gabarit.clone();
   else {
     // Les voitures dessinées : leurs vitres à part (VITRE), transparentes, pour qu'on voie qui est dedans.
-    const pieces = c => (type === 'velo' ? partsVelo({ pedalier: false }) : type === 'citadine' ? partsCitadine(c || '#c9342c', { vitres: true }) : type === 'bolide' ? partsBolide(c || '#eceff2', { vitres: true }) : type === 'roadster' ? partsRoadster(c || '#dfe3e7', { vitres: true }) : type === 'voiture' || type === 'taxi' || type === 'jetour' || type === 'berline' ? partsVoiture(type === 'taxi' ? '#f2c21b' : c || (type === 'jetour' ? '#e9ebec' : type === 'berline' ? '#0b3a5a' : '#7a1f2b'), { vitres: true }) : partsZem({ pilote: type === 'zem', carrosserie: c, chemise: '#f2c21b' }));
+    const pieces = c => (type === 'velo' ? partsVelo({ pedalier: false }) : type === 'citadine' ? partsCitadine(c || '#c9342c', { vitres: true }) : type === 'bolide' ? partsBolide(c || '#eceff2', { vitres: true }) : type === 'roadster' ? partsRoadster(c || '#dfe3e7', { vitres: true }) : type === 'voiture' || type === 'taxi' || type === 'jetour' || VRAIS[type] ? partsVoiture(type === 'taxi' ? '#f2c21b' : c || (type === 'jetour' ? '#e9ebec' : VRAIS[type] ? DESSIN_VRAI[type] : '#7a1f2b'), { vitres: true }) : partsZem({ pilote: type === 'zem', carrosserie: c, chemise: '#f2c21b' }));
     dessin = c => mergeColored(pieces(c).filter(([, h]) => h !== VITRE));
     m = new THREE.Mesh(dessin(peinture || couleur), matVeh); m.castShadow = true; m.receiveShadow = true; // le vélo est vide : c'est le personnage du joueur qu'on voit dessus
     const vitres = pieces(couleur).filter(([, h]) => h === VITRE);
@@ -254,7 +316,8 @@ export function creerVehicule(type, { couleur, peinture } = {}) {
     const G = V.velo = gabarit ? VELO_TRIPO : VELO_DESSINE, axe = new THREE.Group(); axe.rotation.y = -Math.PI / 2; g.add(axe);
     V.pedalier = new THREE.Mesh(mergeColored(partsPedalier(G.pedalier, gabarit ? '#26262a' : undefined)), matVeh); V.pedalier.position.set(G.pedalier.x, G.pedalier.y, 0); V.pedalier.castShadow = true; axe.add(V.pedalier);
   }
-  if (type === 'berline' && gabarit && MODELES.berline) V.anim = rouesBerline(V, m);
+  if (VRAIS[type] && gabarit) V.anim = rouesVraies(V, m);
+  else if (VRAIS[type]) chargerVrai(type); // pas encore là : la voiture dessinée, et le modèle pour la prochaine fois
   if (H?.vitres) vitrer(V, peinture);
   else if (peinture && gabarit && type !== 'zem') peindre(V, peinture); else V.peinture = peinture || null;
   return V;
@@ -336,12 +399,12 @@ function materiauPeint(mat, couleur, Z = null, mode = 'rouge') {
 export function peindre(V, couleur) {
   if (!V || (V.peinture || null) === (couleur || null)) return;
   V.peinture = couleur || null;
-  // La berline a sa peinture à part (le matériau « peinture », métallisé et verni) : seule celle-là change de couleur.
-  if (V.type === 'berline' && !V.dessin) {
+  // Les vrais modèles ont leur peinture à part (un matériau métallisé et verni) : seule celle-là change de couleur.
+  if (VRAIS[V.type] && !V.dessin) {
     V.modele.traverse(n => {
-      if (!n.isMesh || (ORIGINES.get(n) || n.material).name !== 'peinture') return;
+      if (!n.isMesh || !VRAIS[V.type].peinture.includes((ORIGINES.get(n) || n.material).name)) return;
       if (!ORIGINES.has(n)) ORIGINES.set(n, n.material);
-      const o = ORIGINES.get(n), cle = `berline|${couleur || ''}`;
+      const o = ORIGINES.get(n), cle = `${o.uuid}|${couleur || ''}`;
       if (!couleur) { n.material = o; return; }
       if (!PEINTS.has(cle)) { const m = o.clone(); m.color.set(couleur); PEINTS.set(cle, m); }
       n.material = PEINTS.get(cle);
@@ -413,7 +476,13 @@ HABITACLES.taxi = HABITACLES.voiture; // le taxi dessiné : la voiture dessinée
 // La berline : ses vrais sièges (assise à 0,58 m, plancher à 0,34), le volant à gauche (0,93 m de haut, 0,48 devant le
 // centre), le toit intérieur à 1,42 — basse : le dossier un peu renversé. Pas de vitre à percer, elle a les siennes.
 HABITACLES['berline:tripo'] = { places: cinq([.38, .58, -.15, 1.42], [.42, .58, -.95, 1.4]), plancher: .34, volant: [.38, .93, .48], pied: .55, incline: .12 };
-HABITACLES.berline = HABITACLES.voiture; // tant que le modèle n'est pas là : la voiture dessinée, en bleu nuit
+// La supercar : deux baquets bas (assise vers 0,30 m), le volant à 0,69 m, 0,26 m devant le centre ; toit à 1,17 m.
+HABITACLES['supercar:tripo'] = { places: deux([.36, .38, -.42, 1.14]), plancher: .14, volant: [.36, .69, .26], pied: .75, incline: .42 }; // un peu plus haut que l'assise : à 0,30, la tête restait sous le bas des vitres
+// Le SUV : sièges à 0,58 m, plancher à 0,34, volant à 1,0 m, 0,34 devant ; ciel de toit vers 1,45 au-dessus des têtes.
+HABITACLES['suv:tripo'] = { places: cinq([.37, .58, -.38, 1.45], [.42, .58, -1.12, 1.45]), plancher: .34, volant: [.37, 1.0, .34], pied: .6, incline: .1 };
+// Le pick-up : deux banquettes hautes (0,87 m), plancher à 0,6, volant à 1,16 m, 0,54 devant ; toit à 2 m.
+HABITACLES['pickup:tripo'] = { places: cinq([.36, .87, .26, 1.97], [.4, .87, -.72, 1.97]), plancher: .6, volant: [.36, 1.16, .54], pied: .45 };
+for (const t of Object.keys(VRAIS)) HABITACLES[t] = HABITACLES.voiture; // tant que le modèle n'est pas là : la voiture dessinée
 HABITACLES.jetour = HABITACLES.voiture; // tant que le modèle n'est pas là, le Jetour est la voiture dessinée, en blanc
 /** Combien de places compte le véhicule, conducteur compris : 5 dans une voiture, 2 dans les coupés et sur une moto. */
 export const placesDe = V => V?.habitacle?.places.length ?? (V?.D.cache ? 1 : 2);

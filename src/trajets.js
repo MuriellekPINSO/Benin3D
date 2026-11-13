@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { moteur, moteurMaj, moteurStop, son } from './audio.js';
 import { $, coarse } from './base.js';
 import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js';
-import { atterrir, bondir, creerVehicule, decoller, degager, departLibre, enCroisiere, initStations, itineraire, longueur, majRuban, majStations, peindre, peutDecoller, piloter, placer, portiere, PRIX_LITRE, reste, retirerRuban, retirerVehicule, ruban, sensRoute, siege, stationProche, suivreChemin, surRoute, VEHICULES } from './conduite.js';
+import { atterrir, bondir, creerVehicule, decoller, degager, departLibre, enCroisiere, estVrai, initStations, itineraire, longueur, majRuban, majStations, peindre, peutDecoller, piloter, placer, portiere, PRIX_LITRE, quandModele, reste, retirerRuban, retirerVehicule, ruban, sensRoute, siege, stationProche, suivreChemin, surRoute, VEHICULES } from './conduite.js';
 import { dansBatiment, dansObstacleRue, decalee } from './rue.js';
 import { E } from './etat.js';
 import { chevauchement, dansCirculation } from './trafic.js';
@@ -16,7 +16,7 @@ import { actionsVol, arreterVol, initVol, majAeroports, majVol } from './vol.js'
 import { actionsMetier, chocMetier, enService, initMetiers, majMetiers, quitterMetiers } from './metiers.js';
 import { arreterCourseVelo } from './course-velo.js';
 // Le nom du véhicule sur le compteur (des mots, traduits en anglais ; V.type reste le code).
-const COMPTEUR = { moto: 'Moto', voiture: 'Voiture', taxi: 'Taxi', tokpa: 'Tokpa-tokpa', zem: 'Zémidjan', velo: 'Vélo', citadine: 'Citadine', bolide: 'Bolide électrique', roadster: 'Tesla Roadster', jetour: 'Jetour X70', berline: 'Berline' };
+const COMPTEUR = { moto: 'Moto', voiture: 'Voiture', taxi: 'Taxi', tokpa: 'Tokpa-tokpa', zem: 'Zémidjan', velo: 'Vélo', citadine: 'Citadine', bolide: 'Bolide électrique', roadster: 'Tesla Roadster', jetour: 'Jetour X70', berline: 'Berline', supercar: 'Supercar', suv: 'SUV', pickup: 'Pick-up' };
 
 // ---------- Se déplacer et vivre en ville : véhicule, zém, essence, GPS, repas ----------
 // Appelé par le salon (S : position, personnage, pièce où l'on est). On voit son personnage monter sur sa
@@ -36,7 +36,7 @@ export function initTrajets(data, ctx) {
   allumerLesPortes(); // toutes les portes sont déclarées : on pose l'ampoule du soir au-dessus de chacune
 }
 // Comment on nomme le véhicule : monter dans…, descendre de…
-const NOMS = { voiture: ['ta voiture', 'de la voiture'], moto: ['ta moto', 'de la moto'], velo: ['ton vélo', 'du vélo'], taxi: ['le taxi', 'du taxi'], tokpa: ['le tokpa-tokpa', 'du tokpa-tokpa'], citadine: ['ta citadine', 'de la citadine'], bolide: ['ton bolide', 'du bolide'], roadster: ['ta Roadster', 'de la Roadster'], jetour: ['ton Jetour', 'du Jetour'], berline: ['ta berline', 'de la berline'] };
+const NOMS = { voiture: ['ta voiture', 'de la voiture'], moto: ['ta moto', 'de la moto'], velo: ['ton vélo', 'du vélo'], taxi: ['le taxi', 'du taxi'], tokpa: ['le tokpa-tokpa', 'du tokpa-tokpa'], citadine: ['ta citadine', 'de la citadine'], bolide: ['ton bolide', 'du bolide'], roadster: ['ta Roadster', 'de la Roadster'], jetour: ['ton Jetour', 'du Jetour'], berline: ['ta berline', 'de la berline'], supercar: ['ta supercar', 'de la supercar'], suv: ['ton SUV', 'du SUV'], pickup: ['ton pick-up', 'du pick-up'] };
 const nomDe = V => (V.travail && V.type === 'moto' ? ['la moto du patron', 'de la moto'] : NOMS[V.type] || NOMS.voiture);
 
 // Un point de route libre près de (x, z), pour garer un véhicule ou faire venir un zém.
@@ -55,7 +55,7 @@ export const PEINTURES = [
   { nom: 'Bleu roi', c: '#1d4fb8' }, { nom: 'Bleu ciel', c: '#5cb3ea' }, { nom: 'Vert Kutɔnu', c: '#1a7d52' }, { nom: 'Jaune soleil', c: '#f2b705' },
   { nom: 'Orange', c: '#ef7a1a' }, { nom: 'Rose', c: '#db7093' }, { nom: 'Violet', c: '#6f3fb0' }, { nom: 'Bordeaux', c: '#6b1426' },
 ];
-export const PEIGNABLES = ['voiture', 'citadine', 'bolide', 'roadster', 'jetour', 'berline', 'moto']; // le vélo et les véhicules de travail gardent leurs couleurs
+export const PEIGNABLES = ['voiture', 'citadine', 'bolide', 'roadster', 'jetour', 'berline', 'supercar', 'suv', 'pickup', 'moto']; // le vélo et les véhicules de travail gardent leurs couleurs
 export const PRIX_PEINTURE = 5000; // F la couleur (Murielle, 28/10) ; revenir à la couleur d'origine est gratuit
 const CLE_PEINTURE = 'kutonu.peinture';
 /** Une couleur reçue d'un autre joueur : un code « #rrggbb », sinon rien. */
@@ -84,10 +84,18 @@ export function garerSonVehicule(ou = null) {
   const ailleurs = () => { for (const r of [15, 30, 45]) for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, q2 = pointDeRoute(o.x + Math.sin(a) * r, o.z + Math.cos(a) * r, 0, 12), p2 = q2 && saPlace(type, q2); if (p2) return p2; } return null; };
   const p = ou ? [ou.x, ou.z, ou.cap] : saPlace(type, q) || ailleurs() || [q[0], q[1], Math.atan2(q[0] - o.x, q[1] - o.z)];
   T.veh = creerVehicule(type, { couleur: couleurPerso(type), peinture: peintureDe(type) }); placer(T.veh, p[0], p[1], p[2]);
+  // Les vrais modèles de jeu (berline, supercar, SUV, pick-up) se chargent à la demande : en attendant, la voiture dessinée,
+  // remplacée par le vrai modèle dès qu'il arrive, tant qu'on n'est pas monté dedans.
+  if (estVrai(type) && T.veh.dessin) quandModele(type, () => {
+    const V0 = T.veh; if (!V0 || V0.type !== type || !V0.dessin || T.mode !== 'pied') return;
+    const V = creerVehicule(type, { couleur: couleurPerso(type), peinture: peintureDe(type) }); placer(V, V0.x, V0.z, V0.cap);
+    if (V0.etiquette) { V.g.add(V0.etiquette); V.etiquette = V0.etiquette; }
+    retirerVehicule(V0); T.veh = V;
+  });
   // La Roadster s'appelait « Ta moto » (le nom par défaut) ; le bolide est « garé », pas « garée ».
-  const nom = type === 'voiture' ? 'Ta voiture' : type === 'velo' ? 'Ton vélo' : type === 'citadine' ? 'Ta citadine' : type === 'bolide' ? 'Ton bolide' : type === 'roadster' ? 'Ta Roadster' : type === 'jetour' ? 'Ton Jetour' : type === 'berline' ? 'Ta berline' : 'Ta moto', e = etiquette(nom); e.position.y = ['voiture', 'citadine', 'bolide', 'roadster', 'jetour', 'berline'].includes(type) ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
+  const nom = type === 'voiture' ? 'Ta voiture' : type === 'velo' ? 'Ton vélo' : type === 'citadine' ? 'Ta citadine' : type === 'bolide' ? 'Ton bolide' : type === 'roadster' ? 'Ta Roadster' : type === 'jetour' ? 'Ton Jetour' : type === 'berline' ? 'Ta berline' : type === 'supercar' ? 'Ta supercar' : type === 'suv' ? 'Ton SUV' : type === 'pickup' ? 'Ton pick-up' : 'Ta moto', e = etiquette(nom); e.position.y = type === 'pickup' ? 2.6 : ['voiture', 'citadine', 'bolide', 'roadster', 'jetour', 'berline', 'supercar', 'suv'].includes(type) ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
   const d = Math.round(Math.hypot(p[0] - o.x, p[1] - o.z) / 5) * 5;
-  if (d > 8 && !S.lieu) ligne(type === 'velo' ? `Ton vélo est posé sur la route, à ${d} m : suis l’étiquette jaune.` : type === 'bolide' ? `Ton bolide est garé sur la route, à ${d} m : suis l’étiquette jaune.` : type === 'jetour' ? `Ton Jetour est garé sur la route, à ${d} m : suis l’étiquette jaune.` : `${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
+  if (d > 8 && !S.lieu) ligne(type === 'velo' ? `Ton vélo est posé sur la route, à ${d} m : suis l’étiquette jaune.` : type === 'bolide' ? `Ton bolide est garé sur la route, à ${d} m : suis l’étiquette jaune.` : type === 'jetour' ? `Ton Jetour est garé sur la route, à ${d} m : suis l’étiquette jaune.` : ['suv', 'pickup'].includes(type) ? `${nom} est garé sur la route, à ${d} m : suis l’étiquette jaune.` : `${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
 }
 // « Pourquoi chez moi c'est épuré et chez lui ça se casse » (Murielle, 04/11, capture de Carlos) : quatre voitures
 // encastrées les unes dans les autres devant l'immeuble de Haie Vive. Tous ceux qui louent le même appartement garaient la

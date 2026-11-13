@@ -82,5 +82,17 @@
  "berline": {
   "triangles": 61930,
   "octets": 2780844
+ },
+ "supercar": {
+  "triangles": 67249,
+  "octets": 4731512
+ },
+ "suv": {
+  "triangles": 84442,
+  "octets": 4719744
+ },
+ "pickup": {
+  "triangles": 13284,
+  "octets": 680116
  }
 }

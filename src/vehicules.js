@@ -301,7 +301,7 @@ function habillerPassagere(gabarit) {
 }
 export function gabaritDe(objet, { largeur, hauteur, passagere }) {
   const s = new THREE.Box3().setFromObject(objet).getSize(new THREE.Vector3());
-  objet.scale.multiplyScalar(largeur ? largeur / Math.max(s.x, s.z) : hauteur / s.y);
+  objet.scale.multiplyScalar(largeur ? largeur / Math.max(s.x, s.z) : hauteur ? hauteur / s.y : 1); // ni l'un ni l'autre : la taille du fichier (les vrais modèles de jeu, en mètres)
   const redresse = new THREE.Group(); redresse.add(objet);
   redresser(redresse);
   const avantZ = new THREE.Group(); avantZ.add(redresse);

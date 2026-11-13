@@ -23,7 +23,7 @@ export const LOCATION_MOTO = 1500; // F par jour
 // Les loueurs de Cotonou demandent 4 000 F le vélo pour 1 à 2 heures. Dans le jeu c'est 2 000 F : un joueur
 // « Débrouillard » commence avec 2 000 F, et à 4 000 F personne ne voyait jamais la boutique ni les balades.
 export const LOCATION_VELO = 2000, HEURES_VELO = 2;
-const RESERVOIRS = { moto: 3, voiture: 6, taxi: 6, tokpa: 10, velo: 0, citadine: 5, bolide: 9, roadster: 10, jetour: 7, berline: 6 }; // litres (échelle du jeu, voir conduite.js) ; le vélo ne boit rien
+const RESERVOIRS = { moto: 3, voiture: 6, taxi: 6, tokpa: 10, velo: 0, citadine: 5, bolide: 9, roadster: 10, jetour: 7, berline: 6, supercar: 8, suv: 7, pickup: 9 }; // litres (échelle du jeu, voir conduite.js) ; le vélo ne boit rien
 // S'acheter une voiture : elle reste à soi, contrairement à la moto qu'on loue à la journée.
 //
 // Les prix sont ceux du JEU, pas ceux de la vraie vie. J'avais d'abord mis ceux de l'occasion à Cotonou
@@ -38,8 +38,11 @@ export const A_VENDRE = [
   { id: 'bolide', nom: 'Bolide électrique', prix: 2000, sous: 'Silencieux et très vif. Une charge qui dure' },
   // Le Jetour X70 (11/11) : prix proposé, à faire confirmer par Murielle.
   { id: 'jetour', nom: 'Jetour X70', prix: 15000, sous: 'Le grand SUV qui arrive à Cotonou : haut, large, confortable' },
-  // La berline (13/11) : prix proposé, à faire confirmer par Murielle.
+  // La berline, le pick-up, le SUV et la supercar (13/11, versions_finales de l'équipe) : prix proposés, à faire confirmer par Murielle.
   { id: 'berline', nom: 'Berline', prix: 8000, sous: 'Basse et confortable. La portière s’ouvre quand tu montes' },
+  { id: 'pickup', nom: 'Pick-up', prix: 10000, sous: 'Grand et solide, avec sa benne. Il tourne large' },
+  { id: 'suv', nom: 'SUV', prix: 12000, sous: 'Haut et spacieux, cinq places. Sa portière s’ouvre aussi' },
+  { id: 'supercar', nom: 'Supercar', prix: 40000, sous: 'Basse, large, très rapide : ses portières se lèvent' },
   { id: 'roadster', nom: 'Tesla Roadster', prix: 50000, sous: 'Le coupé électrique : bas, large, et le plus rapide de Cotonou' },
 ];
 /** Achète un véhicule : il est à soi pour de bon (pas de vehiculeFin, contrairement à la location). */

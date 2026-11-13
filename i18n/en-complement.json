@@ -1120,7 +1120,13 @@
   "'Jetour X70'": "'Jetour X70'",
   "'Le grand SUV qui arrive à Cotonou : haut, large, confortable'": "'The big SUV arriving in Cotonou: tall, wide, comfortable'",
   "'Berline'": "'Sedan'",
-  "'Basse et confortable. La portière s’ouvre quand tu montes'": "'Low and comfortable. The door opens when you get in'"
+  "'Basse et confortable. La portière s’ouvre quand tu montes'": "'Low and comfortable. The door opens when you get in'",
+  "'Pick-up'": "'Pickup'",
+  "'Grand et solide, avec sa benne. Il tourne large'": "'Big and tough, with its truck bed. It turns wide'",
+  "'SUV'": "'SUV'",
+  "'Haut et spacieux, cinq places. Sa portière s’ouvre aussi'": "'Tall and roomy, five seats. Its door opens too'",
+  "'Supercar'": "'Supercar'",
+  "'Basse, large, très rapide : ses portières se lèvent'": "'Low, wide, very fast: its doors swing up'"
  },
  "src/trajets.js": {
   "'Ta voiture'": "'Your car'",
@@ -1264,7 +1270,20 @@
   "'Berline'": "'Sedan'",
   "'Ta berline'": "'Your sedan'",
   "'ta berline'": "'your sedan'",
-  "'de la berline'": "'of the sedan'"
+  "'de la berline'": "'of the sedan'",
+  "'Supercar'": "'Supercar'",
+  "'SUV'": "'SUV'",
+  "'Pick-up'": "'Pickup'",
+  "'Ta supercar'": "'Your supercar'",
+  "'Ton SUV'": "'Your SUV'",
+  "'Ton pick-up'": "'Your pickup'",
+  "'ta supercar'": "'your supercar'",
+  "'de la supercar'": "'of the supercar'",
+  "'ton SUV'": "'your SUV'",
+  "'du SUV'": "'of the SUV'",
+  "'ton pick-up'": "'your pickup'",
+  "'du pick-up'": "'of the pickup'",
+  " est garé sur la route, à ": " is parked on the road, "
  },
  "src/conduite.js": {
   "'zém'": "'zém'",
