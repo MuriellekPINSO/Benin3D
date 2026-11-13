@@ -50,7 +50,7 @@ surArriveeVille(id => {
 const CARRE = 400;
 // Du bord de la chaussée jusqu'aux murs des parcelles ; élargis avec les voies (ville.js, ELARGIR, testeur, 04/11).
 const TROTTOIR = Object.fromEntries(Object.entries({ 0: 4, 1: 3.5, 2: 3, 3: 2.2, 4: 1.3, 5: .9 }).map(([c, m]) => [c, m * ELARGIR]));
-const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, segR: null, zonesLibres: [], rectsLibres: [], rectsSansMur: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [], tuiles: new Set(), tuilesVues: new Set() };
+const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, segR: null, zonesLibres: [], rectsLibres: [], rectsSansMur: [], zonesSansMurTournees: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [], tuiles: new Set(), tuilesVues: new Set() };
 
 // ---------- Index spatiaux ----------
 const CB = 50, CR = 40;
@@ -662,14 +662,22 @@ export function ajouterZoneLibre(rect) { R.rectsLibres.push(rect); }
 /** Rectangle [x0, z0, x1, z1] où le trottoir continue, mais sans mur de parcelle, boutique, maison ni poubelle : la façade
  *  d'un lieu du jeu qui doit se voir de la rue. Le mur de clôture passait devant RideCorniche et la cachait (Murielle,
  *  13/11). Un carré déjà fait est refait. */
-export function ajouterZoneSansMur(rect) {
-  R.rectsSansMur.push(rect);
+// Ou un rectangle tourné : { x, z, r, x0, x1, z0, z1 }, en mètres dans le repère d'un objet tourné de r (son +x local va vers
+// (cos r, −sin r)) : un garde-vélo RideCorniche, le long d'une rue en biais (caicai.js).
+export function ajouterZoneSansMur(zone) {
+  let rect = zone;
+  if (!Array.isArray(zone)) {
+    const { x, z, r, x0, x1, z0, z1 } = zone, c = Math.cos(r), s = Math.sin(r), pts = [[x0, z0], [x1, z0], [x0, z1], [x1, z1]].map(([u, v]) => [x + u * c + v * s, z - u * s + v * c]);
+    rect = [Math.min(...pts.map(p => p[0])), Math.min(...pts.map(p => p[1])), Math.max(...pts.map(p => p[0])), Math.max(...pts.map(p => p[1]))];
+    R.zonesSansMurTournees.push({ ...zone, c, s, bb: rect });
+  } else R.rectsSansMur.push(rect);
   for (const k of R.carres.keys()) {
     const [a, b] = k.split(',').map(Number);
     if (rect[2] > a * CARRE && rect[0] < (a + 1) * CARRE && rect[3] > b * CARRE && rect[1] < (b + 1) * CARRE) (R.perimes ??= new Set()).add(k);
   }
 }
-const sansMur = (x, z) => R.rectsSansMur.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+const sansMur = (x, z) => R.rectsSansMur.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)
+  || R.zonesSansMurTournees.some(o => { if (x < o.bb[0] || x > o.bb[2] || z < o.bb[1] || z > o.bb[3]) return false; const dx = x - o.x, dz = z - o.z, u = dx * o.c - dz * o.s, v = dx * o.s + dz * o.c; return u > o.x0 && u < o.x1 && v > o.z0 && v < o.z1; });
 export function ajouterEmprise(anneau) {
   if (!R.grilleB || !anneau || anneau.length < 3) return;
   const r = new Float32Array(anneau.length * 2), bb = [1e9, 1e9, -1e9, -1e9];

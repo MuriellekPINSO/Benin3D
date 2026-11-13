@@ -28,6 +28,55 @@ export const DEVANT_CAI = [CAI_LIEU.x, CAI_LIEU.z + 4.2, Math.PI]; // x, z, et l
 export const POSE_VELO = { x: CAI_LIEU.x - 2.4, z: CAI_LIEU.z + 4, cap: 0 };
 export const PRES_DE_CAI = (x, z) => Math.hypot(x - CAI_LIEU.x, z - CAI_LIEU.z) < 9;
 
+// ---------- Les stations RideCorniche ----------
+// Les vraies stations de RideCorniche (liste envoyée par Murielle le 13/11) : la principale, « Rond-point, carrefour Corniche
+// Est » — la boutique, laissée où elle était sur la Corniche Est en attendant l'emplacement exact du rond-point, qu'OpenStreetMap
+// ne connaît pas —, et quatre gardes-vélos : à l'hôtel PLM Alédjo, place de l'Amazone, entre le Code Bar et Franky Food Kebab, et
+// devant le Drink & Eat, à Haie Vive. Positions d'après OpenStreetMap (hôtel PLM Aledjo, Code Bar, Place de l'Amazone ; le Drink
+// & Eat, « en face du restaurant Matelot, après l'agence MTN », près de MTN Erevan : approché), puis le trottoir libre le plus
+// proche, cherché dans le jeu (scratchpad 62642ccf, velo/trouver.mjs). `r` : la station regarde la rue (son +z local).
+// On y loue et rend un vélo comme à la boutique ; les balades y passent.
+const [AMX, AMZ] = toXZ(6.348986, 2.407566); // Place de l'Amazone
+export const STATIONS_RC = [
+  { id: 'rc-plm', nom: 'RideCorniche · PLM Alédjo', dit: 'à la station RideCorniche de PLM Alédjo', x: 4939.1, z: 1454.7, r: -1.913 },
+  { id: 'rc-amazone', nom: 'RideCorniche · Place de l’Amazone', dit: 'à la station RideCorniche de l’Amazone', x: AMX + 14, z: AMZ - 70, r: Math.PI }, // sur l'esplanade, tournée vers le boulevard
+  { id: 'rc-codebar', nom: 'RideCorniche · Code Bar (Haie Vive)', dit: 'à la station RideCorniche du Code Bar', x: -3125.2, z: 1991.1, r: -3.135 },
+  { id: 'rc-drinkeat', nom: 'RideCorniche · Drink & Eat (Haie Vive)', dit: 'à la station RideCorniche du Drink & Eat', x: -2984.4, z: 2129, r: -1.559 },
+];
+const axes = S => ({ fx: Math.sin(S.r), fz: Math.cos(S.r), ax: Math.cos(S.r), az: -Math.sin(S.r) }); // vers la rue ; le long de la rue
+/** Où l'on arrive devant une station (« Aller ») : sur le trottoir, face à elle. */
+export function devantStation(id) { const S = STATIONS_RC.find(s => s.id === id); if (!S) return null; const { fx, fz } = axes(S); return [S.x + fx * 2.6, S.z + fz * 2.6, S.r + Math.PI]; }
+/** La station (boutique comprise) à moins de 9 m de (x, z) : { id, pose (où le loueur pose le vélo) }, ou null. */
+export function stationRC(x, z) {
+  if (PRES_DE_CAI(x, z)) return { id: 'caicai', pose: POSE_VELO };
+  for (const S of STATIONS_RC) {
+    if (Math.hypot(x - S.x, z - S.z) > 9) continue;
+    const { fx, fz, ax, az } = axes(S); // à côté du râtelier, le long du trottoir, roue vers la rue
+    return { id: S.id, pose: { x: S.x + ax * 3.3 + fx * .8, z: S.z + az * 3.3 + fz * .8, cap: Math.atan2(ax, az) } };
+  }
+  return null;
+}
+/** Un garde-vélo : une dalle, un râtelier de quatre vélos jaunes, un mât au logo. Il ne se traverse pas, et rue.js ne pose
+ *  ni mur ni maison autour (le trottoir continue). */
+function construireStation(S) {
+  const g = groupeLieu(S.id, S.x, S.z, -S.r), P = [], add = (geo, hex) => P.push([geo, hex]);
+  add(B3(4.6, .06, 2.1).translate(0, .03, -.05), '#a3a39d'); // la dalle
+  add(C3(.035, .035, 4.1, 6).rotateZ(Math.PI / 2).translate(0, .55, -.62), CAI.acier); // le râtelier
+  for (const x of [-1.95, 0, 1.95]) add(B3(.06, .55, .06).translate(x, .27, -.62), CAI.acier);
+  add(C3(.05, .05, 2.75, 8).translate(2.15, 1.37, -.75), RC.noir); // le mât
+  add(B3(1.42, .52, .05).translate(2.15, 2.45, -.78), RC.jaune); // le cadre du panneau
+  const m = new THREE.Mesh(mergeColored(P), matVeh); m.castShadow = true; m.receiveShadow = true; g.add(m);
+  const pan = panneau(1.3, .42); pan.position.set(2.15, 2.45, -.75); g.add(pan);
+  for (let i = 0; i < 4; i++) { // quatre vélos, roue avant vers la rue
+    const v = new THREE.Mesh(mergeColored(partsVelo({ panier: i % 2 === 0 })), matVeh); v.castShadow = true;
+    v.position.set(-1.35 + i * .9, 0, .2); v.rotation.y = -Math.PI / 2 + (i % 2 ? .06 : -.05); g.add(v);
+    quandVelo(modele => { const c = modele.clone(); c.position.copy(v.position); c.rotation.y = v.rotation.y + Math.PI; g.add(c); g.remove(v); v.geometry.dispose(); });
+  }
+  const { fx, fz, ax, az } = axes(S);
+  poserObstacles(S.id, [[S.x + fx * .05, S.z + fz * .05, S.r, 4.1, 1.9], [S.x + ax * 2.15 - fx * .75, S.z + az * 2.15 - fz * .75, S.r, .2, .2]]);
+  ajouterZoneSansMur({ x: S.x, z: S.z, r: S.r, x0: -4.6, x1: 4.6, z0: -4, z1: 2.2 });
+}
+
 // Les balades en groupe de la boutique, chacune par des lieux de rendez-vous du jeu
 // (les identifiants de LIEUX dans salon.js). Le meneur annonce les étapes une à une dans la discussion :
 // chaque annonce donne aux autres un bouton « Y aller », et tout le monde roule au même endroit.
@@ -36,6 +85,10 @@ export const PRES_DE_CAI = (x, z) => Math.hypot(x - CAI_LIEU.x, z - CAI_LIEU.z) 
 export const BALADES = [
   { id: 'akpakpa', nom: 'De la Corniche à Akpakpa', etapes: ['caicai', 'akpakpa'] },
   { id: 'ganhi', nom: 'De la Corniche à Ganhi', etapes: ['caicai', 'cathedrale', 'ganhi'] },
+  // Par les stations RideCorniche (13/11) : on peut y rendre le vélo à l'arrivée.
+  { id: 'plm', nom: 'De la Corniche à PLM Alédjo', etapes: ['caicai', 'rc-plm'] },
+  { id: 'amazone', nom: 'De la Corniche à l’Amazone', etapes: ['caicai', 'rc-amazone'] },
+  { id: 'haievive', nom: 'De la Corniche à Haie Vive', etapes: ['caicai', 'rc-amazone', 'rc-codebar', 'rc-drinkeat'] },
 ];
 // Le rendez-vous d'Akpakpa : sur le parvis de l'église Sainte-Trinité d'Avotrou (reperes.js, 'eglise-akpakpa'), à 9 m de
 // sa façade, face à elle. Ce n'est pas un lieu de la carte (PLACES) : salon.js le traite comme la boutique.
@@ -47,8 +100,10 @@ export const RDV_AKPAKPA = [EX + 4, EZ + 9, -2.94];
 const RC = { jaune: '#f2b705', noir: '#2a2a2c', vitre: '#9aa4ab' };
 /** Le panneau de la boutique : le logo RideCorniche (le même que sur le garde-boue des vélos) et un vélo dessiné, sans
  *  mot à traduire. Noir le temps que le logo arrive. */
-function panneau() {
-  const mat = new THREE.MeshLambertMaterial({ color: '#1f1f1f' }), img = new Image();
+let MAT_PANNEAU = null;
+function panneau(w = 3.2, h = 1) {
+  if (MAT_PANNEAU) return new THREE.Mesh(new THREE.PlaneGeometry(w, h), MAT_PANNEAU);
+  const mat = MAT_PANNEAU = new THREE.MeshLambertMaterial({ color: '#1f1f1f', side: THREE.DoubleSide }), img = new Image();
   img.onload = () => {
     const cv = document.createElement('canvas'); cv.width = 512; cv.height = 160;
     const c = cv.getContext('2d');
@@ -63,8 +118,7 @@ function panneau() {
     mat.map = t; mat.color.set('#ffffff'); mat.needsUpdate = true;
   };
   img.src = `${import.meta.env.BASE_URL}textures/ride-corniche.png`;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1), mat);
-  m.position.set(0, 3.25, 1.32); return m;
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
 }
 /** La boutique seule (sans les vélos ni le panneau) : séparée pour pouvoir la regarder hors du jeu. */
 export function partsCaiCai() {
@@ -87,7 +141,7 @@ export function partsCaiCai() {
 export function construireCaiCai() {
   const g = groupeLieu('caicai', CAI_LIEU.x, CAI_LIEU.z);
   const m = new THREE.Mesh(mergeColored(partsCaiCai()), matVeh); m.castShadow = true; m.receiveShadow = true; g.add(m);
-  g.add(panneau());
+  const pan = panneau(); pan.position.set(0, 3.25, 1.32); g.add(pan);
   // Quatre vélos rangés le long du râtelier, de trois quarts, comme posés à la va-vite.
   for (let i = 0; i < 4; i++) {
     const v = new THREE.Mesh(mergeColored(partsVelo({ panier: i === 1 })), matVeh); v.castShadow = true;
@@ -103,5 +157,6 @@ export function construireCaiCai() {
   // Entre la boutique et le boulevard, rue.js posait un mur de clôture : on ne voyait plus que le haut du panneau
   // (« enlève le mur là, ça empêche de voir l'entreprise », Murielle, 13/11). Le trottoir va jusqu'au comptoir.
   ajouterZoneSansMur([x - 10, z - 3, x + 10, z + 14]);
+  for (const S of STATIONS_RC) construireStation(S);
   return g;
 }

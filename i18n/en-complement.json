@@ -941,7 +941,19 @@
   " a raccroché.": " hung up.",
   " · encore ": " · ",
   " s…": " s left…",
-  " h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ». En selle devant la boutique : « Course à vélo » jusqu’à la cathédrale contre trois cyclistes, ou « Partir en balade ».": " h. It's parked in front of the shop: walk up to it and “Get on your bike”. On the saddle in front of the shop: “Bike race” to the cathedral against three cyclists, or “Start a group ride”."
+  " h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ». En selle devant la boutique : « Course à vélo » jusqu’à la cathédrale contre trois cyclistes, ou « Partir en balade ».": " h. It's parked in front of the shop: walk up to it and “Get on your bike”. On the saddle in front of the shop: “Bike race” to the cathedral against three cyclists, or “Start a group ride”.",
+  "'RideCorniche · PLM Alédjo'": "'RideCorniche · PLM Alédjo'",
+  "'à la station RideCorniche de PLM Alédjo'": "'to the RideCorniche station at PLM Alédjo'",
+  "'RideCorniche · Place de l’Amazone'": "'RideCorniche · Amazone Square'",
+  "'à la station RideCorniche de l’Amazone'": "'to the RideCorniche station at the Amazone'",
+  "'RideCorniche · Code Bar (Haie Vive)'": "'RideCorniche · Code Bar (Haie Vive)'",
+  "'à la station RideCorniche du Code Bar'": "'to the RideCorniche station at Code Bar'",
+  "'RideCorniche · Drink & Eat (Haie Vive)'": "'RideCorniche · Drink & Eat (Haie Vive)'",
+  "'à la station RideCorniche du Drink & Eat'": "'to the RideCorniche station at Drink & Eat'",
+  "'De la Corniche à PLM Alédjo'": "'From the Corniche to PLM Alédjo'",
+  "'De la Corniche à l’Amazone'": "'From the Corniche to the Amazone'",
+  "'De la Corniche à Haie Vive'": "'From the Corniche to Haie Vive'",
+  " h. Il est posé à côté du garde-vélo : approche-toi et « Monter sur ton vélo ». Tu peux le rendre à n’importe quelle station RideCorniche.": " h. It's parked next to the bike stand: walk up to it and “Get on your bike”. You can return it at any RideCorniche station."
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -3700,5 +3712,18 @@
   "'<small>Course</small> Prêt…'": "'<small>Race</small> Ready…'",
   "<small>Course</small><span>": "<small>Race</small><span>",
   "' · arrivé'": "' · finished'"
+ },
+ "src/caicai.js": {
+  "'RideCorniche · PLM Alédjo'": "'RideCorniche · PLM Alédjo'",
+  "'à la station RideCorniche de PLM Alédjo'": "'to the RideCorniche station at PLM Alédjo'",
+  "'RideCorniche · Place de l’Amazone'": "'RideCorniche · Amazone Square'",
+  "'à la station RideCorniche de l’Amazone'": "'to the RideCorniche station at the Amazone'",
+  "'RideCorniche · Code Bar (Haie Vive)'": "'RideCorniche · Code Bar (Haie Vive)'",
+  "'à la station RideCorniche du Code Bar'": "'to the RideCorniche station at Code Bar'",
+  "'RideCorniche · Drink & Eat (Haie Vive)'": "'RideCorniche · Drink & Eat (Haie Vive)'",
+  "'à la station RideCorniche du Drink & Eat'": "'to the RideCorniche station at Drink & Eat'",
+  "'De la Corniche à PLM Alédjo'": "'From the Corniche to PLM Alédjo'",
+  "'De la Corniche à l’Amazone'": "'From the Corniche to the Amazone'",
+  "'De la Corniche à Haie Vive'": "'From the Corniche to Haie Vive'"
  }
 }
