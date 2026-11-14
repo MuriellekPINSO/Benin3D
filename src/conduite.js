@@ -651,11 +651,13 @@ export function piloter(V, av, tour, dt, { panne = false, aide = false } = {}) {
     if (tourneDansLeTrafic(V, cap0)) delete V.redresse; // il buterait contre une voiture en pivotant : il s'arrête là
     return avancer(V, dt, true);
   }
-  const D = V.D, vmax = panne ? 1.2 : D.vmax;
-  if (av > .05) V.v = V.v < -.2 ? Math.min(0, V.v + D.frein * dt) : Math.min(vmax, V.v + D.accel * av * dt * Math.max(.15, 1 - V.v / (vmax * 1.05)));
+  // V.bonus : des m/s en plus, le temps d'une course à vélo (l'aspiration derrière un autre cycliste, course-velo.js). Il
+  // pousse plus franchement, et quand il retombe, le vélo ralentit en roue libre au lieu de freiner sec.
+  const D = V.D, bonus = panne ? 0 : V.bonus || 0, vmax = panne ? 1.2 : D.vmax + bonus;
+  if (av > .05) V.v = V.v < -.2 ? Math.min(0, V.v + D.frein * dt) : Math.min(vmax, V.v + D.accel * av * dt * Math.max(bonus > 0 ? .45 : .15, 1 - V.v / (vmax * 1.05)));
   else if (av < -.05) V.v = V.v > .2 ? Math.max(0, V.v - D.frein * -av * dt) : Math.max(-D.recul, V.v - D.accel * .6 * -av * dt);
   else V.v -= Math.sign(V.v) * Math.min(Math.abs(V.v), 1.4 * dt); // roue libre
-  if (V.v > vmax) V.v = Math.max(vmax, V.v - D.frein * dt);
+  if (V.v > vmax) V.v = Math.max(vmax, V.v - (V.bonus !== undefined && !panne ? 1.4 : D.frein) * dt);
   // Volant : sans effet à l'arrêt, plus doux à pleine vitesse ; en marche arrière, l'avant part de l'autre côté.
   const a = Math.abs(V.v), k = Math.min(1, a / 3) * (1 - .45 * Math.min(1, a / D.vmax));
   V.cap += tour * D.braquage * k * Math.sign(V.v || 1) * dt;
@@ -1001,7 +1003,7 @@ function leLong(pts, k, t, dist) {
  * le plus proche : on suit ainsi la rue, virages compris. Avant, on visait le point suivant du tracé, parfois des
  * dizaines de mètres après un virage, et le zém coupait le coin à travers les maisons.
  */
-export function suivreChemin(V, P, dt, vmax = V.D.vmax) {
+export function suivreChemin(V, P, dt, vmax = V.D.vmax, virage = 3.5) { // virage : la vitesse gardée au plus fort d'un virage (m/s)
   const pts = P.pts; if (pts.length < 2) { V.v = 0; return true; }
   let k0 = Math.max(1, P.i), bk = k0, bt = 0, bd = Infinity; // où l'on est sur le chemin (jamais en arrière)
   for (let k = k0; k < Math.min(pts.length, k0 + 8); k++) {
@@ -1018,7 +1020,7 @@ export function suivreChemin(V, P, dt, vmax = V.D.vmax) {
   let dv = Math.atan2(fx - V.x, fz - V.z) - V.cap; dv = Math.atan2(Math.sin(dv), Math.cos(dv));
   const droit = Math.max(0, Math.cos(Math.max(Math.abs(da), Math.abs(dv)))) ** 3;
   const reste = leLong(pts, bk, bt, Infinity)[2] + bd; // le long du chemin jusqu'au bout
-  const voulue = Math.min(vmax, Math.abs(da) > Math.PI / 2 ? 2.2 : 3.5 + (vmax - 3.5) * droit, Math.max(2, reste * .8)); // demi-tour au pas ; et on freine pour s'arrêter au bout
+  const lent = Math.min(virage, vmax), voulue = Math.min(vmax, Math.abs(da) > Math.PI / 2 ? 2.2 : lent + (vmax - lent) * droit, Math.max(2, reste * .8)); // demi-tour au pas ; et on freine pour s'arrêter au bout
   V.v += THREE.MathUtils.clamp(voulue - V.v, -8 * dt, D_ACCEL * dt);
   if (reste < 2.5) { V.v = Math.max(0, V.v - 8 * dt); avancer(V, dt, false); return V.v === 0; }
   avancer(V, dt, false); return false;

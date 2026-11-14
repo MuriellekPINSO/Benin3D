@@ -77,6 +77,19 @@
   .fil-createur button { justify-self: start; font: inherit; font-weight: 600; border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer; background: var(--vert); color: #fff; }
   table.paiements th:nth-child(2), table.paiements td:nth-child(2) { text-align: left; white-space: normal; min-width: 180px; }
   table.paiements tbody td.paye { color: var(--vert); font-weight: 700; } table.paiements tbody td.rate { color: var(--encre-2); }
+  /* Courses à vélo RideCorniche (api/courses-admin.js) : les gagnants et leur ticket d'abord, puis toutes les courses. */
+  .cv-gagnants { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .cv-gagnant { border: 1px solid var(--trait); border-radius: 18px; padding: 14px; display: grid; gap: 6px; min-width: 0; }
+  .cv-gagnant.a-donner { border-color: var(--jaune); box-shadow: 0 0 0 2px rgba(245, 197, 24, .25); }
+  .cv-gagnant.refuse { border-color: #e7b4ae; background: #fff7f6; }
+  .cv-gagnant .code { font-size: 24px; font-weight: 700; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+  .cv-gagnant p { margin: 0; font-size: 14px; } .cv-gagnant .meta { color: var(--encre-2); font-size: 13px; }
+  .cv-gagnant .alerte { color: #8a4b00; font-size: 13px; font-weight: 600; }
+  .cv-gagnant svg { width: 100%; height: 90px; background: var(--fond); border-radius: 12px; }
+  .cv-gagnant button { justify-self: start; font: inherit; font-weight: 600; border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer; background: var(--vert); color: #fff; }
+  .cv-gagnant button.annuler { background: var(--fond); color: var(--encre); }
+  section.bloc h3.sous { margin: 4px 0 0; font-size: 16px; }
+  #cvListe td.paye { font-weight: 700; } /* chaque 1re place en gras, la première ligne comprise */
   /* Défi du jour de Zém Run : le classement d'un jour ou d'une semaine, et la partie d'un joueur à vérifier avant un lot. */
   .defi-barre { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
   .defi-barre input { font: inherit; padding: 8px 12px; border: 1px solid var(--trait); border-radius: 12px; background: #fff; color: var(--encre); }
@@ -175,6 +188,22 @@
     <p class="note">Les créateurs remplissent leur fiche sur <a href="/createurs.html">kotonuvibes.com/createurs.html</a>. « Valider » met le jeu dans la salle de jeux de la ville en une minute. « Refuser » renvoie la fiche au créateur avec ton mot. « Retirer » enlève un jeu en ligne.</p>
   </section>
 
+  <section class="bloc" id="coursesVelo">
+    <h2>Courses à vélo RideCorniche</h2>
+    <div class="totaux">
+      <div><small>Courses payées</small><b id="cvCourses">–</b></div>
+      <div><small>Cette semaine</small><b id="cvSemaine">–</b></div>
+      <div><small>Gagnants (tickets)</small><b id="cvGagnants">–</b></div>
+      <div><small>Tickets à donner</small><b id="cvADonner">–</b></div>
+    </div>
+    <p class="note" id="cvEtat">Lecture des courses…</p>
+    <h3 class="sous">Gagnants</h3>
+    <div class="cv-gagnants" id="cvListeGagnants"></div>
+    <h3 class="sous">Toutes les courses</h3>
+    <div class="tableau"><table class="paiements"><thead><tr><th>Quand</th><th>Joueur</th><th>Résultat</th><th>Temps</th><th>Ticket</th></tr></thead><tbody id="cvListe"></tbody></table></div>
+    <p class="note">Une course coûte 2 000 F d’argent du jeu et 500 F par MoMo. Seule une 1re place reçoit un ticket : le serveur a vérifié que la course a duré ce qu’elle annonce et que le trajet va bien de RideCorniche à la cathédrale. Avant la balade, demande son code au gagnant et compare-le avec celui d’ici ; le numéro est celui qui a payé l’inscription. « ⚠ » : à regarder de plus près, ce n’est pas une preuve de triche. Touche « Ticket donné » une fois la balade faite.</p>
+  </section>
+
   <section class="bloc" id="paiements">
     <h2>Paiements Mobile Money</h2>
     <div class="totaux">
@@ -193,7 +222,7 @@
   // de 15 minutes est affichée « Non abouti » : le joueur a abandonné, FedaPay la fera expirer plus tard.
   const $ = s => document.querySelector(s), nb = n => (n ?? 0).toLocaleString('fr-FR'), F = n => `${nb(n)} F`;
   const STATUTS = { approved: ['Payé', 'paye'], transferred: ['Payé', 'paye'], pending: ['En attente', ''], expired: ['Expiré', 'rate'], canceled: ['Annulé', 'rate'], declined: ['Refusé', 'rate'], refunded: ['Remboursé', 'rate'] };
-  const OBJETS = { concert: 'entrée du concert', commerce: 'ouverture de commerce', boutique: 'boutique de mode', recharge: 'recharge de compte' };
+  const OBJETS = { concert: 'entrée du concert', commerce: 'ouverture de commerce', boutique: 'boutique de mode', recharge: 'recharge de compte', courseVelo: 'course à vélo' };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   fetch('/api/paiements', { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(P => {
     $('#pRecus').textContent = nb(P.recus); $('#pMontant').textContent = F(P.montant); $('#pRecents').textContent = `${nb(P.aujourdhui)} · ${nb(P.semaine)}`; $('#pTentatives').textContent = nb(P.tentatives);
@@ -251,6 +280,47 @@
     }));
   }
   jeuxCreateurs();
+
+  // Les courses à vélo payantes (api/courses-admin.js) : les gagnants d'abord, avec leur ticket, leur numéro et leur trajet.
+  const REFUS_VELO = { 'trop-rapide': 'trop rapide pour être vrai', 'temps-impossible': 'temps impossible', trace: 'trajet incomplet ou impossible', donnees: 'données invalides' };
+  const ALERTES_VELO = { pause: 'arrivée envoyée longtemps après la course', lent: 'plus lent que les cyclistes du jeu : il les a peut-être gênés' };
+  const quand = t => new Date(t).toLocaleString('fr-FR', { timeZone: 'Africa/Porto-Novo', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const duree = t => t == null ? '—' : `${Math.floor(t / 60)} min ${String(Math.round(t % 60)).padStart(2, '0')} s`;
+  const resultat = c => ({ gagne: '1re place', fini: `${c.rang === 1 ? '1re' : `${c.rang}e`} place`, refuse: 'Refusée ⚠', abandon: 'Abandon', 'en-course': 'En course' })[c.statut] || c.statut;
+  function traceSvg(pts) { // le trajet relevé chaque seconde : vert au départ, rouge à l'arrivée
+    if (!pts?.length) return '';
+    const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]), x0 = Math.min(...xs), z0 = Math.min(...zs), e = Math.max(Math.max(...xs) - x0, Math.max(...zs) - z0, 1);
+    const P = pts.map(([x, z]) => [10 + (x - x0) / e * 280, 10 + (z - z0) / e * 70]), l = P.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ');
+    return `<svg viewBox="0 0 300 90" role="img" aria-label="Trajet du gagnant"><polyline points="${l}" fill="none" stroke="#2e86c1" stroke-width="2"/><circle cx="${P[0][0]}" cy="${P[0][1]}" r="4" fill="#1a7d52"/><circle cx="${P.at(-1)[0]}" cy="${P.at(-1)[1]}" r="4" fill="#c0392b"/></svg>`;
+  }
+  async function coursesVelo() {
+    let D; try { const r = await fetch('/api/courses-admin', { cache: 'no-store' }); if (!r.ok) throw r.status; D = await r.json(); }
+    catch { $('#cvEtat').textContent = 'Courses indisponibles pour le moment. Recharge la page dans un instant.'; return; }
+    const T = D.totaux;
+    $('#cvCourses').textContent = nb(T.courses); $('#cvSemaine').textContent = nb(T.semaine); $('#cvGagnants').textContent = nb(T.gagnants); $('#cvADonner').textContent = nb(T.aDonner);
+    $('#cvEtat').textContent = T.courses ? `${F(T.montant)} reçus par MoMo pour ces courses${T.aVerifier ? ` · ${T.aVerifier} à vérifier (⚠)` : ''}.` : 'Aucune course payée pour l’instant.';
+    const gagnants = D.courses.filter(c => c.ticket || c.statut === 'refuse');
+    $('#cvListeGagnants').innerHTML = gagnants.length ? gagnants.map(c => {
+      const al = [c.refus && `⚠ Refusée : ${REFUS_VELO[c.refus] || c.refus}`, ...String(c.alertes || '').split(',').filter(Boolean).map(a => `⚠ ${ALERTES_VELO[a] || a}`)].filter(Boolean);
+      return `<div class="cv-gagnant ${c.statut === 'refuse' ? 'refuse' : c.utilise ? '' : 'a-donner'}" data-id="${esc(c.id)}">
+        <span class="code">${c.ticket ? esc(c.ticket) : 'Pas de ticket'}</span>
+        <p><b>${esc(c.nom || 'Joueur')}</b> · ${duree(c.temps)} · ${quand(c.depart)}</p>
+        <p class="meta">${c.tel ? `Numéro qui a payé : <a href="tel:+229${esc(c.tel)}">${esc(c.tel.replace(/(\d{2})(?=\d)/g, '$1 '))}</a>` : 'Numéro inconnu'}${c.utilise ? ` · ticket donné le ${quand(c.utilise)}` : ''}</p>
+        ${al.map(a => `<p class="alerte">${esc(a)}</p>`).join('')}
+        ${traceSvg(c.trace)}
+        ${c.ticket ? (c.utilise ? '<button class="annuler" data-u="0">Annuler « ticket donné »</button>' : '<button data-u="1">Ticket donné</button>') : ''}
+      </div>`;
+    }).join('') : '<p class="note">Personne n’a encore gagné.</p>';
+    $('#cvListe').innerHTML = D.courses.length ? D.courses.slice(0, 60).map(c => `<tr><td>${quand(c.depart)}</td><td>${esc(c.nom || 'Joueur')}</td><td class="${c.ticket ? 'paye' : c.statut === 'abandon' ? 'rate' : ''}">${resultat(c)}</td><td>${duree(c.temps)}</td><td>${c.ticket ? esc(c.ticket) : '—'}</td></tr>`).join('')
+      : '<tr><td colspan="5">Aucune course pour l’instant.</td></tr>';
+    $('#cvListeGagnants').querySelectorAll('button[data-u]').forEach(b => b.addEventListener('click', async () => {
+      b.disabled = true;
+      const r = await fetch('/api/courses-admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: b.closest('[data-id]').dataset.id, utilise: b.dataset.u === '1' }) });
+      if (!r.ok) { alert('Ça n’a pas marché. Réessaie dans un instant.'); b.disabled = false; return; }
+      coursesVelo();
+    }));
+  }
+  coursesVelo();
 </script>
 
 <script type="module">

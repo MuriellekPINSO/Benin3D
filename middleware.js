@@ -4,7 +4,7 @@
 import { next } from '@vercel/functions';
 import { COOKIE, JOURS, bonCode, lireCookie } from './api/_tableau.js';
 
-export const config = { matcher: ['/tableau.html', '/tableau', '/api/paiements', '/api/jeux-admin', '/api/paiements.js', '/api/jeux-admin.js'] }; // les paiements et la validation des jeux aussi : le tableau les lit
+export const config = { matcher: ['/tableau.html', '/tableau', '/api/paiements', '/api/jeux-admin', '/api/courses-admin', '/api/paiements.js', '/api/jeux-admin.js', '/api/courses-admin.js'] }; // les paiements, la validation des jeux et les courses à vélo aussi : le tableau les lit
 
 const PAGE = erreur => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>Tableau de bord · Kutɔnu Vibes</title><style>

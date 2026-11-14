@@ -1,4 +1,5 @@
-// Paiements FedaPay (entrée du concert, ouverture d'un commerce, commandes de la boutique de mode, recharge du compte) par MTN MoMo, Moov Money
+// Paiements FedaPay (entrée du concert, ouverture d'un commerce, commandes de la boutique de mode, recharge du compte,
+// inscription à la course à vélo) par MTN MoMo, Moov Money
 // ou Celtiis Cash. La clé secrète ne quitte jamais le serveur (FEDAPAY_SECRET_KEY sur Vercel et dans .env.local).
 //
 // Paiement « sans redirection » : plus de fenêtre FedaPay. La page de jeu demande l'opérateur et le numéro, puis :
@@ -17,13 +18,14 @@
 // correspond pas à la clé secrète, on le dit (« cles-incoherentes ») au lieu de laisser croire au joueur qu'il n'a rien payé.
 // La même fonction sert en local : vite.config.js la branche sur le serveur de développement.
 import { formule } from '../src/recharge-formules.js';
+import { PRIX_MOMO } from '../src/course-velo-regles.js';
 
 export const MONTANT_MIN = 100;
 
 // Codes FedaPay du paiement sans redirection pour le Bénin (docs v1, « Paiement sans redirection »).
 export const OPERATEURS = { mtn: 'mtn_open', moov: 'moov', celtiis: 'sbin' };
-const PRIX = { concert: 100, commerce: 100 };
-const DESCRIPTIONS = { concert: 'Entrée au concert de l’Esplanade · Kutɔnu Vibes', commerce: 'Ouverture d’un commerce · Kutɔnu Vibes' };
+const PRIX = { concert: 100, commerce: 100, courseVelo: PRIX_MOMO };
+const DESCRIPTIONS = { concert: 'Entrée au concert de l’Esplanade · Kutɔnu Vibes', commerce: 'Ouverture d’un commerce · Kutɔnu Vibes', courseVelo: 'Inscription à la course à vélo RideCorniche · Kutɔnu Vibes' };
 export const PAYES = ['approved', 'transferred']; // « transferred » : payé, puis reversé sur le solde du marchand
 
 const hoteDe = cle => cle.startsWith('sk_live_') ? 'https://api.fedapay.com' : 'https://sandbox-api.fedapay.com';
@@ -50,7 +52,7 @@ export async function lireTransaction(id, cle) {
   const r = await appeler(cle, 'GET', `/transactions/${id}`);
   return { ok: r.ok, statut: r.statut, t: r.ok ? r.d?.['v1/transaction'] || r.d?.transaction || r.d || {} : null };
 }
-const OBJETS_JEU = ['concert', 'commerce', 'boutique', 'recharge']; // custom_metadata.objet que le jeu pose à la création
+const OBJETS_JEU = ['concert', 'commerce', 'boutique', 'recharge', 'courseVelo']; // custom_metadata.objet que le jeu pose à la création
 export async function verifierPaiement(id, min = MONTANT_MIN, cle = process.env.FEDAPAY_SECRET_KEY, mode = '', objet = '') {
   if (!cle) return { code: 503, corps: { paye: false, statut: 'non-configure' } };
   if (mode && mode !== modeDe(cle)) return { code: 500, corps: { paye: false, statut: 'cles-incoherentes' } };
@@ -109,6 +111,10 @@ export async function creerPaiement(q, cle = process.env.FEDAPAY_SECRET_KEY, ip 
     const F = formule(q.formule); if (!F) return { code: 400, corps: { statut: 'objet-invalide' } };
     const uid = await uidVerifie(q.jeton); if (!uid) return { code: 401, corps: { statut: 'jeton-refuse' } };
     montant = F.prix; description = `Recharge : ${F.credit.toLocaleString('fr-FR')} F dans le jeu · Kutɔnu Vibes`; serveur = { formule: F.id, uid };
+  }
+  if (q.objet === 'courseVelo') { // la course à vélo payante (api/course-velo.js) : pour ce joueur seulement, et le numéro pour joindre le gagnant
+    const uid = await uidVerifie(q.jeton); if (!uid) return { code: 401, corps: { statut: 'jeton-refuse' } };
+    serveur = { uid, tel: numero };
   }
   if (!montant || montant < MONTANT_MIN || montant > 200000) return { code: 400, corps: { statut: 'objet-invalide' } };
   if (tropDEssais(`ip:${ip}`, 8) || tropDEssais(`no:${numero}`, 4)) return { code: 429, corps: { statut: 'trop-d-essais' } };

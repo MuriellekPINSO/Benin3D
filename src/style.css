@@ -1120,6 +1120,7 @@ button { font: inherit; color: inherit; }
 .vh-course { font: 800 15px/1 var(--font-display); display: flex; align-items: baseline; gap: 5px; color: var(--ink); }
 .vh-course small { align-self: center; font: 800 10px/1 var(--font-body); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); }
 .vh-course span { font-size: 24px; font-variant-numeric: tabular-nums; color: #1A7D52; }
+.vh-course .vh-asp { align-self: center; font: 800 10px/1 var(--font-body); font-style: normal; text-transform: uppercase; letter-spacing: .05em; color: #fff; background: #2E86C1; padding: 4px 8px; border-radius: 999px; } /* dans la roue d'un cycliste : le vélo va plus vite */
 .cv-decompte { position: fixed; left: 50%; top: 34%; transform: translate(-50%, -50%); z-index: 40; pointer-events: none; font: 900 clamp(56px, 14vw, 120px)/1 var(--font-display); color: #F5B700; text-shadow: 0 4px 0 #17130c, 0 0 24px rgba(0, 0, 0, .45); white-space: nowrap; }
 .cv-decompte.cv-pop { animation: cv-pop .45s cubic-bezier(.2, 1.4, .4, 1); }
 @keyframes cv-pop { from { transform: translate(-50%, -50%) scale(.4); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }

@@ -20,7 +20,7 @@ const FINIS = ['credite', 'deja', 'declined', 'canceled', 'refunded', 'autre-obj
 
 // Le jeton Firebase du joueur, qui prouve au serveur à qui créditer. En mode test (?salon-local), la vie est dans le
 // navigateur : pas de compte, rien que le serveur puisse créditer.
-const jetonJoueur = () => (VIE.local ? Promise.resolve('') : Promise.race([joueur().then(u => u.getIdToken()), new Promise((_, ko) => setTimeout(() => ko(new Error('délai')), 10000))]));
+export const jetonJoueur = () => (VIE.local ? Promise.resolve('') : Promise.race([joueur().then(u => u.getIdToken()), new Promise((_, ko) => setTimeout(() => ko(new Error('délai')), 10000))]));
 
 export function initRecharge(ctx) { R.ligne = ctx.ligne; R.son = ctx.son || R.son; }
 
