@@ -77,6 +77,7 @@ export function accueil() {
   $('#acVisite').addEventListener('click', () => { fermer(); presentation(); }, { once: true });
   $('#acPasser').addEventListener('click', fermer, { once: true });
   $('#acVivre')?.addEventListener('click', () => { fermer(); $('#btnSalon')?.click(); }, { once: true }); // la vie à Cotonou (salon.js)
+  $('#acVillage')?.addEventListener('click', () => { fermer(); document.dispatchEvent(new Event('kv:village')); }, { once: true }); // le Village de l'innovation (village.js, salon.js)
   $('#acZemRun')?.addEventListener('click', () => { fermer(); $('#btnJouer')?.click(); }, { once: true }); // le menu de Zém Run
   window.addEventListener('keydown', clavier);
   ($('#acVivre') || $('#acVisite')).focus({ preventScroll: true });

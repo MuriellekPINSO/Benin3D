@@ -50,6 +50,9 @@ import { SAISIE } from './saisie.js';
 import { fermerFenetreDuDessus } from './manette.js';
 import { initRecharge, proposerRecharge, verifierRecharges } from './recharge.js';
 import { plusTard } from './telechargements.js';
+import { annonce as annonceVillage, entrerVillage, initVillage, majVillage, prechargerVillage, quitterVillage } from './village.js';
+import { ENTREE_VILLAGE, ESPACES as ESPACES_VILLAGE, VENIR, VILLAGE_ACTIF } from './village-plan.js';
+import { initJeuxVillage, ouvrirJeux, surMessageJeu } from './village-jeux.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
 // Jusqu'à 8 amis dans la même ville : chacun se promène à pied avec son personnage, voit les autres,
@@ -76,7 +79,7 @@ const PHRASES = ['Salut !', 'Ça va ?', 'On y va !', 'On mange où ?', 'Attends-
 // Lieux de rendez-vous : id dans PLACES, nom dans le menu, « je vais … », décalage du point d'arrivée (mètres,
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
-const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['dome', 'Le Dôme du Sofitel (La Nuit Kutɔnu Vibes)', 'au Dôme du Sofitel', 0, 0, 0, 'dome-sofitel'], ['caicai', 'RideCorniche (location de vélos)', 'chez RideCorniche', 0, 0, 0], ...STATIONS_RC.map(S => [S.id, S.nom, S.dit, 0, 0, 0]), ['cathedrale', 'Cathédrale Notre-Dame (Ganhi)', 'à la cathédrale Notre-Dame', -32, 2, 1.41], ['ganhi', 'Marché Ganhi', 'au marché Ganhi', 0, 10, Math.PI], ['akpakpa', 'Église Sainte-Trinité (Akpakpa)', 'à l’église Sainte-Trinité d’Akpakpa', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0], ['salle-jeux', 'Salle de jeux (jeux des créateurs)', 'à la salle de jeux de Haie Vive', 0, 0, 0, 'salle-jeux']]; // 7e : intérieur dont on arrive devant la porte
+const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ...(VILLAGE_ACTIF ? [['village', 'Le Village de l’innovation (Palais des Congrès)', 'au Village de l’innovation', 0, 0, 0]] : []), ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['dome', 'Le Dôme du Sofitel (La Nuit Kutɔnu Vibes)', 'au Dôme du Sofitel', 0, 0, 0, 'dome-sofitel'], ['caicai', 'RideCorniche (location de vélos)', 'chez RideCorniche', 0, 0, 0], ...STATIONS_RC.map(S => [S.id, S.nom, S.dit, 0, 0, 0]), ['cathedrale', 'Cathédrale Notre-Dame (Ganhi)', 'à la cathédrale Notre-Dame', -32, 2, 1.41], ['ganhi', 'Marché Ganhi', 'au marché Ganhi', 0, 10, Math.PI], ['akpakpa', 'Église Sainte-Trinité (Akpakpa)', 'à l’église Sainte-Trinité d’Akpakpa', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0], ['salle-jeux', 'Salle de jeux (jeux des créateurs)', 'à la salle de jeux de Haie Vive', 0, 0, 0, 'salle-jeux']]; // 7e : intérieur dont on arrive devant la porte
 const ACTION_DE = { porte: 0, action2: 1, action3: 2 }; // les touches des trois boutons d'action (E, R, F)
 const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
@@ -370,6 +373,7 @@ function surMessage(m) {
   if (!m || S.vus.has(m.cle)) return; S.vus.add(m.cle);
   if (MUETS.has(m.u)) return;
   if (m.appel) { surAppel(m); return; } // un appel (téléphoner) : jamais dans la discussion de la ville
+  if (m.vj) { surMessageJeu(m); return; } // un jeu à deux du Village de l'innovation (village-jeux.js) : non plus
   const moi = m.u === S.R?.id, texte = filtrer(nettoyer(m.txt, 140)), lieu = LIEUX.some(l => l[0] === m.lieu) ? m.lieu : null, st = stickerDe(m.st);
   const pos = Array.isArray(m.pos) && m.pos.length === 2 && m.pos.every(v => Number.isFinite(v) && Math.abs(v) < 80000) ? m.pos : null; // « Partager ma position »
   if (!texte) return;
@@ -561,6 +565,7 @@ function destination(L) {
   if (L[0].startsWith('lg:')) { const I = logement(L[0].slice(3)); if (!I) return null; const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; } // devant sa porte
   if (L[0] === 'station') { const st = stationLaPlusProche(S.x, S.z); return st && [st[0], st[1], 0]; }
   if (L[0] === 'caicai') return DEVANT_CAI; // devant le comptoir, face à la boutique
+  if (L[0] === 'village') return ENTREE_VILLAGE; // devant le portique d'entrée, tourné vers le Village (village-plan.js)
   if (L[0].startsWith('rc-')) return devantStation(L[0]); // un garde-vélo RideCorniche (caicai.js)
   if (L[0] === 'akpakpa') return RDV_AKPAKPA; // le parvis de l'église d'Akpakpa (caicai.js) : un rendez-vous des balades, pas un lieu de la carte
   if (L[0] === 'salle-jeux') return devantSalle(); // devant la porte, face à la vitrine (salle-jeux.js)
@@ -569,6 +574,9 @@ function destination(L) {
   if (I) { const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; }
   const [x, z] = toXZ(p.lat, p.lon); return [x + L[3], z + L[4], L[5]];
 }
+// ---------- Le Village de l'innovation : les bornes de L'Arcade (village-jeux.js) ----------
+const ARCADE = ESPACES_VILLAGE.find(E => E.n === '08');
+const actionsArcade = () => (VILLAGE_ACTIF && T.mode === 'pied' && !S.lieu && ARCADE && Math.hypot(S.x - ARCADE.x, S.z - ARCADE.z) < ARCADE.r ? [{ texte: 'Jouer à deux', f: ouvrirJeux }] : []);
 // ---------- RideCorniche (ex-Caï Caï Vélo) : louer au comptoir ----------
 function actionsCaiCai() {
   // En selle devant la boutique : « Course à vélo » (course-velo.js) ou « Partir en balade » (12/11).
@@ -624,7 +632,7 @@ function actionsBalade() {
  *  Seuls les lieux qu'aucune route ne relie (Ouidah, à 35 km) gardent l'ancien saut. */
 function aller(id, proposer = true) {
   if (id.startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === id); if (c) allerVers(c.x, c.z, c.cap, c.nom); return; } // chez soi, au travail : on ne l'annonce pas
-  const L = id.startsWith('lg:') ? LOGEMENTS[id.slice(3)] && lieuLogement(id.slice(3)) : LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || ((id === 'station' || id === 'maison' || id === 'caicai' || id === 'akpakpa' || id.startsWith('rc-') || id.startsWith('lg:')) && {}); if (!L || !p) return;
+  const L = id.startsWith('lg:') ? LOGEMENTS[id.slice(3)] && lieuLogement(id.slice(3)) : LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || ((id === 'station' || id === 'maison' || id === 'caicai' || id === 'akpakpa' || id === 'village' || id.startsWith('rc-') || id.startsWith('lg:')) && {}); if (!L || !p) return;
   if (T.mode === 'conduit') { const d = destination(L); if (d) gps(d[0], d[1], id === 'station' ? (stationLaPlusProche(S.x, S.z)?.[2] || L[1]) : L[1]); return; }
   if (T.mode === 'ami') { const A = S.autres.get(S.ami); S.canal?.dire({ n: S.nom, txt: `${A ? `${A.nom}, emmène-moi` : 'Emmène-moi'} ${L[2]} !`, lieu: id }); return; }
   if (T.mode !== 'pied') return;
@@ -650,7 +658,7 @@ function aller(id, proposer = true) {
 }
 /** Pose le joueur à l'arrivée d'un lieu : devant la porte, au bord de la pompe, sur le trottoir. */
 function poser(id, L, p, I) {
-  if (id === 'caicai' || id === 'salle-jeux' || id === 'akpakpa' || id.startsWith('rc-')) { const d = destination(L); if (!d) return false; S.x = d[0] + (Math.random() - .5) * 3; S.z = d[1]; S.cap = d[2]; }
+  if (id === 'caicai' || id === 'salle-jeux' || id === 'akpakpa' || id === 'village' || id.startsWith('rc-')) { const d = destination(L); if (!d) return false; S.x = d[0] + (Math.random() - .5) * 3; S.z = d[1]; S.cap = d[2]; }
   else if (id === 'station') { const d = destination(L); if (!d) return false; S.x = d[0] + 6; S.z = d[1]; S.cap = -Math.PI / 2; }
   else if (I) { const a = arriveeDehors(I); S.x = a.x + (Math.random() - .5) * 2; S.z = a.z; S.cap = a.cap + Math.PI; } // devant la porte, face à elle
   else { const [x, z] = toXZ(p.lat, p.lon); S.x = x + L[3] + (Math.random() - .5) * 4; S.z = z + L[4] + (Math.random() - .5) * 4; S.cap = L[5]; }
@@ -849,7 +857,10 @@ async function entrerSalon(code, { ami = '', nouveau = false } = {}) {
   camera.near = .3; camera.updateProjectionMatrix(); // caméra proche du personnage (comme dans Zém Run)
   // La partie commence chez soi, au lit (maison.js) — sauf si l'on vient retrouver quelqu'un : alors à côté de lui.
   const pres = A && rejoindre(A); S.aRejoint = !!pres;
-  if (!pres) { const maison = maisonActuelle(); if (maison) { dedans(maison); reveil(maison); } else aller('amazone', false); }
+  // Venu par le QR code du Village de l'innovation (?village) : la première entrée se fait à son portique, pas au lit.
+  const auVillage = !pres && VENIR.village && VILLAGE_ACTIF && !S.villageArrive;
+  if (auVillage) { S.villageArrive = true; poser('village', LIEUX.find(l => l[0] === 'village'), {}, null); }
+  else if (!pres) { const maison = maisonActuelle(); if (maison) { dedans(maison); reveil(maison); } else aller('amazone', false); }
   majListe(); rendreVie();
   const test = S.local ? ' (mode test : seuls les onglets de ce navigateur se voient)' : '';
   ligne(S.public
@@ -869,6 +880,7 @@ async function entrerSalon(code, { ami = '', nouveau = false } = {}) {
   entrerJournee(); // les trois missions du jour, la série, le coffre du dimanche (journee.js)
   entrerDeco(); // les objets de sa maison (deco.js)
   entrerTresor(); entrerEpargne(); entrerAdji(); // le trésor de la semaine (tresor.js), les intérêts de l'épargne (epargne.js), les défis d'adji (adji.js)
+  entrerVillage(); // le passeport du Village de l'innovation (village.js)
   setTimeout(() => { if (S.actif) verifierRecharges(); }, 5000); // une recharge payée pas encore créditée (recharge.js), après le bonjour du jour
   // Les danses (dix fichiers, 4,3 Mo) partaient à l'entrée, avant les monuments : en fond, après le reste. Danser, le concert
   // ou la fête de l'entreprise les demandent tout de suite (chargerDanses).
@@ -901,7 +913,7 @@ function quitter() {
   if (!S.actif) return;
   S.reprise = false; // pas avant que la prochaine entrée ait garé son monde (entrerSalon)
   lieuStats('carte');
-  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterJournee(); quitterDeco(); quitterAlbum(); quitterTresor(); quitterEpargne(); quitterAdji(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
+  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterJournee(); quitterDeco(); quitterAlbum(); quitterTresor(); quitterVillage(); quitterEpargne(); quitterAdji(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
   if (S.appel) { signalAppel('fin', S.appel.avec); finAppel(); } // on quitte la ville : l'appel s'arrête chez l'autre aussi
   S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
@@ -1050,7 +1062,7 @@ export function majSalon(dt) {
   const jc = j && T.mode === 'conduit' && !T.veh?.vol ? joyConduite(j) : null; // au doigt, sur la route : on pousse le rond vers où l'on veut aller
   const av = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (jc ? jc.av : j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
   const tour = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) + (jc ? jc.tour : j ? -j.x : 0) - (pad ? pad.lx : 0), -1, 1);
-  majVie(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
+  majVie(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majVillage(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
   for (const A of S.autres.values()) { const G = A.garee; if (G?.g.visible && (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < 1600) E.circulation.push({ px: G.x, pz: G.z, cap: G.cap, hl: G.D.long / 2, hw: G.D.larg / 2, v: 0, type: G.type }); } // vidée à chaque image (main.js)
   majGarees();
   majCourseVelo(dt, S); // la course à vélo de RideCorniche : ses cyclistes roulent, et deviennent des obstacles (course-velo.js)
@@ -1216,7 +1228,7 @@ export function majSalon(dt) {
     : occupe() ? actionsMaison() // couché : se lever ; sous la douche, aux fourneaux : arrêter
     : S.gradin ? [{ texte: 'Se lever', f: leverGradins }, ...actionsAppel()]
     : tir ? actionsLancePierre(S, T)
-    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCourseVelo(S), ...actionsSalle(S, T), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
+    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCourseVelo(S), ...actionsSalle(S, T), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsArcade(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
   // La touche de chaque bouton : celle de la manette si l'on joue avec (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
   // Une manette branchée mais posée affichait ses boutons même au clavier : c'est la dernière saisie qui compte (saisie.js).
   const touches = SAISIE.manette ? (SAISIE.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
@@ -1479,7 +1491,15 @@ function majFenetre() {
     $('#slInviteTitre').textContent = `${I.de || 'Un ami'} t’invite ${pub ? 'en ville' : 'dans son salon'}`;
     $('#slInviteSous').textContent = pub ? 'Tu arriveras juste à côté, et vous vous baladez ensemble.' : 'Une ville rien qu’à vous. Tu arriveras juste à côté.';
   }
-  $('#slCreerTxt').textContent = I ? `Rejoindre ${I.de || 'mon ami'}` : avecQui === 'amis' ? 'Entrer et inviter mes amis' : 'Entrer en ville';
+  // Venu par le QR code du Village : le même bandeau qu'une invitation, et l'on entre en ville (tous ensemble au Village).
+  const village = !I && VENIR.village && VILLAGE_ACTIF && !S.villageArrive;
+  $('#salon').classList.toggle('village', village);
+  if (village) {
+    $('#slInvite').hidden = false; $('#slInviteAv').textContent = '🎫';
+    $('#slInviteTitre').textContent = 'Bienvenue au Village de l’innovation';
+    $('#slInviteSous').textContent = 'Tu arrives à son entrée, devant le Palais des Congrès. Visite ses onze espaces pour remplir ton passeport.';
+  }
+  $('#slCreerTxt').textContent = I ? `Rejoindre ${I.de || 'mon ami'}` : village && avecQui === 'ville' ? 'Entrer au Village' : avecQui === 'amis' ? 'Entrer et inviter mes amis' : 'Entrer en ville';
   const aide = I ? '' : avecQui === 'amis' ? 'Tu entres, puis tu envoies le lien sur WhatsApp. Personne d’autre ne peut entrer.' : 'Une fois en ville, « Inviter » envoie un lien à tes amis : ils arrivent juste à côté de toi.';
   $('#slAide').textContent = aide; $('#slAide').hidden = !aide;
 }
@@ -1528,6 +1548,10 @@ export function initSalon(data) {
   const position = () => { const J = E.joueur; return J ? [J.x, J.z, J === S ? S.y : hauteurSol(J.x, J.z)] : null; }, libre = (x, z) => gene(x, z) <= 0;
   initAlbum({ ligne, position, salle: () => S.lieu?.id || '', libre }); // l'album de Cotonou (album.js)
   initTresor({ ligne, position, libre, aPied: () => T.mode === 'pied' && !S.lieu }); // le trésor de la semaine (tresor.js)
+  initJeuxVillage({ ligne, position, aPied: () => T.mode === 'pied' && !S.lieu, envoyer: m => S.canal?.dire({ n: S.nom, txt: '🎮', ...m }), direATous: t => S.canal?.dire({ n: S.nom, txt: t }), moi: () => S.R?.id || S.canal?.id || '', nom: () => S.nom,
+    autres: () => [...S.autres.values()].map(A => ({ id: A.id, nom: A.nom, e: A.etat })), annonce: (t, ms) => annonceVillage(t, ms),
+    poser: (x, z, cap) => { if (S.lieu) dehors(false); retirerRuban(T.gps?.m); T.gps = null; S.x = x; S.z = z; S.y = 0; S.cap = cap; S.saut = true; S.geste = 'idle'; } }); // les jeux à deux du Village (village-jeux.js)
+  initVillage({ ligne, position, dire: t => S.canal?.dire({ n: S.nom, txt: t }), aPied: () => T.mode === 'pied' && !S.lieu, autres: () => [...S.autres.values()].map(A => A.etat), aller: id => aller(id), nom: () => S.nom }); // le Village de l'innovation et son passeport (village.js)
   initEpargne({ ligne }); // l'argent mis de côté (epargne.js)
   initAdji({ ligne, autres: () => [...S.autres.values()].map(A => ({ id: A.id, nom: A.nom })) }); // l'adji, contre un joueur de la ville ou l'ordinateur (adji.js)
   initCarteSalon({ S, T, tracer: tracerVers, moyens: moyensVers, effacer: () => { retirerRuban(T.gps?.m); T.gps = null; }, partager: partagerPosition, peutPartager: () => !!S.canal, lieux: () => [ // la mini-carte et la grande carte (carte-salon.js) : les lieux, sa maison, ses commerces
@@ -1732,6 +1756,22 @@ export function initSalon(data) {
   // Lien d'invitation (?salon=CODE&ami=…&de=Aïcha) : la fenêtre s'ouvre sur « Aïcha t'invite », une fois la ville
   // prête ; il ne reste qu'à choisir son personnage. Les anciens liens (le code seul) marchent toujours.
   const q = new URLSearchParams(location.search), code = q.get('salon');
+  // Le QR code du stand au Village de l'innovation (?village) : la fenêtre s'ouvre dès la ville prête, et la maquette du
+  // Village se télécharge pendant qu'on choisit son prénom.
+  // Le bouton « Le Village de l'innovation » de l'accueil, ou son étiquette au-dessus de la ville (village.js).
+  document.addEventListener('kv:village', () => {
+    if (S.actif) { aller('village'); return; }
+    VENIR.village = true; S.villageArrive = false; prechargerVillage(); ouvrir(); choisirAvecQui('ville');
+  });
+  if (VENIR.village && VILLAGE_ACTIF && !code) {
+    prechargerVillage();
+    choisirAvecQui('ville');
+    const t = setInterval(() => {
+      if (!document.querySelector('#loader.done')) return;
+      if (document.getElementById('app')?.classList.contains('mode-accueil')) document.querySelector('#acPasser')?.click();
+      clearInterval(t); ouvrir(); choisirAvecQui('ville'); if (!coarse) $('#slNom').focus();
+    }, 300);
+  }
   if (code && /^[A-Za-z2-9]{6}$/.test(code)) {
     const ami = q.get('ami') || '';
     S.invitation = { code: code.toUpperCase(), ami: /^[\w-]{6,64}$/.test(ami) ? ami : '', de: nettoyer(q.get('de'), 16) };

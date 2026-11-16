@@ -1972,3 +1972,47 @@ button.ff-ligne:hover { border-color: var(--accent); }
 #app.salle-visite .jouer-flottants, #app.salle-visite .mini-carte, #app.salle-visite #labels, #app.salle-visite .side, #app.salle-visite .hud, #app.salle-visite .card, #app.salle-visite .dock { display: none; }
 .sj-visite b { font-size: 15px; white-space: nowrap; }
 @media (max-width: 420px) { .sj-visite b { display: none; } .sj-visite { padding-left: 8px; } }
+
+/* ---------- Le passeport du Village de l'innovation (village.js) ---------- */
+.vg-barre { position: relative; height: 30px; border-radius: 999px; background: var(--chip); border: 1px solid var(--line); overflow: hidden; }
+.vg-barre i { position: absolute; inset: 0 auto 0 0; width: var(--p, 0%); background: linear-gradient(90deg, #1a7d52, #2d9a66); border-radius: 999px; transition: width .4s; }
+.vg-barre span { position: relative; display: block; text-align: center; font: 700 13px/30px var(--font-body); color: var(--ink); mix-blend-mode: normal; }
+.vg-cases { display: grid; gap: 10px; }
+.vg-zone small { display: block; margin: 0 0 6px; font: 700 11px/1.2 var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--zc, var(--ink-2)); }
+.vg-creer { --zc: #a66042; } .vg-vivre { --zc: #536d56; } .vg-civique { --zc: #926c33; }
+.vg-zone ol { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.vg-zone li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; min-height: 44px; padding: 6px 10px; border-radius: var(--r-md); background: var(--chip); border: 1px dashed var(--line); }
+.vg-zone li b { font: 800 13px/1 var(--font-display); color: var(--zc); }
+.vg-zone li span { font-size: 13px; line-height: 1.25; }
+.vg-zone li i { font-style: normal; font-weight: 800; color: #fff; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; }
+.vg-zone li.fait { border-style: solid; border-color: color-mix(in srgb, var(--zc) 45%, transparent); background: color-mix(in srgb, var(--zc) 12%, var(--panel-solid)); }
+.vg-zone li.fait i { background: var(--zc); }
+.vg-fini { margin: 0; padding: 12px 14px; border-radius: var(--r-md); background: color-mix(in srgb, #f2b705 22%, var(--panel-solid)); border: 2px solid #d9a521; display: grid; gap: 2px; }
+.vg-fini b { font: 800 17px/1.25 var(--font-display); }
+.vg-fini span, .vg-chrono, .vg-ici { font-size: 13.5px; color: var(--ink-2); margin: 0; }
+.vg { display: grid; gap: 12px; }
+
+/* Le Village de l'innovation : le bouton de l'accueil, son étiquette dans la ville, les jeux à deux (village-jeux.js) */
+.ac-mode-village { grid-column: 1 / -1; border-color: #1f3f95; background: #eef2fb; }
+.ac-mode-village[hidden] { display: none; }
+.ac-village-ic { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #1f3f95; font-size: 22px; }
+.lbl-village .pill { font-weight: 800; }
+.vj { display: grid; gap: 12px; }
+.vj-score { margin: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 10px 12px; border-radius: var(--r-md); background: var(--chip); border: 1px solid var(--line); }
+.vj-score span:last-child { text-align: right; }
+.vj-score b { font: 800 18px/1 var(--font-display); margin-left: 4px; }
+.vj-score small { text-align: center; color: var(--ink-2); font-size: 12.5px; }
+.vj-question { margin: 0; font: 700 17px/1.35 var(--font-display); }
+.vj-choix { display: grid; gap: 8px; }
+.vj-choix button { min-height: 48px; padding: 10px 14px; border-radius: var(--r-md); border: 2px solid var(--line); background: var(--panel-solid); text-align: left; font: 650 15px/1.3 var(--font-body); cursor: pointer; }
+.vj-choix button:disabled { cursor: default; }
+.vj-choix button.moi { border-color: #1f3f95; background: #eef2fb; }
+.vj-choix button.bonne { border-color: #1f8a3a; background: color-mix(in srgb, #1f8a3a 14%, var(--panel-solid)); }
+.vj-choix button small { color: var(--ink-2); font-weight: 600; }
+.vj-attente { margin: 0; color: var(--ink-2); font-size: 13.5px; }
+.vj-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(300px, 100%); margin: 0 auto; }
+.vj-grille button { aspect-ratio: 1; border-radius: var(--r-md); border: 2px solid var(--line); background: #f6efe2; font-size: 38px; cursor: pointer; }
+.vj-grille button:disabled { cursor: default; }
+.vj-grille button.ligne { border-color: #d9a521; background: color-mix(in srgb, #f2b705 30%, var(--panel-solid)); }
+.vj-fin { margin: 0; padding: 12px 14px; border-radius: var(--r-md); font: 800 17px/1.3 var(--font-display); background: var(--chip); border: 2px solid var(--line); }
+.vj-fin.gagne, .vj-fin.forfait { background: color-mix(in srgb, #f2b705 22%, var(--panel-solid)); border-color: #d9a521; }

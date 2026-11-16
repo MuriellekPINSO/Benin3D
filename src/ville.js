@@ -11,6 +11,7 @@ import { COUCHES_SOL, U, flatMat, grainSol, scene } from './scene.js';
 import { rectSansConstruction } from './zones.js';
 import { croiseesLe, dansCroisees } from './chaussee.js';
 import { ajouterEau } from './eau.js';
+import { rueDuVillage } from './village-plan.js';
 
 // ---------- Surfaces ----------
 export const KIND_STYLE = [
@@ -411,7 +412,8 @@ export function buildRoads(R) {
     // dalle sombre aux flancs bruns posée en travers du carrefour de la Route des Pêches à Fiyégnon (« il y a un bug dans ce
     // carrefour », testeur, 04/11). 94 tronçons sur 122 sont dans ce cas (43 rues, 51 sentiers) ; ils deviennent des rues comme les autres.
     if (L.bridge) { let lon = 0; for (let j = 1; j < n; j++) lon += Math.hypot(pts[j][0] - pts[j - 1][0], pts[j][1] - pts[j - 1][1]); if (lon < 60) { L.bridge = false; L.dalot = true; nDalots++; } }
-    L.w = largeurRoute(L); roadLines.push(L);
+    // Pendant le Village de l'innovation, les rues qui passaient sous le parvis s'arrêtent devant (village-plan.js).
+    for (const M of rueDuVillage(L)) { M.w = largeurRoute(M); roadLines.push(M); }
   }
   const t0 = performance.now(), nAjoutes = anneauxManquants(), nEcartes = ecarterChaussees(), nRonds = goudronnerRondsPoints(), nRetenues = sansChevauchement(); // les anneaux d'abord, sur les bouts de rue d'origine : écartées, deux des six places n'étaient plus reconnues
   const order = roadLines.map((_, i) => i).sort((a, b) => ROAD_ORDER[roadLines[a].cls] - ROAD_ORDER[roadLines[b].cls]);

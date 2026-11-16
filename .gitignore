@@ -22,3 +22,6 @@ artefact/cotonou-3d.html
 .vercel/
 # Textures photographiques d'origine (Higgsfield, 4096 px) : `npm run textures` en tire public/textures/ia/, versionné.
 sources/textures-ia/
+
+# Maquette 3D du Village de l’innovation (site de Murielle sur CloudGrid, 5 Mo) : `npm run village` en tire public/modeles/village/, versionné.
+sources/village/

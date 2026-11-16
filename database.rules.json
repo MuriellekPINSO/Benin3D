@@ -117,6 +117,9 @@
         "tresor": {
           ".validate": "newData.isString() && newData.val().length <= 120"
         },
+        "village": {
+          ".validate": "newData.isString() && newData.val().length <= 200"
+        },
         "epargne": {
           ".validate": false
         },
@@ -174,6 +177,30 @@
           ".validate": "newData.hasChildren(['n', 'w', 't'])",
           "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
           "w": { ".validate": "newData.val() === 0 || newData.val() === 1" },
+          "t": { ".validate": "newData.val() === now" },
+          "$autre": { ".validate": false }
+        }
+      }
+    },
+    "zem_village_dep": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && newData.exists() && (!data.exists() || data.child('j').val() !== newData.child('j').val())",
+        ".validate": "newData.hasChildren(['t', 'j'])",
+        "t": { ".validate": "newData.val() === now" },
+        "j": { ".validate": "newData.isString() && newData.val().matches(/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/)" },
+        "$autre": { ".validate": false }
+      }
+    },
+    "zem_village": {
+      ".read": "auth != null",
+      "$jour": {
+        ".validate": "$jour.matches(/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/)",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['n', 'dep', 't']) && root.child('zem_village_dep').child($uid).child('t').val() === newData.child('dep').val() && root.child('zem_village_dep').child($uid).child('j').val() === $jour && now - newData.child('dep').val() >= 40000 && now - newData.child('dep').val() <= 43200000",
+          "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+          "dep": { ".validate": "newData.isNumber()" },
           "t": { ".validate": "newData.val() === now" },
           "$autre": { ".validate": false }
         }

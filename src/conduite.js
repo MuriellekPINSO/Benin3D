@@ -8,6 +8,7 @@ import { hauteurSol } from './sols.js';
 import { animerMoto } from './roues.js';
 import { dansTerrePlein } from './terre-pleins.js';
 import { dansPlace } from './zones.js';
+import { dansVillage } from './village-plan.js';
 import { chevauchement, dansCirculation } from './trafic.js';
 import { chevaucheTrafic } from './circulation.js';
 import { E } from './etat.js';
@@ -618,6 +619,7 @@ export function surRoute(x, z) {
   let ok = false;
   if (l) for (const n of l) { const o = n * 5; if (projeter(x, z, S[o], S[o + 1], S[o + 2], S[o + 3])[0] <= S[o + 4]) { ok = true; break; } }
   if (!ok && !dansPlace(x, z, true) && !surAnneau(x, z)) return false;
+  if (dansVillage(x, z, 1)) return false; // le Village de l'innovation est piéton (village-plan.js)
   return !dansBatiment(x, z) && !dansTerrePlein(x, z, 0, false) && !dansObstacleRue(x, z, .2); // ni bâtiment, ni terre-plein central, ni mur de parcelle
 }
 /** Hauteur sous les roues : le tablier d'un pont si l'on y est monté (par sa rampe), sinon le sol. */
@@ -723,7 +725,7 @@ export function degager(V) {
 // Au-delà, on peut encore s'approcher de la route : arrivé au bout en longeant la rue, on n'était plus bloqué que de face.
 // Ni dans la mer ni dans la lagune (posée sur la plage, elle roulait dans les vagues) ; si elle y est, elle peut en sortir.
 const horsRouteOk = (V, x, z) => horsMur(x, z) && dansArbre(x, z) <= 0 && dansFoule(x, z) <= 0 && (dansLEau(x, z, 0) <= 0 || dansLEau(x, z, 0) < dansLEau(V.x, V.z, 0)) && (Math.hypot(x - V.horsRoute.x, z - V.horsRoute.z) < 90 || bordRoute(x, z) < bordRoute(V.x, V.z) - 1e-3);
-const horsMur = (x, z, vole = false) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && (vole || hauteurSol(x, z) < .25); // ni sur des marches (sols.js) ; en vol, on passe au-dessus
+const horsMur = (x, z, vole = false) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .05) && (vole || (hauteurSol(x, z) < .25 && !dansVillage(x, z, 1))); // ni sur des marches (sols.js), ni dans le Village de l’innovation (piéton) ; en vol, on passe au-dessus
 // Les autres véhicules : toute la caisse compte, pas seulement l'avant — en tournant, l'arrière et les flancs entraient
 // dans les voitures arrêtées. Et si l'on est déjà dedans (posé sur une voiture, ou serré par elle), on peut toujours s'en
 // écarter : avant, tout mouvement était refusé tant qu'on la touchait, et la Roadster restait coincée entre deux voitures,

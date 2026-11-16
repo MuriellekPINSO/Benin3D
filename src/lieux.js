@@ -9,6 +9,7 @@ import { surChaussee } from './chaussee.js';
 import { GRANDES_AFFICHES, matAffiche } from './publicites.js';
 import { poserSol } from './sols.js';
 import { ajouterPlace } from './zones.js';
+import { ARBRES_VILLAGE, EMPRISE, VILLAGE_ACTIF, versVille } from './village-plan.js';
 import { photoPlusTard, plusTard } from './telechargements.js';
 import { chargeurGLB, reduireImage } from './textures.js';
 import { remplacerParVille, quandVille, instancesVille, echelleSol } from './ville-tripo.js';
@@ -541,23 +542,33 @@ export function palaisCongres(L) {
     const zn = Math.min(...all.map(p => p[1] - c[1]));
     for (let m = 0; m < 4; m++) K.boite(30 - m * 3, .3 * (m + 1), 2.2, '#e3ddd0', 0, .15 * (m + 1), zn - 1 - m * 2.2);
     poserSol(g, (lx, lz) => { for (let m = 0; m < 4; m++) if (Math.abs(lx) <= (30 - m * 3) / 2 && Math.abs(lz - (zn - 1 - m * 2.2)) <= 1.1) return .3 * (m + 1); return null; }, 60); // ses marches (sols.js)
-    chapiteau(0, zn - 16, 9, 14, Math.PI / 2);
-    for (let x = -60; x <= 60; x += 8) { K.cyl(.07, .1, 10, 8, '#f1efea', x, 5, zn - 26); }
-    K.sol(150, 30, K.tex('beton', 30, 6, '#cfcdc6'), 0, zn - 44, .07);
+    // Du 18 au 20 novembre 2026, le Village de l'innovation occupe le milieu du parking, du pied des marches jusque vers le
+    // boulevard (village-plan.js, village.js) : chapiteau, mâts, voitures, arbres et grille n'y sont pas ; ils restent sur
+    // les côtés (au-delà de 38 m de l'axe), et les zémidjans garés se rangent à l'ouest.
+    const V = VILLAGE_ACTIF, cote = x => !V || Math.abs(x) > 38;
+    if (!V) chapiteau(0, zn - 16, 9, 14, Math.PI / 2);
+    for (let x = -60; x <= 60; x += 8) if (cote(x)) K.cyl(.07, .1, 10, 8, '#f1efea', x, 5, zn - 26);
+    if (V) for (const sx of [-1, 1]) K.sol(37, 30, K.tex('beton', 7.4, 6, '#cfcdc6'), sx * 56.5, zn - 44, .07);
+    else K.sol(150, 30, K.tex('beton', 30, 6, '#cfcdc6'), 0, zn - 44, .07);
     const couleurs = ['#e8e8e4', '#9da3a6', '#1f2326', '#e2e2dc', '#7b2a2a', '#c9c9c4'];
-    for (let x = -70; x <= 70; x += 4.6) for (const dz of [-6, 6]) if (K.alea() < .7) voiture(x, zn - 44 + dz, couleurs[Math.floor(K.alea() * 6)], dz > 0 ? 0 : Math.PI);
-    for (let x = -64; x <= 64; x += 16) K.arbre(x, zn - 31, .55);
+    for (let x = -70; x <= 70; x += 4.6) for (const dz of [-6, 6]) if (K.alea() < .7 && cote(x)) voiture(x, zn - 44 + dz, couleurs[Math.floor(K.alea() * 6)], dz > 0 ? 0 : Math.PI);
+    for (let x = -64; x <= 64; x += 16) if (cote(x)) K.arbre(x, zn - 31, .55);
     // D'après les photos du parking (dossier espace) : grille grise, zémidjans garés, barrières
     // mobiles aux entrées, écran sur mât, bornes lumineuses, cocotiers.
     const zp = zn - 44, acier = K.mat('#68706e', { metal: .3, rugosite: .5 });
-    K.boite(150, .16, .16, acier, 0, 1.4, zp - 12); for (let x = -75; x <= 75; x += 1.5) K.boite(.075, 1.55, .075, acier, x, .78, zp - 12);
+    if (V) for (const sx of [-1, 1]) K.boite(36, .16, .16, acier, sx * 57, 1.4, zp - 12); else K.boite(150, .16, .16, acier, 0, 1.4, zp - 12);
+    for (let x = -75; x <= 75; x += 1.5) if (cote(x)) K.boite(.075, 1.55, .075, acier, x, .78, zp - 12);
     for (const [x, r] of [[-72, 0], [72, Math.PI]]) barrieres(x, zp - 13.5, r, 3);
-    for (let i = 0; i < 9; i++) { const z = K.boite(.6, 1, 1.8, ['#1f2326', '#c8382f', '#2f6fb0'][i % 3], -30 + i * 1.2, .55, zp + 13); z.rotation.y = .15; }
+    for (let i = 0; i < 9; i++) { const z = K.boite(.6, 1, 1.8, ['#1f2326', '#c8382f', '#2f6fb0'][i % 3], (V ? -61 : -30) + i * 1.2, .55, zp + 13); z.rotation.y = .15; }
     ecranPub(-78, zp, Math.PI / 2, 'PALAIS DES CONGRÈS', 'Conférences · Spectacles', '#5a4a8a');
-    for (let x = -70; x <= 70; x += 10) { K.cyl(.14, .17, .68, 8, '#555d59', x, .34, zn - 20); K.sphere(.13, K.mat('#fff0b5', { emissif: '#5a4a20' }), x, .75, zn - 20).castShadow = false; }
-    for (const x of [-48, -24, 24, 48]) K.cocotier(x, zp + 16, false);
+    for (let x = -70; x <= 70; x += 10) if (cote(x)) { K.cyl(.14, .17, .68, 8, '#555d59', x, .34, zn - 20); K.sphere(.13, K.mat('#fff0b5', { emissif: '#5a4a20' }), x, .75, zn - 20).castShadow = false; }
+    for (const x of [-48, -24, 24, 48]) if (cote(x)) K.cocotier(x, zp + 16, false);
+    // Les arbres du Village, aux places de ceux de la maquette (scripts/village.mjs les retire : trop lourds).
+    if (V) for (const [mx, mz] of ARBRES_VILLAGE) { const [x, z] = versVille(mx, mz); K.arbre(x - c[0], z - c[1], .55); }
   });
   bake(g);
+  // Sur la carte, le parvis du Village et non les allées du parking qu'il recouvre (zones.js).
+  if (VILLAGE_ACTIF) { const [x0, z0, x1, z1] = EMPRISE; ajouterPlace([[x0, z0], [x1, z0], [x1, z1], [x0, z1]]); }
 }
 // Tambour (d'après le drone, 2026) : tronc de cône blanc qui se resserre, coupé en biais vers l'entrée,
 // gros bourrelet autour de l'oculus, verrière intérieure, une seule frise de triangles (tata somba)
