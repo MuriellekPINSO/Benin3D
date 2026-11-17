@@ -1171,6 +1171,9 @@ button { font: inherit; color: inherit; }
 
 /* ---------- Fenêtre de choix (zém, menu du comptoir) ---------- */
 .choix[role="dialog"] { position: absolute; inset: 0; z-index: 35; display: grid; place-items: center; background: rgba(10, 12, 16, .45); padding: var(--gutter); }
+/* Un choix (une invitation à jouer au Village, « Quitter la partie ? ») passe devant une fiche ouverte : #vieFiche vient après
+   #choix dans la page et le cachait — le 17/11, « Accepter » restait sous le résultat de la partie précédente. */
+#choix[role="dialog"] { z-index: 36; }
 .ch-boite { box-sizing: border-box; width: min(420px, 100%); max-height: 80vh; overflow: auto; padding: 18px; border-radius: var(--r-lg); display: grid; gap: 10px; } /* sans border-box, les 18 px de marge débordaient de l'écran d'un téléphone */
 .ch-boite h3 { margin: 0; font: 800 20px/1.25 var(--font-display); }
 .ch-liste { display: grid; gap: 8px; }
@@ -2010,6 +2013,7 @@ button.ff-ligne:hover { border-color: var(--accent); }
 .vj-choix button.bonne { border-color: #1f8a3a; background: color-mix(in srgb, #1f8a3a 14%, var(--panel-solid)); }
 .vj-choix button small { color: var(--ink-2); font-weight: 600; }
 .vj-attente { margin: 0; color: var(--ink-2); font-size: 13.5px; }
+.vj-regle { margin: -4px 0 0; color: var(--ink-2); font-size: 13.5px; line-height: 1.4; }
 .vj-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(300px, 100%); margin: 0 auto; }
 .vj-grille button { aspect-ratio: 1; border-radius: var(--r-md); border: 2px solid var(--line); background: #f6efe2; font-size: 38px; cursor: pointer; }
 .vj-grille button:disabled { cursor: default; }

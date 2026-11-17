@@ -176,7 +176,7 @@ export function majVillage(dt) {
   let ici = -1;
   if (dedans) for (let k = 0; k < ESPACES.length; k++) { const E = ESPACES[k]; if (Math.hypot(x - E.x, z - E.z) < E.r) { ici = k; break; } }
   if (ici !== VG.ici && ici >= 0) {
-    const course = espaceCourse(ici); // une course au passeport à deux (village-jeux.js) : elle a son propre bandeau
+    const course = espaceCourse(ici); // une visite des stands à deux (village-jeux.js) : elle a son propre bandeau
     if (!(VG.s & (1 << ici))) tamponner(ici, course);
     else if (!course) annonce(`${ESPACES[ici].n} · ${ESPACES[ici].nom} · ${ZONES[ESPACES[ici].zone]}`, 2200);
   }
@@ -209,7 +209,7 @@ export async function ouvrirPasseport() {
     ${etat}<div class="vg-barre" style="--p:${Math.round(n / ESPACES.length * 100)}%"><i></i><span>${n} / ${ESPACES.length} tampons</span></div>
     <div class="vg-cases">${cases}</div>
     ${VG.actif ? `<p class="vg-ici">${ici > 1 ? `${ici} joueurs sont au Village en ce moment : salue-les !` : ici === 1 ? 'Tu es seul au Village pour l’instant : invite tes amis (« Inviter »).' : 'Personne de ta ville n’est au Village pour l’instant.'}</p>` : ''}
-    ${VG.actif ? '<p class="vg-ici">À deux : aux bornes de L’Arcade (08), défie un autre joueur au duel du savoir, aux cauris, à la course au passeport ou à l’adji.</p>' : ''}
+    ${VG.actif ? '<p class="vg-ici">À deux, dans le Village : aux bornes de L’Arcade (08) ou avec « Jouer à deux », défie un autre joueur au duel du savoir (dix questions), aux cauris, à la visite des stands ou à l’adji.</p>' : ''}
     <h4 class="tz-h">Les plus rapides aujourd’hui</h4><ol class="pm-liste" id="vgListe"><li class="pm-vide">Chargement…</li></ol>
     <div class="vf-pied"><span>${plein ? 'Un nouveau passeport demain matin.' : 'Les tampons arrivent quand tu entres dans un espace.'}</span>${aller}</div></div>`;
   el.hidden = false;

@@ -52,7 +52,7 @@ import { initRecharge, proposerRecharge, verifierRecharges } from './recharge.js
 import { plusTard } from './telechargements.js';
 import { annonce as annonceVillage, entrerVillage, initVillage, majVillage, prechargerVillage, quitterVillage } from './village.js';
 import { ENTREE_VILLAGE, ESPACES as ESPACES_VILLAGE, VENIR, VILLAGE_ACTIF } from './village-plan.js';
-import { initJeuxVillage, ouvrirJeux, surMessageJeu } from './village-jeux.js';
+import { initJeuxVillage, ouvrirJeux, quitterJeuxVillage, surMessageJeu } from './village-jeux.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
 // Jusqu'à 8 amis dans la même ville : chacun se promène à pied avec son personnage, voit les autres,
@@ -913,7 +913,7 @@ function quitter() {
   if (!S.actif) return;
   S.reprise = false; // pas avant que la prochaine entrée ait garé son monde (entrerSalon)
   lieuStats('carte');
-  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterJournee(); quitterDeco(); quitterAlbum(); quitterTresor(); quitterVillage(); quitterEpargne(); quitterAdji(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
+  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterJournee(); quitterDeco(); quitterAlbum(); quitterTresor(); quitterVillage(); quitterJeuxVillage(); quitterEpargne(); quitterAdji(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
   if (S.appel) { signalAppel('fin', S.appel.avec); finAppel(); } // on quitte la ville : l'appel s'arrête chez l'autre aussi
   S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
