@@ -45,6 +45,7 @@ import { initMode } from './mode.js';
 import { horsDeLaPiece } from './interieurs.js';
 import { ouvrirCompte, synchroniserAuDemarrage } from './compte.js';
 import { initSalon, majSalon, pieceDuSalon, salonActif } from './salon.js';
+import { VR, avantRenduVR, initCasque } from './casque-vr.js';
 import { chargerTokpa, chargerTrafic, chargerZems, prechargerZems } from './vehicules.js';
 import { demarrerTelechargements, plusTard } from './telechargements.js';
 import { demarrerStats } from './statistiques.js';
@@ -112,6 +113,7 @@ const erreursVues = new Set();
 let ecart = 16.7, precedent = 0, sauter = false;
 function loop(now) {
   requestAnimationFrame(loop);
+  if (VR.actif) return; // casque VR : c'est la boucle du casque qui dessine, à son rythme (casque-vr.js)
   if (E.pauseRendu) return; // un jeu web de la salle de jeux est ouvert par-dessus (salle-jeux.js) : la ville attend
   ecart += (Math.min(100, now - precedent) - ecart) * .1; precedent = now; // écart moyen entre deux appels
   if (ecart < 10 && (sauter = !sauter)) return;
@@ -143,7 +145,7 @@ function image(now) {
   scene.fog.near = Math.min(dist * 1.3 + 1800, 26000); scene.fog.far = Math.min(dist * 4.2 + 9000, 62000);
   // Téléphone, au ras du sol (à pied, en course, ou de près) : le brouillard se rapproche, 4 km au lieu de 9. Entre les
   // bâtiments, on ne voit guère plus loin, et ce qui est au-delà n'est plus dessiné (Danfo Run en montre bien moins).
-  if (LITE && dist < 200) { scene.fog.near = Math.min(scene.fog.near, 1400 + dist * 4); scene.fog.far = Math.min(scene.fog.far, 4000 + dist * 20); }
+  if ((LITE || VR.actif) && dist < 200) { scene.fog.near = Math.min(scene.fog.near, 1400 + dist * 4); scene.fog.far = Math.min(scene.fog.far, 4000 + dist * 20); } // dans le casque aussi : chaque image y est dessinée deux fois
   // À pied et en course, rien n'est dessiné au-delà du brouillard, où tout a déjà la couleur de l'horizon : depuis les rues de Cotonou,
   // les 30 000 pilotis de Ganvié et Ouidah passaient sinon par la carte graphique. Le ciel est ramené en deçà.
   const loin = salonActif() || JEU.actif ? Math.ceil(scene.fog.far / 500) * 500 : 130000; // à pied et en course
@@ -163,9 +165,10 @@ function image(now) {
   majFeuxVille(U.uTime.value, JEU.actif || reelle); // feux tricolores cachés en jeu (le jeu a les siens) et en Vue réelle seule
   majMultijoueur(dt);
   majPersonnages(dt);
+  if (VR.actif) avantRenduVR(dt); // le casque suit le joueur, les tableaux suivent la tête
   const hors = horsDeLaPiece(pieceDuSalon() || pieceVisitee(), camera.position), avant = hors.map(o => o.visible); // dans une pièce : la ville n'est pas dessinée
   for (const o of hors) o.visible = false;
-  if (SOIGNE.r && SOIGNE.voulu && !MR.actif) {
+  if (SOIGNE.r && SOIGNE.voulu && !MR.actif && !VR.actif) { // pas de rendu soigné dans le casque : trop lourd, et il ne sait pas dessiner deux yeux
     SOIGNE.r.rendre(moodCur.night || 0);
     SOIGNE.lent = dt > .045 ? SOIGNE.lent + dt : Math.max(0, SOIGNE.lent - dt);
     if (SOIGNE.hq && !SOIGNE.force) { SOIGNE.lentHQ = dt > .034 ? (SOIGNE.lentHQ || 0) + dt : Math.max(0, (SOIGNE.lentHQ || 0) - dt); if (SOIGNE.lentHQ > 4) { qualite(false); SOIGNE.lent = 0; console.info('haute qualité : l’ordinateur ne suit pas, qualité normale'); } }
@@ -234,7 +237,7 @@ async function main() {
   // Le vrai minibus des tokpa-tokpa (Tripo) remplace celui dessiné en code dans la circulation de la ville.
   if (TRIPO.info.tokpa) plusTard(() => chargerTokpa(urlTripo('tokpa'))).then(t => { if (t.geo && E.tokpas) { E.tokpas.geometry = t.geo; E.tokpas.material = t.mat; E.tokpas.castShadow = !LITE; } });
   buildZems(); zemsDetailles(); buildLamps(); buildLabels();
-  initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initCinema(); initBoutique(); initOffre(); initMode(); initSalon(data); initLeger();
+  initExplorer(); initJeu(data); initMultijoueur(); initEvenement(); initCinema(); initBoutique(); initOffre(); initMode(); initSalon(data); initLeger(); initCasque({ image });
   $('#togHQ')?.addEventListener('click', () => qualite(!SOIGNE.hq, true)); qualite(SOIGNE.hq);
   if (reduceMotion) finishRise();
   // Les routes, marquages, terre-pleins et surfaces sont posés à quelques centimètres du sol sans écrire leur profondeur.

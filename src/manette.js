@@ -9,6 +9,7 @@ import { changerMeteo } from './meteo.js';
 import { manetteSalon, salonActif } from './salon.js';
 import { manetteLancePierre, tirEnCours } from './lancepierre.js';
 import { SAISIE, saisieClavier, saisieManette } from './saisie.js';
+import { VR } from './casque-vr.js';
 
 // ---------- Manettes (Xbox, PlayStation, génériques), API Gamepad ----------
 // Reprise de 3D monde (Manette.ts) : lecture normalisée (PlayStation en mode brut
@@ -34,6 +35,7 @@ const zone = (v, s = .16) => { const a = Math.abs(v); return a <= s ? 0 : Math.s
 // en ✕ □ ○. On reconnaît Sony à son numéro de fabricant (054c) ou à son nom, jamais une manette qui se dit Xbox.
 const estPS = id => /054c|dualsense|dualshock|playstation|sony/i.test(id) || (/wireless controller/i.test(id) && !/xbox|045e/i.test(id));
 function manette() {
+  if (VR.actif) return VR.pad; // dans le casque : ses deux manettes, vues comme une seule (casque-vr.js)
   const l = navigator.getGamepads?.(); if (!l) return null;
   const ok = g => g && g.connected !== false && g.axes.length >= 2 && g.buttons.length >= 4;
   if (M.index !== null && ok(l[M.index])) return l[M.index];
@@ -59,7 +61,7 @@ const FAVORIS = '.jm-ligne, #jpReprendre, #jfRejouer, #slCreer, #vtCommencer, .v
 const CIBLES = 'button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), summary, a[href], [tabindex="0"]';
 // Visible pour de vrai : `offsetParent` vaut null pour un élément en position fixe (le menu ouvert), qu'on ne trouvait donc jamais.
 const vu = el => !!el && !el.hidden && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
-function panneauOuvert() { for (const s of PANNEAUX) { const el = $(s); if (vu(el)) return el; } return null; }
+export function panneauOuvert() { for (const s of PANNEAUX) { const el = $(s); if (vu(el)) return el; } return null; }
 const cibles = p => [...p.querySelectorAll(CIBLES)].filter(vu);
 const dedans = (p, a) => !!a && a !== p && p.contains(a);
 /** Le bouton utile par où commencer : pas la croix de fermeture, pas un champ de texte (il faudrait un clavier). */

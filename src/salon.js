@@ -85,6 +85,8 @@ const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', Ke
 
 const S = { orbite: 0, orbiteT: 0, actif: false, public: false, balade: null, local: false, vueReelle: false, nonLus: 0, pad: null, tangage: .4, vue: 0, lieu: null, y: 0, devant: null, canal: null, code: '', nom: '', modele: 't:top-f', moi: null, bulle: null, bulleFin: 0, x: 0, z: 0, cap: 0, anim: 'idle', geste: 'idle', gesteFin: 0, touches: new Set(), joy: null, glisse: null, envoi: 0, depuis: 0, dernier: '', dist: 7, saut: false, minDist: 20, bras: 1, autres: new Map(), vus: new Set() };
 export const salonActif = () => S.actif;
+/** Pour le casque VR (casque-vr.js) : le joueur, quand on est dans Vivre à Cotonou. */
+export const joueurSalon = () => (S.actif ? S : null);
 export const pieceDuSalon = () => S.actif ? S.lieu : null; // la pièce où l'on est (main.js n'y dessine que ses abords)
 const cible = new THREE.Vector3(), voulue = new THREE.Vector3();
 const r2 = v => Math.round(v * 100) / 100;

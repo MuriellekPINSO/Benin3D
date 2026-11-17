@@ -416,7 +416,10 @@
   "(CC BY 2.0), Toyota Land Cruiser": "(CC BY 2.0), Toyota Land Cruiser",
   ", Toyota Vitz": ", Toyota Vitz",
   ", Jetour X70": ", Jetour X70",
-  "(CC BY-SA 4.0 ; les modèles sont sous la même licence) · rues ©": "(CC BY-SA 4.0; the models are under the same licence) · streets ©"
+  "(CC BY-SA 4.0 ; les modèles sont sous la même licence) · rues ©": "(CC BY-SA 4.0; the models are under the same licence) · streets ©",
+  "Casque VR": "VR headset",
+  "Jouer avec un casque de réalité virtuelle": "Play with a virtual reality headset",
+  "Quitter le mode casque": "Exit headset mode"
  },
  "src/evenement.js": {
   "'Paiement annulé : rien n’a été prélevé.'": "'Payment cancelled: nothing was charged.'",
@@ -3957,5 +3960,11 @@
   " stands, toi ": " stands, you ",
   "'À toi de jouer<b id=\"vjTemps\"></b>'": "'Your turn<b id=\"vjTemps\"></b>'",
   "</b></span></p>\n      <p class=\"vf-intro\">Les stands qui te manquent : ": "</b></span></p>\n      <p class=\"vf-intro\">Stands you still need: "
+ },
+ "src/casque-vr.js": {
+  "'Le casque n’a pas pu démarrer. Réessaie dans le navigateur du casque.'": "'The headset could not start. Try again in the headset’s browser.'",
+  "'Casque VR (manettes Touch)'": "'VR headset (Touch controllers)'",
+  "'Stick gauche : marcher (à fond : courir) · stick droit : tourner'": "'Left stick: walk (all the way: run) · right stick: turn'",
+  "'A, X, B : les actions · Y : le menu · poignée gauche : aller à…'": "'A, X, B: actions · Y: menu · left grip: go to…'"
  }
 }
