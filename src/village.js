@@ -140,6 +140,8 @@ export function initVillage(ctx) {
   const b = $('#slVillageBtn'); if (!b) return;
   b.hidden = !VILLAGE_ACTIF;
   b.addEventListener('click', ouvrirPasseport);
+  // La même chose dans le menu (Start à la manette, Échap) : l'icône de la colonne de droite n'est pas atteignable à la manette.
+  const t = $('#slVillageTuile'); if (t) { t.hidden = !VILLAGE_ACTIF; t.addEventListener('click', ouvrirPasseport); }
   if (!VILLAGE_ACTIF) return;
   // « Village visible » (Murielle, 15/11) : pendant l'événement, la maquette se télécharge pour tout le monde, après le reste
   // (le plus proche d'abord : telechargements.js), et se voit aussi du ciel ; au-delà de 6 km, on ne la dessine plus.

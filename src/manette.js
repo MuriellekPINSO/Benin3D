@@ -28,7 +28,7 @@ import { SAISIE, saisieClavier, saisieManette } from './saisie.js';
 // gâchette droite plus ou moins enfoncée (ou A gardé) pour tendre l'élastique, la relâcher pour tirer ; B : annuler le
 // tir, Start : la pause.
 
-const M = { index: null, prec: [], dernier: null, lateral: 0, haut: false, roulement: 0, nom: '', sens: '', repete: 0 };
+const M = { index: null, prec: [], dernier: null, lateral: 0, haut: false, roulement: 0, nom: '', sens: '', repete: 0, auto: null, verif: 0 };
 const zone = (v, s = .16) => { const a = Math.abs(v); return a <= s ? 0 : Math.sign(v) * Math.min(1, (a - s) / (1 - s)); };
 // « Xbox Wireless Controller » contient « Wireless Controller », le nom de la manette PS4 : la manette Xbox s'affichait
 // en ✕ □ ○. On reconnaît Sony à son numéro de fabricant (054c) ou à son nom, jamais une manette qui se dit Xbox.
@@ -63,11 +63,15 @@ function panneauOuvert() { for (const s of PANNEAUX) { const el = $(s); if (vu(e
 const cibles = p => [...p.querySelectorAll(CIBLES)].filter(vu);
 const dedans = (p, a) => !!a && a !== p && p.contains(a);
 /** Le bouton utile par où commencer : pas la croix de fermeture, pas un champ de texte (il faudrait un clavier). */
+// Jamais un bouton marqué data-prudent (abandonner une partie, la quitter pour une autre) : en tapant A plusieurs fois
+// pendant le duel du Village, le focus tombait sur « Abandonner » une fois la réponse donnée (17/11).
 function prefere(p) {
   const f = [...p.querySelectorAll(FAVORIS)].find(b => vu(b) && !b.disabled); if (f) return f;
-  const l = cibles(p); return l.find(b => b.tagName !== 'INPUT' && !/fermer|annuler|close|-x\b/i.test(`${b.id} ${b.className}`)) || l[0] || null;
+  const l = cibles(p).filter(b => !b.closest('[data-prudent]')); return l.find(b => b.tagName !== 'INPUT' && !/fermer|annuler|close|-x\b/i.test(`${b.id} ${b.className}`)) || l[0] || null;
 }
-function focaliser(b, vibre = true) { if (!b) return; b.focus({ preventScroll: true }); b.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); if (vibre) vibrer('selection'); }
+// M.auto : le bouton où la manette a posé le focus d'elle-même (pas le joueur), à remplacer si le bouton utile n'apparaît
+// qu'après (« Commencer ma vie », caché pendant le tirage du départ : le focus restait sur « Tu as déjà joué ailleurs ? »).
+function focaliser(b, vibre = true) { if (!b) return; M.auto = vibre ? null : b; b.focus({ preventScroll: true }); b.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); if (vibre) vibrer('selection'); }
 /**
  * Le focus va dans le sens poussé : le bouton le plus proche de ce côté (d'un bord à l'autre), en pénalisant l'écart de
  * côté. Une grille (tuiles du menu, tenues, objets de la boutique) se parcourt comme on la voit ; avant, gauche et droite
@@ -109,6 +113,7 @@ export function majManette(dt) {
   const enfonce = g.buttons.map(b => b.pressed || b.value > .35), val = i => g.buttons[brut(i)]?.value ?? 0;
   const appuye = i => !!enfonce[brut(i)] && !M.prec[brut(i)];
   // Un bouton qu'on vient d'enfoncer ou un stick poussé : on joue à la manette, les invites montrent ses boutons.
+  const avant = SAISIE.manette;
   if (enfonce.some((v, i) => v && !M.prec[i]) || (g.mapping === 'standard' && [0, 1, 2, 3].some(i => Math.abs(g.axes[i] ?? 0) > .5))) saisieManette(ps);
   const ax = i => zone(g.axes[i] ?? 0);
   let lx = ax(0), ly = ax(1); if (!lx) lx = Number(enfonce[15]) - Number(enfonce[14]); if (!ly) ly = Number(enfonce[13]) - Number(enfonce[12]);
@@ -116,7 +121,11 @@ export function majManette(dt) {
   const p = panneauOuvert();
   if (p && !(JEU.actif && !JEU.pause && p.id !== 'jeuFin' && p.id !== 'boutique')) {
     // Fenêtre ouverte à la manette : le focus y est toujours, bien visible (une liste refaite le perdait).
-    if (SAISIE.manette && !dedans(p, document.activeElement)) focaliser(prefere(p), false);
+    // Le prénom a le focus (posé pour le clavier en ouvrant la fenêtre) : à la manette on n'y écrit pas, et A n'y faisait rien.
+    // Au premier bouton, le focus va au bouton utile (« Entrer au Village », 17/11).
+    const champ = /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || '') && !avant;
+    if (SAISIE.manette && (!dedans(p, document.activeElement) || champ)) focaliser(prefere(p), false);
+    else if (SAISIE.manette && M.auto && document.activeElement === M.auto && (M.verif = (M.verif || 0) - dt) <= 0) { M.verif = .25; const f = prefere(p); if (f && f !== M.auto) focaliser(f, false); }
     // Un pas par coup de croix ou de stick ; tenu, un pas toutes les 0,14 s après 0,4 s (la longue liste « Aller à »).
     const sens = Math.abs(lx) > Math.abs(ly) ? (lx > .6 ? [1, 0] : lx < -.6 ? [-1, 0] : null) : (ly > .6 ? [0, 1] : ly < -.6 ? [0, -1] : null), cle = sens ? sens.join() : '';
     if (cle !== M.sens) { M.sens = cle; M.repete = .4; if (sens) deplacerFocus(p, ...sens); }

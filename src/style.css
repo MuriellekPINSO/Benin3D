@@ -995,6 +995,11 @@ button { font: inherit; color: inherit; }
 .vh-tuile-vert i, .vh-tuile[aria-expanded="true"] i { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
 .vh-tuile-vert:hover:not(:disabled) i { background: var(--accent); }
 .vh-tuile:disabled { opacity: .45; cursor: default; }
+/* Le passeport du Village (18-30/11) : sur toute la largeur, en tête du menu. Son icône de la colonne de droite, la manette ne
+   l'atteignait pas (Murielle, 17/11 : « tous les boutons du Village accessibles à la manette ») ; Start l'ouvre ici. */
+.vh-tuile-village { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.vh-tuile-village i { width: 40px; height: 40px; background: #1f3f95; color: #fff; box-shadow: none; }
+.vh-tuile-village:hover:not(:disabled) i { background: #1f3f95; }
 .vh-tuile .sl-point { top: 2px; right: calc(50% - 34px); }
 .vh-tuile-touche { display: none; position: absolute; top: 2px; left: calc(50% - 38px); min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; place-items: center; background: var(--panel-solid); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); font: 800 10px/1 var(--font-body); }
 @media (pointer: fine) { .vh-tuile-touche:has(.tc:not(:empty)) { display: inline-grid; } } /* au clavier : V, 1-5 */

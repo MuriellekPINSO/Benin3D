@@ -485,10 +485,11 @@ export function choisir(titre, options, { annuler = 'Annuler', puis = null } = {
     const b = document.createElement('button'); b.type = 'button'; const t = document.createElement('b'); t.textContent = o.texte; b.append(t);
     if (o.couleur) { const p = document.createElement('i'); p.className = 'ch-pastille'; p.style.background = o.couleur; p.setAttribute('aria-hidden', 'true'); b.prepend(p); }
     if (o.sous) { const s = document.createElement('small'); s.textContent = o.sous; b.append(s); }
+    if (o.prudent) b.dataset.prudent = ''; // la manette ne s'y pose pas d'elle-même (manette.js prefere) : « Oui, je quitte la partie »
     b.disabled = !!o.desactive; b.addEventListener('click', () => { el.hidden = true; o.f(); }); l.append(b);
   }
   $('#chAnnuler').textContent = annuler; $('#chAnnuler').onclick = () => { el.hidden = true; puis?.(); };
-  el.hidden = false; l.querySelector('button:not(:disabled)')?.focus();
+  el.hidden = false; (l.querySelector('button:not(:disabled):not([data-prudent])') || $('#chAnnuler'))?.focus(); // pas sur « Oui, je quitte la partie »
 }
 
 // ---------- À chaque image ----------

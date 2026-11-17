@@ -156,7 +156,7 @@ export function quitterJeuxVillage() {
 function surFermeture() {
   const P = J.p;
   if (!P || P.etat !== 'en cours' || P.jeu === 'course' || !$('#vieFiche')?.hidden || !$('#vfContenu .vj')) return;
-  choisir(`Quitter la partie contre ${P.nomLui} ?`, [{ texte: 'Oui, je quitte la partie', sous: `${P.nomLui} gagne par forfait.`, f: abandonner }],
+  choisir(`Quitter la partie contre ${P.nomLui} ?`, [{ texte: 'Oui, je quitte la partie', sous: `${P.nomLui} gagne par forfait.`, prudent: true, f: abandonner }],
     { annuler: 'Non, je continue', puis: () => { if (J.p === P) afficher(); } });
 }
 /** Chaque seconde : l'autre est-il encore là, joue-t-il encore, le temps de la visite est-il fini ? */
@@ -192,7 +192,7 @@ export function surMessageJeu(m) {
     const occupe = partieEnCours() ? J.p : null, recu = Date.now();
     son('piece'); J.ctx.ligne(`🎮 ${nom} te propose « ${NOMS[m.jeu]} ».`);
     const texte = !occupe ? 'Accepter' : occupe.etat === 'attente' ? `Accepter (j’annule mon invitation à ${occupe.nomLui})` : `Accepter et quitter ma partie contre ${occupe.nomLui}`;
-    choisir(`${nom} te défie : ${NOMS[m.jeu]}`, [{ texte, sous: SOUS[m.jeu], f: () => accepter(m, nom, recu) }], { annuler: 'Refuser', puis: () => J.ctx.envoyer({ vj: partieEnCours() ? 'occupe' : 'non', id: m.id, pour: m.u }) });
+    choisir(`${nom} te défie : ${NOMS[m.jeu]}`, [{ texte, sous: SOUS[m.jeu], prudent: !!occupe, f: () => accepter(m, nom, recu) }], { annuler: 'Refuser', puis: () => J.ctx.envoyer({ vj: partieEnCours() ? 'occupe' : 'non', id: m.id, pour: m.u }) });
     return;
   }
   const P = J.p;
@@ -321,7 +321,7 @@ export function afficher() {
     corps = `<p class="vj-score"><span>Toi <b>${P.faits.size}/${ESPACES.length}</b></span><small>stands${P.etat === 'en cours' ? ` · <b id="vjTemps">${mmss(Math.min(reste, DUREE_VISITE))}</b>` : ''}</small><span>${esc(P.nomLui)} <b>${P.nLui}/${ESPACES.length}</b></span></p>
       <p class="vf-intro">Les stands qui te manquent : ${ESPACES.filter((E, k) => !P.faits.has(k)).map(E => esc(E.nom)).join(', ') || 'aucun'}.</p>`;
   }
-  const boutons = P.etat === 'fini' ? `<button type="button" class="vf-ouvrir" id="vjRejouer">Rejouer contre ${esc(P.nomLui)}</button>` : `<button type="button" class="vf-bouton" id="vjQuitter">${P.etat === 'attente' ? 'Annuler' : 'Abandonner'}</button>`;
+  const boutons = P.etat === 'fini' ? `<button type="button" class="vf-ouvrir" id="vjRejouer">Rejouer contre ${esc(P.nomLui)}</button>` : `<button type="button" class="vf-bouton" id="vjQuitter" data-prudent>${P.etat === 'attente' ? 'Annuler' : 'Abandonner'}</button>`;
   $('#vfContenu').innerHTML = `<div class="vj"><small class="vf-sur">Jouer à deux au Village</small><h3 id="vfTitre">${esc(NOMS[P.jeu])}</h3>${regle}${fin}${corps}<div class="vf-pied"><span>Contre ${esc(P.nomLui)}</span>${boutons}</div></div>`;
   el.hidden = false;
   for (const b of document.querySelectorAll('#vfContenu [data-r]')) b.addEventListener('click', () => quizRepondre(+b.dataset.r));
