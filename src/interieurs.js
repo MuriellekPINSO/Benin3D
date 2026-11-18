@@ -21,7 +21,13 @@ export const INTERIEURS = new Map();
  */
 export function declarerInterieur(id, def) { INTERIEURS.set(id, { id, ...def, centre: def.centre ?? [def.porte[0], LARGE], g: null, sieges: [], comptoirs: [], guichets: [], assis: [], obstacles: [] }); }
 /** L’intérieur dont on est devant la porte (moins de 7 m : le zém dépose à côté de sa moto, parfois à 5,6 m), sinon null. */
-export function porteProche(x, z) { let best = null, bd = 7; for (const I of INTERIEURS.values()) { const d = Math.hypot(x - I.porte[0], z - I.porte[1]); if (d < bd) { bd = d; best = I; } } return best; }
+// Une pièce peut avoir plusieurs portes dans la ville (`portes` : [{ porte, dehors }], la salle de jeux pendant le Village) :
+// la plus proche devient sa porte (I.porte, I.dehors), celle par où l'on entre — et donc par où l'on ressort (arriveeDehors).
+export function porteProche(x, z) {
+  let best = null, bd = 7;
+  for (const I of INTERIEURS.values()) for (const P of I.portes || [I]) { const d = Math.hypot(x - P.porte[0], z - P.porte[1]); if (d < bd) { bd = d; best = I; if (P !== I) { I.porte = P.porte; I.dehors = P.dehors; } } }
+  return best;
+}
 /** Étiquette jaune, de taille fixe à l'écran, vue à travers les murs : « Chez toi » sur la porte, douche, billetterie… */
 export function etiquette(texte) {
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const c = cv.getContext('2d');
@@ -70,7 +76,7 @@ export function allumerLesPortes() {
   PORTES.n = INTERIEURS.size;
   const pos = [];
   // I.porte est dans la ville, au niveau de la mer — pas dans la pièce, qui est bâtie à 40 m au large (ALT).
-  for (const I of INTERIEURS.values()) pos.push(I.porte[0], 2.5, I.porte[1]);
+  for (const I of INTERIEURS.values()) for (const P of I.portes || [I]) pos.push(P.porte[0], 2.5, P.porte[1]);
   const cv = document.createElement('canvas'); cv.width = cv.height = 64;
   const cx = cv.getContext('2d'), gr = cx.createRadialGradient(32, 32, 0, 32, 32, 32);
   gr.addColorStop(0, 'rgba(255,246,220,1)'); gr.addColorStop(.22, 'rgba(255,206,130,.9)'); gr.addColorStop(1, 'rgba(255,170,70,0)');

@@ -37,7 +37,7 @@ export function initTrajets(data, ctx) {
 }
 // Comment on nomme le véhicule : monter dans…, descendre de…
 const NOMS = { voiture: ['ta voiture', 'de la voiture'], moto: ['ta moto', 'de la moto'], velo: ['ton vélo', 'du vélo'], taxi: ['le taxi', 'du taxi'], tokpa: ['le tokpa-tokpa', 'du tokpa-tokpa'], citadine: ['ta citadine', 'de la citadine'], bolide: ['ton bolide', 'du bolide'], roadster: ['ta Roadster', 'de la Roadster'], jetour: ['ton Jetour', 'du Jetour'], berline: ['ta berline', 'de la berline'], supercar: ['ta supercar', 'de la supercar'], suv: ['ton SUV', 'du SUV'], pickup: ['ton pick-up', 'du pick-up'] };
-const nomDe = V => (V.travail && V.type === 'moto' ? ['la moto du patron', 'de la moto'] : NOMS[V.type] || NOMS.voiture);
+const nomDe = V => (V.vole ? (V.type === 'roadster' ? [`la Roadster de ${V.vole}`, `de la Roadster de ${V.vole}`] : [`la voiture de ${V.vole}`, `de la voiture de ${V.vole}`]) : V.travail && V.type === 'moto' ? ['la moto du patron', 'de la moto'] : NOMS[V.type] || NOMS.voiture);
 
 // Un point de route libre près de (x, z), pour garer un véhicule ou faire venir un zém.
 export function pointDeRoute(x, z, rMin = 0, rMax = 25) {
@@ -153,7 +153,7 @@ export function actions() {
     // après « Louer une moto » : tant qu'on n'avait pas brûlé 0,05 L (600 m à moto, 3 km en bolide), rien ne s'affichait,
     // sans un mot — « je n'arrive pas à faire le plein » (un joueur, 03/11). Plein ou presque : le pompiste complète pour
     // 0 F, et l'objectif comme la mission du jour comptent (faireLePlein, signal « plein »). Le vélo, lui, ne boit rien.
-    if (st && Math.abs(V.v) < .6 && R > 0) {
+    if (st && !V.vole && Math.abs(V.v) < .6 && R > 0) { // une voiture volée (village-gens.js) roule sans compter l'essence
       const prix = Math.ceil(manque * PRIX_LITRE / 25) * 25, un = Math.min(manque, 1), prixUn = Math.ceil(un * PRIX_LITRE / 25) * 25;
       if (manque <= .05) out.push({ texte: 'Faire le plein · réservoir déjà plein, 0 F', f: () => pleinOffert(st) });
       else if (D.argent >= prix) out.push({ texte: `Faire le plein · ${manque.toLocaleString('fr-FR')} L · ${fmt(prix)}`, f: () => plein(st, manque, prix) });
@@ -189,6 +189,20 @@ export function actions() {
   out.push(...actionsVol()); // billetterie, porte d'embarquement, monter dans l'avion
   out.push(...actionsNuit()); // après la remise des prix : aller voir le DJ ; devant sa scène : lancer le son
   return out;
+}
+
+// ---------- Voler une voiture au Village de l'innovation (village-gens.js) ----------
+/** On prend la voiture V, garée, son propriétaire à côté : on y monte comme dans la sienne. Son véhicule à soi rentre à la
+ *  maison, comme quand le patron confie le sien (metiers.js) ; il revient (garerSonVehicule) quand on lâche la voiture volée. */
+export function volerVehicule(V) {
+  if (T.mode !== 'pied' || T.trans || S.lieu || T.veh?.travail || enService()) return false;
+  if (T.veh && T.veh !== V) retirerVehicule(T.veh);
+  T.veh = V; monter(); return true;
+}
+/** La voiture volée retourne à son propriétaire (on l'a laissée loin, ou ramenée) ; son véhicule à soi revient. */
+export function lacherVehiculeVole() {
+  const V = T.veh; if (!V?.vole || T.mode !== 'pied' || T.trans) return false;
+  retirerVehicule(V); T.veh = null; garerSonVehicule(); return true;
 }
 
 // ---------- Monter, descendre ----------
@@ -515,7 +529,7 @@ export function majTrajets(dt, av, tour) {
   if (metier) return metier;
   if (T.mode === 'avion') { const suivi = majVol(dt); if (suivi) return suivi; } // en vol (à l'arrivée : on redescend à pied)
   if (T.mode === 'conduit') {
-    const V = T.veh, panne = !V.D.pedale && !(carburant() > 0); // un vélo ne tombe jamais en panne sèche
+    const V = T.veh, panne = !V.D.pedale && !V.vole && !(carburant() > 0); // un vélo ne tombe jamais en panne sèche, ni une voiture volée
     if (panne && !T.panneDite) { T.panneDite = true; ligne(V.vol ? 'Panne sèche en plein vol ! La Roadster descend se poser.' : 'Panne sèche ! Tu avances au pas : « Aller » → « Station-service la plus proche » pour le GPS.'); }
     if (panne && V.vol?.phase === 'croisiere' && performance.now() > (T.poseT || 0)) { T.poseT = performance.now() + 1000; atterrir(V); } // plus d'essence : elle va se poser sur la route la plus proche
     // Au doigt, la moto suit la rue (conduite.js). Le 04/11, ce commentaire avait avalé la suite de la ligne : plus de
@@ -525,7 +539,7 @@ export function majTrajets(dt, av, tour) {
     if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
     majBloque(V, av, dt);
     if (vol && !V.vol) { son('bosse'); if (!vol.court) ligne(vol.vers ? `Posée près de ${vol.vers}.` : vol.ici ? 'La Roadster est posée là où tu voulais.' : 'La Roadster est posée.'); } // un bond : pas de message à chaque saut
-    if (!V.D.pedale) { T.conso += (V.km - km0) / V.D.kmParLitre; if (T.conso > .01) { consommer(T.conso); T.conso = 0; } }
+    if (!V.D.pedale && !V.vole) { T.conso += (V.km - km0) / V.D.kmParLitre; if (T.conso > .01) { consommer(T.conso); T.conso = 0; } }
     if (!V.D.pedale) moteurMaj(Math.abs(V.v), true);
     S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; S.anim = 'assis';
     asseoirSur(S.moi, V, false); if (V.etiquette) V.etiquette.visible = false;

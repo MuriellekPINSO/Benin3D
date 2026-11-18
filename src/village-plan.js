@@ -46,6 +46,9 @@ export const ESPACES = [
 // L'arrivée : devant le portique d'entrée, côté boulevard, tourné vers le Village (vers le sud : cap 0).
 const [EX, EZ] = versVille(.4, 23.6);
 export const ENTREE_VILLAGE = [EX, EZ, 0];
+// La salle de jeux du Village (salle-jeux.js, 18/11) : sur le parking à l'est du Village, entre ses deux allées (x ≈ −1056,6 et
+// −1035,2), sa vitrine tournée vers l'ouest, à 1,5 m du bord de l'allée qui longe le Village. 16 m de façade, 11 m de fond.
+export const SALLE_VILLAGE = { x: -1046.9, z: 2290, rot: -Math.PI / 2 };
 
 // Les arbres de la maquette (coordonnées de la maquette) : scripts/village.mjs les retire, lieux.js plante ceux du jeu à leur
 // place. Les deux du fond (−34/+34, −58) touchaient les portiques latéraux : on ne les replante pas.

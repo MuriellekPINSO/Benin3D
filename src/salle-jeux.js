@@ -20,6 +20,7 @@ import { SALLE_JEUX } from './reperes.js';
 import { rueProche } from './ville-tripo.js';
 import { ajouterEmprise, ajouterZoneLibre } from './rue.js';
 import { plusTard } from './telechargements.js';
+import { SALLE_VILLAGE, VILLAGE_ACTIF } from './village-plan.js';
 import { INTERIEURS, cacherInterieurs, dansLaPiece, declarerInterieur, ouvrirInterieur } from './interieurs.js';
 import { CYBER, construireCyber } from './cyber-cafe.js';
 import { chargerPersonnages } from './personnages.js';
@@ -27,7 +28,7 @@ import { startFlight } from './interface.js';
 import { salonActif } from './salon.js';
 
 const API = `${import.meta.env.BASE_URL}api/jeux`;
-const S = { liste: null, groupe: null, affiches: [], el: null };
+const S = { liste: null, groupe: null, affiches: [], el: null }; // affiches : les quatre de chaque bâtiment
 const telephone = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 const compter = (id, quoi) => fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'compter', id, quoi }), keepalive: true }).catch(() => { });
 const imageJeu = (j, k = 'a') => `${API}?img=${encodeURIComponent(j.id)}&k=${k}&v=${j.v || 0}`;
@@ -56,14 +57,10 @@ function afficheVide(i) {
   g.fillStyle = 'rgba(255,255,255,.9)'; g.font = '700 26px system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('BIENTÔT', 96, 120); g.font = '500 18px system-ui, sans-serif'; g.fillText('ton jeu ici', 96, 150);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
-/** Pose le bâtiment (main.js, après la construction de la ville). */
-export function construireSalle() {
-  if (SECOURS) return;
-  const [cx, cz] = toXZ(...SALLE_JEUX.centre), rue = rueProche(cx, cz);
-  let dx = 1, dz = 0; if (rue) { const l = Math.hypot(rue[0] - cx, rue[1] - cz) || 1; dx = (rue[0] - cx) / l; dz = (rue[1] - cz) / l; }
-  const W = 16, D = 11, H = 7, recul = (rue ? rue[2] : 4) + 1.5 + D / 2; // la vitrine à 1,5 m du bord de la chaussée
-  const px = rue ? rue[0] - dx * recul : cx, pz = rue ? rue[1] - dz * recul : cz;
-  const g = new THREE.Group(); g.name = 'salle-de-jeux'; g.position.set(px, 0, pz); g.rotation.y = Math.atan2(dx, dz); // +z local = la façade
+/** Un bâtiment de la salle en (px, pz), sa façade (+z local) tournée vers `rot` ; ses quatre affiches vont dans S.affiches. */
+function batiment(px, pz, rot) {
+  const W = 16, D = 11, H = 7;
+  const g = new THREE.Group(); g.name = 'salle-de-jeux'; g.position.set(px, 0, pz); g.rotation.y = rot; // +z local = la façade
   const mur = new THREE.MeshLambertMaterial({ color: '#3b2d5c' });
   const ajout = (geo, mat, x, y, z, ombre = true) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = ombre && !LITE; m.receiveShadow = true; g.add(m); return m; };
   const crepi = new THREE.MeshLambertMaterial({ color: '#cfc6b8' });
@@ -75,36 +72,51 @@ export function construireSalle() {
   ajout(new THREE.PlaneGeometry(W - 1, 1.55), new THREE.MeshBasicMaterial({ map: enseigne() }), 0, 4.05, f, false); // enseigne : elle brille la nuit
   ajout(new THREE.BoxGeometry(7, .16, 1.7), new THREE.MeshLambertMaterial({ color: '#f2b705' }), 0, 3.2, D / 2 + .85); // auvent
   ajout(new THREE.BoxGeometry(W + .1, .14, .14), new THREE.MeshBasicMaterial({ color: '#ff3fb4' }), 0, H - .25, f + .05, false); // néon
-  S.affiches = [0, 1, 2, 3].map(i => {
-    const m = ajout(new THREE.PlaneGeometry(1.4, 1.85), new THREE.MeshBasicMaterial({ map: afficheVide(i) }), (i - 1.5) * 3.4, 5.85, f, false);
-    return m;
-  });
-  scene.add(g); S.groupe = g;
-  // Devant la porte, sur le trottoir, face à la vitrine (« Aller… » de Vivre à Cotonou, salon.js) : le regard 0 = vers le sud.
-  const fx = Math.sin(g.rotation.y), fz = Math.cos(g.rotation.y), porte = [px + fx * D / 2, pz + fz * D / 2];
-  S.devant = [porte[0] + fx * 3.5, porte[1] + fz * 3.5, g.rotation.y + Math.PI]; S.porte = porte;
+  S.affiches.push([0, 1, 2, 3].map(i => ajout(new THREE.PlaneGeometry(1.4, 1.85), new THREE.MeshBasicMaterial({ map: afficheVide(i) }), (i - 1.5) * 3.4, 5.85, f, false)));
+  scene.add(g);
+  // On ne la traverse pas, et rue.js ne pose pas de mur de parcelle devant sa vitrine.
+  const coin = (u, v) => [px + u * Math.cos(rot) + v * Math.sin(rot), pz - u * Math.sin(rot) + v * Math.cos(rot)];
+  ajouterEmprise([coin(-W / 2, -D / 2), coin(W / 2, -D / 2), coin(W / 2, D / 2), coin(-W / 2, D / 2)]);
+  const devant = [coin(-W / 2 - 2, -D / 2), coin(W / 2 + 2, -D / 2), coin(W / 2 + 2, D / 2 + 6), coin(-W / 2 - 2, D / 2 + 6)];
+  ajouterZoneLibre([Math.min(...devant.map(p => p[0])), Math.min(...devant.map(p => p[1])), Math.max(...devant.map(p => p[0])), Math.max(...devant.map(p => p[1]))]);
+  // La porte, sur la façade ; « devant » : sur le trottoir, face à la vitrine (« Aller… » de Vivre à Cotonou, salon.js).
+  const fx = Math.sin(rot), fz = Math.cos(rot), porte = [px + fx * D / 2, pz + fz * D / 2];
+  return { g, porte, devant: [porte[0] + fx * 3.5, porte[1] + fz * 3.5, rot + Math.PI], entree: [porte[0] + fx * 1.4, porte[1] + fz * 1.4], rot };
+}
+/** Pose le bâtiment (main.js, après la construction de la ville). */
+export function construireSalle() {
+  if (SECOURS) return;
+  const [cx, cz] = toXZ(...SALLE_JEUX.centre), rue = rueProche(cx, cz);
+  let dx = 1, dz = 0; if (rue) { const l = Math.hypot(rue[0] - cx, rue[1] - cz) || 1; dx = (rue[0] - cx) / l; dz = (rue[1] - cz) / l; }
+  const recul = (rue ? rue[2] : 4) + 1.5 + 11 / 2; // la vitrine à 1,5 m du bord de la chaussée
+  const px = rue ? rue[0] - dx * recul : cx, pz = rue ? rue[1] - dz * recul : cz;
+  const B = batiment(px, pz, Math.atan2(dx, dz)); S.groupe = B.g;
+  S.devant = B.devant; S.porte = B.porte;
   // Dedans : le cyber café (cyber-cafe.js), bâti à la première visite. Devant la porte, le salon propose « Entrer dans la salle de jeux ».
   declarerInterieur('salle-jeux', {
-    nom: 'la salle de jeux', porte: [porte[0] + fx * 1.4, porte[1] + fz * 1.4], dehors: g.rotation.y,
+    nom: 'la salle de jeux', porte: B.entree, dehors: B.rot,
     w: CYBER.W, d: CYBER.D, entree: [0, -CYBER.D / 2 + 1.5, 0], plafond: CYBER.H, lampe: 1.9, // murs sombres : une lampe plus forte
     bienvenue: 'Bienvenue au cyber de la salle de jeux ! Assieds-toi à un ordinateur libre (étiquette « Joue ici ») pour voir les jeux.',
     construire: I => { S.cyber = construireCyber(I); affichesDedans(); },
   });
-  // On ne la traverse pas, et rue.js ne pose pas de mur de parcelle devant sa vitrine.
-  const coin = (u, v) => [px + u * Math.cos(g.rotation.y) + v * Math.sin(g.rotation.y), pz - u * Math.sin(g.rotation.y) + v * Math.cos(g.rotation.y)];
-  ajouterEmprise([coin(-W / 2, -D / 2), coin(W / 2, -D / 2), coin(W / 2, D / 2), coin(-W / 2, D / 2)]);
-  const devant = [coin(-W / 2 - 2, -D / 2), coin(W / 2 + 2, -D / 2), coin(W / 2 + 2, D / 2 + 6), coin(-W / 2 - 2, D / 2 + 6)];
-  ajouterZoneLibre([Math.min(...devant.map(p => p[0])), Math.min(...devant.map(p => p[1])), Math.max(...devant.map(p => p[0])), Math.max(...devant.map(p => p[1]))]);
-  // Les affiches des derniers jeux, une fois la ville affichée.
+  // « Ramène la salle de jeux à côté du Village de l'innovation, et on entre dans la salle pour jouer aussi » (Murielle, 18/11) :
+  // pendant le Village, une deuxième salle sur le parking, à l'est du Village, sa vitrine tournée vers lui. Sa porte mène
+  // au même cyber (interieurs.js, `portes`) ; on ressort par la porte où l'on est entré. « Aller → Salle de jeux » y mène.
+  if (VILLAGE_ACTIF) {
+    const Bv = batiment(SALLE_VILLAGE.x, SALLE_VILLAGE.z, SALLE_VILLAGE.rot), I = INTERIEURS.get('salle-jeux');
+    I.portes = [{ porte: B.entree, dehors: B.rot }, { porte: Bv.entree, dehors: Bv.rot }];
+    S.devant = Bv.devant; S.porte = Bv.porte; S.entreeVillage = Bv.entree;
+  }
+  // Les affiches des derniers jeux, une fois la ville affichée (sur chaque salle).
   plusTard(() => lireListe().then(jeux => Promise.all(jeux.slice(0, 4).map((j, i) => new THREE.TextureLoader().loadAsync(imageJeu(j)).then(t => {
-    t.colorSpace = THREE.SRGBColorSpace; const m = S.affiches[i].material; m.map?.dispose(); m.map = t; m.needsUpdate = true;
+    t.colorSpace = THREE.SRGBColorSpace; for (const L of S.affiches) { const m = L[i].material; m.map?.dispose(); m.map = t; m.needsUpdate = true; }
   }))))).catch(() => { });
   return { x: px, z: pz };
 }
 
 /** Où « Aller… » dépose le joueur : [x, z, regard], devant la porte. */
 export const devantSalle = () => S.devant || null;
-/** Le joueur est-il devant la salle (à moins de 9 m de la porte) ? */
+/** Le joueur est-il devant la salle (à moins de 9 m de la porte) ? Pendant le Village : celle du Village. */
 export const presDeSalle = (x, z) => !!S.porte && Math.hypot(x - S.porte[0], z - S.porte[1]) < 9;
 
 // ---------- La salle : la liste des jeux, la fiche d'un jeu ----------
@@ -125,6 +137,7 @@ sur('keydown', e => { if (((S.el && !S.el.hidden) || S.jeu) && e.key !== 'Escape
 /** Ouvre la salle (bouton de la fiche du lieu, interface.js). */
 export async function ouvrirSalle() {
   const el = fenetre(); el.hidden = false;
+  el.querySelector('.sj-tete small').textContent = S.entreeVillage && INTERIEURS.get('salle-jeux')?.porte === S.entreeVillage ? 'Village de l’innovation' : 'Haie Vive'; // entré par la salle du Village
   corps().innerHTML = '<p class="sj-doux">Chargement des jeux…</p>';
   let jeux; try { jeux = await lireListe(); } catch { corps().innerHTML = '<p class="sj-doux">La salle ne répond pas. Vérifie ta connexion, puis réessaie.</p>'; return; }
   const invitation = '<p class="sj-invitation">Tu crées des jeux ? <a href="/createurs.html" target="_blank" rel="noopener">Mets le tien dans la salle</a>, web ou mobile. C’est gratuit.</p>';
