@@ -12,6 +12,7 @@ osm/
 sources/masques/
 sources/art/
 sources/tripo/
+sources/polyhaven/
 sources/personnages/
 # Visuels d'origine des annonceurs (formats variés) : `npm run pubs` en tire public/pubs/, versionné.
 sources/pubs/

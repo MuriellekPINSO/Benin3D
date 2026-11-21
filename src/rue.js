@@ -6,7 +6,7 @@ import { dansParc, rectSansConstruction, sansConstruction, zoneBoutique } from '
 import { ELARGIR, ilesDesRondsPoints, oceanRing, ROAD_W, roadLines } from './ville.js';
 import { profondeurEau } from './eau.js';
 import { texFacades } from './facades.js';
-import { texIA } from './textures-ia.js';
+import { HQ_PH, texHQ, texIA } from './textures-ia.js';
 import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
 import { MAX_DECOR, reduireImage } from './textures.js';
 import { preparerGeometries } from './memoire.js';
@@ -243,6 +243,25 @@ function matieres() {
     for (let r = 0; r < 8; r++) for (let k = -1; k < 5; k++) { c.fillStyle = ['#a3a49f', '#9a9b96', '#aeaea8', '#96978f'][Math.floor(rnd() * 4)]; c.fillRect(k * lx + (r % 2 ? lx / 2 : 0) + 1.5, r * ly + 1.5, lx - 3, ly - 3); }
     for (let i = 0; i < 1200; i++) { c.fillStyle = 'rgba(80,60,40,.12)'; c.fillRect(rnd() * w, rnd() * h, 2, 2); }
   }) });
+  // Haute qualité : les pavés autobloquants scannés (Poly Haven, concrete_pavers_03, 2 m de côté), couleur et relief,
+  // posés en coordonnées du monde ; au-delà de 200 m, le dessin d'avant (il ne scintille pas vu de loin).
+  if (HQ_PH) {
+    MAT.trottoir.onBeforeCompile = s => {
+      s.uniforms.uTrot = { value: texHQ('trottoir') }; s.uniforms.uTrotN = { value: texHQ('trottoir-n') };
+      s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vTrW;')
+        .replace('#include <project_vertex>', '#include <project_vertex>\nvTrW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTrW; uniform sampler2D uTrot, uTrotN;')
+        .replace('#include <map_fragment>', `#include <map_fragment>
+          float kTr = 1.0 - smoothstep(70.0, 200.0, length(vTrW - cameraPosition));
+          diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uTrot, vTrW.xz / 2.0).rgb, kTr);`)
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+          if (kTr > 0.0 && inverseTransformDirection(normal, viewMatrix).y > 0.9) { // le dessus des pavés seulement
+            vec2 nt = (texture2D(uTrotN, vTrW.xz / 2.0).xy * 2.0 - 1.0) * kTr; // u vers +x, v vers +z
+            normal = normalize((viewMatrix * vec4(normalize(vec3(nt.x, 1.0, nt.y)), 0.0)).xyz);
+          }`);
+    };
+    MAT.trottoir.customProgramCacheKey = () => 'trottoirPH';
+  }
   // Bordures peintes en noir et blanc, un mètre sur deux, comme le long des grands axes de Cotonou ; peinture usée.
   MAT.bordure = new THREE.MeshStandardMaterial({ roughness: .8, side: THREE.DoubleSide, map: toile(128, 16, (c, w, h) => {
     c.fillStyle = '#e9e6de'; c.fillRect(0, 0, w / 2, h); c.fillStyle = '#26282a'; c.fillRect(w / 2, 0, w / 2, h);

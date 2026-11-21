@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
 import { $, LITE, coarse, reduceMotion, toXZ, SECOURS } from './base.js';
-import { texIA } from './textures-ia.js';
+import { HQ_PH, PH, texHQ, texIA } from './textures-ia.js';
+// Le sable de Poly Haven (piétiné, traces de pas) mesure 2,1 m : on le pose à 2,4 m (l'ancien, à 3,5 m).
+const ECH_SOL = (PH ? 2.4 : 3.5).toFixed(1);
 
 // ---------- Scène ----------
 export const canvas = $('#scene');
@@ -106,22 +108,26 @@ const GLSL_BRUIT = `
 export function grainSol(mat, nu = false, bitume = false) {
   mat.onBeforeCompile = s => {
     s.uniforms.uSol = { value: texIA('sol') }; // le sable en photo, de près (textures-ia.js)
+    // Haute qualité : le goudron et le sable scannés de Poly Haven (détail du goudron, reliefs éclairés par le soleil).
+    if (HQ_PH) { s.uniforms.uBit = { value: texHQ('bitume') }; s.uniforms.uBitN = { value: texHQ('bitume-n') }; s.uniforms.uSolN = { value: texHQ('sol-n') }; }
     s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vSolW;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvSolW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vSolW; uniform sampler2D uSol;' + GLSL_BRUIT)
+    s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vSolW; uniform sampler2D uSol;' + (HQ_PH ? ' uniform sampler2D uBit, uBitN, uSolN;' : '') + GLSL_BRUIT)
       .replace('#include <color_fragment>', `#include <color_fragment>
+        float gGoud = 0.0, gSab = 0.0; // parts de goudron et de sable, reprises pour le relief (plus bas)
         {
           vec2 p = vSolW.xz; float d = length(vSolW - cameraPosition);
           float pres = 1.0 - smoothstep(80.0, 420.0, d), moyen = 1.0 - smoothstep(700.0, 3200.0, d);
           float n1 = bS(p * 0.06), n2 = bS(p * 0.45 + 3.7), n3 = bS(p * 3.1 + 9.1);
           vec3 c = diffuseColor.rgb * (0.9 + 0.16 * n1 + (0.1 * n2 - 0.05) * moyen + (0.1 * n3 - 0.05) * pres);
-          vec3 sable = (texture2D(uSol, p / 3.5).rgb * 2.0 - 1.0) * 1.8 + (texture2D(uSol, p / 21.0 + 0.37).rgb * 2.0 - 1.0) * 1.3; // grain et grandes plaques
+          vec3 sable = (texture2D(uSol, p / ${ECH_SOL}).rgb * 2.0 - 1.0) * 1.8 + (texture2D(uSol, p / 21.0 + 0.37).rgb * 2.0 - 1.0) * 1.3; // grain et grandes plaques
           ${nu ? `float lat = smoothstep(0.6, 0.82, bS(p * 0.018 + 7.0)) * (0.55 + 0.45 * n2);
           c = mix(c, c * vec3(1.1, 0.78, 0.62), lat * 0.6);
           float herbe = smoothstep(0.68, 0.86, bS(p * 0.03 + 31.0)) * smoothstep(0.35, 0.75, n2 + 0.3 * n3);
           c = mix(c, vec3(0.2, 0.26, 0.09) * (0.75 + 0.5 * n3), herbe * 0.55);` : ''}
           ${bitume ? `float lum = dot(diffuseColor.rgb, vec3(0.333)), goudron = (1.0 - smoothstep(0.12, 0.25, lum)) * pres;
           if (goudron > 0.0) {
+            ${HQ_PH ? 'c *= max(vec3(0.0), 1.0 + (texture2D(uBit, p / 3.0).rgb * 2.0 - 1.0) * 1.7 * goudron); gGoud = goudron;' : ''}
             vec2 cel = floor(p / 3.2), q = fract(p / 3.2); float h = hS(cel * 1.7 + 11.0);
             float plaque = step(0.93, h) * smoothstep(0.0, 0.06, min(min(q.x, 1.0 - q.x), min(q.y, 1.0 - q.y)));
             c *= mix(1.0, h > 0.965 ? 0.8 : 1.14, plaque * goudron);
@@ -138,9 +144,22 @@ export function grainSol(mat, nu = false, bitume = false) {
           float sab = pres * 0.9 * smoothstep(0.3, 0.42, dot(d0, vec3(0.333))) * smoothstep(1.04, 1.14, d0.r / max(d0.b, 0.01)) * smoothstep(-0.03, 0.01, d0.r - d0.g);
           ${nu ? 'sab *= 1.0 - herbe * 0.7;' : ''}
           diffuseColor.rgb = c * max(vec3(0.0), 1.0 + sable * sab);
+          gSab = sab;
+        }`);
+    if (HQ_PH) s.fragmentShader = s.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        { // Le relief des photos (gravillons du goudron, cailloux du sable), mêmes coordonnées que la couleur ; s'efface
+          // au loin. Repère : u vers +x, v vers +z, donc normale du monde = (x, z, y) de la normal map.
+          float kN = 1.0 - smoothstep(18.0, 140.0, length(vSolW - cameraPosition));
+          if (kN > 0.0 && gGoud + gSab > 0.0) {
+            vec2 p = vSolW.xz; vec3 nt = vec3(0.0);
+            ${bitume ? 'nt += (texture2D(uBitN, p / 3.0).xyz * 2.0 - 1.0) * gGoud * 1.1;' : ''}
+            nt += (texture2D(uSolN, p / ${ECH_SOL}).xyz * 2.0 - 1.0) * gSab * 0.8;
+            vec3 nw = normalize(vec3(nt.x * kN, 1.0, nt.y * kN));
+            normal = normalize((viewMatrix * vec4(nw, 0.0)).xyz);
+          }
         }`);
   };
-  mat.customProgramCacheKey = () => 'grainSol' + nu + bitume;
+  mat.customProgramCacheKey = () => 'grainSol' + nu + bitume + HQ_PH;
   return mat;
 }
 
