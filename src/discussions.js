@@ -30,7 +30,7 @@ const choisir = l => l[Math.floor(Math.random() * l.length)];
 // ---------- Bulles ----------
 const BULLES = [];
 /** Une bulle au-dessus de `ancre` (objet 3D ou point). `ton` : '', 'fort', 'fon' (avec traduction). */
-export function bulle(ancre, texte, { duree = 2.8, ton = '', trad = '' } = {}) {
+export function bulle(ancre, texte, { duree = 2.8, ton = '', trad = '', muet = false } = {}) { // muet : sans la voix (les prières en arabe, culte.js)
   const box = $('#jhBulles'); if (!box || !ancre) return null;
   for (const b of BULLES) if (b.ancre === ancre) b.t = Math.min(b.t, .12); // une seule bulle à la fois par personne
   const el = document.createElement('div'); el.className = `bulle ${ton}`;
@@ -40,7 +40,7 @@ export function bulle(ancre, texte, { duree = 2.8, ton = '', trad = '' } = {}) {
   // La voix : on n'entend que ceux qui sont près du zém ; le client et ceux qui crient passent devant les bavardages.
   DISC.parleur = { voix: voixDe(ancre), t: performance.now() };
   const ici = JEU.joueur ? JEU.joueur.getWorldPosition(vj) : camera.position;
-  if (tete(ancre, vb).distanceTo(ici) < 42) parler(texte, { ...DISC.parleur.voix, fort: ton === 'fort' }, ancre === DISC.client?.siege || ton === 'fort' ? 1 : 0);
+  if (!muet && tete(ancre, vb).distanceTo(ici) < 42) parler(texte, { ...DISC.parleur.voix, fort: ton === 'fort' }, ancre === DISC.client?.siege || ton === 'fort' ? 1 : 0);
   return b;
 }
 function tete(a, out) {

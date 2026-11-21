@@ -12,6 +12,7 @@ import { scene } from './scene.js';
 import { porterCasque } from './casque.js';
 import { VIE, carburant, consommer, depenser, faireLePlein, manger, reservoir, sauverVie } from './vie.js';
 import { actionsNuit, arreterNuit, initNuit, majNuit } from './nuit.js';
+import { majCulte } from './culte.js';
 import { actionsVol, arreterVol, initVol, majAeroports, majVol } from './vol.js';
 import { actionsMetier, chocMetier, enService, initMetiers, majMetiers, quitterMetiers } from './metiers.js';
 import { arreterCourseVelo } from './course-velo.js';
@@ -512,7 +513,7 @@ export function choisir(titre, options, { annuler = 'Annuler', puis = null } = {
  * caméra { x, y, z, cap, dist, haut }.
  */
 export function majTrajets(dt, av, tour) {
-  majStations(S.x, S.z); majZem(dt); majRepas(dt); majAeroports(); majNuit(dt); // La Nuit Kutɔnu Vibes : la remise des prix au Dôme, le DJ de l'Amazone (nuit.js)
+  majStations(S.x, S.z); majZem(dt); majRepas(dt); majAeroports(); majNuit(dt); majCulte(dt); // la messe à la cathédrale, la prière à Zongo (culte.js) ; La Nuit Kutɔnu Vibes : la remise des prix au Dôme, le DJ de l'Amazone (nuit.js)
   const metier = majMetiers(dt); // apprenti de tokpa-tokpa : la caméra suit le minibus
   if (T.plat && !T.repas && S.anim === 'assis') { // l'assiette arrive alors qu'on est déjà assis (à une table, ou sur son tabouret dans la rue)
     const c = S.lieu ? siegeProche(S.lieu, S.x, S.z) : S.tabouret && { x: S.tabouret.x, z: S.tabouret.z, cap: S.cap };

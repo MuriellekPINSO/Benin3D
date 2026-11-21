@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { LITE, hash, toXZ } from './base.js';
 import { scene } from './scene.js';
-import { K, bake, centroide, detailsProches, grandPanneau, groupeLieu, local, mursPoly, obb, panneauTexte, semer, solPoly, voiture } from './lieux.js';
+import { declarerCathedrale, declarerMosquee } from './culte.js';
+import { K, PORTES_CULTE, bake, centroide, detailsProches, grandPanneau, groupeLieu, local, mursPoly, obb, panneauTexte, semer, solPoly, voiture } from './lieux.js';
 import { construireLieuxMarina } from './lieux-marina.js';
 import { GRANDES_AFFICHES } from './publicites.js';
 import { MUR, poserSol } from './sols.js';
@@ -419,6 +420,15 @@ function mosqueeZongo(ring) {
     let best = null, bl = 0;
     for (let i = 0; i < loc.length; i++) { const a = loc[i], b = loc[(i + 1) % loc.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L > bl) { bl = L; best = [a, b]; } }
     const [a, b] = best, ux = (b[0] - a[0]) / bl, uz = (b[1] - a[1]) / bl;
+    // La porte (culte.js) : au milieu du grand côté, entre les deux minarets, du côté du dehors.
+    { const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, s = (uz * mx - ux * mz) > 0 ? 1 : -1, nx = uz * s, nz = -ux * s;
+      porteZongo = { porte: [c[0] + mx + nx * 2.2, c[1] + mz + nz * 2.2], dehors: Math.atan2(nx, nz) };
+      // Le grand portail vert, en arc, cerclé d'or, au milieu de la façade.
+      const r = Math.atan2(nx, nz), vertP = K.mat('#1f5e46', { rugosite: .5 }), orP = K.mat('#d9b44a', { metal: .6, rugosite: .35 });
+      K.boite(2.6, 3.2, .16, vertP, mx + nx * .1, 1.6, mz + nz * .1).rotation.y = r;
+      K.boite(2.9, .18, .2, orP, mx + nx * .14, 3.3, mz + nz * .14).rotation.y = r;
+      for (const sg of [-1, 1]) K.boite(.16, 3.3, .2, orP, mx + nx * .14 + ux * sg * 1.38, 1.65, mz + nz * .14 + uz * sg * 1.38).rotation.y = r;
+      const arcP = K.maillage(new THREE.CircleGeometry(1.3, 20, 0, Math.PI), vertP, mx + nx * .1, 3.3, mz + nz * .1); arcP.rotation.y = r; }
     for (const f of [.3, .7]) {
       const x = a[0] + ux * bl * f, z = a[1] + uz * bl * f, blanc = K.mat('#f4f2ec'), vert = K.mat('#5a6f9a', { rugosite: .45 });
       K.cyl(1.7, 1.9, 30, 8, blanc, x, 15, z);
@@ -431,7 +441,9 @@ function mosqueeZongo(ring) {
     K.cyl(.06, .06, 2.4, 6, '#d9b44a', 0, 16.6, 0); K.maillage(new THREE.TorusGeometry(.42, .07, 6, 16, Math.PI * 1.45), K.mat('#d9b44a'), 0, 17.6, 0).rotation.z = -.4;
   });
   bake(g);
+  if (porteZongo) declarerMosquee(porteZongo.porte, porteZongo.dehors);
 }
+let porteZongo = null;
 
 // ---------- Cimetière : tombes blanches serrées ----------
 function tombes(arr) {
@@ -478,6 +490,7 @@ export function construireLieuxVideos(data) {
   marcheGanhi();
   placeMartyrs();
   if (D.zongo) mosqueeZongo(D.zongo);
+  if (PORTES_CULTE.cathedrale) declarerCathedrale(PORTES_CULTE.cathedrale.porte, PORTES_CULTE.cathedrale.dehors);
   // Grand bâtiment du marché Dantokpa : modèle Tripo (photo jbdodane, CC BY 2.0) posé sur l'emprise OSM.
   if (D.dantokpaHall && tripoDispo('dantokpa')) { const o = obb(D.dantokpaHall); const g = groupeLieu('dantokpa-hall', o.cx, o.cz, o.L >= o.W ? o.ang : o.ang + Math.PI / 2); poserTripo('dantokpa', g, { largeur: Math.max(o.L, o.W) + 4 }); }
   if (D.moov) siegeMoov(D.moov);

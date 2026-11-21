@@ -246,7 +246,9 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
   g.userData = {
     tete: E.tete, main: E.main, femme: M.femme, graine: i, modele: id, haut: 1.15, jouer, peut: nom => !!(actions[nom] || M.clips[nom]), // peut('course') : seuls les modèles des joueurs savent courir
     assise: assise && M.assis?.pieds ? { fesses: M.assis.fesses * ech, pieds: M.assis.pieds * ech, dos: M.assis.dos * ech } : null, // sous le bassin, en mètres (poserAssis)
-    maj: dt => { mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); else if (E.oreille && E.courante !== 'telephone') poserOreille(E); suivre(E); },
+    maj: dt => { mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); else if (E.culte) poserCulte(E); else if (E.oreille && E.courante !== 'telephone') poserOreille(E); suivre(E); },
+    // Messe et prière (culte.js) : 'debout', 'qiyam', 'ruku', 'sujud', 'jalsa', 'orant', 'mains-jointes' ; null rend l'animation.
+    culte: pose => { if (!pose) { E.culte = null; return; } const t = performance.now() / 1000; if (!E.culte) E.culte = { de: pose, vers: pose, t0: t }; else if (E.culte.vers !== pose) E.culte = { de: E.culte.vers, vers: pose, t0: t }; },
     oreille: on => { E.oreille = !!on; }, // au téléphone, debout : la main à l'oreille, le téléphone dedans (poserOreille)
     // null rend le personnage à son animation.
     velo: v => { E.velo = v; }, // { a, bb, r, ecart, guidon } : à vélo (trajets.js, veloSous) ; 'moto' : les pieds sur les cale-pieds ; { voiture, … } : assis en voiture ; null : rien
@@ -256,6 +258,7 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
       else if (parle) jouer(Math.sin(t * .37 + E.ph) > .75 && actions.rire ? 'rire' : 'parle');
       else if (E.courante !== 'marche') jouer(repos);
     },
+    habiller: f => { const a = E.habit; E.habit = a ? (E2, os) => { a(E2, os); f(E2, os); } : f; }, // f(E, os) après chaque pose de culte : poser l'aube, la chasuble (culte.js)
     coiffer: objet => { E.tete.add(objet); objet.position.set(0, -.15, -.01); objet.scale.setScalar(1.08); },
     liberer: () => { P.actifs.delete(E); mixer.stopAllAction(); mixer.uncacheRoot(corps); },
   };
@@ -388,6 +391,95 @@ function poserOreille(E) {
   vPole.copy(vCote).multiplyScalar(s * .6).addScaledVector(vHaut, -.8).addScaledVector(vAv, .1);
   membre(bras, os.R_Forearm, main, iC.clone(), vPole);
 }
+// ---------- La messe et la prière (culte.js) ----------
+// Il n'y a pas d'animation pour lever les mains à l'autel, s'incliner, se prosterner ou s'asseoir sur les talons : comme
+// à vélo, on repose les os par-dessus l'animation « idle », à chaque image, après le mixer. Une pose est un jeu de buts
+// dans le repère du personnage (f vers l'avant, u vers le haut, r vers sa droite, en mètres) : le bassin, la direction
+// du buste et de la nuque, les chevilles, les mains, et de quel côté plient genoux et coudes. D'une pose à l'autre, on
+// glisse d'un jeu de buts à l'autre en 0,9 s (E.culte = { de, vers, t0 }) : on se penche, on descend, on se relève.
+const OS_CULTE = ['Hip', 'Waist', 'Spine01', 'Spine02', 'NeckTwist01', 'L_Thigh', 'R_Thigh', 'L_Calf', 'R_Calf', 'L_Foot', 'R_Foot', 'L_Upperarm', 'R_Upperarm', 'L_Forearm', 'R_Forearm', 'L_Hand', 'R_Hand'];
+const cV = Array.from({ length: 12 }, () => new THREE.Vector3());
+/** Comme viser(), mais en partant de l'orientation que l'animation a donnée à l'os : on le tourne du plus court chemin vers
+ *  `but` sans perdre sa torsion. viser() repart de l'os au repos ; pour le buste et la nuque, ce plus court chemin pouvait
+ *  passer par un demi-tour autour de l'os : pieds vers l'avant, buste et tête vers l'arrière (le prêtre tournait le dos). */
+const qD = new THREE.Quaternion(), vCur = new THREE.Vector3();
+function viserDoux(o, x, y, z) {
+  if (!o) return;
+  const enfant = o.userData.suiteVelo ??= o.children.filter(c => c.isBone).sort((m, n) => (/Twist/i.test(m.name) - /Twist/i.test(n.name)) || n.position.length() - m.position.length())[0];
+  if (!enfant) return;
+  const repos = o.userData.reposVelo ||= enfant.position.clone().normalize();
+  o.parent.getWorldQuaternion(qTmp).invert();
+  vBut.set(x, y, z).normalize().applyQuaternion(qTmp);
+  vCur.copy(repos).applyQuaternion(o.quaternion);
+  qD.setFromUnitVectors(vCur, vBut); o.quaternion.premultiply(qD);
+}
+function mesurerCulte(E, os) { // une fois, dans la pose d'attente : longueurs des jambes, hauteurs du bassin et des épaules
+  E.g.updateMatrixWorld(true); E.g.getWorldPosition(vRacine);
+  const p = n => os[n].getWorldPosition(new THREE.Vector3());
+  const hip = p('Hip'), th = p('L_Thigh').add(p('R_Thigh')).multiplyScalar(.5), ca = p('L_Calf'), fo = p('L_Foot'), sh = p('L_Upperarm');
+  return { h: hip.y - vRacine.y, decal: hip.y - th.y, l1: p('L_Thigh').distanceTo(ca), l2: ca.distanceTo(fo), s: sh.y - vRacine.y };
+}
+/** Les buts d'une pose, dans le repère du personnage : { hip:[f,u], buste:[f,u], nuque:[f,u], ch:[f,u,r], genou:[f,u], pied:[f,u], main:[f,u,r]|'genou', coude:[f,u,r] }. */
+function butsCulte(nom, M) {
+  // ch 'sous' : chaque cheville juste sous sa hanche, un peu plus bas que la jambe tendue — l'IK la garde droite (les genoux pliaient).
+  const debout = { hip: [0, M.h], buste: [0, 1], nuque: [0, 1], ch: 'sous', genou: [1, 0], pied: [1, -.25], main: null, coude: [-.2, -1, .8] };
+  switch (nom) {
+    case 'qiyam': return { ...debout, main: [[.21, M.s - .3, -.05], [.24, M.s - .28, .03]] }; // debout, la main droite sur la gauche, sur la poitrine
+    case 'mains-jointes': return { ...debout, main: [[.28, M.s - .2, -.015], [.28, M.s - .2, .015]] };
+    case 'orant': return { ...debout, main: [[.3, M.s + .04, -.42], [.3, M.s + .04, .42]], coude: [-.3, -1, .4] }; // le prêtre, les mains levées et ouvertes
+    case 'ruku': return { ...debout, hip: [-.13, M.h - .03], buste: [1, -.1], nuque: [1, -.3], ch: [.02, .07, .1], main: 'genou', coude: [-.3, .2, 1] }; // incliné, le dos droit, les mains sur les genoux
+    case 'sujud': { const hy = .07 + M.l1 * .93 + M.decal; // prosterné : genoux, mains et front au sol
+      return { hip: [-.1, hy], buste: [.8, -.6], nuque: [.45, -.89], ch: [-M.l2 * .97, .07, .11], genou: [1, -.5], pied: [-.25, -1], main: [[.56, .04, -.2], [.56, .04, .2]], coude: [0, .7, .7] }; }
+    case 'jalsa': { const kf = .3, af = kf - M.l2 * .95, hf = af + .07, ty = .07 + Math.sqrt(Math.max(.01, M.l1 * M.l1 - (kf - hf) ** 2)); // assis sur les talons
+      return { hip: [hf, ty + M.decal], buste: [.06, 1], nuque: [.12, 1], ch: [af, .07, .1], genou: [1, .4], pied: [-1, -.15], main: [[.2, ty + .07, -.13], [.2, ty + .07, .13]], coude: [-.3, -.4, 1] }; }
+    default: return debout;
+  }
+}
+function poserCulte(E) {
+  const os = E.osCulte ||= Object.fromEntries(OS_CULTE.map(n => [n, E.corps.getObjectByName(n)]));
+  if (!os.Hip || !os.L_Thigh || !os.L_Calf) return;
+  const M = E.mesureCulte ||= mesurerCulte(E, os);
+  const C = E.culte, t = Math.min(1, (performance.now() / 1000 - C.t0) / .9), k = t * t * (3 - 2 * t);
+  const A = butsCulte(C.de, M), B = butsCulte(C.vers, M);
+  E.g.updateMatrixWorld(true); E.g.getWorldPosition(vRacine); E.g.getWorldDirection(vAv); vCote.crossVectors(vAv, vHaut).normalize();
+  const pt = (f, u, r, out) => out.copy(vRacine).addScaledVector(vAv, f).addScaledVector(vHaut, u).addScaledVector(vCote, r);
+  const dir = (f, u, r, out) => out.set(0, 0, 0).addScaledVector(vAv, f).addScaledVector(vHaut, u).addScaledVector(vCote, r);
+  const mix = (a, b, out) => out.lerpVectors(a, b, k);
+  // Le bassin.
+  mix(pt(A.hip[0], A.hip[1], 0, cV[0]), pt(B.hip[0], B.hip[1], 0, cV[1]), cV[2]);
+  os.Hip.parent.updateMatrixWorld(true); os.Hip.position.copy(os.Hip.parent.worldToLocal(cV[2])); os.Hip.updateMatrixWorld(true);
+  // Le buste (trois os, pour que le dos reste droit) et la nuque.
+  mix(dir(A.buste[0], A.buste[1], 0, cV[0]).normalize(), dir(B.buste[0], B.buste[1], 0, cV[1]).normalize(), cV[2]).normalize();
+  for (const n of ['Waist', 'Spine01', 'Spine02']) if (os[n]) { viserDoux(os[n], cV[2].x, cV[2].y, cV[2].z); os[n].updateMatrixWorld(true); }
+  mix(dir(A.nuque[0], A.nuque[1], 0, cV[0]).normalize(), dir(B.nuque[0], B.nuque[1], 0, cV[1]).normalize(), cV[3]).normalize();
+  if (os.NeckTwist01) { viserDoux(os.NeckTwist01, cV[3].x, cV[3].y, cV[3].z); os.NeckTwist01.updateMatrixWorld(true); }
+  // Les jambes : chaque cheville à son but, le genou plié du bon côté ; le pied à plat, sur les orteils ou retourné.
+  mix(dir(A.genou[0], A.genou[1], 0, cV[0]), dir(B.genou[0], B.genou[1], 0, cV[1]), cV[4]);
+  mix(dir(A.pied[0], A.pied[1], 0, cV[0]).normalize(), dir(B.pied[0], B.pied[1], 0, cV[1]).normalize(), cV[5]).normalize();
+  const cheville = (P, c, sg, out) => {
+    if (P.ch !== 'sous') return pt(P.ch[0], P.ch[1], sg * P.ch[2], out);
+    os[c + '_Thigh'].getWorldPosition(out); out.y = vRacine.y + .04; return out.addScaledVector(vAv, .02);
+  };
+  for (const [c, sg] of [['L', -1], ['R', 1]]) {
+    mix(cheville(A, c, sg, cV[0]), cheville(B, c, sg, cV[1]), cV[6]);
+    membre(os[c + '_Thigh'], os[c + '_Calf'], os[c + '_Foot'], cV[6], cV[4]);
+    if (os[c + '_Foot']) { viserDoux(os[c + '_Foot'], cV[5].x, cV[5].y, cV[5].z); os[c + '_Foot'].updateMatrixWorld(true); }
+  }
+  // Les bras : les mains à leur but (sur les genoux : là où l'IK des jambes vient de les mettre) ; sans but, l'animation.
+  const main = (P, i, c, sg, out) => {
+    if (P.main === 'genou') { os[c + '_Calf'].getWorldPosition(out); return out.addScaledVector(vAv, .06).addScaledVector(vHaut, .04); }
+    if (!P.main) return null;
+    const m = P.main[i]; return pt(m[0], m[1], m[2], out);
+  };
+  for (const [c, sg, i] of [['L', -1, 0], ['R', 1, 1]]) {
+    const a = main(A, i, c, sg, cV[7]), b = main(B, i, c, sg, cV[8]); if (!a && !b) continue;
+    if (!a) { os[c + '_Hand'].getWorldPosition(cV[7]); } if (!b) { os[c + '_Hand'].getWorldPosition(cV[8]); }
+    mix(cV[7], cV[8], cV[9]);
+    mix(dir(A.coude[0], A.coude[1], sg * A.coude[2], cV[0]), dir(B.coude[0], B.coude[1], sg * B.coude[2], cV[1]), cV[10]);
+    membre(os[c + '_Upperarm'], os[c + '_Forearm'], os[c + '_Hand'], cV[9].clone(), cV[10]);
+  }
+  if (E.habit) E.habit(E, os); // l'aube, la chasuble (culte.js)
+}
 function placerTelephone(E) {
   E.osTete.getWorldPosition(vT); E.g.worldToLocal(vT);
   let d = Infinity;
@@ -410,6 +502,6 @@ export function majPersonnages(dt) {
     let vis = E.g.visible; for (let o = E.g.parent; vis && o; o = o.parent) vis = o.visible;
     if (!vis) continue;
     E.g.getWorldPosition(v); if (v.distanceToSquared(camera.position) > 160 * 160) continue;
-    E.mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); else if (E.oreille && E.courante !== 'telephone') poserOreille(E); suivre(E);
+    E.mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); else if (E.culte) poserCulte(E); else if (E.oreille && E.courante !== 'telephone') poserOreille(E); suivre(E);
   }
 }

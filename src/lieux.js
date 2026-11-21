@@ -648,9 +648,18 @@ export function cathedrale(ring) {
     // Parvis et murets bleus devant la façade.
     K.sol(16, nz1 - nz0 + 10, K.tex('beton', 4, 6, '#cfc9bd'), nx0 - 9, (nz0 + nz1) / 2, .06);
     for (const z of [nz0 - 6, nz1 + 6]) K.boite(40, .9, .4, '#5f9bc2', nx0 + 12, .45, z);
+    // La porte (on entre voir la messe, culte.js) : sur le parvis ; avec le modèle Tripo, au pied du clocher, face au parvis
+    // (vu d'en haut le 21/11) ; sans lui, devant le pignon de la nef.
+    porteLoc = [tripoDispo('cathedrale') ? Math.min(nx0, nx1 + 6, ...[C, E, F, Gp].map(p => loc(p)[0])) + 2.5 : nx0 - 1.5, (nz0 + nz1) / 2];
   });
+  g.updateMatrixWorld(true);
+  const p1 = new THREE.Vector3(porteLoc[0], 0, porteLoc[1]).applyMatrix4(g.matrixWorld), p2 = new THREE.Vector3(porteLoc[0] - 10, 0, porteLoc[1]).applyMatrix4(g.matrixWorld);
+  PORTES_CULTE.cathedrale = { porte: [p1.x, p1.z], dehors: Math.atan2(p2.x - p1.x, p2.z - p1.z) };
   bake(g);
 }
+let porteLoc = [0, 0];
+/** Les portes des lieux de culte où l'on entre (culte.js, déclarés par lieux-videos.js) : { porte: [x, z], dehors }. */
+export const PORTES_CULTE = {};
 export function nefEglise(x0, x1, z0, z1, hMur, hToit, facade = false, axeZ = false, photo = null) {
   const L = axeZ ? z1 - z0 : x1 - x0, W = axeZ ? x1 - x0 : z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   const g = new THREE.Group(); g.position.set(cx, 0, cz); if (axeZ) g.rotation.y = Math.PI / 2; K.racine.add(g);
