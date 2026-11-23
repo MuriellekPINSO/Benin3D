@@ -25,6 +25,7 @@ import { panneauOuvert } from './manette.js';
 export const VR = { actif: false, pad: null };
 
 const OEIL = 1.6; // hauteur des yeux : le casque part de là, assis ou debout
+const OEIL_ASSIS = 1.2; // assis (une chaise, un poste de la salle de jeux) : le personnage l'est, le regard aussi
 const CRAN = Math.PI / 6;
 const C = {
   session: null, base: null, image: null, demarre: false, debut: 0, n: 0,
@@ -186,7 +187,7 @@ export function avantRenduVR(dt) {
       const recul = T.mode === 'passager' || T.mode === 'ami' ? .45 : 0; // derrière le conducteur
       x = J.x - Math.sin(cap) * recul; z = J.z - Math.cos(cap) * recul; y = (J.y || 0) + h;
     }
-  } else { psi = C.lacet; x = S.x; z = S.z; y = (S.y || 0) + (S.couche ? .5 : OEIL); }
+  } else { psi = C.lacet; x = S.x; z = S.z; y = (S.y || 0) + (S.couche ? .5 : S.geste === 'assis' ? OEIL_ASSIS : OEIL); } // assis à un ordinateur de la salle de jeux : les yeux à hauteur d'écran
   // La place du casque dans la ville (Wsuiv = translation × rotation), donnée au navigateur pour l'image suivante.
   C.psiSuiv = psi;
   C.Wsuiv.compose(_p.set(x, y, z), _q.setFromAxisAngle(HAUT, psi), UN);
@@ -266,7 +267,7 @@ function couper(x, t, max) {
  */
 function cadre(p) {
   const r = p.getBoundingClientRect(); if (r.width * r.height < innerWidth * innerHeight * .8) return p;
-  return [...p.querySelectorAll('.panel, [class*="boite"]')].find(b => !b.hidden && b.getClientRects().length && b.getBoundingClientRect().width > 120) || p;
+  return [...p.querySelectorAll('.panel, .sj-panneau, [class*="boite"]')].find(b => !b.hidden && b.getClientRects().length && b.getBoundingClientRect().width > 120) || p;
 }
 // La fenêtre telle qu'elle est à l'écran : fonds et bordures des éléments, textes à leur place, icônes, images de la
 // même origine. Le bouton qui a le focus (manette ou rayon) est entouré de jaune, comme à l'écran.

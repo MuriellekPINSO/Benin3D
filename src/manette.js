@@ -54,10 +54,10 @@ export function vibrer(type) {
 // De la plus haute à la plus basse : une fenêtre de choix s'ouvre par-dessus le menu, la fiche d'un métier par-dessus le
 // choix. Le menu « Ma vie », les gestes, la garde-robe, les fiches des commerces, la carte et le compte n'y étaient pas :
 // on ne pouvait ni y choisir ni en sortir sans la souris (Murielle et Carlos, 26/10).
-const PANNEAUX = ['#metierFiche', '#choix', '#compte', '#momo', '#vieFiche', '#garderobe', '#carteGrande', '#vieTirage', '#salon', '#vieHud.ouvert', '#slActions.ouvert', '#accueil', '#boutique', '#mode', '#evenement', '#jeuPause', '#jeuFin', '#jeuClassement', '#jeuDefi', '#jeuMenu', '#offrePub', '#reel'];
-const FERMER = '.bq-x, .op-x, #reelFermer, #jpReprendre, #jmRetour, #acPasser, #chAnnuler, #slFermer, #grFermer, #vfFermer, #vhReprendre, #slGestesFermer, #cgFermer, #jcFermer, #jdFermer, #modeFermer, #compteFermer, .momo-fermer, #evAnnuler';
+const PANNEAUX = ['#metierFiche', '#choix', '#compte', '#momo', '#vieFiche', '#garderobe', '#carteGrande', '#vieTirage', '#salon', '#vieHud.ouvert', '#slActions.ouvert', '#accueil', '#boutique', '#mode', '#evenement', '#jeuPause', '#jeuFin', '#jeuClassement', '#jeuDefi', '#jeuMenu', '#offrePub', '#reel', '.salle-jeux']; // .salle-jeux : la liste des jeux des créateurs (salle-jeux.js), à la manette comme dans le casque
+const FERMER = '.sj-fermer, .bq-x, .op-x, #reelFermer, #jpReprendre, #jmRetour, #acPasser, #chAnnuler, #slFermer, #grFermer, #vfFermer, #vhReprendre, #slGestesFermer, #cgFermer, #jcFermer, #jdFermer, #modeFermer, #compteFermer, .momo-fermer, #evAnnuler';
 // Le premier bouton où poser le focus en ouvrant : la ligne de Zém Run, « Reprendre », « Rejouer », les tuiles du menu…
-const FAVORIS = '.jm-ligne, #jpReprendre, #jfRejouer, #slCreer, #vtCommencer, .vh-tuile, .ac-mode';
+const FAVORIS = '.sj-jouer, .sj-carte, .jm-ligne, #jpReprendre, #jfRejouer, #slCreer, #vtCommencer, .vh-tuile, .ac-mode';
 const CIBLES = 'button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), summary, a[href], [tabindex="0"]';
 // Visible pour de vrai : `offsetParent` vaut null pour un élément en position fixe (le menu ouvert), qu'on ne trouvait donc jamais.
 const vu = el => !!el && !el.hidden && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
