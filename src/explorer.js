@@ -7,6 +7,10 @@ import { E } from './etat.js';
 import { startFlight } from './interface.js';
 import { basculerMondeReel, monumentsEnVisite } from './monde-reel.js';
 import { camera, controls } from './scene.js';
+import { compterUneFois } from './statistiques.js';
+
+// Arrivé par un lien qui ouvre le jeu tout seul (QR code du Village, invitation) : lu avant que l'adresse soit nettoyée.
+const PAR_UN_LIEN = /[?&](village|salon|duo|cine)(=|&|$)/.test(location.search);
 
 // ---------- Explorer : catégories, radio, présentation ----------
 export const CATS = { hotel: 'Hôtels', monument: 'Monuments', institution: 'Institutions', culte: 'Monuments', marche: 'Marchés', eau: 'Mer et lagune', plage: 'Mer et lagune', transport: 'Transport', savoir: 'Savoir', quartier: 'Quartiers' };
@@ -68,14 +72,16 @@ export function finPresentation(remettreRadio) {
 export function accueil() {
   const el = $('#accueil'), app = document.getElementById('app'); if (!el) return;
   app.classList.add('mode-accueil'); el.hidden = false; prechargerMusique();
-  const clavier = e => { if (e.key === 'Escape') fermer(); };
+  const clavier = e => { if (e.key === 'Escape') { compterUneFois('carte'); fermer(); } };
   const fermer = () => {
     if (el.hidden || el.classList.contains('sort')) return;
     window.removeEventListener('keydown', clavier); app.classList.remove('mode-accueil'); el.classList.add('sort');
     setTimeout(() => { el.hidden = true; el.classList.remove('sort'); }, 500);
   };
   $('#acVisite').addEventListener('click', () => { fermer(); presentation(); }, { once: true });
-  $('#acPasser').addEventListener('click', fermer, { once: true });
+  // « Juste explorer la carte » (compté pour le tableau de bord) : pas quand c'est le jeu qui clique tout seul pour suivre
+  // un lien (QR code du Village, invitation en ville ou à Zém Run) ; la manette, elle, clique aussi « pour de faux ».
+  $('#acPasser').addEventListener('click', e => { if (e.isTrusted || !PAR_UN_LIEN) compterUneFois('carte'); fermer(); }, { once: true });
   $('#acVivre')?.addEventListener('click', () => { fermer(); $('#btnSalon')?.click(); }, { once: true }); // la vie à Cotonou (salon.js)
   $('#acVillage')?.addEventListener('click', () => { fermer(); document.dispatchEvent(new Event('kv:village')); }, { once: true }); // le Village de l'innovation (village.js, salon.js)
   $('#acZemRun')?.addEventListener('click', () => { fermer(); $('#btnJouer')?.click(); }, { once: true }); // le menu de Zém Run

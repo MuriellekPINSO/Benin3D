@@ -6,6 +6,7 @@ import { fermerFiche } from './commerces.js';
 import { firebase } from './firebase.js';
 import { poserObstacles } from './rue.js';
 import { camera, scene } from './scene.js';
+import { compterUneFois, lieuStats } from './statistiques.js';
 import { plusTard } from './telechargements.js';
 import { chargeurGLB } from './textures.js';
 import { VIE, ecrireEnPlus, gagner, lireEnPlus } from './vie.js';
@@ -173,6 +174,8 @@ export function majVillage(dt) {
     if (VG.s === TOUS) VG.ctx.ligne('Te revoilà au Village de l’innovation ! Ton passeport du jour est rempli : regarde les plus rapides avec l’icône 🎫.');
     else VG.ctx.ligne(`Bienvenue au Village de l’innovation (${VILLAGE_DATES}, esplanade du Palais des Congrès) ! Ton passeport : un tampon dans chacun des onze espaces${n ? ` (tu en as ${n})` : ''}. Le chrono part au premier. L’icône 🎫 montre ceux qui manquent.`);
   }
+  // Pour le tableau de bord : « au Village » dans la liste de ceux qui sont en ligne, et une entrée au Village par jour.
+  if (dedans !== VG.dedans) { lieuStats(dedans ? 'village' : 'salon'); if (dedans) compterUneFois('village'); }
   VG.dedans = dedans;
   // L'espace où l'on est : son nom en haut de l'écran en y entrant, et son tampon s'il manque.
   let ici = -1;
