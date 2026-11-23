@@ -112,7 +112,7 @@ function declarer(logement) {
   const etq = etiquette('Chez toi'); etq.position.set(0, 3.6, .4); etq.visible = false; g.add(etq);
   const louer = etiquette('À louer'); louer.position.set(0, 3.6, .4); louer.visible = false; g.add(louer);
   declarerInterieur(id, {
-    nom: D.nom, entrer: D.entrer, titre: D.titre, logis: D, logement, prive: true, plafond: 2.7, etiquette: etq, aLouer: louer,
+    nom: D.nom, entrer: D.entrer, titre: D.titre, logis: D, logement, prive: true, plafond: 2.7, etiquette: etq, aLouer: louer, seuil: P, // seuil : la porte dans le mur ou la façade (garage.js)
     porte: [P.x - P.nx * 1.4, P.z - P.nz * 1.4], dehors, centre: [P.x, 7400], // en mer, plus loin que les autres pièces
     ...(D.plan === 'villa' ? { w: 12 - 2 * DX_VILLA, d: 9, entree: [1 + DX_VILLA, -3.7, 0], construire: I => { villa(I); reperes(I); } } // derrière un portail, comme une vraie villa
       : appart ? { w: 12, d: 9, entree: [1, -3.7, 0], construire: I => { appartement(I); reperes(I); } } : { w: 12, d: 10, entree: [1.5, -4.2, 0], construire: I => { cour(I); reperes(I); } }),

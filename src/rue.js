@@ -50,7 +50,7 @@ surArriveeVille(id => {
 const CARRE = 400;
 // Du bord de la chaussée jusqu'aux murs des parcelles ; élargis avec les voies (ville.js, ELARGIR, testeur, 04/11).
 const TROTTOIR = Object.fromEntries(Object.entries({ 0: 4, 1: 3.5, 2: 3, 3: 2.2, 4: 1.3, 5: .9 }).map(([c, m]) => [c, m * ELARGIR]));
-const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, segR: null, zonesLibres: [], rectsLibres: [], rectsSansMur: [], zonesSansMurTournees: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [], tuiles: new Set(), tuilesVues: new Set() };
+const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, segR: null, zonesLibres: [], rectsLibres: [], rectsSansMur: [], zonesSansMurTournees: [], abords: [], zonesJeu: [], routeJeu: null, trajet: null, actif: true, anneaux: [], tuiles: new Set(), tuilesVues: new Set() };
 
 // ---------- Index spatiaux ----------
 const CB = 50, CR = 40;
@@ -450,7 +450,7 @@ function genererCarre(cx, cz) {
               const echs = [];
               for (const u of [0, .5, 1]) for (const v of [0, .5, 1]) echs.push(at(tc - larg / 2 + u * larg, recul + v * pr));
               const cells = []; for (let u = 0; u <= larg; u += 2) for (let v = 0; v <= pr; v += 2) cells.push(cellOcc(...at(tc - larg / 2 + u, recul + v)));
-              if (!echs.some(([x, z]) => dansBatiment(x, z) || zoneLibre(x, z) || presAutreRoute(x, z, -1, 1.5)) && !cells.some(c => occupe.has(c))) {
+              if (!echs.some(([x, z]) => dansBatiment(x, z) || zoneLibre(x, z) || sansMur(x, z) || presAutreRoute(x, z, -1, 1.5)) && !cells.some(c => occupe.has(c))) {
                 for (const c of cells) occupe.add(c);
                 const etages = hash(a, 46) < .26 ? 2 : 1, toit = etages === 1 && hash(a, 47) < .62 ? 1 : 0;
                 const [hx, hz] = at(tc, recul + pr / 2), idV = choixMaisonVille(etages, toit, hx, hz);
@@ -462,7 +462,7 @@ function genererCarre(cx, cz) {
                 const pr2 = 5.5 + hash(a, 52) * 3, l2 = Math.min(len - 2.4, 7 + hash(a, 53) * 4), r2 = fond + 1.8;
                 const echs2 = []; for (const u of [0, .5, 1]) for (const v of [0, .5, 1]) echs2.push(at(len / 2 - l2 / 2 + u * l2, r2 + v * pr2));
                 const cells2 = []; for (let u = 0; u <= l2; u += 2) for (let v = 0; v <= pr2; v += 2) cells2.push(cellOcc(...at(len / 2 - l2 / 2 + u, r2 + v)));
-                if (hash(a, 54) < .6 && !echs2.some(([x, z]) => dansBatiment(x, z) || zoneLibre(x, z) || presAutreRoute(x, z, -1, 1.5)) && !cells2.some(c => occupe.has(c))) {
+                if (hash(a, 54) < .6 && !echs2.some(([x, z]) => dansBatiment(x, z) || zoneLibre(x, z) || sansMur(x, z) || presAutreRoute(x, z, -1, 1.5)) && !cells2.some(c => occupe.has(c))) {
                   for (const c of cells2) occupe.add(c);
                   const [hx2, hz2] = at(len / 2, r2 + pr2 / 2);
                   maisons.push([hx2, hz2, ang + (cote < 0 ? Math.PI : 0), l2, 3.4, pr2, COUL_MUR[Math.floor(hash(a, 55) * COUL_MUR.length)], 1, 1, Math.floor(hash(a, 56) * 16)]);
@@ -696,7 +696,40 @@ export function ajouterZoneSansMur(zone) {
   }
 }
 const sansMur = (x, z) => R.rectsSansMur.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)
-  || R.zonesSansMurTournees.some(o => { if (x < o.bb[0] || x > o.bb[2] || z < o.bb[1] || z > o.bb[3]) return false; const dx = x - o.x, dz = z - o.z, u = dx * o.c - dz * o.s, v = dx * o.s + dz * o.c; return u > o.x0 && u < o.x1 && v > o.z0 && v < o.z1; });
+  || R.zonesSansMurTournees.some(o => { if (x < o.bb[0] || x > o.bb[2] || z < o.bb[1] || z > o.bb[3]) return false; const dx = x - o.x, dz = z - o.z, u = dx * o.c - dz * o.s, v = dx * o.s + dz * o.c; return u > o.x0 && u < o.x1 && v > o.z0 && v < o.z1; })
+  || dansAbords(x, z);
+/** Les abords d'un lieu de culte : à moins de `marge` mètres de son emprise `anneau` ([[x, z], …], en mètres), ni mur de
+ *  parcelle, ni boutique, ni maison ; le trottoir continue. « Il n'y a pas de boutique devant la mosquée », « dans la
+ *  cathédrale, on ne vend pas de ciment » (Murielle, 21/11) : une rangée de boutiques cachait la façade de la mosquée de
+ *  Zongo sur la rue des Missions, et le mur du parvis de la cathédrale portait « ICI ON VEND DU CIMENT ». On ne compte que
+ *  ce qu'on atteint sans traverser de chaussée : les maisons d'en face, de l'autre côté de la rue, restent. */
+export function ajouterAbordsSansMur(anneau, marge) {
+  const xs = anneau.map(p => p[0]), zs = anneau.map(p => p[1]);
+  const bb = [Math.min(...xs) - marge, Math.min(...zs) - marge, Math.max(...xs) + marge, Math.max(...zs) + marge];
+  R.abords.push({ anneau, marge, bb });
+  for (const k of R.carres.keys()) {
+    const [a, b] = k.split(',').map(Number);
+    if (bb[2] > a * CARRE && bb[0] < (a + 1) * CARRE && bb[3] > b * CARRE && bb[1] < (b + 1) * CARRE) (R.perimes ??= new Set()).add(k);
+  }
+}
+function dansAbords(x, z) {
+  for (const A of R.abords) {
+    if (x < A.bb[0] || x > A.bb[2] || z < A.bb[1] || z > A.bb[3]) continue;
+    const r = A.anneau, n = r.length; let d = Infinity, qx = 0, qz = 0, dedans = false;
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+      const [ax, az] = r[j], [bx, bz] = r[i], dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
+      const px = ax + dx * t, pz = az + dz * t, e = Math.hypot(x - px, z - pz); if (e < d) { d = e; qx = px; qz = pz; }
+      if ((az > z) !== (bz > z) && x < (bx - ax) * (z - az) / (bz - az) + ax) dedans = !dedans;
+    }
+    if (dedans) return true;
+    if (d > A.marge) continue;
+    // Le chemin jusqu'au bâtiment, mètre par mètre : une chaussée en travers, c'est l'autre côté de la rue.
+    const pas = Math.ceil(d); let libre = true;
+    for (let k = 1; k < pas; k++) if (presAutreRoute(x + (qx - x) * k / pas, z + (qz - z) * k / pas, -1, 0)) { libre = false; break; }
+    if (libre) return true;
+  }
+  return false;
+}
 export function ajouterEmprise(anneau) {
   if (!R.grilleB || !anneau || anneau.length < 3) return;
   const r = new Float32Array(anneau.length * 2), bb = [1e9, 1e9, -1e9, -1e9];
@@ -800,7 +833,7 @@ export function degagerChaussees(vegetation) {
   const zero = new THREE.Matrix4().makeScale(0, 0, 0); let n = 0;
   for (const m of vegetation) {
     const xz = m.userData.xz; if (!xz) continue; let touche = false;
-    for (let k = 0; k < m.count; k++) if (surChaussee(xz[2 * k], xz[2 * k + 1]) || zoneBoutique(xz[2 * k], xz[2 * k + 1], 1.5)) { m.setMatrixAt(k, zero); touche = true; n++; } // ni sur la chaussée, ni sur une boutique à louer (commerces.js)
+    for (let k = 0; k < m.count; k++) if (surChaussee(xz[2 * k], xz[2 * k + 1]) || zoneBoutique(xz[2 * k], xz[2 * k + 1], 1.5) || sansConstruction(xz[2 * k], xz[2 * k + 1])) { m.setMatrixAt(k, zero); touche = true; n++; } // ni sur la chaussée, ni sur une boutique à louer (commerces.js), ni sur un terrain réservé (zones.js : la piste et les monuments de Ouidah, qui ont leurs arbres)
     if (touche) m.instanceMatrix.needsUpdate = true;
   }
   return n;

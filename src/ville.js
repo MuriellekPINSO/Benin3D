@@ -4,7 +4,7 @@ import { hash, HQ_DEPART, LITE, pal, toXZ, u8c } from './base.js';
 import { frame, status } from './chargement.js';
 import { E } from './etat.js';
 import { VEGETATION } from './lieux.js';
-import { parCarres } from './carres.js';
+import { maillageParCarres, parCarres } from './carres.js';
 import { texFacades } from './facades.js';
 import { texIA } from './textures-ia.js';
 import { COUCHES_SOL, U, flatMat, grainSol, scene } from './scene.js';
@@ -459,9 +459,13 @@ export function buildRoads(R) {
     g.setAttribute('color', new THREE.Uint8BufferAttribute(c, 3, true));
     g.setIndex(ix);
     const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, depthWrite, side: depthWrite ? THREE.DoubleSide : THREE.FrontSide }));
-    m.renderOrder = order; m.receiveShadow = true; m.castShadow = depthWrite && !LITE; scene.add(m); return m;
+    m.renderOrder = order; m.receiveShadow = true; m.castShadow = depthWrite && !LITE; return m;
   };
-  const routes = mk(pos, idx, col, 7, false); grainSol(routes.material, false, true); routes.userData.route = true; COUCHES_SOL.push(routes); // fissures et rapiéçages sur le goudron
+  // Par carrés de 3 km, 6 sur téléphone (22/11) : d'un seul tenant, le goudron et les lignes de toute la ville (25 km) passaient par la carte
+  // graphique à chaque image ; en carrés, la caméra écarte ceux qui sont hors du champ ou au-delà du brouillard. Plus petits,
+  // ils seraient des milliers d'objets à trier à chaque image.
+  const poser = (m, sol = true) => { for (const c of maillageParCarres(m, LITE ? 6000 : 3000)) { scene.add(c); if (sol) COUCHES_SOL.push(c); } };
+  const routes = mk(pos, idx, col, 7, false); grainSol(routes.material, false, true); routes.userData.route = true; poser(routes); // fissures et rapiéçages sur le goudron
   console.info(`routes : ${nRonds} anneaux de ronds-points goudronnés, ${nAjoutes} ajoutés, ${nDalots} ponts courts au ras de la rue, ${nEcartes} points de boulevard écartés, ${nRetenues} rues qui ne s'élargissent pas l'une dans l'autre, lignes coupées aux carrefours, ${Math.round(performance.now() - t0)} ms`);
   for (const M of [nu, marqAxe, marq2, marq4, ...Object.values(marqSens)]) {
     if (!M.pos.length) continue;
@@ -470,9 +474,9 @@ export function buildRoads(R) {
     g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(M.pos.length).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(M.uv, 2)); g.setIndex(M.idx);
     const m = new THREE.Mesh(g, grainSol(new THREE.MeshLambertMaterial({ map: M.sens ? texMarquageSens(M.sens) : texMarquage(M.files), depthWrite: false }), false, true)); // le grain, les fissures, les lignes usées
-    m.renderOrder = M.files === 4 ? 7.6 : M.files === 1 ? 7.4 : M.files === 0 ? 7.45 : 7.5; /* le bitume nu du carrefour sous les lignes de la grande route */ m.receiveShadow = true; m.userData.route = true; scene.add(m); COUCHES_SOL.push(m);
+    m.renderOrder = M.files === 4 ? 7.6 : M.files === 1 ? 7.4 : M.files === 0 ? 7.45 : 7.5; /* le bitume nu du carrefour sous les lignes de la grande route */ m.receiveShadow = true; m.userData.route = true; poser(m);
   }
-  if (bpos.length) mk(bpos, bidx, bcol, 8, true);
+  if (bpos.length) poser(mk(bpos, bidx, bcol, 8, true), false);
 }
 
 // ---------- Bâtiments ----------

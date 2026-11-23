@@ -8,6 +8,8 @@ import { construireLieuxMarina } from './lieux-marina.js';
 import { GRANDES_AFFICHES } from './publicites.js';
 import { MUR, poserSol } from './sols.js';
 import { photoPlusTard } from './telechargements.js';
+import { ajouterAbordsSansMur } from './rue.js';
+import { roadLines } from './ville.js';
 
 // Lieux relevés sur les vidéos de drone de Cotonou (octobre 2026) : Sofitel Marina,
 // tour BCEAO, Erevan et la statue de Bio Guéra, rond-point de l'aéroport, mosquée de
@@ -420,15 +422,21 @@ function mosqueeZongo(ring) {
     let best = null, bl = 0;
     for (let i = 0; i < loc.length; i++) { const a = loc[i], b = loc[(i + 1) % loc.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L > bl) { bl = L; best = [a, b]; } }
     const [a, b] = best, ux = (b[0] - a[0]) / bl, uz = (b[1] - a[1]) / bl;
-    // La porte (culte.js) : au milieu du grand côté, entre les deux minarets, du côté du dehors.
-    { const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, s = (uz * mx - ux * mz) > 0 ? 1 : -1, nx = uz * s, nz = -ux * s;
-      porteZongo = { porte: [c[0] + mx + nx * 2.2, c[1] + mz + nz * 2.2], dehors: Math.atan2(nx, nz) };
-      // Le grand portail vert, en arc, cerclé d'or, au milieu de la façade.
-      const r = Math.atan2(nx, nz), vertP = K.mat('#1f5e46', { rugosite: .5 }), orP = K.mat('#d9b44a', { metal: .6, rugosite: .35 });
+    // Les portes (culte.js) : un grand portail vert, en arc, cerclé d'or, au milieu d'un côté, et la porte devant lui.
+    const vertP = K.mat('#1f5e46', { rugosite: .5 }), orP = K.mat('#d9b44a', { metal: .6, rugosite: .35 });
+    const portail = (a, b) => {
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]), ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L;
+      const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, s = (uz * mx - ux * mz) > 0 ? 1 : -1, nx = uz * s, nz = -ux * s, r = Math.atan2(nx, nz);
       K.boite(2.6, 3.2, .16, vertP, mx + nx * .1, 1.6, mz + nz * .1).rotation.y = r;
       K.boite(2.9, .18, .2, orP, mx + nx * .14, 3.3, mz + nz * .14).rotation.y = r;
       for (const sg of [-1, 1]) K.boite(.16, 3.3, .2, orP, mx + nx * .14 + ux * sg * 1.38, 1.65, mz + nz * .14 + uz * sg * 1.38).rotation.y = r;
-      const arcP = K.maillage(new THREE.CircleGeometry(1.3, 20, 0, Math.PI), vertP, mx + nx * .1, 3.3, mz + nz * .1); arcP.rotation.y = r; }
+      K.maillage(new THREE.CircleGeometry(1.3, 20, 0, Math.PI), vertP, mx + nx * .1, 3.3, mz + nz * .1).rotation.y = r;
+      return { porte: [c[0] + mx + nx * 2.2, c[1] + mz + nz * 2.2], dehors: r };
+    };
+    // La grande porte sur la rue des Missions (le boulevard), là où l'on arrive : « je n'arrive pas à entrer dans la mosquée »
+    // (Murielle, 21/11) — la seule porte donnait sur la petite rue de sable, derrière. Celle-là reste, entre les minarets.
+    const rue = facadeSurRue(loc, c);
+    porteZongo = rue && !(rue[0] === a && rue[1] === b) ? [portail(...rue), portail(a, b)] : [portail(a, b)];
     for (const f of [.3, .7]) {
       const x = a[0] + ux * bl * f, z = a[1] + uz * bl * f, blanc = K.mat('#f4f2ec'), vert = K.mat('#5a6f9a', { rugosite: .45 });
       K.cyl(1.7, 1.9, 30, 8, blanc, x, 15, z);
@@ -441,9 +449,28 @@ function mosqueeZongo(ring) {
     K.cyl(.06, .06, 2.4, 6, '#d9b44a', 0, 16.6, 0); K.maillage(new THREE.TorusGeometry(.42, .07, 6, 16, Math.PI * 1.45), K.mat('#d9b44a'), 0, 17.6, 0).rotation.z = -.4;
   });
   bake(g);
-  if (porteZongo) declarerMosquee(porteZongo.porte, porteZongo.dehors);
+  ajouterAbordsSansMur(ring, 20); // ni boutiques ni murs peints devant la mosquée (rue.js)
+  if (porteZongo) declarerMosquee(porteZongo);
 }
 let porteZongo = null;
+/** Le côté (de plus de 20 m) d'un bâtiment qui donne sur la plus grande rue : [a, b] de `loc` (centré sur `c`), ou null. */
+function facadeSurRue(loc, c) {
+  let best = null, score = -Infinity;
+  for (let i = 0; i < loc.length; i++) {
+    const a = loc[i], b = loc[(i + 1) % loc.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 20) continue;
+    const ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L, mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, s = (uz * mx - ux * mz) > 0 ? 1 : -1;
+    const px = c[0] + mx + uz * s * 8, pz = c[1] + mz - ux * s * 8; // 8 m devant le milieu du côté
+    for (const R of roadLines) {
+      if (R.cls > 5) continue;
+      for (let k = 1; k < R.pts.length; k++) {
+        const [qx, qz] = R.pts[k - 1], [rx, rz] = R.pts[k]; if (Math.min(qx, rx) > px + 25 || Math.max(qx, rx) < px - 25 || Math.min(qz, rz) > pz + 25 || Math.max(qz, rz) < pz - 25) continue;
+        const dx = rx - qx, dz = rz - qz, t = Math.max(0, Math.min(1, ((px - qx) * dx + (pz - qz) * dz) / (dx * dx + dz * dz || 1))), d = Math.hypot(qx + dx * t - px, qz + dz * t - pz);
+        if (d < 25 && -R.cls * 100 - d > score) { score = -R.cls * 100 - d; best = [a, b]; }
+      }
+    }
+  }
+  return best;
+}
 
 // ---------- Cimetière : tombes blanches serrées ----------
 function tombes(arr) {
@@ -490,7 +517,10 @@ export function construireLieuxVideos(data) {
   marcheGanhi();
   placeMartyrs();
   if (D.zongo) mosqueeZongo(D.zongo);
-  if (PORTES_CULTE.cathedrale) declarerCathedrale(PORTES_CULTE.cathedrale.porte, PORTES_CULTE.cathedrale.dehors);
+  if (PORTES_CULTE.cathedrale) {
+    declarerCathedrale(PORTES_CULTE.cathedrale.porte, PORTES_CULTE.cathedrale.dehors);
+    ajouterAbordsSansMur(data.L.cathedrale, 25); // le parvis et la cour : ni boutique, ni mur peint (« ICI ON VEND DU CIMENT »), ni maison (rue.js)
+  }
   // Grand bâtiment du marché Dantokpa : modèle Tripo (photo jbdodane, CC BY 2.0) posé sur l'emprise OSM.
   if (D.dantokpaHall && tripoDispo('dantokpa')) { const o = obb(D.dantokpaHall); const g = groupeLieu('dantokpa-hall', o.cx, o.cz, o.L >= o.W ? o.ang : o.ang + Math.PI / 2); poserTripo('dantokpa', g, { largeur: Math.max(o.L, o.W) + 4 }); }
   if (D.moov) siegeMoov(D.moov);

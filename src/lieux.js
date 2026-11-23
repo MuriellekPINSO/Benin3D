@@ -3,7 +3,7 @@ import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { HQ_DEPART, LITE, SECOURS, hash, toXZ, u8c } from './base.js';
 import { camera, scene } from './scene.js';
-import { parCarres } from './carres.js';
+import { maillageParCarres, parCarres } from './carres.js';
 import { ROAD_W, TABLIERS, roadLines } from './ville.js';
 import { surChaussee } from './chaussee.js';
 import { GRANDES_AFFICHES, matAffiche } from './publicites.js';
@@ -912,7 +912,9 @@ export function dantokpa(B, M) {
     m4.compose(p.set(x + (hash(i, 75) - .5) * 2.4, 0, z + (hash(i, 76) - .5) * 2.4), q.setFromEuler(e.set(0, hash(i, 77) * 3, 0)), s.set(1, .6 + hash(i, 78), 1));
     sacs.setMatrixAt(i, m4); sacs.setColorAt(i, sacC[Math.floor(hash(i, 79) * sacC.length)]);
   }
-  for (const m of [par, hangars, sacs]) { m.castShadow = !LITE; m.receiveShadow = true; m.userData.proche = 2600; detailsProches.push(m); scene.add(m); }
+  // Par carrés de 300 m (semer) : d'un seul tenant, les 7 000 parasols, hangars et sacs (420 000 triangles) passaient tous par la
+  // carte graphique dès qu'un coin du marché était dans le champ (22/11).
+  for (const m of [par, hangars, sacs]) { m.castShadow = !LITE; m.receiveShadow = true; m.userData.proche = LITE ? 1200 : 2600; semer(m, 300); }
   foule(M.ppl, 0);
 }
 
@@ -927,7 +929,9 @@ export function semer(m, cote = 600) { for (const c of parCarres(m, cote)) { det
 // Arbres et palmiers instanciés, avec leurs positions : le jeu écarte ceux qui gênent la caméra.
 export const VEGETATION = [];
 export const fouleCorps = new THREE.CylinderGeometry(.2, .27, 1.2, 6).translate(0, .62, 0);
-export const fouleTete = new THREE.SphereGeometry(.15, 6, 5).translate(0, 1.38, 0);
+// Sur téléphone, une tête à 16 triangles au lieu de 48 : les silhouettes ne se voient que de loin (de près, de vrais
+// personnages, foule-reelle.js), et les 4 200 du marché Dantokpa en dessinaient 200 000 (22/11).
+export const fouleTete = (LITE ? new THREE.SphereGeometry(.15, 4, 3) : new THREE.SphereGeometry(.15, 6, 5)).translate(0, 1.38, 0);
 export const fouleTissus = ['#e2672a', '#2f6fb0', '#e9b62c', '#2f8a4a', '#8e3c8f', '#c8382f', '#1f8f8a', '#f2efe6', '#3b3b44', '#d9548a'].map(h => new THREE.Color(h));
 // Les troncs des arbres et des palmiers ne se traversent pas à pied : grille de 8 m faite à la première demande (après
 // degagerChaussees, qui a retiré les arbres des chaussées).
@@ -1004,7 +1008,9 @@ export function ganvie(G) {
   const mk = (o, mat) => {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(o.pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(o.uv, 2)); g.setAttribute('color', new THREE.Uint8BufferAttribute(o.col, 3, true)); g.computeVertexNormals();
     // Normales tournées vers l'extérieur et vers le haut : les deux faces sont dessinées.
-    const m = new THREE.Mesh(g, mat); m.castShadow = !LITE; m.receiveShadow = true; m.renderOrder = 10; scene.add(m); return m;
+    // Par carrés (22/11) : d'un seul tenant, les maisons des villages lacustres (leur sphère : 26 km de rayon) passaient par la
+    // carte graphique à chaque image, même depuis les rues de Cotonou.
+    const m = new THREE.Mesh(g, mat); m.castShadow = !LITE; m.receiveShadow = true; m.renderOrder = 10; for (const c of maillageParCarres(m, LITE ? 3000 : 1200)) scene.add(c); return m;
   };
   mk(murs, K.tex('planches', 1, 1, '#ffffff', { vc: true, face2: true }));
   mk(toles, K.tex('tole', 1, 1, '#ffffff', { vc: true, face2: true, metal: .2 }));

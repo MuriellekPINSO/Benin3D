@@ -38,6 +38,12 @@ export function initMetiers(data, ctx) {
   W.dests = [...QUARTIERS.filter(q => q[2] > 2.2).map(([n, la, lo]) => [n, ...toXZ(la, lo)]), ...PLACES.filter(p => ici.has(p.id)).map(p => [p.name, ...toXZ(p.lat, p.lon)])]; // sans Ouidah : c'est l'avion
 }
 
+// Son véhicule à soi suffit-il pour ce métier ? Le zém : sa moto. Le taxi : n'importe quelle voiture à soi — seul le Land
+// Cruiser du « Fils à papa » comptait : avec une Vitz, un Jetour ou une Roadster achetés, on prenait le taxi du patron et sa
+// voiture disparaissait (Murielle, 23/11 : « pourquoi, quand je travaille, je prends une autre voiture alors que j'en ai une ? »).
+const VOITURES_A_SOI = new Set(['voiture', 'citadine', 'bolide', 'roadster', 'jetour', 'berline', 'pickup', 'suv', 'supercar']);
+const aSoi = (M, v) => !!M?.propre && !!v?.vehicule && (M.propre === 'voiture' ? VOITURES_A_SOI.has(v.vehicule) : v.vehicule === M.propre);
+
 // ---------- Choisir un métier, finir sa journée ----------
 const nomVeh = { moto: 'la moto', taxi: 'le taxi', tokpa: 'le tokpa-tokpa' };
 export function menuTravail() {
@@ -58,7 +64,7 @@ export function menuTravail() {
   const reprise = id => v.metier === id && v.journeeFin > Date.now() && v.versement > 0;
   const doit = v.versement > 0 && !(v.journeeFin > Date.now());
   const option = (id, sous) => {
-    const M = METIERS[id], propre = M.propre && v.vehicule === M.propre, bloque = !propre && M.versement && doit;
+    const M = METIERS[id], propre = aSoi(M, v), bloque = !propre && M.versement && doit;
     if (ferme(id)) return { texte: M.nom, desactive: true, sous: `S’ouvre au chapitre ${CHAPITRE_DE[id] + 1}` };
     return { texte: M.nom, desactive: bloque, sous: bloque ? `Rends d’abord ${fmt(v.versement)} à ton patron` : reprise(id) ? `Reprendre ta journée (versement convenu : ${fmt(v.versement)})` : propre ? `Avec ${M.propre === 'moto' ? 'ta moto' : 'ta voiture'} : toute la recette est pour toi` : sous, f: () => commencer(id) };
   };
@@ -129,7 +135,7 @@ async function commencer(id, auto = false) {
   const ligneTokpa = id === 'chauffeur' || id === 'apprenti';
   if (ligneTokpa && !W.ligne) { refus('La ligne Godomey – Calavi n’est pas disponible.'); return; }
   if (ligneTokpa && T.mode === 'conduit') { refus('Gare-toi et descends d’abord : la gare de Godomey est loin.'); return; }
-  const propre = !!M.propre && v.vehicule === M.propre, reprise = v.metier === id && v.journeeFin > Date.now() && v.versement > 0;
+  const propre = aSoi(M, v), reprise = v.metier === id && v.journeeFin > Date.now() && v.versement > 0;
   W.patron = !propre && M.versement > 0;
   if (W.patron && !reprise) {
     if (v.versement > 0) { refus(`Ton patron attend encore ${fmt(v.versement)} : paie-le d’abord.`); return; }
@@ -145,7 +151,7 @@ async function commencer(id, auto = false) {
       // La consigne n'était que dans la discussion, souvent cachée : une bulle au-dessus de soi, et le GPS si le véhicule est loin.
       const Vp = T.veh; X.bulle?.(S, `${M.veh === 'moto' ? 'La moto' : 'Le taxi'} du patron : suis la lumière jaune !`);
       if (Vp && Math.hypot(Vp.x - S.x, Vp.z - S.z) > 5) X.gps?.(Vp.x, Vp.z, `${M.veh === 'moto' ? 'la moto' : 'le taxi'} du patron`);
-    } else if (!T.veh) X.garerSonVehicule();
+    } else if (!T.veh) { T.auGarage = false; X.garerSonVehicule(); } // le sien, même rangé au garage, vient travailler avec toi
     if (id === 'zem') enfilerChemise();
     if (!auto) X.ligne(id === 'zem' ? `Tu es zémidjan, chemise jaune n° ${numero()} sur le dos. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux pour discuter le prix.` : 'Tu fais le taxi. Roule : les clients te font signe au bord de la rue. Arrête-toi à côté d’eux.');
   } else allerGare(id, reprise);
@@ -163,7 +169,7 @@ async function commencer(id, auto = false) {
 export function reprendreJournee() {
   const v = VIE.data, id = v?.metier, M = METIERS[id];
   if (!M || M.famille !== 'transport' || W.id || !(v.versement > 0) || !(v.journeeFin > Date.now())) return;
-  if (M.propre && v.vehicule === M.propre) return; // sa moto (ou sa voiture) à soi est déjà garée devant : rien n'a disparu
+  if (aSoi(M, v)) return; // sa moto (ou sa voiture) à soi est déjà garée devant : rien n'a disparu
   if (id === 'zem' || id === 'taxi') commencer(id, true);
   else X.ligne('Ta journée continue : ton tokpa-tokpa t’attend à la gare de Godomey (« Travailler », puis « Transport »).');
 }
@@ -208,6 +214,7 @@ async function finirJournee() {
     await ecrire({ versement: v.versement - paye, journeeFin: 0 });
     X.ligne(v.versement > 0 ? `Tu n’avais pas assez : tu dois encore ${fmt(v.versement)} à ton patron. Il ne te confiera rien d’autre avant d’être payé.` : 'Le patron a son versement. Bonne soirée !');
   } else X.ligne('Journée finie. Bonne soirée !');
+  if (T.auGarage && VIE.data?.vehicule) X.ligne(`${X.nomSonVehicule(VIE.data.vehicule)} t’attend dans ton garage : « Aller », puis « Chez moi ».`);
   W.id = ''; VIE.service = ''; W.patron = false; rendreVie();
 }
 /** Arrête tout ce que le service a mis en place : clients, passagers, chemise, véhicule du patron, minibus. */
@@ -231,6 +238,14 @@ function arreterService() {
 export function quitterMetiers() { if (!W.id && !W.tk) return; arreterService(); W.id = ''; VIE.service = ''; W.pause = false; VIE.pause = false; }
 
 // ---------- Véhicules de travail ----------
+/** On prend le véhicule du patron : le sien n'est plus dans la rue. Il rentre dans le garage de sa maison (garage.js), où on
+ *  le retrouve après le travail ; sans garage (pas de place à côté de la porte), il revient à côté de soi comme avant. */
+function rangerLeSien() {
+  const V = T.veh; if (!V) return;
+  retirerVehicule(V); T.veh = null;
+  if (V.travail || V.vole || !VIE.data?.vehicule || !T.garage?.existe()) return;
+  T.auGarage = true; X.ligne(`${X.nomSonVehicule(VIE.data.vehicule)} rentre dans ton garage, chez toi : tu l’y retrouveras après le travail.`);
+}
 function routeProche(x, z, rMin = 0, rMax = 25) {
   for (let r = rMin; r <= rMax; r += 1.5) for (let a = 0; a < 16; a++) { const px = x + Math.cos(a * Math.PI / 8) * r, pz = z + Math.sin(a * Math.PI / 8) * r; if (surRoute(px, pz)) return [px, pz]; }
   return null;
@@ -262,7 +277,7 @@ function placeDeDepart(D, x, z, rMax = 60) {
   return null;
 }
 function vehiculeDuPatron(type) {
-  if (T.veh) { retirerVehicule(T.veh); T.veh = null; } // ton véhicule à toi reste à la maison
+  rangerLeSien(); // ton véhicule à toi rentre à la maison, dans son garage
   const ox = S.x + Math.sin(S.cap + Math.PI / 2) * 4, oz = S.z + Math.cos(S.cap + Math.PI / 2) * 4;
   // Nulle part assez de place à 60 m (une ruelle bouchée, ou loin de toute rue) : la route la plus proche, comme avant.
   const p = placeDeDepart(VEHICULES[type], ox, oz) || [...(routeProche(ox, oz, 0, 150) || [S.x, S.z]), null];
@@ -675,7 +690,7 @@ export function assoirApprenti(p, V) {
 
 function allerGare(id, reprise) {
   const L = W.ligne, k = L.arrets.length - 1;
-  if (T.veh) { retirerVehicule(T.veh); T.veh = null; } // ton véhicule à toi reste chez toi
+  rangerLeSien(); // ton véhicule à toi reste chez toi, dans son garage
   const ici = bout(troncon(k, k - 1), true), cap = Math.atan2(ici.dx, ici.dz);
   const V = creerVehicule('tokpa'); placer(V, ici.x, ici.z, cap); V.travail = true;
   const tk = W.tk = { V, k, cible: k, sens: -1, occ: 0, phase: 'gare', t: 0, attendent: [], file: 0, part: 0, cris: 0, encaissesArret: 0, aide: null, ruban: null, desc: 0, montes: 0, P: null, ici, fin: ici };

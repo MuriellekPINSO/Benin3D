@@ -77,7 +77,7 @@ async function onglet(id) {
   for (const b of document.querySelectorAll('[data-pm]')) b.setAttribute('aria-selected', String(b.dataset.pm === id));
   const intro = $('#pmIntro'), liste = $('#pmListe'); if (!liste) return;
   intro.textContent = id === 'semaine' ? 'La réputation gagnée cette semaine avec les missions du jour (★). Tout le monde repart de zéro lundi.'
-    : id === 'riches' ? 'La fortune : l’argent, l’épargne, la voiture, les commerces et la maison de chacun.' : id === 'album' ? 'Les lieux de Cotonou et de Ouidah découverts pour l’album (34 cartes en tout).' : 'Les journées réussies de suite (les trois missions du jour). Une journée manquée, et la série repart à zéro.';
+    : id === 'riches' ? 'La fortune : l’argent, l’épargne, la voiture, les commerces et la maison de chacun.' : id === 'album' ? 'Les lieux de Cotonou et de Ouidah découverts pour l’album (44 cartes en tout).' : 'Les journées réussies de suite (les trois missions du jour). Une journée manquée, et la série repart à zéro.';
   if (VIE.local) { liste.innerHTML = '<li class="pm-vide">Le classement n’existe pas en mode test : il faut jouer en ligne.</li>'; return; }
   liste.innerHTML = '<li class="pm-vide">Chargement…</li>';
   let l; try { l = await lire(id); } catch (e) { console.warn('classement', e?.message); if (P.onglet === id) liste.innerHTML = '<li class="pm-vide">Le classement n’a pas pu être chargé. Réessaie dans un moment.</li>'; return; }

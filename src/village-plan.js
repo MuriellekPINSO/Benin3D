@@ -6,9 +6,11 @@
 //
 // Ce module ne dépend de presque rien : la ville (ville.js, lieux.js, conduite.js) le lit pendant sa construction.
 // Le Village en 3D, le passeport et la fenêtre sont dans village.js.
-// Jusqu'au 30 novembre à minuit (heure de Cotonou), puis seulement avec ?village dans l'adresse.
+// « L'innovation est terminée, on enlève le Village » (Murielle, 22/11) : il s'est tenu du 18 au 20 novembre ; depuis le 21 à
+// minuit (heure de Cotonou), le parking du Palais des Congrès redevient comme avant (chapiteau, voitures, rues, une seule salle
+// de jeux, à Haie Vive). Le Village ne revient qu'avec ?village dans l'adresse (le lien du QR code du stand), pour le montrer.
 const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
-export const VILLAGE_ACTIF = Q.has('village') || Date.now() < Date.parse('2026-12-01T00:00:00+01:00');
+export const VILLAGE_ACTIF = Q.has('village') || Date.now() < Date.parse('2026-11-21T00:00:00+01:00');
 export const VILLAGE_DATES = 'du 18 au 20 novembre';
 // Venir au Village : par le lien du QR code du stand (?village), ou le bouton de l'accueil (salon.js). On arrive alors
 // directement à l'entrée du Village au lieu de se réveiller chez soi.

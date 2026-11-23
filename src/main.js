@@ -3,7 +3,7 @@ import { initEvenement, majConcertDehors } from './evenement.js';
 import { initCinema } from './cinema.js';
 import { initMultijoueur, majMultijoueur } from './multijoueur.js';
 import { construireFeux, majFeuxVille } from './feux.js';
-import { construireTerrePleins, initTerrePleins } from './terre-pleins.js';
+import { construireTerrePleins, initTerrePleins, majTerrePleins } from './terre-pleins.js';
 import * as THREE from 'three';
 import { applyMood, moodCur, sunDir } from './ambiances.js';
 import { $, LITE, SECOURS, reduceMotion } from './base.js';
@@ -36,6 +36,7 @@ import { degagerChaussees, initRue, majRue } from './rue.js';
 import { initBatimentsGoogle, majBatimentsGoogle } from './batiments-google.js';
 import { construireLieuxVideos } from './lieux-videos.js';
 import { animerOuidah, construireOuidah } from './ouidah.js';
+import { construireOuidahVille } from './ouidah-ville.js';
 import { animerEtals, construireEtals, initBoutique } from './artisans.js';
 import { construireCaiCai } from './caicai.js';
 import { construireStand } from './lancepierre.js';
@@ -152,7 +153,7 @@ function image(now) {
   if (camera.far !== loin) { camera.far = loin; camera.updateProjectionMatrix(); sky.scale.setScalar(Math.min(1, loin * .9 / 100000)); }
   sky.position.copy(camera.position);
   if (E.foamMat) E.foamMat.uniforms.uTime.value = U.uTime.value;
-  if (E.frameN % 12 === 0) visibiliteLieux(camera.position);
+  if (E.frameN % 12 === 0) { visibiliteLieux(camera.position); majTerrePleins(camera.position); }
   animerLieux(U.uTime.value); animerOuidah(U.uTime.value, camera.position); animerEtals(U.uTime.value, camera.position);
   const reelle = vueReelleSeule(); for (const e of extras) e.visible = E.riseDone && !reelle; avionsVisibles(!reelle); // Vue réelle seule : ni palmiers, ni conteneurs, ni bateaux, ni avions
   E.circulation.length = 0; E.zemsPres.length = 0; // refaites par updateZems / majTokpas, vides quand la circulation est cachée
@@ -228,7 +229,7 @@ async function main() {
   detailsToits(); // citernes, paraboles et fers à béton sur les toits plats (toits-details.js)
   construireSalle(); // la salle de jeux de Haie Vive : les jeux des créateurs (salle-jeux.js)
   if (import.meta.env.DEV) { window.__toits = STATS_TOITS; window.__foule = etatFoule; }
-  construireLieuxVideos(data); construireOuidah(data.L); construireEtals(data.L); construireCaiCai(); construireStand(); construireMaquis();
+  construireLieuxVideos(data); construireOuidah(data.L); construireOuidahVille(); construireEtals(data.L); construireCaiCai(); construireStand(); construireMaquis();
   semeOne(data.L.semeOne); portailUAC(data.L.campus, data.L.lignes?.find(l => l.id === 'calavi')?.pts); construireTokpas();
   const sansArbres = degagerChaussees(VEGETATION); // pas d'arbre au milieu de la rue
   if (import.meta.env.DEV) console.info(`arbres retirés des chaussées : ${sansArbres}`);

@@ -304,6 +304,9 @@ export function declarerCathedrale(porte, dehors) {
   declarerInterieur('cathedrale', { nom: 'la cathédrale Notre-Dame', porte, dehors, w: CW, d: CD, plafond: CH - .5, lampe: 2.6, entree: [0, -CD / 2 + 3, 0], entrer: 'Entrer dans la cathédrale', construire: cathedrale });
 }
 /** La porte de la mosquée de Zongo (lieux-videos.js). */
-export function declarerMosquee(porte, dehors) {
-  declarerInterieur('mosquee-zongo', { nom: 'la mosquée de Zongo', porte, dehors, w: MW, d: MD, plafond: MH - .5, lampe: 2.3, entree: [0, -MD / 2 + 2.6, 0], entrer: 'Entrer dans la mosquée', construire: mosquee });
+// `portes` : [{ porte, dehors }, …], la première d'abord (celle du boulevard : « Aller » y dépose) ; on ressort par celle où
+// l'on est entré (interieurs.js).
+export function declarerMosquee(portes) {
+  const [{ porte, dehors }] = portes;
+  declarerInterieur('mosquee-zongo', { nom: 'la mosquée de Zongo', porte, dehors, ...(portes.length > 1 ? { portes } : {}), w: MW, d: MD, plafond: MH - .5, lampe: 2.3, entree: [0, -MD / 2 + 2.6, 0], entrer: 'Entrer dans la mosquée', construire: mosquee });
 }

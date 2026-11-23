@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import './matrices.js'; // ne refaire la matrice d'un objet que s'il a bougé
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
 import { $, LITE, coarse, reduceMotion, toXZ, SECOURS } from './base.js';
 import { HQ_PH, PH, texHQ, texIA } from './textures-ia.js';

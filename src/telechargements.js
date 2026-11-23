@@ -11,6 +11,7 @@
 // 5. les monuments lointains, un seul à la fois et quand rien d'autre ne passe — l'un d'eux qui devient proche passe devant.
 // Hors ligne, la file attend le retour du réseau ; chaque modèle est retenté (textures.js, avecReprises).
 import * as THREE from 'three';
+import { LITE } from './base.js';
 import { camera } from './scene.js';
 import { E } from './etat.js';
 import { libererApresEnvoi, reduireImage } from './textures.js';
@@ -40,7 +41,9 @@ function suivant() {
   while (F.enCours < F.max && F.attente.length) {
     const pos = ici(); let best = -1, br = null;
     F.attente.forEach((t, i) => { const r = rang(t, pos); if (!br || r[0] < br[0] || (r[0] === br[0] && r[1] < br[1])) { br = r; best = i; } });
-    if (br[0] === 4 && F.enCours > 0) break; // un lointain : seulement quand la connexion est libre
+    // Un lointain : seulement quand la connexion est libre ; sur téléphone, pas du tout tant qu'on ne s'en approche pas (22/11 :
+    // « on a des petits téléphones » ; les quatorze monuments, c'était 6 Mo de plus dans la première minute, de forfait aussi).
+    if (br[0] === 4 && (LITE || F.enCours > 0)) break;
     const [t] = F.attente.splice(best, 1); F.enCours++;
     Promise.resolve().then(t.fn).then(t.ok, t.ko).finally(() => { F.enCours--; suivant(); });
   }

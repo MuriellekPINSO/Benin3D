@@ -26,10 +26,12 @@ export const PAGES = [
   ['mer', 'Le bord de mer', [['fidjrosse', 100], ['dome', 70], ['murport', 150], ['agl', 70], ['port', 200], ['corniche', 120]]],
   ['quartiers', 'Les quartiers', [['haievive', 150], ['seme', 70], ['aeroport', 200], ['bioguera', 70], ['superu', 95], ['stade', 240]]],
   ['loin', 'Plus loin', [['uac', 200], ['calavi', 300], ['porte', 70], ['arene', 145]]],
+  ['ouidah', 'Le centre de Ouidah', [['basilique-ouidah', 60], ['temple-pythons', 50], ['chacha', 60], ['fort-ouidah', 90], ['zinsou', 50], ['kpasse', 60]]], // 22/11 (ouidah-ville.js)
+  ['route', 'La Route des Esclaves', [['arbre-oubli', 35], ['zomachi', 40], ['zoungbodji', 40], ['arbre-retour', 30]]],
 ];
 const CARTES = PAGES.flatMap(([page, , l]) => l.map(([id, rayon]) => ({ id, rayon, page, P: PLACES.find(p => p.id === id) }))).filter(c => c.P);
 export const TOTAL_ALBUM = CARTES.length;
-const OUIDAH = new Set(['porte', 'arene']);
+const OUIDAH = new Set(['porte', 'arene', 'basilique-ouidah', 'temple-pythons', 'chacha', 'fort-ouidah', 'zinsou', 'kpasse', 'arbre-oubli', 'zomachi', 'zoungbodji', 'arbre-retour']);
 // Dans une salle du jeu (interieurs.js), la carte du bâtiment se découvre aussi.
 const SALLES = { cite: 'cite-foodcourt', aeroport: 'aeroport-hall' };
 const ICONES = { hotel: '🏨', savoir: '🎓', monument: '🗿', marche: '🧺', eau: '🌊', transport: '⚓', culte: '🕊️', plage: '🏖️', institution: '🏛️', quartier: '🏘️' };

@@ -26,14 +26,16 @@ const COMPTEUR = { moto: 'Moto', voiture: 'Voiture', taxi: 'Taxi', tokpa: 'Tokpa
 // s'asseoir et manger, prendre l'avion pour Ouidah (vol.js). Chaque paiement est débité du portefeuille de
 // « Ma vie » et se voit (billet, objet).
 
-export const T = { mode: 'pied', veh: null, zem: null, gel: false, gps: null, plat: null, repas: null, trans: null, conso: 0, panneDite: false, ctx: null, gpsT: 0 };
+// auGarage : son véhicule à soi est rangé dans le garage de sa maison (garage.js, qui pose aussi `garage` : { existe() }) ;
+// garageAnim : le portail s'ouvre, la voiture entre ou sort — pas d'autre action pendant ce temps.
+export const T = { mode: 'pied', veh: null, zem: null, gel: false, gps: null, plat: null, repas: null, trans: null, conso: 0, panneDite: false, ctx: null, gpsT: 0, auGarage: false, garage: null, garageAnim: false };
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 const v3 = new THREE.Vector3();
 let S = null, ligne = () => { }, bulleLocale = null;
 
 export function initTrajets(data, ctx) {
   initStations(data.L.stations); S = ctx.S; ligne = ctx.ligne; bulleLocale = ctx.bulle; initVol(data, { ...ctx, T }); initNuit({ ...ctx, T, astuce });
-  initMetiers(data, { ...ctx, T, gps, choisir, asseoirSur, garerSonVehicule, etiquette, vehiculesDesAutres }); // zém, taxi, tokpa-tokpa (metiers.js)
+  initMetiers(data, { ...ctx, T, gps, choisir, asseoirSur, garerSonVehicule, nomSonVehicule, etiquette, vehiculesDesAutres }); // zém, taxi, tokpa-tokpa (metiers.js)
   allumerLesPortes(); // toutes les portes sont déclarées : on pose l'ampoule du soir au-dessus de chacune
 }
 // Comment on nomme le véhicule : monter dans…, descendre de…
@@ -70,6 +72,7 @@ export function peindreSonVehicule(type, c) {
 /** À l'arrivée dans le salon : son véhicule (Fils à papa : voiture ; moto louée) garé sur la route la plus proche. */
 export function entrerMonde() {
   quitterMonde(); T.mode = 'pied';
+  T.auGarage = !!T.garage?.existe(); // on se réveille chez soi : sa voiture a dormi au garage (garage.js)
   garerSonVehicule();
 }
 /** Le loueur reprend le véhicule : il disparaît de la rue. Seulement à pied, pas en roulant dessus. */
@@ -77,26 +80,34 @@ export function reprendreVehicule() { if (T.mode !== 'pied') return false; retir
 /** `ou` ({ x, z, cap }) : un emplacement imposé — le vélo qu'on loue est posé devant la boutique, pas sur la
  *  route la plus proche, qui pouvait être à 15 m de l'autre côté d'une haie. */
 export function garerSonVehicule(ou = null) {
-  const type = VIE.data?.vehicule; if (!type || !VEHICULES[type] || T.veh) return;
+  const type = VIE.data?.vehicule; if (!type || !VEHICULES[type] || T.veh || T.auGarage) return; // rangé au garage : il y reste
   const o = S.lieu ? arriveeDehors(S.lieu) : S; // dans un bâtiment (chez soi au réveil) : dans la rue, devant la porte
   const q = ou ? [ou.x, ou.z] : pointDeRoute(o.x + Math.sin(o.cap + Math.PI / 2) * 4, o.z + Math.cos(o.cap + Math.PI / 2) * 4, 0, 150); if (!q) return;
   // Pas de place libre à cet endroit de la rue (un carrefour, des voitures qui passent) : les rues autour, avant de la
   // poser quand même — elle tombait alors sur une voiture de la circulation (« elles s'entremêlent », 11/11).
   const ailleurs = () => { for (const r of [15, 30, 45]) for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, q2 = pointDeRoute(o.x + Math.sin(a) * r, o.z + Math.cos(a) * r, 0, 12), p2 = q2 && saPlace(type, q2); if (p2) return p2; } return null; };
   const p = ou ? [ou.x, ou.z, ou.cap] : saPlace(type, q) || ailleurs() || [q[0], q[1], Math.atan2(q[0] - o.x, q[1] - o.z)];
-  T.veh = creerVehicule(type, { couleur: couleurPerso(type), peinture: peintureDe(type) }); placer(T.veh, p[0], p[1], p[2]);
+  poserSonVehicule(p[0], p[1], p[2]);
+  const nom = nomSonVehicule(type), d = Math.round(Math.hypot(p[0] - o.x, p[1] - o.z) / 5) * 5;
+  if (d > 8 && !S.lieu) ligne(type === 'velo' ? `Ton vélo est posé sur la route, à ${d} m : suis l’étiquette jaune.` : type === 'bolide' ? `Ton bolide est garé sur la route, à ${d} m : suis l’étiquette jaune.` : type === 'jetour' ? `Ton Jetour est garé sur la route, à ${d} m : suis l’étiquette jaune.` : ['suv', 'pickup'].includes(type) ? `${nom} est garé sur la route, à ${d} m : suis l’étiquette jaune.` : `${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
+}
+// La Roadster s'appelait « Ta moto » (le nom par défaut) ; le bolide est « garé », pas « garée ».
+/** Le nom de son véhicule à soi, sur son étiquette : « Ta voiture », « Ton vélo »… */
+export const nomSonVehicule = type => (type === 'voiture' ? 'Ta voiture' : type === 'velo' ? 'Ton vélo' : type === 'citadine' ? 'Ta citadine' : type === 'bolide' ? 'Ton bolide' : type === 'roadster' ? 'Ta Roadster' : type === 'jetour' ? 'Ton Jetour' : type === 'berline' ? 'Ta berline' : type === 'supercar' ? 'Ta supercar' : type === 'suv' ? 'Ton SUV' : type === 'pickup' ? 'Ton pick-up' : 'Ta moto');
+/** Son véhicule à soi (VIE.data.vehicule) posé en (x, z), au cap `cap` : il devient T.veh, avec son étiquette jaune. */
+export function poserSonVehicule(x, z, cap) {
+  const type = VIE.data?.vehicule; if (!type || !VEHICULES[type]) return null;
+  T.veh = creerVehicule(type, { couleur: couleurPerso(type), peinture: peintureDe(type) }); placer(T.veh, x, z, cap);
   // Les vrais modèles de jeu (berline, supercar, SUV, pick-up) se chargent à la demande : en attendant, la voiture dessinée,
   // remplacée par le vrai modèle dès qu'il arrive, tant qu'on n'est pas monté dedans.
   if (estVrai(type) && T.veh.dessin) quandModele(type, () => {
-    const V0 = T.veh; if (!V0 || V0.type !== type || !V0.dessin || T.mode !== 'pied') return;
+    const V0 = T.veh; if (!V0 || V0.type !== type || !V0.dessin || T.mode !== 'pied' || T.garageAnim) return;
     const V = creerVehicule(type, { couleur: couleurPerso(type), peinture: peintureDe(type) }); placer(V, V0.x, V0.z, V0.cap);
     if (V0.etiquette) { V.g.add(V0.etiquette); V.etiquette = V0.etiquette; }
     retirerVehicule(V0); T.veh = V;
   });
-  // La Roadster s'appelait « Ta moto » (le nom par défaut) ; le bolide est « garé », pas « garée ».
-  const nom = type === 'voiture' ? 'Ta voiture' : type === 'velo' ? 'Ton vélo' : type === 'citadine' ? 'Ta citadine' : type === 'bolide' ? 'Ton bolide' : type === 'roadster' ? 'Ta Roadster' : type === 'jetour' ? 'Ton Jetour' : type === 'berline' ? 'Ta berline' : type === 'supercar' ? 'Ta supercar' : type === 'suv' ? 'Ton SUV' : type === 'pickup' ? 'Ton pick-up' : 'Ta moto', e = etiquette(nom); e.position.y = type === 'pickup' ? 2.6 : ['voiture', 'citadine', 'bolide', 'roadster', 'jetour', 'berline', 'supercar', 'suv'].includes(type) ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
-  const d = Math.round(Math.hypot(p[0] - o.x, p[1] - o.z) / 5) * 5;
-  if (d > 8 && !S.lieu) ligne(type === 'velo' ? `Ton vélo est posé sur la route, à ${d} m : suis l’étiquette jaune.` : type === 'bolide' ? `Ton bolide est garé sur la route, à ${d} m : suis l’étiquette jaune.` : type === 'jetour' ? `Ton Jetour est garé sur la route, à ${d} m : suis l’étiquette jaune.` : ['suv', 'pickup'].includes(type) ? `${nom} est garé sur la route, à ${d} m : suis l’étiquette jaune.` : `${nom} est garée sur la route, à ${d} m : suis l’étiquette jaune.`);
+  const e = etiquette(nomSonVehicule(type)); e.position.y = type === 'pickup' ? 2.6 : ['voiture', 'citadine', 'bolide', 'roadster', 'jetour', 'berline', 'supercar', 'suv'].includes(type) ? 2.2 : 1.7; T.veh.g.add(e); T.veh.etiquette = e;
+  return T.veh;
 }
 // « Pourquoi chez moi c'est épuré et chez lui ça se casse » (Murielle, 04/11, capture de Carlos) : quatre voitures
 // encastrées les unes dans les autres devant l'immeuble de Haie Vive. Tous ceux qui louent le même appartement garaient la
@@ -143,7 +154,7 @@ export function quitterMonde() {
 // ---------- Actions possibles (bouton principal et secondaire, touche E) ----------
 export function actions() {
   const out = [], V = T.veh, D = VIE.data;
-  if (T.trans) return out;
+  if (T.trans || T.garageAnim) return out;
   if (T.mode === 'avion') return actionsVol();
   out.push(...actionsMetier()); // le métier d'abord : parler au client, encaisser, crier la destination…
   if (T.mode === 'apprenti') return out;
@@ -197,13 +208,15 @@ export function actions() {
  *  maison, comme quand le patron confie le sien (metiers.js) ; il revient (garerSonVehicule) quand on lâche la voiture volée. */
 export function volerVehicule(V) {
   if (T.mode !== 'pied' || T.trans || S.lieu || T.veh?.travail || enService()) return false;
-  if (T.veh && T.veh !== V) retirerVehicule(T.veh);
+  if (T.veh && T.veh !== V) { retirerVehicule(T.veh); if (T.garage?.existe()) T.auGarage = true; } // la sienne rentre au garage
   T.veh = V; monter(); return true;
 }
 /** La voiture volée retourne à son propriétaire (on l'a laissée loin, ou ramenée) ; son véhicule à soi revient. */
 export function lacherVehiculeVole() {
   const V = T.veh; if (!V?.vole || T.mode !== 'pied' || T.trans) return false;
-  retirerVehicule(V); T.veh = null; garerSonVehicule(); return true;
+  retirerVehicule(V); T.veh = null; garerSonVehicule();
+  if (T.auGarage && VIE.data?.vehicule) ligne(`${nomSonVehicule(VIE.data.vehicule)} t’attend dans ton garage, chez toi.`);
+  return true;
 }
 
 // ---------- Monter, descendre ----------
@@ -255,7 +268,7 @@ function majBloque(V, av, dt) {
     astuce(V.D.propulseurs ? 'Coincée ? Appuie un instant sur « Propulseurs » : elle saute par-dessus' : coarse ? 'Bloqué ? Tire le rond vers le bas pour reculer, puis tourne' : 'Bloqué ? Recule avec ↓, puis tourne', 8000); T.bloqueDit = true;
   } else if (T.bloqueDit && Math.abs(V.v) > .8) cacherAide();
 }
-function descendre() {
+export function descendre() {
   const V = T.veh; if (!V || Math.abs(V.v) > .8) return;
   cacherAide();
   V.v = 0; delete V.redresse; moteurStop(); T.mode = 'pied'; S.moi?.userData.velo?.(null); // sinon il marche les bras tendus

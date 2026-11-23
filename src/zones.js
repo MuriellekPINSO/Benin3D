@@ -1,6 +1,7 @@
 import { toXZ } from './base.js';
 import { EMPLACEMENTS } from './emplacements.js';
 import { REPERES, SALLE_JEUX } from './reperes.js';
+import { disquesOuidah, terrainsOuidah } from './ouidah-sites.js';
 
 // ---------- Zones où rien ne se construit ----------
 // La piste des vols découverte à Ouidah (vol.js) est posée à côté de la Porte du Non-Retour, sur un terrain où la carte a
@@ -21,6 +22,8 @@ function bande(A, B, tMin, tMax, bout) {
 }
 // Un disque (l'arène de Ouidah : son emprise OpenStreetMap faisait de toute l'arène un bâtiment plein, on n'y entrait pas).
 function disque(x, z, r) { Z.push({ disque: true, x, z, r, bb: [x - r, z - r, x + r, z + r] }); }
+// Un polygone [[x, z], …] (les monuments du centre de Ouidah, ouidah-sites.js).
+function polygone(r) { const xs = r.map(p => p[0]), zs = r.map(p => p[1]); Z.push({ poly: r, bb: [Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)] }); }
 /** Le centre de l'arène de Ouidah (ouidah.js la pose là). */
 export const centreArene = A => [A[0] + 1.4, A[1]];
 // ---------- Parcs : ni maison générée, ni bâtiment détecté par Google ----------
@@ -92,6 +95,8 @@ export function initZones(L) {
   if (!PARCS.length) for (const p of PARCS_LATLON) parc(p);
   // Les repères posés d'après photo (reperes.js) : le bâtiment de la carte cède sa place au modèle.
   if (!Z.some(b => b.repere)) for (const R of [...REPERES, { id: 'salle-jeux', ...SALLE_JEUX }]) if (R.vider) { const [x, z] = toXZ(...R.centre); disque(x, z, R.vider); Z.at(-1).repere = R.id; }
+  // Le centre de Ouidah (22/11) : basilique, Temple des Pythons, place Chacha, fort portugais, villa Ajavon (ouidah-ville.js).
+  if (!Z.some(b => b.ouidah)) { for (const r of terrainsOuidah()) { polygone(r); Z.at(-1).ouidah = true; } for (const [x, z, r] of disquesOuidah()) { disque(x, z, r); Z.at(-1).ouidah = true; } }
   const P = L?.ouidah?.porte; if (!P) return;
   const { A, B } = pisteOuidah(P); bande(A, B, -25, 55, 35); // piste, bas-côtés, aire de stationnement, paillote, panneaux
   if (L.ouidah.arene) { const [x, z] = centreArene(L.ouidah.arene); disque(x, z, 80); } // jusqu'au mur d'enceinte (77 m)
@@ -101,6 +106,7 @@ export function sansConstruction(x, z) {
   for (const b of Z) {
     if (x < b.bb[0] || x > b.bb[2] || z < b.bb[1] || z > b.bb[3]) continue;
     if (b.disque) { if ((x - b.x) ** 2 + (z - b.z) ** 2 < b.r * b.r) return true; continue; }
+    if (b.poly) { const r = b.poly; let d = false; for (let a = 0, j = r.length - 1; a < r.length; j = a++) { const [xa, za] = r[a], [xj, zj] = r[j]; if ((za > z) !== (zj > z) && x < (xj - xa) * (z - za) / (zj - za) + xa) d = !d; } if (d) return true; continue; }
     const dx = x - b.ax, dz = z - b.az, s = dx * b.ux + dz * b.uz, t = dx * b.uz - dz * b.ux;
     if (s > -b.bout && s < b.l + b.bout && t > b.tMin && t < b.tMax) return true;
   }

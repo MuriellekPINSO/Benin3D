@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { LITE, SECOURS, toXZ } from './base.js';
 import { plusTard } from './telechargements.js';
-import { scene } from './scene.js';
+import { camera, scene } from './scene.js';
 import { roadLines, ROAD_W } from './ville.js';
 import { REPERES } from './reperes.js';
 import { chargeurGLB } from './textures.js';
@@ -86,16 +86,21 @@ export async function chargerVille() {
 }
 
 /**
- * Quand `id` arrive, l'instancié `m` (dessiné en code) prend sa forme : même matrices d'instances, la longueur du modèle
- * alignée sur celle de l'ancienne géométrie et mise à la même taille, posé à la même hauteur. Les couleurs d'instance
- * (peintures tirées au hasard) sont retirées : le modèle a celles de la photo. `cacher` : instanciés qui n'ont plus lieu
- * d'être (les paniers dessinés sur la pirogue chargée).
+ * Quand `id` arrive, les instances de `m` (dessiné en code) proches de la caméra prennent sa forme : mêmes matrices
+ * d'instances, la longueur du modèle alignée sur celle de l'ancienne géométrie et mise à la même taille, posé à la même
+ * hauteur. Plus loin, la forme dessinée reste, avec ses couleurs. « Ça rame sur le téléphone » (Murielle, 22/11) : les
+ * 630 pirogues du lac Nokoué toutes en vraie pirogue (3 000 triangles chacune), c'étaient 1,9 million de triangles à chaque
+ * image, vus de n'importe où en ville (leur sphère couvre tout le lac) : la moitié de ce que le téléphone dessinait. La
+ * forme dessinée en fait 72 ; à plus de 450 m (220 m sur téléphone), une pirogue ne fait que quelques pixels.
+ * `cacher` : instanciés dessinés que le modèle porte déjà (les paniers de la pirogue chargée, quatre par pirogue) : ils
+ * s'effacent sur les pirogues proches.
  */
 export function remplacerParVille(m, id, { cacher = [], echelle = 1 } = {}) {
   // La boîte de l'ancienne forme est prise tout de suite : une fois envoyée à la carte graphique, la géométrie n'a plus ses
   // sommets côté JavaScript (memoire.js).
   const ancien = m.geometry; ancien.computeBoundingBox();
   const A = ancien.boundingBox.getSize(new THREE.Vector3()), bas = ancien.boundingBox.min.y;
+  const PRES2 = (LITE ? 220 : 450) ** 2, cam = camera.position;
   quandVille(id, M => {
     const g = M.geo.clone();
     // Long côté de l'ancienne forme sur x ou z ; celui du modèle aussi : un quart de tour s'ils ne tombent pas ensemble.
@@ -103,10 +108,27 @@ export function remplacerParVille(m, id, { cacher = [], echelle = 1 } = {}) {
     g.computeBoundingBox(); const T = g.boundingBox.getSize(new THREE.Vector3());
     const k = Math.max(A.x, A.z) / Math.max(T.x, T.z) * echelle;
     g.scale(k, k, k); g.translate(0, bas, 0); g.computeBoundingSphere();
-    m.geometry = g; m.material = M.mat; m.instanceColor = null;
-    if (m.boundingSphere) m.computeBoundingSphere();
-    ancien.dispose();
-    for (const c of cacher) if (c) c.count = 0; // pas `visible` : lieux.js le recalcule à chaque image selon la distance
+    // Les proches : un instancié du modèle, enfant de `m` (caché avec lui), rempli à chaque image.
+    const fin = new THREE.InstancedMesh(g, M.mat, m.count); fin.count = 0; fin.visible = false; fin.frustumCulled = false;
+    fin.castShadow = m.castShadow; fin.receiveShadow = m.receiveShadow; fin.renderOrder = m.renderOrder; fin.name = `ville-${id}`;
+    m.add(fin);
+    const anim = m.userData.anim, fixe = anim ? null : m.instanceMatrix.array.slice(), parN = cacher.filter(Boolean).map(c => [c, c.count / m.count]);
+    let dernier = null;
+    m.userData.anim = t => {
+      if (anim) anim(t); // les pirogues qui glissent sur l'eau réécrivent toutes leurs matrices
+      else if (dernier && Math.abs(dernier[0] - cam.x) + Math.abs(dernier[1] - cam.y) + Math.abs(dernier[2] - cam.z) < 4) return; // immobiles : rien à refaire
+      else { dernier = [cam.x, cam.y, cam.z]; m.instanceMatrix.array.set(fixe); }
+      const src = m.instanceMatrix.array, dst = fin.instanceMatrix.array, h2 = cam.y * cam.y; let j = 0;
+      for (let i = 0; i < m.count; i++) {
+        const o = 16 * i, dx = src[o + 12] - cam.x, dz = src[o + 14] - cam.z;
+        if (dx * dx + dz * dz + h2 > PRES2) continue;
+        dst.set(src.subarray(o, o + 16), 16 * j++); src.fill(0, o, o + 16);
+        for (const [c, n] of parN) c.instanceMatrix.array.fill(0, 16 * n * i, 16 * n * (i + 1));
+      }
+      fin.count = j; fin.visible = j > 0; fin.instanceMatrix.needsUpdate = true; m.instanceMatrix.needsUpdate = true;
+      for (const [c] of parN) c.instanceMatrix.needsUpdate = true;
+    };
+    m.userData.anim(0);
   });
 }
 

@@ -10,6 +10,7 @@ import { BANCS, dansArbre, dansFoule } from './lieux.js';
 import { personne } from './discussions.js';
 import { INTERIEURS, arriveeDedans, arriveeDehors, cacherInterieurs, limiter, murEntre, ouvrirInterieur, porteProche, profondeurInterieur, siegeProche } from './interieurs.js';
 import { A_LOUER, actionsMaison, initMaison, logement, maisonActuelle, majMaison, occupe, quitterMaison, reveil } from './maison.js';
+import { actionsGarage, initGarage, majGarage, quitterGarage } from './garage.js';
 import { E } from './etat.js';
 import { firebase, joueur } from './firebase.js';
 import { compte } from './compte.js';
@@ -80,7 +81,7 @@ const PHRASES = ['Salut !', 'Ça va ?', 'On y va !', 'On mange où ?', 'Attends-
 // Lieux de rendez-vous : id dans PLACES, nom dans le menu, « je vais … », décalage du point d'arrivée (mètres,
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
-const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ...(VILLAGE_ACTIF ? [['village', 'Le Village de l’innovation (Palais des Congrès)', 'au Village de l’innovation', 0, 0, 0]] : []), ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['dome', 'Le Dôme du Sofitel (La Nuit Kutɔnu Vibes)', 'au Dôme du Sofitel', 0, 0, 0, 'dome-sofitel'], ['caicai', 'RideCorniche (location de vélos)', 'chez RideCorniche', 0, 0, 0], ...STATIONS_RC.map(S => [S.id, S.nom, S.dit, 0, 0, 0]), ['cathedrale', 'Cathédrale Notre-Dame (Ganhi)', 'à la cathédrale Notre-Dame', -32, 2, 1.41], ['ganhi', 'Marché Ganhi', 'au marché Ganhi', 0, 10, Math.PI], ['akpakpa', 'Église Sainte-Trinité (Akpakpa)', 'à l’église Sainte-Trinité d’Akpakpa', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0], ['salle-jeux', 'Salle de jeux (jeux des créateurs)', VILLAGE_ACTIF ? 'à la salle de jeux, à côté du Village' : 'à la salle de jeux de Haie Vive', 0, 0, 0, 'salle-jeux']]; // 7e : intérieur dont on arrive devant la porte
+const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ...(VILLAGE_ACTIF ? [['village', 'Le Village de l’innovation (Palais des Congrès)', 'au Village de l’innovation', 0, 0, 0]] : []), ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['dome', 'Le Dôme du Sofitel (La Nuit Kutɔnu Vibes)', 'au Dôme du Sofitel', 0, 0, 0, 'dome-sofitel'], ['caicai', 'RideCorniche (location de vélos)', 'chez RideCorniche', 0, 0, 0], ...STATIONS_RC.map(S => [S.id, S.nom, S.dit, 0, 0, 0]), ['cathedrale', 'Cathédrale Notre-Dame (Ganhi)', 'à la cathédrale Notre-Dame', -32, 2, 1.41, 'cathedrale'], ['zongo', 'Mosquée de Zongo', 'à la mosquée de Zongo', 0, 0, 0, 'mosquee-zongo'], ['ganhi', 'Marché Ganhi', 'au marché Ganhi', 0, 10, Math.PI], ['akpakpa', 'Église Sainte-Trinité (Akpakpa)', 'à l’église Sainte-Trinité d’Akpakpa', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0], ['basilique-ouidah', 'Basilique de Ouidah', 'à la basilique de Ouidah', 0, 0, -2.855], ['temple-pythons', 'Temple des Pythons (Ouidah)', 'au Temple des Pythons, à Ouidah', 0, 0, .395], ['chacha', 'Place Chacha (Ouidah)', 'à la place Chacha, à Ouidah', -3, 14, 2.93], ['fort-ouidah', 'Fort portugais (Ouidah)', 'au fort portugais de Ouidah', 0, 0, .616], ['zinsou', 'Villa Ajavon, Fondation Zinsou (Ouidah)', 'à la villa Ajavon, à Ouidah', 0, 0, -3.003], ['kpasse', 'Forêt sacrée de Kpassè (Ouidah)', 'à la forêt sacrée de Kpassè, à Ouidah', 0, 0, -2.902], ['arbre-oubli', 'Arbre de l’Oubli (Route des Esclaves)', 'à l’Arbre de l’Oubli, sur la Route des Esclaves', 0, 0, 1.713], ['zomachi', 'Mémorial Zomachi (Zoungbodji)', 'au mémorial Zomachi, à Zoungbodji', 0, 0, -1.616], ['zoungbodji', 'Mémorial de Zoungbodji (fosse commune)', 'au mémorial de Zoungbodji', 0, 0, 0], ['arbre-retour', 'Arbre du Retour (Zoungbodji)', 'à l’Arbre du Retour, à Zoungbodji', 0, 0, 2.99], ['salle-jeux', 'Salle de jeux (jeux des créateurs)', VILLAGE_ACTIF ? 'à la salle de jeux, à côté du Village' : 'à la salle de jeux de Haie Vive', 0, 0, 0, 'salle-jeux']]; // 7e : intérieur dont on arrive devant la porte
 const ACTION_DE = { porte: 0, action2: 1, action3: 2 }; // les touches des trois boutons d'action (E, R, F)
 const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
@@ -593,7 +594,7 @@ function actionsCaiCai() {
 async function prendreVelo(st) {
   const avait = VIE.data?.vehicule;
   if (!(await louerVelo())) return;
-  reprendreVehicule(); garerSonVehicule(st.pose); son('piece'); // sa voiture, garée plus loin, est mise de côté
+  reprendreVehicule(); T.auGarage = false; garerSonVehicule(st.pose); son('piece'); // sa voiture, garée plus loin, est mise de côté
   const garde = avait ? ' Ta voiture est mise de côté : tu la retrouves en rendant le vélo.' : '';
   if (st.id !== 'caicai') return ligne(`Vélo loué pour ${HEURES_VELO} h. Il est posé à côté du garde-vélo : approche-toi et « Monter sur ton vélo ». Tu peux le rendre à n’importe quelle station RideCorniche.${garde}`);
   ligne(`Vélo loué pour ${HEURES_VELO} h. Il est posé devant la boutique : approche-toi et « Monter sur ton vélo ». En selle devant la boutique : « Course à vélo » jusqu’à la cathédrale contre trois cyclistes, ou « Partir en balade ».${garde}`);
@@ -601,7 +602,7 @@ async function prendreVelo(st) {
 async function rendreVelo() {
   if (!reprendreVehicule()) return ligne('Descends d’abord du vélo.');
   S.balade = null; const garde = !!VIE.data?.garde; await rendreLocation();
-  if (garde) garerSonVehicule(); // sa voiture revient, devant la boutique
+  if (garde) { T.auGarage = false; garerSonVehicule(); } // sa voiture revient, devant la boutique
   ligne(`Vélo rendu. Merci, à bientôt chez RideCorniche !${garde ? ' Ta voiture est de retour.' : ''}`);
 }
 // ---------- Les balades en groupe ----------
@@ -916,7 +917,7 @@ function quitter() {
   if (!S.actif) return;
   S.reprise = false; // pas avant que la prochaine entrée ait garé son monde (entrerSalon)
   lieuStats('carte');
-  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterJournee(); quitterDeco(); quitterAlbum(); quitterTresor(); quitterVillage(); quitterJeuxVillage(); quitterVillageGens(); quitterEpargne(); quitterAdji(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
+  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterGarage(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterJournee(); quitterDeco(); quitterAlbum(); quitterTresor(); quitterVillage(); quitterJeuxVillage(); quitterVillageGens(); quitterEpargne(); quitterAdji(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
   if (S.appel) { signalAppel('fin', S.appel.avec); finAppel(); } // on quitte la ville : l'appel s'arrête chez l'autre aussi
   S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
@@ -1066,7 +1067,7 @@ export function majSalon(dt) {
   const jc = j && T.mode === 'conduit' && !T.veh?.vol ? joyConduite(j) : null; // au doigt, sur la route : on pousse le rond vers où l'on veut aller
   const av = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (jc ? jc.av : j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
   const tour = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) + (jc ? jc.tour : j ? -j.x : 0) - (pad ? pad.lx : 0), -1, 1);
-  majVie(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majVillage(dt); majVillageGens(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
+  majVie(dt); majGarage(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majVillage(dt); majVillageGens(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
   for (const A of S.autres.values()) { const G = A.garee; if (G?.g.visible && (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < 1600) E.circulation.push({ px: G.x, pz: G.z, cap: G.cap, hl: G.D.long / 2, hw: G.D.larg / 2, v: 0, type: G.type }); } // vidée à chaque image (main.js)
   majGarees();
   majCourseVelo(dt, S); // la course à vélo de RideCorniche : ses cyclistes roulent, et deviennent des obstacles (course-velo.js)
@@ -1232,7 +1233,7 @@ export function majSalon(dt) {
     : occupe() ? actionsMaison() // couché : se lever ; sous la douche, aux fourneaux : arrêter
     : S.gradin ? [{ texte: 'Se lever', f: leverGradins }, ...actionsAppel()]
     : tir ? actionsLancePierre(S, T)
-    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCourseVelo(S), ...actionsSalle(S, T), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsArcade(), ...actionsVillageGens(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
+    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsGarage(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCourseVelo(S), ...actionsSalle(S, T), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsArcade(), ...actionsVillageGens(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
   // La touche de chaque bouton : celle de la manette si l'on joue avec (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
   // Une manette branchée mais posée affichait ses boutons même au clavier : c'est la dernière saisie qui compte (saisie.js).
   const touches = SAISIE.manette ? (SAISIE.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
@@ -1537,6 +1538,7 @@ export function initSalon(data) {
   surAnnonce(t => ligne(t)); // argent gagné ou dépensé, faim : dans le fil du salon
   S.dire = dire; initTrajets(data, { S, ligne, dedans, dehors, bulle, retirerBulle, aller });
   initMaison({ S, ligne, geste, guide: () => !!guideSalon?.actif() }); // chez soi : se lever, se doucher, cuisiner (maison.js)
+  initGarage({ S, ligne }); // le garage à côté de sa porte : sa voiture y dort (garage.js)
   initRecharge({ ligne, son }); // recharger son compte par Mobile Money (recharge.js)
   $('#vhRecharger')?.addEventListener('click', e => { e.stopPropagation(); proposerRecharge(); });
   suivreClavier();
@@ -1610,7 +1612,7 @@ export function initSalon(data) {
   $('#vhFinir')?.addEventListener('click', () => choisir('Finir ta journée ?', [{ texte: 'Oui, j’arrête pour aujourd’hui', f: finirJournee }], { annuler: 'Non, je continue' }));
   $('#slHabiller')?.addEventListener('click', () => ouvrirGarderobe(S.modele));
   initGarderobe({ porter, ligne });
-  $('#vhLouer')?.addEventListener('click', () => louerMoto().then(ok => { if (ok) { garerSonVehicule(); ligne('Ta moto louée t’attend à côté : approche-toi et « Monter sur ta moto ».'); } }));
+  $('#vhLouer')?.addEventListener('click', () => louerMoto().then(ok => { if (ok) { T.auGarage = false; garerSonVehicule(); ligne('Ta moto louée t’attend à côté : approche-toi et « Monter sur ta moto ».'); } }));
   // S'acheter une voiture : elle reste à soi, contrairement à la moto qu'on loue à la journée.
   // Les voitures s'ouvrent au chapitre 2 (vie.js, ouvertAu), dès le premier jour pour le « Fils à papa » : on les voit dès le début, c'est un but.
   $('#vhAcheter')?.addEventListener('click', () => {
@@ -1620,7 +1622,7 @@ export function initSalon(data) {
       texte: `${V.nom} · ${V.prix.toLocaleString('fr-FR')} F`, sous: V.id === a ? 'C’est déjà la tienne' : !ouvertAu(1) ? 'S’ouvre au chapitre 2' : (VIE.data?.argent ?? 0) < V.prix ? `Il te manque ${(V.prix - (VIE.data?.argent ?? 0)).toLocaleString('fr-FR')} F : recharger ton compte` : V.sous,
       desactive: V.id === a || !ouvertAu(1),
       f: () => { // sans l'argent : recharger son compte par Mobile Money, puis l'achat se fait tout seul (recharge.js)
-        const acheter = () => acheterVehicule(V.id).then(ok => { if (ok) { if (a) reprendreVehicule(); garerSonVehicule(); ligne(`${V.nom} achetée ! Elle t’attend à côté : approche-toi et monte dedans.`); } });
+        const acheter = () => acheterVehicule(V.id).then(ok => { if (ok) { if (a) reprendreVehicule(); T.auGarage = false; garerSonVehicule(); ligne(`${V.nom} achetée ! Elle t’attend à côté : approche-toi et monte dedans.`); } });
         const manque = V.prix - (VIE.data?.argent ?? 0); if (manque > 0) proposerRecharge({ manque, pour: `la ${V.nom}`, puis: acheter }); else acheter();
       },
     })));

@@ -17,7 +17,9 @@ import { enFlottants, indexVille } from './ville-tripo.js';
 import { actif } from './actifs.js';
 
 // Mètres (caméra comprise : de haut, on les voit moins) : finesse haute en deçà de PRES, basse jusqu'à LOIN. Cases de CASE m.
-const PRES = LITE ? 70 : 120, LOIN = LITE ? 200 : 350, CASE = 40;
+// Sur téléphone, 45 et 130 m (22/11) : au marché Dantokpa, à 200 m à la ronde, c'étaient des centaines de vrais personnages
+// (un demi-million de triangles) ; au-delà de 130 m, une silhouette ne fait que quelques pixels de plus.
+const PRES = LITE ? 45 : 120, LOIN = LITE ? 130 : 350, CASE = 40;
 // Qui l'on croise : surtout des femmes au marché ; les écoliers en uniforme, de temps en temps.
 const POIDS = { vendeuse: 3, maman: 2.5, etudiante: 2, jeune: 2, bureau: 1.5, ancien: 1.2, 'eleve-fille': .35, 'eleve-garcon': .35 };
 const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), s = new THREE.Vector3();

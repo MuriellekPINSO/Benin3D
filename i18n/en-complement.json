@@ -528,7 +528,34 @@
  },
  "src/donnees-lieux.js": {
   "'Siège de Moov Africa Bénin'": "'Moov Africa Bénin headquarters'",
-  "\"Le siège de l'opérateur Moov Africa, avenue Jean-Paul II, dans la Zone résidentielle : une tour de verre bleu en arc de cercle à l'angle, entre deux ailes blanches, avec le logo Moov Africa sur la vitre. Au rez-de-chaussée, l'agence siège et Moov Money.\"": "\"The headquarters of the operator Moov Africa, on Avenue Jean-Paul II in the Zone résidentielle: a curved tower of blue glass at the corner, between two white wings, with the Moov Africa logo on the glass. On the ground floor, the head-office branch and Moov Money.\""
+  "\"Le siège de l'opérateur Moov Africa, avenue Jean-Paul II, dans la Zone résidentielle : une tour de verre bleu en arc de cercle à l'angle, entre deux ailes blanches, avec le logo Moov Africa sur la vitre. Au rez-de-chaussée, l'agence siège et Moov Money.\"": "\"The headquarters of the operator Moov Africa, on Avenue Jean-Paul II in the Zone résidentielle: a curved tower of blue glass at the corner, between two white wings, with the Moov Africa logo on the glass. On the ground floor, the head-office branch and Moov Money.\"",
+  "'Basilique · Ouidah'": "'Basilica · Ouidah'",
+  "'Temple vodun · Ouidah'": "'Vodun temple · Ouidah'",
+  "'Place · Ouidah'": "'Square · Ouidah'",
+  "'Musée · Ouidah'": "'Museum · Ouidah'",
+  "\"Musée d'art · Ouidah\"": "\"Art museum · Ouidah\"",
+  "'Basilique de Ouidah'": "'Ouidah Basilica'",
+  "'Temple des Pythons'": "'Python Temple'",
+  "\"Fort portugais (musée d'Histoire)\"": "\"Portuguese Fort (History Museum)\"",
+  "'Villa Ajavon (Fondation Zinsou)'": "'Villa Ajavon (Zinsou Foundation)'",
+  "\"La basilique de l'Immaculée-Conception, achevée en 1909 par les missionnaires catholiques : façade grise aux encadrements blancs, tour-clocher au-dessus du portail, pinacles rouges et toit de tuiles orangées. Son parvis fait face au Temple des Pythons : à Ouidah, l'Église et le vodun se regardent de part et d'autre de la rue.\"": "\"The Basilica of the Immaculate Conception, completed in 1909 by Catholic missionaries: a grey façade with white trim, a bell tower above the portal, red pinnacles and an orange tiled roof. Its forecourt faces the Python Temple: in Ouidah, the Church and vodun look at each other across the street.\"",
+  "\"Le temple de Dangbé, le python sacré, face à la basilique. Des pythons royaux y dorment enroulés autour des canaris, dans une case ronde au fond de la cour ; le guide en pose un autour du cou des visiteurs. Le nouveau bâtiment ocre porte au fronton « Temple de Pythons » et trois noms au-dessus des fenêtres : Zossoungbo, Agbamou Atakpaloko Agbo, Adjovi Akankotoglonou.\"": "\"The temple of Dangbé, the sacred python, facing the basilica. Royal pythons sleep coiled around clay jars in a round hut at the back of the courtyard; the guide drapes one around visitors’ necks. The new ochre building reads “Temple de Pythons” on its pediment, with three names above the windows: Zossoungbo, Agbamou Atakpaloko Agbo, Adjovi Akankotoglonou.\"",
+  "\"L'ancienne place des enchères, où l'on vendait les captifs, du nom de Francisco Félix de Souza, le « Chacha », négrier brésilien installé à Ouidah au XIXe siècle. C'est le départ de la Route des Esclaves, 4 km jusqu'à la mer. Rénovée : un grand arbre au milieu d'un rond planté, des arcs de briques rouges bordés de boules de bronze, des murs rouges et des statues de captifs.\"": "\"The former auction square where captives were sold, named after Francisco Félix de Souza, the “Chacha”, a Brazilian slave trader who settled in Ouidah in the 19th century. It is the start of the Slave Route, 4 km to the sea. Renovated: a big tree in a round planted bed, arcs of red brick lined with bronze balls, red walls and statues of captives.\"",
+  "\"Le fort São João Baptista de Ajudá, bâti par les Portugais en 1721 et resté portugais jusqu'en 1961. Il abrite le musée d'Histoire de Ouidah, sur la traite et les liens avec le Brésil et les Caraïbes : murs ocre rouge, quatre bastions ronds, maison blanche aux volets bruns, petite chapelle.\"": "\"The fort of São João Baptista de Ajudá, built by the Portuguese in 1721 and Portuguese until 1961. It houses the Ouidah History Museum, on the slave trade and the ties with Brazil and the Caribbean: red-ochre walls, four round bastions, a white house with brown shutters, a small chapel.\"",
+  "\"Une villa afro-brésilienne de 1922, restaurée par la Fondation Zinsou, qui y a ouvert en 2013 un musée d'art contemporain africain : deux étages crème, arcades et balustres, pavillons d'angle coiffés de tuiles rouges.\"": "\"An Afro-Brazilian villa from 1922, restored by the Zinsou Foundation, which opened a museum of contemporary African art there in 2013: two cream storeys, arcades and balusters, corner pavilions capped with red tiles.\"",
+  "\"Le bois sacré du roi Kpassè, fondateur de Ouidah selon la tradition, qui se changea en iroko pour échapper à ses ennemis. Sous les grands arbres, un sentier passe devant des sculptures des divinités vodun ; on entre par une maison blanche peinte de léopards.\"": "\"The sacred grove of King Kpassè, founder of Ouidah according to tradition, who turned into an iroko tree to escape his enemies. Under the tall trees, a path leads past sculptures of the vodun deities; you enter through a white house painted with leopards.\"",
+  "\"Sur la Route des Esclaves, l'endroit où, selon la tradition, les captifs tournaient autour d'un arbre, neuf fois les hommes, sept fois les femmes, pour oublier leur nom, leur village et leurs dieux avant l'embarquement. Une statue du festival Ouidah 92 marque le lieu.\"": "\"On the Slave Route, the place where, according to tradition, captives walked around a tree, nine times for the men and seven for the women, to forget their name, their village and their gods before being shipped away. A statue from the Ouidah 92 festival marks the spot.\"",
+  "\"« Cité de la diaspora, escale du retour » : un enclos aux murs jaunes et bleus sculptés de navires et de captifs, où l'on vient faire mémoire et repentance. Dedans, les sept piliers de l'abolition portent les visages de ceux qui ont combattu l'esclavage. Une stèle marque la case de Zomaï, où l'on enfermait les captifs dans le noir.\"": "\"“City of the diaspora, stopover of return”: an enclosure with yellow and blue walls carved with ships and captives, where people come to remember and repent. Inside, the seven pillars of abolition bear the faces of those who fought slavery. A stele marks the hut of Zomaï, where captives were locked up in the dark.\"",
+  "\"Le mémorial de la fosse commune où l'on jetait les captifs morts avant l'embarquement : une haute stèle de mosaïque rouge et grise sur un socle noir, des statues de captifs aux mains liées le long des murs blancs, une grille de silhouettes noires.\"": "\"The memorial of the mass grave where captives who died before being shipped away were thrown: a tall stele of red and grey mosaic on a black base, statues of captives with bound hands along the white walls, a railing of black silhouettes.\"",
+  "\"Planté pour que l'âme des captifs déportés revienne sur la terre de leurs ancêtres : selon la tradition, ils en faisaient trois fois le tour avant de partir. Un banc rond l'entoure, une statue du festival Ouidah 92 se dresse à son pied.\"": "\"Planted so that the souls of deported captives would come back to the land of their ancestors: according to tradition, they walked around it three times before leaving. A round bench surrounds it, and a statue from the Ouidah 92 festival stands at its foot.\"",
+  "'Forêt sacrée de Kpassè'": "'Kpassè Sacred Forest'",
+  "'Forêt sacrée · Ouidah'": "'Sacred forest · Ouidah'",
+  "\"Arbre de l'Oubli\"": "\"Tree of Forgetting\"",
+  "'Mémorial · Route des Esclaves'": "'Memorial · Slave Route'",
+  "'Mémorial Zomachi'": "'Zomachi Memorial'",
+  "'Mémorial · Zoungbodji'": "'Memorial · Zoungbodji'",
+  "'Mémorial de Zoungbodji'": "'Zoungbodji Memorial'",
+  "'Arbre du Retour'": "'Tree of Return'"
  },
  "src/publicites.js": {
   "'Moov Africa'": "'Moov Africa'",
@@ -964,7 +991,29 @@
   "'Tu arrives à son entrée, devant le Palais des Congrès. Visite ses onze espaces pour remplir ton passeport.'": "'You arrive at its entrance, in front of the Palais des Congrès. Visit its eleven spaces to complete your passport.'",
   "'Entrer au Village'": "'Enter the Village'",
   "'Jouer à deux'": "'Play together'",
-  "'à la salle de jeux, à côté du Village'": "'to the game room, next to the Village'"
+  "'à la salle de jeux, à côté du Village'": "'to the game room, next to the Village'",
+  "'Mosquée de Zongo'": "'Zongo Mosque'",
+  "'à la mosquée de Zongo'": "'to the Zongo mosque'",
+  "'Basilique de Ouidah'": "'Ouidah Basilica'",
+  "'à la basilique de Ouidah'": "'to the Ouidah basilica'",
+  "'Temple des Pythons (Ouidah)'": "'Python Temple (Ouidah)'",
+  "'au Temple des Pythons, à Ouidah'": "'to the Python Temple in Ouidah'",
+  "'Place Chacha (Ouidah)'": "'Chacha Square (Ouidah)'",
+  "'à la place Chacha, à Ouidah'": "'to Chacha Square in Ouidah'",
+  "'Fort portugais (Ouidah)'": "'Portuguese Fort (Ouidah)'",
+  "'au fort portugais de Ouidah'": "'to the Portuguese fort in Ouidah'",
+  "'Villa Ajavon, Fondation Zinsou (Ouidah)'": "'Villa Ajavon, Zinsou Foundation (Ouidah)'",
+  "'à la villa Ajavon, à Ouidah'": "'to Villa Ajavon in Ouidah'",
+  "'Forêt sacrée de Kpassè (Ouidah)'": "'Kpassè Sacred Forest (Ouidah)'",
+  "'à la forêt sacrée de Kpassè, à Ouidah'": "'to the Kpassè sacred forest in Ouidah'",
+  "'Arbre de l’Oubli (Route des Esclaves)'": "'Tree of Forgetting (Slave Route)'",
+  "'à l’Arbre de l’Oubli, sur la Route des Esclaves'": "'to the Tree of Forgetting on the Slave Route'",
+  "'Mémorial Zomachi (Zoungbodji)'": "'Zomachi Memorial (Zoungbodji)'",
+  "'au mémorial Zomachi, à Zoungbodji'": "'to the Zomachi memorial in Zoungbodji'",
+  "'Mémorial de Zoungbodji (fosse commune)'": "'Zoungbodji Memorial (mass grave)'",
+  "'au mémorial de Zoungbodji'": "'to the Zoungbodji memorial'",
+  "'Arbre du Retour (Zoungbodji)'": "'Tree of Return (Zoungbodji)'",
+  "'à l’Arbre du Retour, à Zoungbodji'": "'to the Tree of Return in Zoungbodji'"
  },
  "src/interieurs.js": {
   "'Chez Tantie Rose'": "'Chez Tantie Rose'",
@@ -1310,7 +1359,8 @@
   "la voiture de ": "the car belonging to ",
   "de la voiture de ": "out of the car belonging to ",
   "la Roadster de ": "the Roadster belonging to ",
-  "de la Roadster de ": "out of the Roadster belonging to "
+  "de la Roadster de ": "out of the Roadster belonging to ",
+  " t’attend dans ton garage, chez toi.": " is waiting in your garage at home."
  },
  "src/conduite.js": {
   "'zém'": "'zém'",
@@ -1621,7 +1671,9 @@
   " clients · prochain : ": " customers · next: ",
   "' · un client paie…'": "' · a customer is paying…'",
   "' · un client monte…'": "' · a customer is getting in…'",
-  " · un client fait signe à ": " · a customer is waving, "
+  " · un client fait signe à ": " · a customer is waving, ",
+  " t’attend dans ton garage : « Aller », puis « Chez moi ».": " is waiting in your garage: “Go”, then “My home”.",
+  " rentre dans ton garage, chez toi : tu l’y retrouveras après le travail.": " goes back to your garage at home: you’ll find it there after work."
  },
  "src/metiers-ville.js": {
   "'fr-FR'": "'en-US'",
@@ -3236,10 +3288,10 @@
   "<li class=\"pm-vide\">Tu n’es pas encore dans les ": "<li class=\"pm-vide\">You are not in the top ",
   "'Explorateurs'": "'Explorers'",
   "'La fortune : l’argent, l’épargne, la voiture, les commerces et la maison de chacun.'": "'Fortune: everyone’s money, savings, car, businesses and home.'",
-  "'Les lieux de Cotonou et de Ouidah découverts pour l’album (34 cartes en tout).'": "'Places in Cotonou and Ouidah found for the album (34 cards in all).'",
   " premiers : ": " yet: ",
   "'va découvrir des lieux pour ton album.'": "'go and find places for your album.'",
-  "'les missions du jour te font monter.'": "'the missions of the day make you climb.'"
+  "'les missions du jour te font monter.'": "'the missions of the day make you climb.'",
+  "'Les lieux de Cotonou et de Ouidah découverts pour l’album (44 cartes en tout).'": "'Places in Cotonou and Ouidah found for the album (44 cards in all).'"
  },
  "src/echelle.js": {
   "'Nouveau venu'": "'Newcomer'",
@@ -3375,7 +3427,9 @@
   "'<button type=\"button\" class=\"vf-bouton\" data-ab-photo>Reprendre la photo</button>'": "'<button type=\"button\" class=\"vf-bouton\" data-ab-photo>Retake the photo</button>'",
   "<div class=\"vf-pied\"><button type=\"button\" class=\"vf-bouton\" data-ab-retour>Retour à l’album</button>": "<div class=\"vf-pied\"><button type=\"button\" class=\"vf-bouton\" data-ab-retour>Back to the album</button>",
   "'Sors d’abord pour y aller.'": "'Go outside first to get there.'",
-  "'va sur place : la carte se retournera à ton arrivée.'": "'go there: the card will turn over when you arrive.'"
+  "'va sur place : la carte se retournera à ton arrivée.'": "'go there: the card will turn over when you arrive.'",
+  "'Le centre de Ouidah'": "'Central Ouidah'",
+  "'La Route des Esclaves'": "'The Slave Route'"
  },
  "src/epargne.js": {
   "'fr-FR'": "'en-US'",
@@ -4018,5 +4072,20 @@
   "Voler la Tesla Roadster de ": "Steal the Tesla Roadster belonging to ",
   "Tu voles la Tesla Roadster de ": "You steal the Tesla Roadster belonging to ",
   " ! Appuie sur « Propulseurs » pour sauter, tiens 5 s pour t’envoler.": "! Press “Thrusters” to jump, hold for 5 s to take off."
+ },
+ "src/garage.js": {
+  "'DÉFENSE DE'": "'NO'",
+  "'STATIONNER'": "'PARKING'",
+  "'Ton garage'": "'Your garage'",
+  "Sortir ": "Take ",
+  " du garage": " out of the garage",
+  "Rentrer ": "Put ",
+  " au garage": " in the garage",
+  "'Garer au garage'": "'Park in the garage'",
+  " est dans ton garage, à côté de ta porte : « Sortir ": " is in your garage, next to your door: “Take ",
+  " du garage ».": " out of the garage”.",
+  " est sorti du garage : approche-toi et monte.": " is out of the garage: walk up and get in.",
+  " est sortie du garage : approche-toi et monte.": " is out of the garage: walk up and get in.",
+  " est au garage. Le portail est fermé.": " is in the garage. The gate is closed."
  }
 }

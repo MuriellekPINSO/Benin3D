@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { parCarres } from './carres.js';
+import { geometriesParCarres, parCarres } from './carres.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { LITE, hash } from './base.js';
 import { COUCHES_SOL, grainSol, scene } from './scene.js';
@@ -12,7 +12,7 @@ import { croiseesLe, dansCroisees } from './chaussee.js';
 // bordé de blanc, avec des lampadaires à double crosse (Marina, Route des Pêches, Saint-Michel) ;
 // au-delà, un terre-plein de gazon avec blocs de haie taillée et lampadaires.
 
-export const TP = { bandes: [], grille: new Map(), decor: [] };
+export const TP = { bandes: [], grille: new Map(), decor: [], sol: [] };
 const CASE = 40, cle = (x, z) => Math.floor(x / CASE) + ',' + Math.floor(z / CASE);
 
 /** À appeler avant la rue et la circulation : range les terre-pleins dans une grille. */
@@ -130,14 +130,21 @@ export function construireTerrePleins() {
     }
   }
   // Gazon et bordures : au sol, comme les routes (visibles en jeu sur la vue Google).
-  const sol = (pos, idx, mat, ordre) => {
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-    const m = new THREE.Mesh(g, mat); m.renderOrder = ordre; m.receiveShadow = true; m.userData.route = true; scene.add(m); COUCHES_SOL.push(m); return m;
+  // Par carrés de 800 m (1,6 km sur téléphone : moins d’objets), chacun dans un groupe que majTerrePleins montre ou cache selon la distance (le maillage, lui, est
+  // montré ou caché par la Vue réelle, monde-reel.js). D'un seul tenant, les bordures de toute la ville (363 000 triangles)
+  // et le gazon (96 000) passaient par la carte graphique à chaque image, même vus de l'autre bout de la ville (22/11).
+  const sol = (g, mat, ordre, portee) => {
+    if (!g.index.count) return;
+    for (const c of geometriesParCarres(g, LITE ? 1600 : 800)) {
+      const m = new THREE.Mesh(c, mat); m.renderOrder = ordre; m.receiveShadow = true; m.userData.route = true; m.matrixAutoUpdate = false; COUCHES_SOL.push(m);
+      const grp = new THREE.Group(); grp.matrixAutoUpdate = false; grp.add(m); grp.userData.portee = portee; grp.userData.sphere = c.boundingSphere; scene.add(grp); TP.sol.push(grp);
+    }
   };
   { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(gaz.pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(gaz.col, 3)); g.setIndex(gaz.idx);
     g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(gaz.pos.length).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
-    const m = new THREE.Mesh(g, grainSol(new THREE.MeshLambertMaterial({ vertexColors: true, depthWrite: false }))); m.renderOrder = 7.8; m.receiveShadow = true; m.userData.route = true; scene.add(m); COUCHES_SOL.push(m); }
-  sol(bord.pos, bord.idx, new THREE.MeshLambertMaterial({ color: '#e9e7e0', side: THREE.DoubleSide }), 8);
+    sol(g, grainSol(new THREE.MeshLambertMaterial({ vertexColors: true, depthWrite: false })), 7.8, LITE ? 2500 : 7000); } // le gazon se voit d'avion
+  { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(bord.pos, 3)); g.setIndex(bord.idx); g.computeVertexNormals();
+    sol(g, new THREE.MeshLambertMaterial({ color: '#e9e7e0', side: THREE.DoubleSide }), 8, LITE ? 800 : 2500); } // une bordure de 30 cm : de près seulement
   // Objets : instanciés, cachés avec la végétation en vue Google seule.
   const inst = (geo, mat, liste, poser) => {
     if (!liste.length) return null;
@@ -163,4 +170,9 @@ export function construireTerrePleins() {
   inst(new THREE.CylinderGeometry(.05, .07, 8, 6).translate(0, 4, 0), new THREE.MeshLambertMaterial({ color: '#e8e4d6' }), drapeaux, ([x, z, a], v, q, s, Y) => { v.set(x, .16, z); q.setFromAxisAngle(Y, a); s.set(1, 1, 1); });
   inst(new THREE.PlaneGeometry(1.6, 1.05).translate(.85, 7.3, 0).rotateY(Math.PI / 2), new THREE.MeshLambertMaterial({ map: drapeauToile(), side: THREE.DoubleSide }), drapeaux, ([x, z, a], v, q, s, Y) => { v.set(x, .16, z); q.setFromAxisAngle(Y, a); s.set(1, 1, 1); });
   console.info(`terre-pleins : ${nb} bandes en ${TP.bandes.length} tronçons coupés aux carrefours, ${haies.length} haies, ${lampes.length} lampadaires, ${drapeaux.length} drapeaux`);
+}
+
+/** Toutes les douze images (main.js) : les carrés de gazon et de bordures trop loin de la caméra ne sont plus dessinés. */
+export function majTerrePleins(cam) {
+  for (const g of TP.sol) { const s = g.userData.sphere; g.visible = cam.distanceTo(s.center) - s.radius < g.userData.portee; }
 }
