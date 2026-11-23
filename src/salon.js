@@ -54,6 +54,7 @@ import { annonce as annonceVillage, entrerVillage, initVillage, majVillage, prec
 import { ENTREE_VILLAGE, ESPACES as ESPACES_VILLAGE, VENIR, VILLAGE_ACTIF } from './village-plan.js';
 import { initJeuxVillage, ouvrirJeux, quitterJeuxVillage, surMessageJeu } from './village-jeux.js';
 import { actionsVillageGens, initVillageGens, majVillageGens, quitterVillageGens, voituresDuVillage } from './village-gens.js';
+import { actionsVoleur, initVoleur, majVoleur, quitterVoleur } from './voleur.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
 // Jusqu'à 8 amis dans la même ville : chacun se promène à pied avec son personnage, voit les autres,
@@ -916,7 +917,7 @@ function quitter() {
   if (!S.actif) return;
   S.reprise = false; // pas avant que la prochaine entrée ait garé son monde (entrerSalon)
   lieuStats('carte');
-  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterJournee(); quitterDeco(); quitterAlbum(); quitterTresor(); quitterVillage(); quitterJeuxVillage(); quitterVillageGens(); quitterEpargne(); quitterAdji(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
+  menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterJournee(); quitterDeco(); quitterAlbum(); quitterTresor(); quitterVillage(); quitterJeuxVillage(); quitterVillageGens(); quitterVoleur(); quitterEpargne(); quitterAdji(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
   if (S.appel) { signalAppel('fin', S.appel.avec); finAppel(); } // on quitte la ville : l'appel s'arrête chez l'autre aussi
   S.canal?.quitter(); S.canal = null; $('#slEntrer').hidden = true;
@@ -1066,7 +1067,7 @@ export function majSalon(dt) {
   const jc = j && T.mode === 'conduit' && !T.veh?.vol ? joyConduite(j) : null; // au doigt, sur la route : on pousse le rond vers où l'on veut aller
   const av = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (jc ? jc.av : j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
   const tour = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) + (jc ? jc.tour : j ? -j.x : 0) - (pad ? pad.lx : 0), -1, 1);
-  majVie(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majVillage(dt); majVillageGens(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
+  majVie(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majVillage(dt); majVillageGens(dt); majVoleur(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
   for (const A of S.autres.values()) { const G = A.garee; if (G?.g.visible && (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < 1600) E.circulation.push({ px: G.x, pz: G.z, cap: G.cap, hl: G.D.long / 2, hw: G.D.larg / 2, v: 0, type: G.type }); } // vidée à chaque image (main.js)
   majGarees();
   majCourseVelo(dt, S); // la course à vélo de RideCorniche : ses cyclistes roulent, et deviennent des obstacles (course-velo.js)
@@ -1232,7 +1233,7 @@ export function majSalon(dt) {
     : occupe() ? actionsMaison() // couché : se lever ; sous la douche, aux fourneaux : arrêter
     : S.gradin ? [{ texte: 'Se lever', f: leverGradins }, ...actionsAppel()]
     : tir ? actionsLancePierre(S, T)
-    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCourseVelo(S), ...actionsSalle(S, T), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsArcade(), ...actionsVillageGens(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
+    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCourseVelo(S), ...actionsSalle(S, T), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsArcade(), ...actionsVillageGens(), ...actionsVoleur(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
   // La touche de chaque bouton : celle de la manette si l'on joue avec (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
   // Une manette branchée mais posée affichait ses boutons même au clavier : c'est la dernière saisie qui compte (saisie.js).
   const touches = SAISIE.manette ? (SAISIE.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
@@ -1557,8 +1558,12 @@ export function initSalon(data) {
     poser: (x, z, cap) => { if (S.lieu) dehors(false); retirerRuban(T.gps?.m); T.gps = null; S.x = x; S.z = z; S.y = 0; S.cap = cap; S.saut = true; S.geste = 'idle'; } }); // les jeux à deux du Village (village-jeux.js)
   initVillage({ ligne, position, dire: t => S.canal?.dire({ n: S.nom, txt: t }), aPied: () => T.mode === 'pied' && !S.lieu, autres: () => [...S.autres.values()].map(A => A.etat), aller: id => aller(id), nom: () => S.nom }); // le Village de l'innovation et son passeport (village.js)
   // Les exposants des stands et les voitures des visiteurs, qu'on peut voler (village-gens.js).
-  initVillageGens({ ligne, bulle: (q, t) => bulle(q, t), finBulle: q => retirerBulle(q), joueur: () => (S.actif ? { x: S.x, z: S.z, lieu: S.lieu, mode: T.mode } : null),
-    aPied: () => T.mode === 'pied' && !S.lieu && !T.trans, vehicule: () => T.veh, voler: volerVehicule, lacher: lacherVehiculeVole });
+  // Les exposants des stands et les voitures garées qu'on peut voler (village-gens.js) : celles du Village, et des Roadster près
+  // de cinq lieux de la ville ; et tout véhicule de la circulation arrêté devant soi (voleur.js).
+  const ctxVol = { ligne, bulle: (q, t) => bulle(q, t), finBulle: q => retirerBulle(q), joueur: () => (S.actif ? { x: S.x, z: S.z, lieu: S.lieu, mode: T.mode } : null),
+    aPied: () => T.mode === 'pied' && !S.lieu && !T.trans, vehicule: () => T.veh, voler: volerVehicule, lacher: lacherVehiculeVole };
+  initVillageGens({ ...ctxVol, lieuxRoadster: () => ['haievive', 'amazone', 'fidjrosse', 'cite', 'ganhi'].map(id => { const L = LIEUX.find(l => l[0] === id); return L && destination(L); }).filter(Boolean) });
+  initVoleur(ctxVol);
   initEpargne({ ligne }); // l'argent mis de côté (epargne.js)
   initAdji({ ligne, autres: () => [...S.autres.values()].map(A => ({ id: A.id, nom: A.nom })) }); // l'adji, contre un joueur de la ville ou l'ordinateur (adji.js)
   initCarteSalon({ S, T, tracer: tracerVers, moyens: moyensVers, effacer: () => { retirerRuban(T.gps?.m); T.gps = null; }, partager: partagerPosition, peutPartager: () => !!S.canal, lieux: () => [ // la mini-carte et la grande carte (carte-salon.js) : les lieux, sa maison, ses commerces

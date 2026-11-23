@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { LITE } from './base.js';
-import { chargerVrai, creerVehicule, departLibre, estVrai, placer, retirerVehicule, surRoute } from './conduite.js';
+import { chargerVrai, creerVehicule, departLibre, estVrai, placer, retirerVehicule, sensRoute, surRoute } from './conduite.js';
 import { personne } from './discussions.js';
 import { personnagesCharges } from './personnages.js';
 import { poserObstacles } from './rue.js';
 import { camera, scene } from './scene.js';
 import { hauteurSol } from './sols.js';
-import { CENTRE_VILLAGE, VILLAGE_ACTIF, versVille } from './village-plan.js';
+import { CENTRE_VILLAGE, VILLAGE_ACTIF, dansVillage, versVille } from './village-plan.js';
 
 // ---------- Les gens du Village de l'innovation : les exposants sur leurs stands, les voitures des visiteurs ----------
 // « Donne la possibilité de voler la voiture des gens au Village d'innovation et mets des gens sur les stands » (Murielle,
@@ -85,27 +85,48 @@ const PLACES = [
   { x: -1139.7, z: 2297, cap: 0, type: 'voiture', nom: 'Sèna', femme: false, loin: true },
   { x: -1058.1, z: 2298, cap: Math.PI, type: 'suv', nom: 'Nadège', femme: true },
 ].filter(p => !LITE || !p.loin);
+// Des Roadster à voler dans la ville (19/11, « je veux voler la voiture de n'importe quelle personne, et même voler en haut si
+// c'est une Roadster ») : une garée au bord de la rue près de cinq lieux où l'on va (salon.js, lieuxRoadster), son
+// propriétaire à côté. Comme celles du Village, chacune ne se gare que quand on passe à moins de 260 m.
+const ROADSTERS = [['Landry', false], ['Carine', true], ['Josué', false], ['Bénédicte', true], ['Florent', false]];
+const ACTIVE = 260, RANGE = 420;
+function placesEnVille() {
+  (ctx.lieuxRoadster?.() || []).forEach(([x0, z0], i) => {
+    const [nom, femme] = ROADSTERS[i % ROADSTERS.length];
+    for (let r = 4; r <= 130; r += 3) for (let a = 0; a < 12; a++) { // la plage de Fidjrossè : la rue est à ~60 m du sable
+      const s = sensRoute(x0 + Math.cos(a * Math.PI / 6) * r, z0 + Math.sin(a * Math.PI / 6) * r); if (!s) continue;
+      const off = Math.max(1.1, s.hw - 2.25), x = s.px + Math.cos(s.cap) * off, z = s.pz - Math.sin(s.cap) * off; // au bord de la chaussée (hw compte le trottoir)
+      if (!surRoute(x, z) || dansVillage(x, z, 4)) continue;
+      R.voitures.push({ x, z, cap: s.cap, type: 'roadster', nom, femme, ville: true, k: 20 + i, V: null, etat: 'vide', depuis: -1e9, proprio: null, cris: [] });
+      return;
+    }
+  });
+}
 const DIMS = { roadster: [4.4, 2], berline: [4.6, 1.84], citadine: [3.9, 1.75], supercar: [4.7, 2], jetour: [4.75, 1.95], voiture: [4.9, 2], suv: [4.37, 1.86] };
 
 /** Une personne debout à (x, z), tournée vers (vx, vz) — repère de la ville. */
-function debout(graine, x, z, vx, vz, { femme = null, role = null, geste = 'idle' } = {}) {
+function debout(graine, x, z, vx, vz, { femme = null, role = null, geste = 'idle', dans = R.groupe } = {}) {
   const g = personne(graine, { femme, role }) || personne(graine, { femme });
   g.position.set(x, Math.max(.04, hauteurSol(x, z)), z); g.rotation.y = Math.atan2(vx - x, vz - z);
-  g.userData.jouer?.(geste, 0); R.groupe.add(g);
+  g.userData.jouer?.(geste, 0); dans.add(g);
   return { g, x, z, cap: g.rotation.y, geste, bulle: null, bulleFin: 0 };
 }
 
-async function installer() {
+async function installerExposants() {
   R.enCours = true;
   await personnagesCharges(); // les vrais personnages, s'ils viennent ; sinon ceux dessinés en code
-  R.groupe = new THREE.Group(); R.groupe.name = 'village-gens'; scene.add(R.groupe);
   exposants().forEach((e, k) => {
     const [x, z] = versVille(...e.m), [vx, vz] = versVille(...e.vers);
-    const p = debout(9100 + k * 37, x, z, vx, vz, { femme: e.femme, role: e.role, geste: e.geste });
+    const p = debout(9100 + k * 37, x, z, vx, vz, { femme: e.femme, role: e.role, geste: e.geste, dans: R.expo });
     R.exposants.push(Object.assign(p, { espace: e.espace, prochain: 0 }));
   });
-  for (const [k, P] of PLACES.entries()) R.voitures.push({ ...P, k, V: null, etat: 'vide', depuis: -1e9, proprio: null, cris: [] });
-  R.pret = true; majObstacles();
+  majObstacles();
+}
+/** Une voiture garée loin du joueur (plus de 420 m) rentre : elle et son propriétaire ne coûtent rien pendant ce temps. */
+function ranger(v) {
+  retirerVehicule(v.V); v.V = null; v.etat = 'vide'; v.depuis = -1e9; v.cris = [];
+  if (v.proprio) { ctx.finBulle(v.proprio); R.groupe.remove(v.proprio.g); v.proprio.g.userData.liberer?.(); v.proprio = null; }
+  majObstacles();
 }
 
 // ---------- Obstacles : on ne traverse ni les exposants, ni les propriétaires, ni les voitures garées ----------
@@ -160,7 +181,7 @@ function volerVoiture(v) {
   v.V.vole = v.nom; // trajets.js : « la voiture de Koffi », ni essence ni panne
   if (!voler(v.V)) { delete v.V.vole; ctx.ligne('Pas maintenant : termine d’abord ce que tu fais.'); return; } // au travail, déjà en route…
   v.etat = 'volee'; v.t = 0; majObstacles();
-  v.cris = [[.4, 'Hé ! Ma voiture !', 'parle'], [3.6, 'Au voleur ! Rattrapez ma voiture !', 'parle'], [9, 'Allô, la police ? On m’a volé ma voiture au Village !', 'parle']] // « telephone » est une pose assise : il se tassait sur place;
+  v.cris = [[.4, 'Hé ! Ma voiture !', 'parle'], [3.6, 'Au voleur ! Rattrapez ma voiture !', 'parle'], [9, v.ville ? 'Allô, la police ? On m’a volé ma Roadster !' : 'Allô, la police ? On m’a volé ma voiture au Village !', 'parle']]; // « telephone » est une pose assise : il se tassait sur place
   if (v.type === 'roadster') ctx.ligne(`Tu voles la Tesla Roadster de ${v.nom} ! Appuie sur « Propulseurs » pour sauter, tiens 5 s pour t’envoler.`);
   else ctx.ligne(`Tu voles la voiture de ${v.nom} ! Démarre vite… Laisse-la plus loin, ou ramène-la à ${v.femme ? 'sa propriétaire' : 'son propriétaire'}.`);
 }
@@ -168,11 +189,16 @@ function dire(p, texte, geste) { if (!p) return; ctx.bulle(p, texte); if (geste)
 
 // ---------- Chaque image ----------
 export function majVillageGens(dt) {
-  if (!VILLAGE_ACTIF) return;
   const J = ctx.joueur();
-  if (!R.pret) { if (!R.enCours && J && Math.hypot(J.x - CENTRE_VILLAGE[0], J.z - CENTRE_VILLAGE[1]) < PRES) installer(); return; }
+  if (!R.groupe) { R.groupe = new THREE.Group(); R.groupe.name = 'village-gens'; R.expo = new THREE.Group(); R.groupe.add(R.expo); scene.add(R.groupe); }
+  if (!R.pret) { // les places des voitures : celles du Village pendant l'événement, et les Roadster de la ville
+    if (!J) return;
+    if (VILLAGE_ACTIF) for (const [k, P] of PLACES.entries()) R.voitures.push({ ...P, k, V: null, etat: 'vide', depuis: -1e9, proprio: null, cris: [] });
+    placesEnVille(); R.pret = true;
+  }
+  if (VILLAGE_ACTIF && !R.enCours && J && Math.hypot(J.x - CENTRE_VILLAGE[0], J.z - CENTRE_VILLAGE[1]) < PRES) installerExposants();
   const now = performance.now();
-  R.groupe.visible = Math.hypot(camera.position.x - CENTRE_VILLAGE[0], camera.position.z - CENTRE_VILLAGE[1]) < 600;
+  R.expo.visible = Math.hypot(camera.position.x - CENTRE_VILLAGE[0], camera.position.z - CENTRE_VILLAGE[1]) < 600;
   for (const p of [...R.exposants, ...R.voitures.map(v => v.proprio)]) if (p?.bulle && now > p.bulleFin) ctx.finBulle(p);
   // Les propriétaires volés se tournent vers leur voiture qui part, crient, puis appellent la police.
   for (const v of R.voitures) {
@@ -185,7 +211,9 @@ export function majVillageGens(dt) {
   // Les voitures : garer celles qui manquent, rendre celles qu'on a lâchées.
   const V0 = ctx.vehicule();
   for (const v of R.voitures) {
-    if (v.etat === 'vide' && now - v.depuis > 20000) garer(v, v.depuis < 0);
+    const d = J ? Math.hypot(v.x - J.x, v.z - J.z) : Infinity;
+    if (v.etat === 'vide' && d < ACTIVE && now - v.depuis > 20000) garer(v, v.depuis < 0);
+    else if (v.etat === 'garee' && d > RANGE) ranger(v);
     if (v.etat !== 'volee') continue;
     if (V0 !== v.V) { v.etat = 'vide'; v.depuis = now; v.V = null; continue; } // retirée par trajets.js (quitter la ville, un métier, une autre voiture volée)
     if (!J || J.mode !== 'pied') continue; // au volant : on la garde ; à pied, même dans un bâtiment, on regarde où elle est

@@ -37,7 +37,9 @@ export function initTrajets(data, ctx) {
 }
 // Comment on nomme le véhicule : monter dans…, descendre de…
 const NOMS = { voiture: ['ta voiture', 'de la voiture'], moto: ['ta moto', 'de la moto'], velo: ['ton vélo', 'du vélo'], taxi: ['le taxi', 'du taxi'], tokpa: ['le tokpa-tokpa', 'du tokpa-tokpa'], citadine: ['ta citadine', 'de la citadine'], bolide: ['ton bolide', 'du bolide'], roadster: ['ta Roadster', 'de la Roadster'], jetour: ['ton Jetour', 'du Jetour'], berline: ['ta berline', 'de la berline'], supercar: ['ta supercar', 'de la supercar'], suv: ['ton SUV', 'du SUV'], pickup: ['ton pick-up', 'du pick-up'] };
-const nomDe = V => (V.vole ? (V.type === 'roadster' ? [`la Roadster de ${V.vole}`, `de la Roadster de ${V.vole}`] : [`la voiture de ${V.vole}`, `de la voiture de ${V.vole}`]) : V.travail && V.type === 'moto' ? ['la moto du patron', 'de la moto'] : NOMS[V.type] || NOMS.voiture);
+// Un véhicule volé (village-gens.js, voleur.js) : « la moto de Codjo », « le taxi de Romaric »… — le nom du propriétaire suit.
+const VOLES = { roadster: ['la Roadster de ', 'de la Roadster de '], taxi: ['le taxi de ', 'du taxi de '], moto: ['la moto de ', 'de la moto de '], zem: ['la moto de ', 'de la moto de '] };
+const nomDe = V => (V.vole ? (VOLES[V.type] || ['la voiture de ', 'de la voiture de ']).map(a => a + V.vole) : V.travail && V.type === 'moto' ? ['la moto du patron', 'de la moto'] : NOMS[V.type] || NOMS.voiture);
 
 // Un point de route libre près de (x, z), pour garer un véhicule ou faire venir un zém.
 export function pointDeRoute(x, z, rMin = 0, rMax = 25) {

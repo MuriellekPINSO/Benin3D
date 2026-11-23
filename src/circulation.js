@@ -405,6 +405,15 @@ function desserrer(dt, J) {
   else if (t > 20) partir(pris, J); // il se rétracte, et revient loin
   else { pris.cede = true; pris.essai = 0; }
 }
+// ---------- Voler un véhicule de la circulation (voleur.js) ----------
+/** Le véhicule de la circulation le plus proche de (x, z), arrêté ou au pas, à moins de r mètres ; null s'il n'y en a pas. */
+export function vehiculeArrete(x, z, r = 3.4) {
+  let best = null, d0 = r;
+  for (const V of C.vehicules) { if (!V.R || V.part > 0 || V.v > 2) continue; const d = Math.hypot(V.px - x, V.pz - z); if (d < d0) { d0 = d; best = V; } }
+  return best;
+}
+/** On l'a volé : il quitte la rue tout de suite (sa copie conduite par le joueur prend sa place) et reviendra loin d'ici. */
+export function retirerDeLaCirculation(V) { V.R = null; V.ailleurs = true; V.part = 0; V.v = 0; }
 export function cacherCirculation() { C.actif = false; for (const ms of C.meshes.values()) for (const m of ms) m.visible = false; for (const V of C.vehicules) V.R = null; }
 /** Combien de véhicules roulent à moins de r mètres de (x, z) (pour le bruit de la circulation, ambiance-salon.js). */
 /** Toute la circulation, pas seulement celle qui entoure le joueur (E.circulation, 40 m) : pour garer sa voiture jusqu'à
