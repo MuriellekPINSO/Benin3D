@@ -555,7 +555,8 @@
   "'Mémorial Zomachi'": "'Zomachi Memorial'",
   "'Mémorial · Zoungbodji'": "'Memorial · Zoungbodji'",
   "'Mémorial de Zoungbodji'": "'Zoungbodji Memorial'",
-  "'Arbre du Retour'": "'Tree of Return'"
+  "'Arbre du Retour'": "'Tree of Return'",
+  "'Place Chacha'": "'Chacha Square'"
  },
  "src/publicites.js": {
   "'Moov Africa'": "'Moov Africa'",
@@ -4079,7 +4080,13 @@
   "'Romuald'": "'Romuald'",
   "Voler la Tesla Roadster de ": "Steal the Tesla Roadster belonging to ",
   "Tu voles la Tesla Roadster de ": "You steal the Tesla Roadster belonging to ",
-  " ! Appuie sur « Propulseurs » pour sauter, tiens 5 s pour t’envoler.": "! Press “Thrusters” to jump, hold for 5 s to take off."
+  " ! Appuie sur « Propulseurs » pour sauter, tiens 5 s pour t’envoler.": "! Press “Thrusters” to jump, hold for 5 s to take off.",
+  "'Landry'": "'Landry'",
+  "'Carine'": "'Carine'",
+  "'Josué'": "'Josué'",
+  "'Bénédicte'": "'Bénédicte'",
+  "'Florent'": "'Florent'",
+  "'Allô, la police ? On m’a volé ma Roadster !'": "'Hello, police? My Roadster has been stolen!'"
  },
  "src/garage.js": {
   "'DÉFENSE DE'": "'NO'",
@@ -4094,13 +4101,7 @@
   " du garage ».": " out of the garage”.",
   " est sorti du garage : approche-toi et monte.": " is out of the garage: walk up and get in.",
   " est sortie du garage : approche-toi et monte.": " is out of the garage: walk up and get in.",
-  " est au garage. Le portail est fermé.": " is in the garage. The gate is closed.",
-  "'Landry'": "'Landry'",
-  "'Carine'": "'Carine'",
-  "'Josué'": "'Josué'",
-  "'Bénédicte'": "'Bénédicte'",
-  "'Florent'": "'Florent'",
-  "'Allô, la police ? On m’a volé ma Roadster !'": "'Hello, police? My Roadster has been stolen!'"
+  " est au garage. Le portail est fermé.": " is in the garage. The gate is closed."
  },
  "src/voleur.js": {
   "'Codjo'": "'Codjo'",
@@ -4130,5 +4131,35 @@
   "Tu voles ": "You steal ",
   " ! Démarre vite… Laisse-la à plus de 60 m pour qu’on te la reprenne.": "! Get going… Leave it more than 60 m away and its owner takes it back.",
   " a récupéré son véhicule.": " got their vehicle back."
+ },
+ "src/culte.js": {
+  "'Entrer dans la cathédrale'": "'Enter the cathedral'",
+  "'Entrer dans la mosquée'": "'Enter the mosque'",
+  "'la cathédrale Notre-Dame'": "'Notre-Dame Cathedral'",
+  "'la mosquée de Zongo'": "'the Zongo mosque'",
+  "'Le Seigneur soit avec vous.'": "'The Lord be with you.'",
+  "'Et avec votre esprit.'": "'And with your spirit.'",
+  "'Élevons notre cœur.'": "'Lift up your hearts.'",
+  "'Nous le tournons vers le Seigneur.'": "'We lift them up to the Lord.'",
+  "'Rendons grâce au Seigneur notre Dieu.'": "'Let us give thanks to the Lord our God.'",
+  "'Cela est juste et bon.'": "'It is right and just.'",
+  "'Que la paix du Seigneur soit toujours avec vous.'": "'The peace of the Lord be with you always.'",
+  "'Allez, dans la paix du Christ.'": "'Go in the peace of Christ.'",
+  "'Nous rendons grâce à Dieu.'": "'Thanks be to God.'",
+  "'♪ Alléluia, alléluia ! ♪'": "'♪ Alleluia, alleluia! ♪'",
+  "'♪ Gloire à Dieu au plus haut des cieux ♪'": "'♪ Glory to God in the highest ♪'",
+  "'♪ Saint, saint, saint le Seigneur ♪'": "'♪ Holy, holy, holy Lord ♪'"
+ },
+ "src/ouidah-ville.js": {
+  "'Basilique de Ouidah'": "'Ouidah Basilica'",
+  "'Temple des Pythons'": "'Python Temple'",
+  "'Place Chacha'": "'Chacha Square'",
+  "'Fort portugais de Ouidah'": "'Portuguese Fort of Ouidah'",
+  "'Villa Ajavon (Fondation Zinsou)'": "'Villa Ajavon (Zinsou Foundation)'",
+  "'Arbre du Retour'": "'Tree of Return'",
+  "'Mémorial Zomachi'": "'Zomachi Memorial'",
+  "'Mémorial de Zoungbodji'": "'Zoungbodji Memorial'",
+  "'Forêt sacrée de Kpassè'": "'Kpassè Sacred Forest'",
+  "\"Arbre de l'Oubli\"": "\"Tree of Forgetting\""
  }
 }
