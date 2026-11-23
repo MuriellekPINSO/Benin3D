@@ -20,11 +20,12 @@ const apiLocale = () => {
     // /api/lance-pierre : rejoue une partie de lance-pierre et l'inscrit au classement, avec le même secret de la base.
     // /api/epargne : l'épargne de « Ma vie » (dépôts, retraits, intérêts), avec le même secret de la base.
     // /api/course-velo et /api/courses-admin : le registre de la course à vélo payante et ses gagnants, même secret.
+    // /api/village-admin : les passeports du Village de l'innovation (commencés, remplis) pour le tableau, même secret (lecture seule).
     const base = loadEnv('development', process.cwd(), 'FIREBASE_');
     // /api/jeux et /api/jeux-admin : les jeux des créateurs (salle de jeux, espace créateurs, validation), même secret ;
     // en local, ils écrivent sous essais_jeux, jamais dans les vrais jeux.
-    const secrets = { fedapay: cle, paiements: cle, 'faux-frere': { secret: base.FIREBASE_DB_SECRET }, recharge: { cle, secret: base.FIREBASE_DB_SECRET, compte: base.FIREBASE_SERVICE_ACCOUNT }, 'lance-pierre': { secret: base.FIREBASE_DB_SECRET }, epargne: { secret: base.FIREBASE_DB_SECRET }, 'jeux-admin': { secret: base.FIREBASE_DB_SECRET }, jeux: { secret: base.FIREBASE_DB_SECRET }, 'course-velo': { cle, secret: base.FIREBASE_DB_SECRET }, 'courses-admin': { secret: base.FIREBASE_DB_SECRET } };
-    for (const nom of ['fedapay', 'paiements', 'faux-frere', 'recharge', 'lance-pierre', 'epargne', 'jeux-admin', 'jeux', 'course-velo', 'courses-admin']) {
+    const secrets = { fedapay: cle, paiements: cle, 'faux-frere': { secret: base.FIREBASE_DB_SECRET }, recharge: { cle, secret: base.FIREBASE_DB_SECRET, compte: base.FIREBASE_SERVICE_ACCOUNT }, 'lance-pierre': { secret: base.FIREBASE_DB_SECRET }, epargne: { secret: base.FIREBASE_DB_SECRET }, 'jeux-admin': { secret: base.FIREBASE_DB_SECRET }, jeux: { secret: base.FIREBASE_DB_SECRET }, 'course-velo': { cle, secret: base.FIREBASE_DB_SECRET }, 'courses-admin': { secret: base.FIREBASE_DB_SECRET }, 'village-admin': { secret: base.FIREBASE_DB_SECRET } };
+    for (const nom of ['fedapay', 'paiements', 'faux-frere', 'recharge', 'lance-pierre', 'epargne', 'jeux-admin', 'jeux', 'course-velo', 'courses-admin', 'village-admin']) {
       const api = pathToFileURL(path.resolve(`api/${nom}.js`)).href; // adresse absolue : Vite ne réécrit pas cet import
       server.middlewares.use(`/api/${nom}`, async (req, res) => (req.tableauLocal = true, await import(/* @vite-ignore */ `${api}?v=${fs.statSync(`api/${nom}.js`).mtimeMs}`)).default(req, res, secrets[nom]));
     }

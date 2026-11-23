@@ -329,7 +329,7 @@
       "jours": {
         "$jour": {
           "$cle": {
-            ".write": "auth != null && $jour.matches(/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/) && ($cle === 'vues' || $cle === 'visiteurs' || $cle === 'nouveaux' || $cle === 'salon' || $cle === 'zemrun')",
+            ".write": "auth != null && $jour.matches(/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/) && ($cle === 'vues' || $cle === 'visiteurs' || $cle === 'nouveaux' || $cle === 'salon' || $cle === 'zemrun' || $cle === 'village' || $cle === 'village_qr' || $cle === 'carte')",
             ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
           }
         }
