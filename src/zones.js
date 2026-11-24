@@ -1,6 +1,7 @@
 import { toXZ } from './base.js';
 import { EMPLACEMENTS } from './emplacements.js';
 import { REPERES, SALLE_JEUX } from './reperes.js';
+import { terrainsAkpakpa } from './akpakpa-sites.js';
 import { disquesOuidah, terrainsOuidah } from './ouidah-sites.js';
 
 // ---------- Zones où rien ne se construit ----------
@@ -97,6 +98,8 @@ export function initZones(L) {
   if (!Z.some(b => b.repere)) for (const R of [...REPERES, { id: 'salle-jeux', ...SALLE_JEUX }]) if (R.vider) { const [x, z] = toXZ(...R.centre); disque(x, z, R.vider); Z.at(-1).repere = R.id; }
   // Le centre de Ouidah (22/11) : basilique, Temple des Pythons, place Chacha, fort portugais, villa Ajavon (ouidah-ville.js).
   if (!Z.some(b => b.ouidah)) { for (const r of terrainsOuidah()) { polygone(r); Z.at(-1).ouidah = true; } for (const [x, z, r] of disquesOuidah()) { disque(x, z, r); Z.at(-1).ouidah = true; } }
+  // Akpakpa (23/11) : le campus du Centre EYA (akpakpa.js).
+  if (!Z.some(b => b.akpakpa)) for (const r of terrainsAkpakpa()) { polygone(r); Z.at(-1).akpakpa = true; }
   const P = L?.ouidah?.porte; if (!P) return;
   const { A, B } = pisteOuidah(P); bande(A, B, -25, 55, 35); // piste, bas-côtés, aire de stationnement, paillote, panneaux
   if (L.ouidah.arene) { const [x, z] = centreArene(L.ouidah.arene); disque(x, z, 80); } // jusqu'au mur d'enceinte (77 m)

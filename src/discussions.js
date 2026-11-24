@@ -31,7 +31,7 @@ const choisir = l => l[Math.floor(Math.random() * l.length)];
 const BULLES = [];
 /** Une bulle au-dessus de `ancre` (objet 3D ou point). `ton` : '', 'fort', 'fon' (avec traduction). */
 export function bulle(ancre, texte, { duree = 2.8, ton = '', trad = '', muet = false } = {}) { // muet : sans la voix (les prières en arabe, culte.js)
-  const box = $('#jhBulles'); if (!box || !ancre) return null;
+  const box = boiteBulles(); if (!box || !ancre) return null;
   for (const b of BULLES) if (b.ancre === ancre) b.t = Math.min(b.t, .12); // une seule bulle à la fois par personne
   const el = document.createElement('div'); el.className = `bulle ${ton}`;
   el.textContent = texte; if (trad) { const s = document.createElement('small'); s.textContent = trad; el.append(s); }
@@ -48,13 +48,26 @@ function tete(a, out) {
   if (a.userData?.tete) return a.userData.tete.getWorldPosition(out);
   a.getWorldPosition(out); out.y += a.userData?.haut ?? 2.1; return out;
 }
-function majBulles(dt) {
+// Hors de Zém Run (« Vivre à Cotonou » : la messe, la prière, culte.js), #jeuHud est caché, et ses bulles avec : elles
+// vont dans un calque à part, posé juste au-dessus de la ville (sous l'interface). Avant le 23/11, les paroles du
+// prêtre et de l'imam ne s'affichaient pas et leurs bulles s'entassaient dans la page sans jamais partir.
+function boiteBulles() {
+  const hud = $('#jeuHud'); if (hud && !hud.hidden) return $('#jhBulles');
+  let b = $('#mondeBulles');
+  if (!b) { b = document.createElement('div'); b.id = 'mondeBulles'; b.className = 'jh-bulles monde-bulles'; b.setAttribute('aria-live', 'polite'); $('#scene')?.after(b); }
+  return b;
+}
+/** À chaque image : place les bulles au-dessus des têtes (jeu.js pendant Zém Run, main.js le reste du temps). */
+export function majBulles(dt) {
+  if (!BULLES.length) return; // sans bulle, pas de getBoundingClientRect à chaque image
   const r = $('#scene').getBoundingClientRect(), places = [];
   for (let i = BULLES.length - 1; i >= 0; i--) {
     const b = BULLES[i]; b.t -= dt;
     if (b.t <= 0) { b.el.remove(); BULLES.splice(i, 1); continue; }
     tete(b.ancre, v); v.y += .35; const dist = v.distanceTo(camera.position); v.project(camera);
-    const vu = v.z < 1 && Math.abs(v.x) < 1.15 && Math.abs(v.y) < 1.15 && dist < 140;
+    // Tout près, la tête de celui qui parle sort par le haut de l'image (le prêtre à l'autel, vu du pied des marches), ou
+    // un peu sur le côté (la chorale, à droite de la nef) : sa bulle reste visible, calée au bord de l'écran, tant qu'il est devant soi.
+    const vu = v.z < 1 && Math.abs(v.x) < 1.6 && v.y > -1.15 && v.y < 2.5 && dist < 140;
     b.el.style.opacity = vu ? Math.min(1, b.t / .3, (b.d - b.t) / .12) : 0;
     // La bulle reste entière à l'écran, même quand la personne est tout au bord.
     const ech = THREE.MathUtils.clamp(26 / Math.max(dist, 1), .62, .92);

@@ -581,6 +581,7 @@ button { font: inherit; color: inherit; }
 
 /* Zém Run : bulles de discussion, dialogue avec le client, apprenti, missions */
 .jh-bulles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.monde-bulles { position: fixed; } /* hors de Zém Run : par-dessus la ville, sous l'interface (discussions.js) */
 /* Paroles au-dessus des personnages : sans fond, comme des sous-titres de jeu ; texte blanc épais
    cerné de noir, lisible sur la route, le ciel ou les murs. */
 .bulle { --contour: 0 0 2px #000, 1.5px 1.5px 0 #000, -1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000, -1.5px 1.5px 0 #000, 0 1.5px 0 #000, 0 -1.5px 0 #000, 1.5px 0 0 #000, -1.5px 0 0 #000, 0 3px 8px rgba(0,0,0,.55);

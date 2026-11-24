@@ -423,14 +423,10 @@ function mosqueeZongo(ring) {
     for (let i = 0; i < loc.length; i++) { const a = loc[i], b = loc[(i + 1) % loc.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L > bl) { bl = L; best = [a, b]; } }
     const [a, b] = best, ux = (b[0] - a[0]) / bl, uz = (b[1] - a[1]) / bl;
     // Les portes (culte.js) : un grand portail vert, en arc, cerclé d'or, au milieu d'un côté, et la porte devant lui.
-    const vertP = K.mat('#1f5e46', { rugosite: .5 }), orP = K.mat('#d9b44a', { metal: .6, rugosite: .35 });
     const portail = (a, b) => {
       const L = Math.hypot(b[0] - a[0], b[1] - a[1]), ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L;
       const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, s = (uz * mx - ux * mz) > 0 ? 1 : -1, nx = uz * s, nz = -ux * s, r = Math.atan2(nx, nz);
-      K.boite(2.6, 3.2, .16, vertP, mx + nx * .1, 1.6, mz + nz * .1).rotation.y = r;
-      K.boite(2.9, .18, .2, orP, mx + nx * .14, 3.3, mz + nz * .14).rotation.y = r;
-      for (const sg of [-1, 1]) K.boite(.16, 3.3, .2, orP, mx + nx * .14 + ux * sg * 1.38, 1.65, mz + nz * .14 + uz * sg * 1.38).rotation.y = r;
-      K.maillage(new THREE.CircleGeometry(1.3, 20, 0, Math.PI), vertP, mx + nx * .1, 3.3, mz + nz * .1).rotation.y = r;
+      // Le portail lui-même (cadre, arc brisé, vantaux) est dessiné par portails-culte.js, à 2,2 m derrière la porte.
       return { porte: [c[0] + mx + nx * 2.2, c[1] + mz + nz * 2.2], dehors: r };
     };
     // La grande porte sur la rue des Missions (le boulevard), là où l'on arrive : « je n'arrive pas à entrer dans la mosquée »

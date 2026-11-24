@@ -18,7 +18,7 @@ import { chargerMasques, procession } from './egungun.js';
 import { satelliteVisible } from './satellite.js';
 import { photoJeu } from './google.js';
 import { BORD, majBordure, majMiniCarte, nettoyerBordure, preparerBordure } from './bordure.js';
-import { bulle, clientRate, collecte, departApprenti, deposerClient, dialogue, DISC, etiquetteClient, evenement, klaxonner, majDiscussions, nettoyerDiscussions, nouveauClient, nouveauSigne, placerCollecteur, preparerDiscussions, repondre } from './discussions.js';
+import { bulle, clientRate, collecte, departApprenti, deposerClient, dialogue, DISC, etiquetteClient, evenement, klaxonner, majBulles, majDiscussions, nettoyerDiscussions, nouveauClient, nouveauSigne, placerCollecteur, preparerDiscussions, repondre } from './discussions.js';
 import { ameliore, assurerMissions, progDefaut, progres, rendreProgression, serieDuJour, tamponner } from './missions.js';
 import { preparerTicket } from './ticket.js';
 import { sauvegarderEnLigne } from './compte.js';
@@ -625,6 +625,8 @@ function indiceArret(st, a) {
   else if (d < 75 && st.file < 1) dire('file', 'Serre à droite (→) pour t’arrêter');
   else if (d < 55 && st.v >= 7.5) dire('vite', `Ralentis (↓) : l’arrêt est dans ${Math.max(0, Math.round(d))} m`);
 }
+/** Hors de Zém Run, les bulles des personnages (la messe, la prière : culte.js) suivent quand même leur tête. */
+export const majBullesMonde = dt => majBulles(dt);
 export function majJeu(dt) {
   const st = JEU.etat, C = JEU.chemin, L = JEU.ligne, V = VEH[JEU.veh];
   if (!st || JEU.pause) return;

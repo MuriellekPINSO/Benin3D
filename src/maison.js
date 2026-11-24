@@ -10,6 +10,7 @@ import { dansBatiment, surChaussee } from './rue.js';
 import { scene } from './scene.js';
 import { T, choisir, tenirPlat } from './trajets.js';
 import { LOGEMENTS, VIE, depenser, louerLogement } from './vie.js';
+import { prendreRepas, repasAuPlacard } from './courses.js';
 import { ELARGIR, ROAD_W, roadLines } from './ville.js';
 
 // ---------- Chez soi : la journée commence au lit ----------
@@ -484,7 +485,7 @@ export function coucher(I) {
   S.x = p.x; S.z = p.z; S.cap = L.vue; S.tangage = .42; S.saut = true; S.geste = 'idle'; // 0,7 rad : la caméra montait sous le plafond et cadrait le mur d'en face plutôt que la chambre
   L.deplie.visible = true; L.plie.visible = false;
 }
-function lever() {
+export function lever() {
   const S = H.S, I = S.lieu; if (!S.couche || !I?.lit) return;
   const L = I.lit, [x, z, cap] = L.leve, p = dansLaPiece(I, x, z);
   S.couche = null; S.leveT = performance.now(); L.deplie.visible = false; L.plie.visible = true;
@@ -536,8 +537,9 @@ function cuisiner() {
   const S = H.S, I = S.lieu, F = I?.fourneau; if (!F || S.activite) return;
   const argent = VIE.data?.argent ?? 0;
   choisir(F.plan === 'cour' ? 'Cuisiner au réchaud · Que prépares-tu ?' : 'Cuisiner · Que prépares-tu ?', RECETTES[F.plan].map(([nom, prix, faim]) => ({
-    texte: nom, sous: `Ingrédients ${fmt(prix)} · faim +${faim}`, desactive: argent < prix, f: async () => {
-      if (!(await depenser(prix, `ingrédients · ${nom}`))) { H.ligne(`Il te faut ${fmt(prix)} pour les ingrédients.`); return; }
+    // Avec ses courses du supermarché (courses.js) : les ingrédients sont déjà au placard.
+    texte: nom, sous: repasAuPlacard() > 0 ? `Avec tes courses (encore ${repasAuPlacard()} repas au placard) · faim +${faim}` : `Ingrédients ${fmt(prix)} · faim +${faim}`, desactive: argent < prix && repasAuPlacard() <= 0, f: async () => {
+      if (!prendreRepas() && !(await depenser(prix, `ingrédients · ${nom}`))) { H.ligne(`Il te faut ${fmt(prix)} pour les ingrédients.`); return; }
       if (S.lieu !== I || S.activite) return;
       demarrer('cuisine', F, DUREE_CUISSON, () => { son('piece'); tenirPlat(nom, faim); });
       F.feu.visible = true; H.vapeur = particules(40, '#ffffff', .22, .4); H.arreterBruit = bruit('friture', DUREE_CUISSON);
@@ -560,7 +562,8 @@ export const occupe = () => !!(H.S?.couche || H.S?.activite);
 
 // ---------- Actions de la maison (boutons du salon) ----------
 export function actionsMaison() {
-  const S = H.S, I = S.lieu; if (!I?.prive || T.mode !== 'pied') return [];
+  const S = H.S, I = S.lieu; if (S.couche && !I?.prive && I?.lit) return [{ texte: 'Se lever', f: lever }]; // couché ailleurs que chez soi (l'hôtel, akpakpa.js)
+  if (!I?.prive || T.mode !== 'pied') return [];
   if (I !== maisonActuelle()) return I.logis.visite ? [{ texte: `Louer ${I.logis.visite} · ${fmt(LOGEMENTS[I.logement].loyer)} par jour`, f: () => louer(I) }] : [];
   if (S.couche) return [{ texte: 'Se lever', f: lever }];
   if (S.activite) return [{ texte: S.activite.type === 'cuisine' ? 'Arrêter la cuisson' : 'Sortir de la douche', f: arreter }];

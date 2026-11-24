@@ -20,7 +20,7 @@ import { construireSalle, pieceVisitee } from './salle-jeux.js';
 import { detailsToits, STATS_TOITS } from './toits-details.js';
 import { chargerPersonnages, majPersonnages } from './personnages.js';
 import { buildLabels, startFlight, updateFlight, updateHud, updateLabels } from './interface.js';
-import { JEU, initJeu, majJeu } from './jeu.js';
+import { JEU, initJeu, majBullesMonde, majJeu } from './jeu.js';
 import { podiumDemande } from './defi.js';
 import { VEGETATION, animerLieux, construireLieux, portailUAC, prechargerAmazone, semeOne, visibiliteLieux } from './lieux.js';
 import { COUCHES_SOL, U, camera, controls, renderer, scene, sky, sun } from './scene.js';
@@ -37,6 +37,8 @@ import { initBatimentsGoogle, majBatimentsGoogle } from './batiments-google.js';
 import { construireLieuxVideos } from './lieux-videos.js';
 import { animerOuidah, construireOuidah } from './ouidah.js';
 import { construireOuidahVille } from './ouidah-ville.js';
+import { construireAkpakpa } from './akpakpa.js';
+import { construirePortailsCulte } from './portails-culte.js';
 import { animerEtals, construireEtals, initBoutique } from './artisans.js';
 import { construireCaiCai } from './caicai.js';
 import { construireStand } from './lancepierre.js';
@@ -129,7 +131,7 @@ function image(now) {
     if (U.uRiseT.value > 7.5) finishRise();
   }
   if (JEU.actif) majJeu(dt);
-  else { majSalon(dt); updateFlight(now); controls.update(dt); } // salon entre amis : la caméra suit son personnage
+  else { majSalon(dt); updateFlight(now); controls.update(dt); majBullesMonde(dt); } // salon entre amis : la caméra suit son personnage ; les paroles de la messe et de la prière (culte.js)
   majSatellite(dt);
   if (JEU.actif) { if (JEU.joueur) { majRue(dt, JEU.joueur.position, 60); majBatimentsGoogle(dt, JEU.joueur.position, 60); } }
   else { majRue(dt); majBatimentsGoogle(dt, controls.target, camera.position.distanceTo(controls.target)); }
@@ -229,7 +231,7 @@ async function main() {
   detailsToits(); // citernes, paraboles et fers à béton sur les toits plats (toits-details.js)
   construireSalle(); // la salle de jeux de Haie Vive : les jeux des créateurs (salle-jeux.js)
   if (import.meta.env.DEV) { window.__toits = STATS_TOITS; window.__foule = etatFoule; }
-  construireLieuxVideos(data); construireOuidah(data.L); construireOuidahVille(); construireEtals(data.L); construireCaiCai(); construireStand(); construireMaquis();
+  construireLieuxVideos(data); construireOuidah(data.L); construireOuidahVille(); construireAkpakpa(); construirePortailsCulte(); construireEtals(data.L); construireCaiCai(); construireStand(); construireMaquis();
   semeOne(data.L.semeOne); portailUAC(data.L.campus, data.L.lignes?.find(l => l.id === 'calavi')?.pts); construireTokpas();
   const sansArbres = degagerChaussees(VEGETATION); // pas d'arbre au milieu de la rue
   if (import.meta.env.DEV) console.info(`arbres retirés des chaussées : ${sansArbres}`);

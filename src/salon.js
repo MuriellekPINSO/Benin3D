@@ -4,6 +4,8 @@ import { PLACES } from './donnees-lieux.js';
 import { creerGuide } from './guide.js';
 import { BALADES, DEVANT_CAI, RDV_AKPAKPA, STATIONS_RC, devantStation, stationRC } from './caicai.js';
 import { actionsSalle, devantSalle } from './salle-jeux.js';
+import { actionsAkpakpa, initAkpakpa } from './akpakpa.js';
+import { actionsGarages, garageLePlusProche, initGarages } from './garages.js';
 import { compterUneFois, lieuStats } from './statistiques.js';
 import { obstacleArene, retirerVoisins, siegeGradins, voisinsDeGradin } from './ouidah.js';
 import { BANCS, dansArbre, dansFoule } from './lieux.js';
@@ -82,7 +84,7 @@ const PHRASES = ['Salut !', 'Ça va ?', 'On y va !', 'On mange où ?', 'Attends-
 // Lieux de rendez-vous : id dans PLACES, nom dans le menu, « je vais … », décalage du point d'arrivée (mètres,
 // x vers l'est, z vers le sud) et direction du regard (0 = vers le sud). Toujours dans un espace dégagé : la
 // caméra se tient 7 m derrière. Haie Vive : rue Les Cocotiers, celle des maquis (Le Lambi's, Cordon Bleu…).
-const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ...(VILLAGE_ACTIF ? [['village', 'Le Village de l’innovation (Palais des Congrès)', 'au Village de l’innovation', 0, 0, 0]] : []), ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['dome', 'Le Dôme du Sofitel (La Nuit Kutɔnu Vibes)', 'au Dôme du Sofitel', 0, 0, 0, 'dome-sofitel'], ['caicai', 'RideCorniche (location de vélos)', 'chez RideCorniche', 0, 0, 0], ...STATIONS_RC.map(S => [S.id, S.nom, S.dit, 0, 0, 0]), ['cathedrale', 'Cathédrale Notre-Dame (Ganhi)', 'à la cathédrale Notre-Dame', -32, 2, 1.41, 'cathedrale'], ['zongo', 'Mosquée de Zongo', 'à la mosquée de Zongo', 0, 0, 0, 'mosquee-zongo'], ['ganhi', 'Marché Ganhi', 'au marché Ganhi', 0, 10, Math.PI], ['akpakpa', 'Église Sainte-Trinité (Akpakpa)', 'à l’église Sainte-Trinité d’Akpakpa', 0, 0, 0], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0], ['basilique-ouidah', 'Basilique de Ouidah', 'à la basilique de Ouidah', 0, 0, -2.855], ['temple-pythons', 'Temple des Pythons (Ouidah)', 'au Temple des Pythons, à Ouidah', 0, 0, .395], ['chacha', 'Place Chacha (Ouidah)', 'à la place Chacha, à Ouidah', -3, 14, 2.93], ['fort-ouidah', 'Fort portugais (Ouidah)', 'au fort portugais de Ouidah', 0, 0, .616], ['zinsou', 'Villa Ajavon, Fondation Zinsou (Ouidah)', 'à la villa Ajavon, à Ouidah', 0, 0, -3.003], ['kpasse', 'Forêt sacrée de Kpassè (Ouidah)', 'à la forêt sacrée de Kpassè, à Ouidah', 0, 0, -2.902], ['arbre-oubli', 'Arbre de l’Oubli (Route des Esclaves)', 'à l’Arbre de l’Oubli, sur la Route des Esclaves', 0, 0, 1.713], ['zomachi', 'Mémorial Zomachi (Zoungbodji)', 'au mémorial Zomachi, à Zoungbodji', 0, 0, -1.616], ['zoungbodji', 'Mémorial de Zoungbodji (fosse commune)', 'au mémorial de Zoungbodji', 0, 0, 0], ['arbre-retour', 'Arbre du Retour (Zoungbodji)', 'à l’Arbre du Retour, à Zoungbodji', 0, 0, 2.99], ['salle-jeux', 'Salle de jeux (jeux des créateurs)', VILLAGE_ACTIF ? 'à la salle de jeux, à côté du Village' : 'à la salle de jeux de Haie Vive', 0, 0, 0, 'salle-jeux']]; // 7e : intérieur dont on arrive devant la porte
+const LIEUX = [['maison', 'Chez moi', 'chez moi', 0, 0, 0], ...(VILLAGE_ACTIF ? [['village', 'Le Village de l’innovation (Palais des Congrès)', 'au Village de l’innovation', 0, 0, 0]] : []), ['station', 'Station-service la plus proche', 'faire le plein', 0, 0, 0], ['garage', 'Garage le plus proche (mécanicien)', 'au garage', 0, 0, 0], ['amazone', 'Esplanade de l’Amazone', 'à l’esplanade de l’Amazone', 0, -62, 0], ['dome', 'Le Dôme du Sofitel (La Nuit Kutɔnu Vibes)', 'au Dôme du Sofitel', 0, 0, 0, 'dome-sofitel'], ['caicai', 'RideCorniche (location de vélos)', 'chez RideCorniche', 0, 0, 0], ...STATIONS_RC.map(S => [S.id, S.nom, S.dit, 0, 0, 0]), ['cathedrale', 'Cathédrale Notre-Dame (Ganhi)', 'à la cathédrale Notre-Dame', -32, 2, 1.41, 'cathedrale'], ['zongo', 'Mosquée de Zongo', 'à la mosquée de Zongo', 0, 0, 0, 'mosquee-zongo'], ['ganhi', 'Marché Ganhi', 'au marché Ganhi', 0, 10, Math.PI], ['akpakpa', 'Église Sainte-Trinité (Akpakpa)', 'à l’église Sainte-Trinité d’Akpakpa', 0, 0, 0], ['eya', 'Centre EYA (Akpakpa)', 'au Centre EYA', 11.5, 26.2, -2.8], ['sobebra', 'La Béninoise (SOBEBRA, PK 2,5)', 'à la SOBEBRA', 0, 0, 0, 'sobebra-visite'], ['hotel8janvier', 'Hôtel 8 Janvier (Missessin)', 'à l’Hôtel 8 Janvier', 0, 0, 0, 'hotel-8-janvier'], ['superu', 'Super U Akpakpa (supermarché)', 'au Super U d’Akpakpa', 0, 0, 0, 'super-u'], ['cite', 'Cité ministérielle (food court)', 'au food court de la Cité ministérielle', 0, 0, 0, 'cite-foodcourt'], ['haievive', 'Haie Vive (rue des maquis)', 'à la Haie Vive', -65, -153, Math.PI / 2], ['fidjrosse', 'Plage de Fidjrossè', 'à la plage de Fidjrossè', 0, 0, 0], ['moov', 'Siège de Moov Africa', 'au siège de Moov', 5, -22, 0], ['aeroport', 'Aéroport (vols pour Ouidah)', 'à l’aéroport', 0, 0, 0, 'aeroport-hall'], ['porte', 'Porte du Non-Retour (Ouidah)', 'à la Porte du Non-Retour, à Ouidah', 0, -30, 0], ['basilique-ouidah', 'Basilique de Ouidah', 'à la basilique de Ouidah', 0, 0, -2.855], ['temple-pythons', 'Temple des Pythons (Ouidah)', 'au Temple des Pythons, à Ouidah', 0, 0, .395], ['chacha', 'Place Chacha (Ouidah)', 'à la place Chacha, à Ouidah', -3, 14, 2.93], ['fort-ouidah', 'Fort portugais (Ouidah)', 'au fort portugais de Ouidah', 0, 0, .616], ['zinsou', 'Villa Ajavon, Fondation Zinsou (Ouidah)', 'à la villa Ajavon, à Ouidah', 0, 0, -3.003], ['kpasse', 'Forêt sacrée de Kpassè (Ouidah)', 'à la forêt sacrée de Kpassè, à Ouidah', 0, 0, -2.902], ['arbre-oubli', 'Arbre de l’Oubli (Route des Esclaves)', 'à l’Arbre de l’Oubli, sur la Route des Esclaves', 0, 0, 1.713], ['zomachi', 'Mémorial Zomachi (Zoungbodji)', 'au mémorial Zomachi, à Zoungbodji', 0, 0, -1.616], ['zoungbodji', 'Mémorial de Zoungbodji (fosse commune)', 'au mémorial de Zoungbodji', 0, 0, 0], ['arbre-retour', 'Arbre du Retour (Zoungbodji)', 'à l’Arbre du Retour, à Zoungbodji', 0, 0, 2.99], ['salle-jeux', 'Salle de jeux (jeux des créateurs)', VILLAGE_ACTIF ? 'à la salle de jeux, à côté du Village' : 'à la salle de jeux de Haie Vive', 0, 0, 0, 'salle-jeux']]; // 7e : intérieur dont on arrive devant la porte
 const ACTION_DE = { porte: 0, action2: 1, action3: 2 }; // les touches des trois boutons d'action (E, R, F)
 const CLAVIER = { KeyM: 'carte', KeyV: 'vue', KeyE: 'porte', KeyR: 'action2', KeyF: 'action3', ArrowUp: 'avant', KeyW: 'avant', ArrowDown: 'arriere', KeyS: 'arriere', ArrowLeft: 'gauche', KeyA: 'gauche', ArrowRight: 'droite', KeyD: 'droite', ShiftLeft: 'court', ShiftRight: 'court' }; // touches physiques : WASD en QWERTY = ZQSD en AZERTY
 
@@ -564,11 +566,12 @@ function telDe(A, e) {
 // Le logement qu'on est allé visiter (menu « Louer un logement ») : une destination de plus, le temps de la visite.
 const lieuLogement = id => [`lg:${id}`, `${LOGEMENTS[id].nom} · à louer`, '', 0, 0, 0];
 const tousLieux = () => [...LIEUX, ...lieuxCommerces().map(c => [c.id, c.nom, c.dit, 0, 0, 0]), ...(S.visite && S.visite !== VIE.data?.logement ? [lieuLogement(S.visite)] : [])];
-const sansAnnonce = id => id === 'station' || id === 'maison' || id.startsWith('lg:'); // chez soi, ou un logement à visiter : on ne l'annonce pas aux autres
+const sansAnnonce = id => id === 'station' || id === 'garage' || id === 'maison' || id.startsWith('lg:'); // chez soi, ou un logement à visiter : on ne l'annonce pas aux autres
 function destination(L) {
   if (L[0].startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === L[0]); return c && [c.x, c.z, c.cap]; }
   if (L[0].startsWith('lg:')) { const I = logement(L[0].slice(3)); if (!I) return null; const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; } // devant sa porte
   if (L[0] === 'station') { const st = stationLaPlusProche(S.x, S.z); return st && [st[0], st[1], 0]; }
+  if (L[0] === 'garage') { const g = garageLePlusProche(S.x, S.z); return g && [g.x + Math.sin(g.cap) * 3.5, g.z + Math.cos(g.cap) * 3.5, g.cap + Math.PI]; } // devant le mécanicien (garages.js)
   if (L[0] === 'caicai') return DEVANT_CAI; // devant le comptoir, face à la boutique
   if (L[0] === 'village') return ENTREE_VILLAGE; // devant le portique d'entrée, tourné vers le Village (village-plan.js)
   if (L[0].startsWith('rc-')) return devantStation(L[0]); // un garde-vélo RideCorniche (caicai.js)
@@ -637,7 +640,7 @@ function actionsBalade() {
  *  Seuls les lieux qu'aucune route ne relie (Ouidah, à 35 km) gardent l'ancien saut. */
 function aller(id, proposer = true) {
   if (id.startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === id); if (c) allerVers(c.x, c.z, c.cap, c.nom); return; } // chez soi, au travail : on ne l'annonce pas
-  const L = id.startsWith('lg:') ? LOGEMENTS[id.slice(3)] && lieuLogement(id.slice(3)) : LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || ((id === 'station' || id === 'maison' || id === 'caicai' || id === 'akpakpa' || id === 'village' || id.startsWith('rc-') || id.startsWith('lg:')) && {}); if (!L || !p) return;
+  const L = id.startsWith('lg:') ? LOGEMENTS[id.slice(3)] && lieuLogement(id.slice(3)) : LIEUX.find(l => l[0] === id), p = PLACES.find(q => q.id === id) || ((id === 'station' || id === 'garage' || id === 'maison' || id === 'caicai' || id === 'akpakpa' || id === 'village' || id.startsWith('rc-') || id.startsWith('lg:')) && {}); if (!L || !p) return;
   if (T.mode === 'conduit') { const d = destination(L); if (d) gps(d[0], d[1], id === 'station' ? (stationLaPlusProche(S.x, S.z)?.[2] || L[1]) : L[1]); return; }
   if (T.mode === 'ami') { const A = S.autres.get(S.ami); S.canal?.dire({ n: S.nom, txt: `${A ? `${A.nom}, emmène-moi` : 'Emmène-moi'} ${L[2]} !`, lieu: id }); return; }
   if (T.mode !== 'pied') return;
@@ -650,7 +653,7 @@ function aller(id, proposer = true) {
     // de traverser la ville quand on ne veut pas attendre un zém (demande de Murielle, 25/10).
     const km = Math.hypot(d0[0] - S.x, d0[1] - S.z) / 1000;
     const suivre = () => { if (gps(d0[0], d0[1], nom0) && proposer && !sansAnnonce(id)) annoncer(`Je vais ${L[2]}, venez !`, id); };
-    if (km < .25 || id === 'station') { suivre(); return; } // tout près, ou la pompe la plus proche : on y va à pied
+    if (km < .25 || id === 'station' || id === 'garage') { suivre(); return; } // tout près, ou la pompe la plus proche : on y va à pied
     choisir(`${nom0} · ${km < .95 ? `${Math.round(km * 100) * 10} m` : `${km.toFixed(1).replace('.', ',')} km`}`, [
       { texte: 'Y aller à pied', sous: 'Le chemin s’allume au sol', f: suivre },
       { texte: `M’y téléporter · ${TELEPORT.toLocaleString('fr-FR')} F`, sous: (VIE.data?.argent ?? 0) < TELEPORT ? 'Tu n’as pas assez d’argent' : 'Tu y es tout de suite', desactive: (VIE.data?.argent ?? 0) < TELEPORT, f: () => teleporter(id, L, p, I, nom0, proposer) },
@@ -663,7 +666,7 @@ function aller(id, proposer = true) {
 }
 /** Pose le joueur à l'arrivée d'un lieu : devant la porte, au bord de la pompe, sur le trottoir. */
 function poser(id, L, p, I) {
-  if (id === 'caicai' || id === 'salle-jeux' || id === 'akpakpa' || id === 'village' || id.startsWith('rc-')) { const d = destination(L); if (!d) return false; S.x = d[0] + (Math.random() - .5) * 3; S.z = d[1]; S.cap = d[2]; }
+  if (id === 'caicai' || id === 'salle-jeux' || id === 'akpakpa' || id === 'village' || id === 'garage' || id.startsWith('rc-')) { const d = destination(L); if (!d) return false; S.x = d[0] + (Math.random() - .5) * 3; S.z = d[1]; S.cap = d[2]; }
   else if (id === 'station') { const d = destination(L); if (!d) return false; S.x = d[0] + 6; S.z = d[1]; S.cap = -Math.PI / 2; }
   else if (I) { const a = arriveeDehors(I); S.x = a.x + (Math.random() - .5) * 2; S.z = a.z; S.cap = a.cap + Math.PI; } // devant la porte, face à elle
   else { const [x, z] = toXZ(p.lat, p.lon); S.x = x + L[3] + (Math.random() - .5) * 4; S.z = z + L[4] + (Math.random() - .5) * 4; S.cap = L[5]; }
@@ -746,7 +749,7 @@ function dehors(replacer = true) {
   S.lieu = null; S.y = 0; S.geste = 'idle'; // assis à table dedans : debout dans la rue
   if (S.distDehors) { S.dist = S.distDehors; S.distDehors = 0; }
   cacherInterieurs(); document.getElementById('app').classList.remove('dedans');
-  if (replacer) { const a = arriveeDehors(I); S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; }
+  if (replacer) { const a = arriveeDehors(I); S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; partirGoDrive(); }
 }
 // Touche E : l'action principale du moment. Pas deux d'affilée en moins de 0,7 s : E, E au réveil levait le joueur puis
 // le faisait sortir aussitôt (la deuxième action arrive à la place de la première).
@@ -1234,7 +1237,7 @@ export function majSalon(dt) {
     : occupe() ? actionsMaison() // couché : se lever ; sous la douche, aux fourneaux : arrêter
     : S.gradin ? [{ texte: 'Se lever', f: leverGradins }, ...actionsAppel()]
     : tir ? actionsLancePierre(S, T)
-    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsGarage(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCourseVelo(S), ...actionsSalle(S, T), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsArcade(), ...actionsVillageGens(), ...actionsVoleur(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
+    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...actionsAkpakpa(), ...actionsGarages(), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsGarage(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCourseVelo(S), ...actionsSalle(S, T), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsArcade(), ...actionsVillageGens(), ...actionsVoleur(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...actionsGoDrive(), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
   // La touche de chaque bouton : celle de la manette si l'on joue avec (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
   // Une manette branchée mais posée affichait ses boutons même au clavier : c'est la dernière saisie qui compte (saisie.js).
   const touches = SAISIE.manette ? (SAISIE.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
@@ -1453,6 +1456,41 @@ const AIDE_MANETTE = { x: 'Manette : stick gauche pour marcher ou conduire · st
 let aideClavier = null;
 function majAide() { const a = $('.sl-touches'); if (!a) return; aideClavier ??= a.textContent; a.textContent = SAISIE.manette ? AIDE_MANETTE[SAISIE.ps ? 'p' : 'x'] : aideClavier; }
 
+// ---------- GoDrive : commander une moto ou une voiture depuis l'intérieur d'un lieu ----------
+// « On peut commander voiture et moto dedans, l'entreprise s'appelle GoDrive » (Murielle, 23/11 ; une entreprise inventée).
+// Comme une appli de VTC : on choisit moto ou voiture, puis où aller ; le prix est affiché (pas de marchandage) et se paie
+// à l'arrivée. Le chauffeur vient quand on sort : il attend devant la porte du lieu (trajets.js, appelerZem).
+const GODRIVE = { moto: { type: 'zem', k: 1, nom: 'Moto GoDrive', sous: 'Rapide, au prix du zém' }, voiture: { type: 'berline', k: 2.2, nom: 'Voiture GoDrive', sous: 'Climatisée : tu t’assois devant, à côté du chauffeur' } };
+function actionsGoDrive() {
+  if (T.mode !== 'pied' || !S.lieu?.porte || S.lieu.prive || T.zem || VIE.service) return [];
+  return [{ texte: S.goDrive ? 'GoDrive : commande en cours' : 'Commander un GoDrive', f: commanderGoDrive }];
+}
+function commanderGoDrive() {
+  if (S.goDrive) { choisir(`GoDrive · ${GODRIVE[S.goDrive.offre].nom} jusqu’à ${S.goDrive.nom}`, [{ texte: 'Annuler la commande', f: () => { S.goDrive = null; ligne('Commande GoDrive annulée.'); } }], { annuler: 'Garder' }); return; }
+  choisir('GoDrive · moto ou voiture ?', Object.entries(GODRIVE).map(([offre, G]) => ({ texte: G.nom, sous: G.sous, f: () => destinationGoDrive(offre) })));
+}
+function destinationGoDrive(offre) {
+  const I = S.lieu, a = I && arriveeDehors(I); if (!a) return;
+  const proches = tousLieux().filter(L => { if (L[0] === 'station' || (L[6] && L[6] === I.id)) return false; const d = destination(L); return d && Math.hypot(d[0] - a.x, d[1] - a.z) < 15000; });
+  choisir('GoDrive · où vas-tu ?', proches.map(L => ({ texte: L[1], f: () => { const d = destination(L); if (d) prixGoDrive(offre, d, L[1], a); } })));
+}
+function prixGoDrive(offre, d, nom, a) {
+  const G = GODRIVE[offre], q = prixZem(a.x, a.z, a.cap, d[0], d[1]); if (!q) { ligne('GoDrive ne trouve pas de route jusque-là.'); return; }
+  if (q.km < .15) { ligne('Tu y es déjà !'); return; }
+  const prix = Math.ceil(q.prix * G.k / 50) * 50, argent = VIE.data?.argent ?? 0;
+  choisir(`${G.nom} · ${nom} (${q.km.toFixed(1).replace('.', ',')} km)`, [
+    { texte: `Commander · ${prix.toLocaleString('fr-FR')} F`, sous: argent < prix ? 'Tu n’as pas assez d’argent' : 'Tu paies à l’arrivée', desactive: argent < prix,
+      f: () => { S.goDrive = { offre, d, nom, prix }; son('piece'); ligne(`Commande GoDrive envoyée : ${G.nom.toLowerCase()} jusqu’à ${nom}, ${prix.toLocaleString('fr-FR')} F. Sors : ton chauffeur arrive devant la porte.`); } },
+  ]);
+}
+/** En sortant : la commande GoDrive part, le chauffeur vient devant la porte. */
+function partirGoDrive() {
+  const C = S.goDrive; if (!C || T.mode !== 'pied' || S.lieu) return; S.goDrive = null;
+  // Il attend au bord de la rue la plus proche de la porte (jusqu'à 70 m : la porte de l'amphithéâtre du Centre EYA est au fond
+  // du campus), pas derrière une clôture.
+  const G = GODRIVE[C.offre]; appelerZem(C.d[0], C.d[1], C.nom, C.prix, { type: G.type, marque: 'GoDrive', ou: pointDeRoute(S.x, S.z, 0, 70) });
+}
+
 // ---------- Héler un zém : choisir où aller, négocier le prix ----------
 function helerZem() {
   if (T.mode !== 'pied' || S.lieu) { ligne(S.lieu ? 'Sors d’abord pour héler un zém.' : 'Tu es déjà en route.'); return; }
@@ -1540,6 +1578,8 @@ export function initSalon(data) {
   S.dire = dire; initTrajets(data, { S, ligne, dedans, dehors, bulle, retirerBulle, aller });
   initMaison({ S, ligne, geste, guide: () => !!guideSalon?.actif() }); // chez soi : se lever, se doucher, cuisiner (maison.js)
   initGarage({ S, ligne }); // le garage à côté de sa porte : sa voiture y dort (garage.js)
+  initAkpakpa({ S, T, ligne, choisir }); // Super U, basket, hôtel (akpakpa.js)
+  initGarages({ S, T, ligne, choisir }); // accidents, état du véhicule, mécaniciens (garages.js)
   initRecharge({ ligne, son }); // recharger son compte par Mobile Money (recharge.js)
   $('#vhRecharger')?.addEventListener('click', e => { e.stopPropagation(); proposerRecharge(); });
   suivreClavier();

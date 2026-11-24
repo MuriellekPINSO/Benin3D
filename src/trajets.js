@@ -13,6 +13,8 @@ import { porterCasque } from './casque.js';
 import { VIE, carburant, consommer, depenser, faireLePlein, manger, reservoir, sauverVie } from './vie.js';
 import { actionsNuit, arreterNuit, initNuit, majNuit } from './nuit.js';
 import { majCulte } from './culte.js';
+import { majAkpakpa } from './akpakpa.js';
+import { personne } from './discussions.js';
 import { actionsVol, arreterVol, initVol, majAeroports, majVol } from './vol.js';
 import { actionsMetier, chocMetier, enService, initMetiers, majMetiers, quitterMetiers } from './metiers.js';
 import { arreterCourseVelo } from './course-velo.js';
@@ -147,7 +149,7 @@ function etiquette(texte) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false })); sp.scale.set(.145, .033, 1); sp.renderOrder = 30; return sp;
 }
 export function quitterMonde() {
-  quitterMetiers(); arreterVol(); arreterNuit(); arreterCourseVelo(); moteurStop(); S.moi?.userData.velo?.(null); retirerVehicule(T.veh); T.veh = null; if (T.zem) retirerVehicule(T.zem.V); T.zem = null;
+  quitterMetiers(); arreterVol(); arreterNuit(); arreterCourseVelo(); moteurStop(); S.moi?.userData.velo?.(null); retirerVehicule(T.veh); T.veh = null; if (T.zem) oterZem(T.zem.V); T.zem = null;
   retirerRuban(T.gps?.m); T.gps = null; jeterPlat(); T.repas = null; T.trans = null; T.mode = 'pied';
   if (S?.moi) S.moi.visible = true;
   cacherAide();
@@ -197,7 +199,7 @@ export function actions() {
     out.push({ texte: pres ? `Descendre · ${fmt(Z.prix)}` : `Descendre ici · ${fmt(prix)}`, f: () => finCourse(prix, !pres) });
     return out;
   }
-  if (T.zem?.phase === 'attend' && Math.hypot(T.zem.V.x - S.x, T.zem.V.z - S.z) < 4.5) out.push({ texte: `Monter sur le zém · ${fmt(T.zem.prix)}`, f: monterZem });
+  if (T.zem?.phase === 'attend' && Math.hypot(T.zem.V.x - S.x, T.zem.V.z - S.z) < (T.zem.voiture ? 5.5 : 4.5)) out.push({ texte: `${T.zem.voiture ? 'Monter dans la voiture GoDrive' : T.zem.marque ? 'Monter sur la moto GoDrive' : 'Monter sur le zém'} · ${fmt(T.zem.prix)}`, f: monterZem });
   if (V && !S.lieu && Math.hypot(V.x - S.x, V.z - S.z) < (V.type === 'tokpa' ? 4.8 : 3.2)) out.push({ texte: `Monter ${V.D.cache ? 'dans' : 'sur'} ${nomDe(V)[0]}`, f: monter });
   if (S.lieu && !['serveur', 'cuisinier'].includes(enService())) { const c = comptoirProche(S.lieu, S.x, S.z); if (c && !T.plat) out.push({ texte: `Commander · ${c.nom}`, f: () => commander(c) }); } // en service au food court, on ne commande pas
   out.push(...actionsVol()); // billetterie, porte d'embarquement, monter dans l'avion
@@ -336,23 +338,45 @@ export function prixZem(x, z, cap, dx, dz) {
   construireReseau(); const pts = itineraire(x, z, cap, dx, dz); if (!pts) return null;
   const km = longueur(pts) / 1000; return { pts, km, prix: Math.max(200, Math.ceil((120 * km + 100) / 50) * 50) };
 }
-/** Le zém accepté arrive (il part d'une rue à 30-60 m). */
-export function appelerZem(dx, dz, nom, prix) {
-  if (T.zem) retirerVehicule(T.zem.V);
+/** Le zém accepté arrive (il part d'une rue à 30-60 m). `marque` : une course commandée à GoDrive (l'entreprise de VTC
+ *  inventée pour le jeu, 23/11) ; `type` : 'zem' pour sa moto, 'berline' pour sa voiture (un chauffeur au volant, on
+ *  s'assoit devant, à côté de lui). */
+export function appelerZem(dx, dz, nom, prix, { type = 'zem', marque = '', ou = null } = {}) {
+  if (T.zem) oterZem(T.zem.V);
   // Sur une rue (à 30 m près) ; sinon il vient jusqu'à soi, comme il dépose sur le sable de Fidjrossè, mais seulement si aucun
   // mur ni bâtiment ne l'en sépare (itineraire) : sinon il attend au bord de la route, et l'on va jusqu'à lui.
-  const ici = pointDeRoute(S.x, S.z, 0, 30) || (noeudRelie(S.x, S.z, 150) && [S.x + Math.sin(S.cap) * 2.5, S.z + Math.cos(S.cap) * 2.5]);
-  const pres = ici ? noeudsPres(ici[0], ici[1], 160).filter(([k]) => relie(k)) : [], n = pres.find(([, d]) => d > 30) || pres.pop();
+  const ici = ou || pointDeRoute(S.x, S.z, 0, 30) || (noeudRelie(S.x, S.z, 150) && [S.x + Math.sin(S.cap) * 2.5, S.z + Math.cos(S.cap) * 2.5]); // `ou` : le bord de la rue devant le lieu (GoDrive)
+  const pres = ici ? noeudsPres(ici[0], ici[1], 160).filter(([k]) => relie(k)) : [];
+  // Le départ le plus proche par la route, pas à vol d'oiseau : sur une route à deux chaussées, le nœud d'en face obligeait
+  // à aller faire demi-tour au rond-point suivant (un kilomètre pour la voiture GoDrive du Centre EYA, 23/11).
+  let n = null, pts = null, lg = Infinity;
+  for (const c of pres.filter(([, d]) => d > 30).slice(0, 8)) {
+    const [cx, cz] = noeudPos(c[0]), q = itineraire(cx, cz, Math.atan2(ici[0] - cx, ici[1] - cz), ici[0], ici[1]); if (!q) continue;
+    const l = longueur(q); if (l < lg) { lg = l; n = c; pts = q; }
+  }
+  if (!n) { n = pres.pop(); if (n) { const [cx, cz] = noeudPos(n[0]); pts = itineraire(cx, cz, Math.atan2(ici[0] - cx, ici[1] - cz), ici[0], ici[1]); } }
   if (!n) { ligne('Pas de route ici : approche-toi d’une rue pour héler un zém.'); return; }
-  const [X, Z] = noeudPos(n[0]), V = creerVehicule('zem'); placer(V, X, Z, Math.atan2(ici[0] - X, ici[1] - Z));
-  const pts = itineraire(X, Z, V.cap, ici[0], ici[1]); if (!pts) { retirerVehicule(V); ligne('Le zém ne trouve pas de route jusqu’à toi : approche-toi d’une rue.'); return; }
+  let [X, Z] = noeudPos(n[0]), cap0 = Math.atan2(ici[0] - X, ici[1] - Z);
+  // Encore un grand détour (une seule chaussée dans le bon sens à des centaines de mètres) : il arrive par les 40 derniers
+  // mètres de ce trajet, dans le bon sens de la rue, au lieu de faire attendre une minute et demie.
+  if (pts && lg > 300) {
+    let k = pts.length - 1, l = 0; while (k > 0 && l < 40) { l += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]); k--; }
+    pts = pts.slice(k); [X, Z] = pts[0]; if (pts[1]) cap0 = Math.atan2(pts[1][0] - X, pts[1][1] - Z);
+  }
+  const V = creerVehicule(type); placer(V, X, Z, cap0);
+  if (!pts) { retirerVehicule(V); ligne('Le zém ne trouve pas de route jusqu’à toi : approche-toi d’une rue.'); return; }
   // Une étiquette jaune au-dessus de lui, visible à travers les murs : il attend souvent au bord de la rue, hors de vue.
-  const et = etiquette('Ton zém'); et.position.y = 1.7; V.g.add(et); V.etiquette = et;
-  T.zem = { V, phase: 'vient', P: { pts: surSaFile(pts), i: 0 }, dest: [dx, dz], nom, prix, attente: 0 };
+  const et = etiquette(marque ? `Ton ${marque}` : 'Ton zém'); et.position.y = V.D.cache ? 2.3 : 1.7; V.g.add(et); V.etiquette = et;
+  const voiture = type !== 'zem';
+  if (voiture) { V.chauffeur = personne(4100 + Math.floor(Math.random() * 400), { assise: true, femme: false }); scene.add(V.chauffeur); }
+  T.zem = { V, phase: 'vient', P: { pts: surSaFile(pts), i: 0 }, dest: [dx, dz], nom, prix, attente: 0, marque, voiture };
   const f = pts[pts.length - 1], loin = Math.hypot(f[0] - S.x, f[1] - S.z);
-  ligne(loin > 8 ? `Un zém arrive… (${fmt(prix)} jusqu’à ${nom}). Il t’attendra au bord de la rue, à ${Math.round(loin)} m : suis l’étiquette jaune.` : `Un zém arrive… (${fmt(prix)} jusqu’à ${nom})`);
+  const qui = marque ? `Ton chauffeur ${marque}` : 'Un zém';
+  ligne(loin > 8 ? `${qui} arrive… (${fmt(prix)} jusqu’à ${nom}). Il t’attendra au bord de la rue, à ${Math.round(loin)} m : suis l’étiquette jaune.` : `${qui} arrive… (${fmt(prix)} jusqu’à ${nom})`);
 }
 const noeudPos = n => { const R = construireReseau(); return [R.X[n], R.Z[n]]; };
+/** Retire le zém (ou la voiture GoDrive) et son chauffeur. */
+function oterZem(V) { retirerVehicule(V); if (V?.chauffeur) { V.chauffeur.parent?.remove(V.chauffeur); V.chauffeur.userData.liberer?.(); V.chauffeur = null; } }
 function monterZem() {
   const Z = T.zem; if (!Z) return;
   const bx = Z.V.x + Math.sin(Z.V.cap + Math.PI / 2) * .6, bz = Z.V.z + Math.cos(Z.V.cap + Math.PI / 2) * .6;
@@ -412,15 +436,16 @@ function suivreSansTraverser(V, P, dt, vmax) {
 }
 function majZem(dt) {
   const Z = T.zem; if (!Z) return;
-  if (Z.phase === 'vient') { if (suivreSansTraverser(Z.V, Z.P, dt, 12)) { Z.phase = 'attend'; son('klaxon'); ligne('Ton zém est là : monte derrière lui !'); } }
-  else if (Z.phase === 'attend') { Z.attente += dt; if (Z.attente > 90) { ligne('Le zém est reparti : tu l’as fait trop attendre.'); Z.phase = 'repart'; Z.repart = 0; } }
+  if (Z.V.chauffeur) asseoirSur(Z.V.chauffeur, Z.V, false); // le chauffeur GoDrive, au volant
+  if (Z.phase === 'vient') { if (suivreSansTraverser(Z.V, Z.P, dt, 12)) { Z.phase = 'attend'; son('klaxon'); ligne(Z.voiture ? `Ta voiture ${Z.marque} est là : monte devant, à côté du chauffeur !` : `Ton ${Z.marque || 'zém'} est là : monte derrière lui !`); } }
+  else if (Z.phase === 'attend') { Z.attente += dt; if (Z.attente > 90) { ligne(`${Z.marque ? `Ton chauffeur ${Z.marque}` : 'Le zém'} est reparti : tu l’as fait trop attendre.`); Z.phase = 'repart'; Z.repart = 0; } }
   else if (Z.phase === 'course') {
     const arrive = suivreSansTraverser(Z.V, Z.P, dt, 17) || (Math.hypot(Z.dest[0] - Z.V.x, Z.dest[1] - Z.V.z) < 6 && Z.V.v < 3); // à quelques mètres et presque arrêté : on y est
     if (arrive) finCourse(Z.prix, false);
   } else if (Z.phase === 'repart') { // il s'en va tout droit ; devant un mur ou une maison, il a déjà tourné au coin : on ne le voit plus
     Z.repart += dt;
     if (Z.repart > 1.2) { Z.V.v = Math.min(9, Z.V.v + 3 * dt); const nx = Z.V.x + Math.sin(Z.V.cap) * Z.V.v * dt, nz = Z.V.z + Math.cos(Z.V.cap) * Z.V.v * dt; if (dansBatiment(nx, nz) || dansObstacleRue(nx, nz, .5)) Z.repart = 9; else { Z.V.x = nx; Z.V.z = nz; Z.V.g.position.set(Z.V.x, Z.V.y, Z.V.z); Z.V.anim?.maj(Z.V.v, dt, true); } }
-    if (Z.repart > 8) { retirerVehicule(Z.V); T.zem = null; }
+    if (Z.repart > 8) { oterZem(Z.V); T.zem = null; }
   }
 }
 
@@ -457,9 +482,11 @@ function finCourse(prix, avant) {
   const [px, pz] = [Math.PI / 2, -Math.PI / 2, Math.PI].map(a => [Z.V.x + Math.sin(Z.V.cap + a) * 1.1, Z.V.z + Math.cos(Z.V.cap + a) * 1.1]).find(([x, z]) => !dansBatiment(x, z) && !dansObstacleRue(x, z, .3)) || [Z.V.x, Z.V.z]; // du côté libre, jamais dans un mur
   S.x = px; S.z = pz; S.cap = Z.V.cap; S.y = 0; if (S.moi) S.moi.visible = true;
   retirerRuban(T.gps?.m); T.gps = null;
-  depenser(prix, avant ? 'zém (descendu en route)' : `zém jusqu’à ${Z.nom}`).then(ok => {
+  const quoi = Z.marque ? `${Z.marque} ${Z.voiture ? 'voiture' : 'moto'}` : 'zém';
+  depenser(prix, avant ? `${quoi} (descendu en route)` : `${quoi} jusqu’à ${Z.nom}`).then(ok => {
     if (S.moi) remettre(S.moi, new THREE.Vector3(Z.V.x, Z.V.y + 1.3, Z.V.z), 'billet', { hautDe: 1.25, garder: .3 });
-    ligne(!ok ? 'Tu n’as pas de quoi payer : le zém râle et repart…' : avant ? `Tu descends en route et tu paies le bout de chemin : ${fmt(prix)}.` : `Tu paies le zém : ${fmt(prix)}. « Merci, à la prochaine ! »`);
+    const lui = Z.marque ? `ton chauffeur ${Z.marque}` : 'le zém';
+    ligne(!ok ? `Tu n’as pas de quoi payer : ${lui} râle et repart…` : avant ? `Tu descends en route et tu paies le bout de chemin : ${fmt(prix)}.` : `Tu paies ${lui} : ${fmt(prix)}. « Merci, à la prochaine ! »`);
     Z.phase = 'repart'; Z.repart = 0;
   });
 }
@@ -528,7 +555,7 @@ export function choisir(titre, options, { annuler = 'Annuler', puis = null } = {
  * caméra { x, y, z, cap, dist, haut }.
  */
 export function majTrajets(dt, av, tour) {
-  majStations(S.x, S.z); majZem(dt); majRepas(dt); majAeroports(); majNuit(dt); majCulte(dt); // la messe à la cathédrale, la prière à Zongo (culte.js) ; La Nuit Kutɔnu Vibes : la remise des prix au Dôme, le DJ de l'Amazone (nuit.js)
+  majStations(S.x, S.z); majZem(dt); majRepas(dt); majAeroports(); majNuit(dt); majCulte(dt); majAkpakpa(dt); T.majGarages?.(dt); // la messe à la cathédrale, la prière à Zongo (culte.js) ; La Nuit Kutɔnu Vibes : la remise des prix au Dôme, le DJ de l'Amazone (nuit.js)
   const metier = majMetiers(dt); // apprenti de tokpa-tokpa : la caméra suit le minibus
   if (T.plat && !T.repas && S.anim === 'assis') { // l'assiette arrive alors qu'on est déjà assis (à une table, ou sur son tabouret dans la rue)
     const c = S.lieu ? siegeProche(S.lieu, S.x, S.z) : S.tabouret && { x: S.tabouret.x, z: S.tabouret.z, cap: S.cap };
@@ -551,8 +578,11 @@ export function majTrajets(dt, av, tour) {
     // Au doigt, la moto suit la rue (conduite.js). Le 04/11, ce commentaire avait avalé la suite de la ligne : plus de
     // bruit ni de vibration aux chocs, et les clients ne les comptaient plus.
     if (T.gel) { av = 0; tour = 0; V.v = 0; } // tenu sur la ligne de départ d'une course à vélo (course-velo.js)
-    const vol = V.vol, km0 = V.km, choc = piloter(V, av, tour, dt, { panne, aide: coarse });
-    if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); }
+    // Abîmé (garages.js) : sous 25 %, il n'avance plus qu'au pas ; chaque choc l'abîme selon la vitesse d'avant le choc.
+    const v0 = Math.abs(V.v), casse = !!T.casse?.(V);
+    const vol = V.vol, km0 = V.km, choc = piloter(V, av, tour, dt, { panne: panne || casse, aide: coarse });
+    if (choc) { son('choc'); document.dispatchEvent(new CustomEvent('vibrer', { detail: 'choc' })); chocMetier(); T.surChoc?.(V, v0); }
+    T.majEtat?.(V, dt);
     majBloque(V, av, dt);
     if (vol && !V.vol) { son('bosse'); if (!vol.court) ligne(vol.vers ? `Posée près de ${vol.vers}.` : vol.ici ? 'La Roadster est posée là où tu voulais.' : 'La Roadster est posée.'); } // un bond : pas de message à chaque saut
     if (!V.D.pedale && !V.vole) { T.conso += (V.km - km0) / V.D.kmParLitre; if (T.conso > .01) { consommer(T.conso); T.conso = 0; } }
@@ -560,7 +590,7 @@ export function majTrajets(dt, av, tour) {
     S.x = V.x; S.z = V.z; S.cap = V.cap; S.y = V.y; S.anim = 'assis';
     asseoirSur(S.moi, V, false); if (V.etiquette) V.etiquette.visible = false;
     // Le compteur, comme celui de Slop New York : le véhicule en petit, la vitesse en grand.
-    const kmh = Math.round(Math.abs(V.v) * 3.6), vit = $('#vhVitesse'), html = `<small>${COMPTEUR[V.type] || V.D.nom}</small><span>${kmh}</span> km/h${V.vol ? ` · à ${Math.round(V.alt)} m` : V.v < -.2 ? ' · marche arrière' : ''}`;
+    const kmh = Math.round(Math.abs(V.v) * 3.6), vit = $('#vhVitesse'), html = `<small>${COMPTEUR[V.type] || V.D.nom}</small><span>${kmh}</span> km/h${V.vol ? ` · à ${Math.round(V.alt)} m` : V.v < -.2 ? ' · marche arrière' : ''}${T.etatTexte?.(V) ?? ''}`;
     vit.hidden = false; if (vit.dataset.h !== html) { vit.dataset.h = html; vit.innerHTML = html; }
     majGps(dt, V.x, V.z, V.cap, !!V.vol);
     if (V.vol) return { x: V.x, y: V.y, z: V.z, cap: V.cap, dist: 8 + V.alt * .11, haut: 3.2, libre: V.alt > 12 }; // de haut : on recule pour voir la ville sous la voiture
