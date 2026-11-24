@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { bulle, personne } from './discussions.js';
 import { K, panneauTexte } from './lieux.js';
 import { personnagesPrets } from './personnages.js';
+import { sensRoute } from './conduite.js';
 import { chargerRecherche } from './recherche.js';
 import { dansBatiment, dansObstacleRue } from './rue.js';
 import { scene } from './scene.js';
@@ -74,9 +75,15 @@ function poste(g) {
   let x = g.x, z = g.z; const r = pointDeRoute(g.x, g.z, 0, 40);
   // Depuis la rue vers l'atelier, on s'arrête devant le premier mur (bâtiment ou mur de parcelle), pas derrière.
   if (r) {
-    const d = Math.hypot(g.x - r[0], g.z - r[1]) || 1, ux = (g.x - r[0]) / d, uz = (g.z - r[1]) / d; let t = 4;
+    // Le premier mur cherché dès 1 m de l'axe : avant, dès 4 m, et l'atelier se posait toujours à 4 m au moins — dans la
+    // maison, quand la ruelle est étroite (24/11). Il déborde alors sur le bord de la rue, comme les mécaniciens du trottoir.
+    const d = Math.hypot(g.x - r[0], g.z - r[1]) || 1, ux = (g.x - r[0]) / d, uz = (g.z - r[1]) / d; let t = 1;
     for (; t < d; t += .5) if (dansBatiment(r[0] + ux * t, r[1] + uz * t) || dansObstacleRue(r[0] + ux * t, r[1] + uz * t, .4)) break;
-    t = Math.max(4, t - 1.8); x = r[0] + ux * t; z = r[1] + uz * t; g.pose = { x, z, cap: Math.atan2(-ux, -uz) };
+    // À 3 m du mur repéré (la façade dessinée déborde un peu), et parallèle à la rue, donc aux façades : tourné vers le
+    // point de la rue, l'enseigne entrait en biais dans la maison (24/11).
+    const tp = Math.max(1.6, t - 3); x = r[0] + ux * tp; z = r[1] + uz * tp;
+    const sr = sensRoute(r[0], r[1]), a = sr ? sr.cap + Math.PI / 2 : 0, vers = c => -ux * Math.sin(c) - uz * Math.cos(c);
+    g.pose = { x, z, cap: sr ? (vers(a) >= vers(a + Math.PI) ? a : a + Math.PI) : Math.atan2(-ux, -uz), mur: t - tp }; // mur : jusqu'à la façade, derrière
   }
   else g.pose = { x, z, cap: 0 };
   return g.pose;
@@ -88,14 +95,22 @@ export function garageLePlusProche(x, z) {
   const p = poste(best); return { nom: best.nom, ...p };
 }
 function construireAtelier(g) {
+  // Sa place se calcule ici, la rue construite autour (rue.js : murs des parcelles, maisons) : calculée de loin (« Aller →
+  // Garage le plus proche »), elle tombait dans une maison que rue.js n'avait pas encore posée (24/11, vidéo du garage).
+  delete g.pose;
   const p = poste(g), grp = new THREE.Group(); grp.name = 'garage-mecanicien'; grp.position.set(p.x, 0, p.z); grp.rotation.y = p.cap; scene.add(grp);
+  // L'établi contre la façade (p.mur), où qu'elle soit : à 1,2 m derrière l'atelier, il entrait dans le mur quand le
+  // trottoir est étroit (24/11).
+  const m = Math.max(.35, Math.min(1.2, (p.mur ?? 1.3) - .12)), e = -m + .45;
   K.into(grp, () => {
     const bleu = '#1f4f8a', pneu = K.mat('#1b1b1b', { rugosite: .9 });
-    for (const x of [-1.6, 1.6]) K.cyl(.06, .06, 2.6, 6, '#6b6f72', x, 1.3, -1.2);
-    panneauTexte(['GARAGE · ' + (g.nom.length < 24 ? g.nom.toUpperCase() : 'MÉCANIQUE'), 'Réparation auto · moto'], 3.6, .9, 0, 2.3, -1.15, 0, { fond: bleu, encre: '#ffd23b', px: 1024, py: 256, police: '800 64px "Google Sans", system-ui, sans-serif' });
+    // L'enseigne sur ses deux poteaux au bord de la rue, comme celles des mécaniciens du trottoir : contre la façade, elle
+    // disparaissait dans les avancées des maisons (24/11).
+    for (const x of [-1.6, 1.6]) K.cyl(.06, .06, 2.6, 6, '#6b6f72', x, 1.3, 1.05);
+    panneauTexte(['GARAGE · ' + (g.nom.length < 24 ? g.nom.toUpperCase() : 'MÉCANIQUE'), 'Réparation auto · moto'], 3.6, .9, 0, 2.3, 1.1, 0, { fond: bleu, encre: '#ffd23b', px: 1024, py: 256, police: '800 64px "Google Sans", system-ui, sans-serif' });
     for (let k = 0; k < 4; k++) { const t = K.maillage(K.geo('pneuGarage', () => new THREE.TorusGeometry(.3, .12, 8, 16)), pneu, -2.4, .12 + k * .24, .3); t.rotation.x = Math.PI / 2; }
-    K.cyl(.3, .3, .9, 14, '#2f6fb0', 2.3, .45, .4); K.boite(1.6, .08, .7, '#8a6a46', 1.4, .85, -.6); for (const [x, z] of [[.7, -.9], [2.1, -.9], [.7, -.3], [2.1, -.3]]) K.boite(.06, .82, .06, '#5a4a3a', x, .41, z);
-    K.boite(.5, .25, .25, '#c8382f', 1.2, 1.02, -.6); K.boite(.35, .12, .9, '#c9c9c9', -.6, .07, .9);
+    K.cyl(.3, .3, .9, 14, '#2f6fb0', 2.3, .45, .4); K.boite(1.6, .08, .6, '#8a6a46', 1.4, .85, e); for (const [x, z] of [[.7, e - .25], [2.1, e - .25], [.7, e + .25], [2.1, e + .25]]) K.boite(.06, .82, .06, '#5a4a3a', x, .41, z);
+    K.boite(.5, .25, .25, '#c8382f', 1.2, 1.02, e); K.boite(.35, .12, .9, '#c9c9c9', -.6, .07, .9);
   });
   const meca = personnagesPrets() ? personne(7300 + Math.floor(g.x) % 50, { femme: false }) : null;
   if (meca) { meca.position.set(p.x + Math.sin(p.cap) * .6, 0, p.z + Math.cos(p.cap) * .6); meca.rotation.y = p.cap; scene.add(meca); }
@@ -110,6 +125,15 @@ function majGarages(dt) {
     let best = null, bd = 90 * 90; for (const g of G.liste) { const d = (g.x - S.x) ** 2 + (g.z - S.z) ** 2; if (d < bd) { bd = d; best = g; } }
     if (G.prop && G.prop.g !== best && (G.prop.p.x - S.x) ** 2 + (G.prop.p.z - S.z) ** 2 > 150 * 150) { scene.remove(G.prop.grp); if (G.prop.meca) { scene.remove(G.prop.meca); G.prop.meca.userData.liberer?.(); } G.prop = null; }
     if (best && G.prop?.g !== best && !G.prop) G.prop = construireAtelier(best);
+    // Les murs de la rue arrivent parfois après l'atelier (on vient d'arriver) : sa place recalculée, s'il doit bouger, il
+    // bouge (trois fois au plus ; pas de reconstruction quand la place n'a pas changé).
+    else if (G.prop && (G.prop.essais || 0) < 3) {
+      const { g } = G.prop, avant = G.prop.p; G.prop.essais = (G.prop.essais || 0) + 1; delete g.pose; const apres = poste(g);
+      if (Math.hypot(apres.x - avant.x, apres.z - avant.z) > .5 || Math.abs(apres.cap - avant.cap) > .1) {
+        const n = G.prop.essais; scene.remove(G.prop.grp); if (G.prop.meca) { scene.remove(G.prop.meca); G.prop.meca.userData.liberer?.(); }
+        G.prop = construireAtelier(g); G.prop.essais = n;
+      }
+    }
   }
   const R = G.rep; if (!R) return;
   R.t += dt; if (G.prop?.meca) G.prop.meca.userData.jouer?.('parle');

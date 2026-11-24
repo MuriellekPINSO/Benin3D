@@ -18,6 +18,7 @@ import { personne } from './discussions.js';
 import { actionsVol, arreterVol, initVol, majAeroports, majVol } from './vol.js';
 import { actionsMetier, chocMetier, enService, initMetiers, majMetiers, quitterMetiers } from './metiers.js';
 import { arreterCourseVelo } from './course-velo.js';
+import { habillerGoDrive } from './godrive.js';
 // Le nom du véhicule sur le compteur (des mots, traduits en anglais ; V.type reste le code).
 const COMPTEUR = { moto: 'Moto', voiture: 'Voiture', taxi: 'Taxi', tokpa: 'Tokpa-tokpa', zem: 'Zémidjan', velo: 'Vélo', citadine: 'Citadine', bolide: 'Bolide électrique', roadster: 'Tesla Roadster', jetour: 'Jetour X70', berline: 'Berline', supercar: 'Supercar', suv: 'SUV', pickup: 'Pick-up' };
 
@@ -365,6 +366,7 @@ export function appelerZem(dx, dz, nom, prix, { type = 'zem', marque = '', ou = 
   }
   const V = creerVehicule(type); placer(V, X, Z, cap0);
   if (!pts) { retirerVehicule(V); ligne('Le zém ne trouve pas de route jusqu’à toi : approche-toi d’une rue.'); return; }
+  if (marque === 'GoDrive') habillerGoDrive(V); // son nom sur le toit de la voiture, sur le top-case du zém (godrive.js)
   // Une étiquette jaune au-dessus de lui, visible à travers les murs : il attend souvent au bord de la rue, hors de vue.
   const et = etiquette(marque ? `Ton ${marque}` : 'Ton zém'); et.position.y = V.D.cache ? 2.3 : 1.7; V.g.add(et); V.etiquette = et;
   const voiture = type !== 'zem';

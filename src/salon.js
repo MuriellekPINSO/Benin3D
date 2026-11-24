@@ -19,7 +19,7 @@ import { compte } from './compte.js';
 import { startFlight } from './interface.js';
 import { JEU } from './jeu.js';
 import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personnagesPrets, telephone3d } from './personnages.js';
-import { placesDe, retirerRuban, stationLaPlusProche, surRoute } from './conduite.js';
+import { chargerVrai, placesDe, retirerRuban, stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment, dansLEau, eauIci, obstaclesPres, profondeurRue } from './rue.js';
 import { hauteurSol } from './sols.js';
 import { PEIGNABLES, PEINTURES, PRIX_PEINTURE, actions, appelerZem, asseoir, asseoirSur, choisir, couleurValide, entrerMonde, garerSonVehicule, gps, pointDeRoute, initTrajets, majTrajets, peindreSonVehicule, peintureDe, prixZem, quitterMonde, reprendreVehicule, T, vehiculeDe, vehiculeGareDe, volerVehicule, lacherVehiculeVole } from './trajets.js';
@@ -570,8 +570,11 @@ const sansAnnonce = id => id === 'station' || id === 'garage' || id === 'maison'
 function destination(L) {
   if (L[0].startsWith('cm:')) { const c = lieuxCommerces().find(c => c.id === L[0]); return c && [c.x, c.z, c.cap]; }
   if (L[0].startsWith('lg:')) { const I = logement(L[0].slice(3)); if (!I) return null; const a = arriveeDehors(I); return [a.x, a.z, a.cap + Math.PI]; } // devant sa porte
-  if (L[0] === 'station') { const st = stationLaPlusProche(S.x, S.z); return st && [st[0], st[1], 0]; }
-  if (L[0] === 'garage') { const g = garageLePlusProche(S.x, S.z); return g && [g.x + Math.sin(g.cap) * 3.5, g.z + Math.cos(g.cap) * 3.5, g.cap + Math.PI]; } // devant le mécanicien (garages.js)
+  // La pompe, le mécanicien les plus proches de la rue où l'on est : dans un bâtiment (chez soi), S.x et S.z sont ceux de la
+  // pièce, construite à l'écart (z ≈ 7 000) — « Garage le plus proche » envoyait chez un garage à l'autre bout de la ville.
+  const o = S.lieu ? arriveeDehors(S.lieu) : S;
+  if (L[0] === 'station') { const st = stationLaPlusProche(o.x, o.z); return st && [st[0], st[1], 0]; }
+  if (L[0] === 'garage') { const g = garageLePlusProche(o.x, o.z); return g && [g.x + Math.sin(g.cap) * 3.5, g.z + Math.cos(g.cap) * 3.5, g.cap + Math.PI]; } // devant le mécanicien (garages.js)
   if (L[0] === 'caicai') return DEVANT_CAI; // devant le comptoir, face à la boutique
   if (L[0] === 'village') return ENTREE_VILLAGE; // devant le portique d'entrée, tourné vers le Village (village-plan.js)
   if (L[0].startsWith('rc-')) return devantStation(L[0]); // un garde-vélo RideCorniche (caicai.js)
@@ -1467,6 +1470,7 @@ function actionsGoDrive() {
 }
 function commanderGoDrive() {
   if (S.goDrive) { choisir(`GoDrive · ${GODRIVE[S.goDrive.offre].nom} jusqu’à ${S.goDrive.nom}`, [{ texte: 'Annuler la commande', f: () => { S.goDrive = null; ligne('Commande GoDrive annulée.'); } }], { annuler: 'Garder' }); return; }
+  chargerVrai('berline'); // le vrai modèle dès le menu : il arrivait encore en voiture dessinée (une boîte) devant la porte (24/11)
   choisir('GoDrive · moto ou voiture ?', Object.entries(GODRIVE).map(([offre, G]) => ({ texte: G.nom, sous: G.sous, f: () => destinationGoDrive(offre) })));
 }
 function destinationGoDrive(offre) {
