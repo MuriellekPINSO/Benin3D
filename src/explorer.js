@@ -85,6 +85,7 @@ export function accueil() {
   $('#acVivre')?.addEventListener('click', () => { fermer(); $('#btnSalon')?.click(); }, { once: true }); // la vie à Cotonou (salon.js)
   $('#acVillage')?.addEventListener('click', () => { fermer(); document.dispatchEvent(new Event('kv:village')); }, { once: true }); // le Village de l'innovation (village.js, salon.js)
   $('#acZemRun')?.addEventListener('click', () => { fermer(); $('#btnJouer')?.click(); }, { once: true }); // le menu de Zém Run
+  $('#acHistoire')?.addEventListener('click', () => { fermer(); document.dispatchEvent(new Event('kv:favi')); }, { once: true }); // l'histoire du Favi (favi.js, salon.js)
   window.addEventListener('keydown', clavier);
   ($('#acVivre') || $('#acVisite')).focus({ preventScroll: true });
 }

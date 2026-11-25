@@ -58,6 +58,7 @@ import { ENTREE_VILLAGE, ESPACES as ESPACES_VILLAGE, VENIR, VILLAGE_ACTIF } from
 import { initJeuxVillage, ouvrirJeux, quitterJeuxVillage, surMessageJeu } from './village-jeux.js';
 import { actionsVillageGens, initVillageGens, majVillageGens, quitterVillageGens, voituresDuVillage } from './village-gens.js';
 import { actionsVoleur, initVoleur, majVoleur, quitterVoleur } from './voleur.js';
+import { actionsFavi, demanderFavi, entrerFavi, faviBloque, faviDemande, initFavi, majFavi, quitterFavi } from './favi.js';
 
 // ---------- Salon entre amis : se retrouver dans Cotonou ----------
 // Jusqu'à 8 amis dans la même ville : chacun se promène à pied avec son personnage, voit les autres,
@@ -744,7 +745,7 @@ function dedans(I, parler = true) {
   S.lieu = I; S.y = a.y; S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; S.geste = 'idle'; S.dist = Math.min(S.dist, I.prive ? 3.6 : 4.5);
   document.getElementById('app').classList.add('dedans');
   if (I.bienvenue) ligne(I.bienvenue); // la salle de jeux : où s'asseoir pour voir les jeux
-  if (!I.prive && parler) annoncer(`Je suis dans ${I.nom}, venez !`, LIEUX.find(l => l[6] === I.id)?.[0]); // chez soi : on ne l'annonce pas
+  if (!I.prive && !I.discret && parler) annoncer(`Je suis dans ${I.nom}, venez !`, LIEUX.find(l => l[6] === I.id)?.[0]); // chez soi : on ne l'annonce pas
 }
 function dehors(replacer = true) {
   const I = S.lieu; if (!I) return;
@@ -871,6 +872,7 @@ async function entrerSalon(code, { ami = '', nouveau = false } = {}) {
   // Venu par le QR code du Village de l'innovation (?village) : la première entrée se fait à son portique, pas au lit.
   const auVillage = !pres && VENIR.village && VILLAGE_ACTIF && !S.villageArrive;
   if (auVillage) { S.villageArrive = true; poser('village', LIEUX.find(l => l[0] === 'village'), {}, null); }
+  else if (!pres && faviDemande()) entrerFavi(); // l'histoire du Favi (favi.js) : on arrive aux funérailles de Mémé Houéfa, pas au lit
   else if (!pres) { const maison = maisonActuelle(); if (maison) { dedans(maison); reveil(maison); } else aller('amazone', false); }
   majListe(); rendreVie();
   const test = S.local ? ' (mode test : seuls les onglets de ce navigateur se voient)' : '';
@@ -923,6 +925,7 @@ async function porter(modele, forcer = false) {
 function quitter() {
   if (!S.actif) return;
   S.reprise = false; // pas avant que la prochaine entrée ait garé son monde (entrerSalon)
+  quitterFavi(); // l'histoire s'arrête où elle en est (favi.js)
   lieuStats('carte');
   menu(false); if (document.pointerLockElement) document.exitPointerLock(); quitterGarage(); quitterMonde(); S.ami = null; S.balade = null; dehors(); sauverVie(); quitterCommerces(); quitterFauxFrere(); quitterChapitres(); quitterJournee(); quitterDeco(); quitterAlbum(); quitterTresor(); quitterVillage(); quitterJeuxVillage(); quitterVillageGens(); quitterVoleur(); quitterEpargne(); quitterAdji(); quitterCarteSalon(); retirerTabouret(); S.actif = false;
   for (const I of INTERIEURS.values()) if (I.etiquette) I.etiquette.visible = false; // « Chez toi »
@@ -1072,8 +1075,9 @@ export function majSalon(dt) {
   const t = S.touches, j = S.joy, tir = tirEnCours(); // au stand du lance-pierre : on ne marche plus, la caméra vise les cibles
   const pad = S.pad && performance.now() - S.padT < 250 ? S.pad : null; // manette (voir manette.js), si elle vient de parler : débranchée ou menu ouvert, on n'avance plus
   const jc = j && T.mode === 'conduit' && !T.veh?.vol ? joyConduite(j) : null; // au doigt, sur la route : on pousse le rond vers où l'on veut aller
-  const av = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (jc ? jc.av : j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
-  const tour = S.menu || tir ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) + (jc ? jc.tour : j ? -j.x : 0) - (pad ? pad.lx : 0), -1, 1);
+  const fige = S.menu || tir || faviBloque(); // une scène de l'histoire (favi.js) : on ne marche pas
+  const av = fige ? 0 : THREE.MathUtils.clamp((t.has('avant') ? 1 : 0) - (t.has('arriere') ? 1 : 0) + (jc ? jc.av : j ? j.y : 0) + (pad ? -pad.ly + (T.mode === 'conduit' ? pad.rt - pad.lt : 0) : 0), -1, 1);
+  const tour = fige ? 0 : THREE.MathUtils.clamp((t.has('gauche') ? 1 : 0) - (t.has('droite') ? 1 : 0) + (jc ? jc.tour : j ? -j.x : 0) - (pad ? pad.lx : 0), -1, 1);
   majVie(dt); majGarage(dt); majCommerces(dt); majChapitres(dt); majJournee(dt); majVisites(dt); majMonEtiquette(dt); majDeco(dt); majAlbum(dt); majTresor(dt); majVillage(dt); majVillageGens(dt); majVoleur(dt); majEpargne(dt); majAdji(dt); majCarteSalon(); majLancePierre(dt, S); majFauxFrere(dt, S);
   for (const A of S.autres.values()) { const G = A.garee; if (G?.g.visible && (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < 1600) E.circulation.push({ px: G.x, pz: G.z, cap: G.cap, hl: G.D.long / 2, hw: G.D.larg / 2, v: 0, type: G.type }); } // vidée à chaque image (main.js)
   majGarees();
@@ -1185,6 +1189,7 @@ export function majSalon(dt) {
   const haut = !tir && coarse && innerHeight > innerWidth * 1.2 && T.mode !== 'avion'; // en avion : l'avion au milieu, l'horizon au-dessus
   // setViewOffset fixe aussi camera.aspect (largeur / hauteur données) : avec (1, 1…), l'image devenait carrée, étirée deux fois en hauteur.
   if (haut !== !!camera.view?.enabled) { if (haut) camera.setViewOffset(camera.aspect, 1, 0, .12, camera.aspect, 1); else camera.clearViewOffset(); }
+  majFavi(dt); // l'histoire du Favi : ses personnages, sa ligne, et la caméra de ses scènes (après celle du salon)
   majAmbianceSalon(dt, { x: P.x, z: P.z, dedans: !!S.lieu, public: !!S.lieu && !S.lieu.prive, clients: S.lieu ? 0 : genteCommerces(S.x, S.z) }); // les bruits de la ville (ambiance-salon.js)
   // Où il y a du monde, dans le menu « Aller à » : toutes les deux secondes, c'est bien assez.
   // Sa position aux autres, cinq fois par seconde (et au moins toutes les 2,5 s pour rester « présent »).
@@ -1240,7 +1245,7 @@ export function majSalon(dt) {
     : occupe() ? actionsMaison() // couché : se lever ; sous la douche, aux fourneaux : arrêter
     : S.gradin ? [{ texte: 'Se lever', f: leverGradins }, ...actionsAppel()]
     : tir ? actionsLancePierre(S, T)
-    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...actionsAkpakpa(), ...actionsGarages(), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsGarage(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCourseVelo(S), ...actionsSalle(S, T), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsArcade(), ...actionsVillageGens(), ...actionsVoleur(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...actionsGoDrive(), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
+    : [...(S.appel?.etat === 'recu' ? actionsAppel() : []), ...actionsFavi(), ...amisAuVolant(), ...(vehAvant ? [] : entrer), ...actionsAkpakpa(), ...actionsGarages(), ...(!S.lieu && T.mode === 'pied' && siegeGradins(S.x, S.z) ? [{ texte: 'S’asseoir dans les gradins', f: assoirGradins }] : []), ...actions(), ...actionsGarage(), ...actionsProprio(), ...(vehAvant ? entrer : []), ...actionsBalade(), ...actionsCaiCai(), ...actionsCourseVelo(S), ...actionsSalle(S, T), ...actionsLancePierre(S, T), ...actionsFauxFrere(S, T), ...actionsArcade(), ...actionsVillageGens(), ...actionsVoleur(), ...actionsCommerces(), ...actionsMaison(), ...(S.lieu && T.mode === 'pied' ? [{ texte: 'Sortir', f: () => dehors() }] : []), ...actionsGoDrive(), ...(S.appel && S.appel.etat !== 'recu' ? actionsAppel() : [])]; // l'action du lieu d'abord, « Sortir » en dernier
   // La touche de chaque bouton : celle de la manette si l'on joue avec (✕ □ ○ sur PlayStation, A X B sur Xbox), sinon E, R, F.
   // Une manette branchée mais posée affichait ses boutons même au clavier : c'est la dernière saisie qui compte (saisie.js).
   const touches = SAISIE.manette ? (SAISIE.ps ? ['✕', '□', '○'] : ['A', 'X', 'B']) : coarse ? null : ['E', 'R', 'F'];
@@ -1547,7 +1552,15 @@ function majFenetre() {
     $('#slInviteTitre').textContent = 'Bienvenue au Village de l’innovation';
     $('#slInviteSous').textContent = 'Tu arrives à son entrée, devant le Palais des Congrès. Visite ses onze espaces pour remplir ton passeport.';
   }
-  $('#slCreerTxt').textContent = I ? `Rejoindre ${I.de || 'mon ami'}` : village && avecQui === 'ville' ? 'Entrer au Village' : avecQui === 'amis' ? 'Entrer et inviter mes amis' : 'Entrer en ville';
+  // Venu pour l'histoire du Favi (?favi, ou « Histoire » sur l'accueil, favi.js) : le même bandeau, et l'on entre dans l'histoire.
+  const histoire = !I && !village && faviDemande();
+  $('#salon').classList.toggle('histoire', histoire);
+  if (histoire) {
+    $('#slInvite').hidden = false; $('#slInviteAv').textContent = '📖';
+    $('#slInviteTitre').textContent = 'Le Favi · Chapitre 1 : L’éveil';
+    $('#slInviteSous').textContent = 'Une histoire dans Cotonou. Tu es Koffi, 22 ans, zémidjan à Cadjèhoun ; ta grand-mère, Mémé Houéfa, vient de mourir.';
+  }
+  $('#slCreerTxt').textContent = I ? `Rejoindre ${I.de || 'mon ami'}` : histoire ? 'Commencer l’histoire' : village && avecQui === 'ville' ? 'Entrer au Village' : avecQui === 'amis' ? 'Entrer et inviter mes amis' : 'Entrer en ville';
   const aide = I ? '' : avecQui === 'amis' ? 'Tu entres, puis tu envoies le lien sur WhatsApp. Personne d’autre ne peut entrer.' : 'Une fois en ville, « Inviter » envoie un lien à tes amis : ils arrivent juste à côté de toi.';
   $('#slAide').textContent = aide; $('#slAide').hidden = !aide;
 }
@@ -1580,6 +1593,7 @@ function ouvrir() {
 export function initSalon(data) {
   surAnnonce(t => ligne(t)); // argent gagné ou dépensé, faim : dans le fil du salon
   S.dire = dire; initTrajets(data, { S, ligne, dedans, dehors, bulle, retirerBulle, aller });
+  initFavi({ S, T, ligne, dedans, dehors, bulle, retirerBulle, gps }); // l'histoire du Favi (favi.js) ; avant le clavier du salon, qu'elle passe devant pendant ses dialogues
   initMaison({ S, ligne, geste, guide: () => !!guideSalon?.actif() }); // chez soi : se lever, se doucher, cuisiner (maison.js)
   initGarage({ S, ligne }); // le garage à côté de sa porte : sa voiture y dort (garage.js)
   initAkpakpa({ S, T, ligne, choisir }); // Super U, basket, hôtel (akpakpa.js)
@@ -1624,8 +1638,8 @@ export function initSalon(data) {
   const enArriere = () => { if (S.actif) { sauverVie(); sauverCommerces(); } };
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') enArriere(); });
   window.addEventListener('pagehide', enArriere);
-  $('#btnSalon')?.addEventListener('click', ouvrir); $('#btnVivre')?.addEventListener('click', ouvrir);
-  $('#slFermer')?.addEventListener('click', () => { $('#salon').hidden = true; });
+  $('#btnSalon')?.addEventListener('click', () => { demanderFavi(false); ouvrir(); }); $('#btnVivre')?.addEventListener('click', () => { demanderFavi(false); ouvrir(); }); // « Vivre à Cotonou » : la vie, pas l'histoire
+  $('#slFermer')?.addEventListener('click', () => { $('#salon').hidden = true; demanderFavi(false); });
   $('#slCreer')?.addEventListener('click', entrerChoisi);
   for (const b of document.querySelectorAll('#slAvec .sl-mode')) b.addEventListener('click', () => choisirAvecQui(b.dataset.mode));
   $('#slAiCode')?.addEventListener('click', e => {
@@ -1821,6 +1835,16 @@ export function initSalon(data) {
     if (S.actif) { aller('village'); return; }
     VENIR.village = true; S.villageArrive = false; prechargerVillage(); ouvrir(); choisirAvecQui('ville');
   });
+  // L'histoire du Favi (favi.js) : « Histoire » sur l'accueil, ou ?favi dans l'adresse ; la fenêtre s'ouvre sur son bandeau.
+  // Déjà en ville, l'icône « Histoire » de la barre de droite ouvre son panneau (favi.js).
+  document.addEventListener('kv:favi', () => { if (S.actif) return; demanderFavi(true); ouvrir(); choisirAvecQui('ville'); });
+  if (faviDemande() && !code && !VENIR.village) {
+    const t = setInterval(() => {
+      if (!document.querySelector('#loader.done')) return;
+      if (document.getElementById('app')?.classList.contains('mode-accueil')) document.querySelector('#acPasser')?.click();
+      clearInterval(t); ouvrir(); choisirAvecQui('ville'); if (!coarse) $('#slNom').focus();
+    }, 300);
+  }
   if (VENIR.village && VILLAGE_ACTIF && !code) {
     prechargerVillage();
     choisirAvecQui('ville');

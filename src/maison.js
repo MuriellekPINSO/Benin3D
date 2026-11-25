@@ -55,7 +55,7 @@ function numeroDuJoueur() {
 }
 const TROTTOIR = { 3: 2.2 * ELARGIR, 4: 1.3 * ELARGIR, 5: .9 * ELARGIR }; // comme rue.js : de la chaussée jusqu'aux murs des parcelles
 /** La porte la plus proche de (x0, z0) ; avec `tous` (un tableau), toutes celles à moins de 450 m, à 30 m l'une de l'autre. */
-function chercherPorte(x0, z0, facade, classes = [4, 5], tous = null) {
+export function chercherPorte(x0, z0, facade, classes = [4, 5], tous = null) { // aussi pour la cour de Mémé Houéfa (favi.js)
   let best = null, bd = tous ? 450 : 520;
   for (const L of roadLines) {
     if (L.bridge || !classes.includes(L.cls) || L.pts.length < 2) continue;

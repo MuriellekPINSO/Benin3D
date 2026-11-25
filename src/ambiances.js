@@ -35,6 +35,8 @@ export function suivreLHeure() {
 }
 /** Le joueur reprend-il la main ? (pour l'étiquette « à l'heure de Cotonou » de l'interface) */
 export const heureAutomatique = () => !H.choisi;
+/** On rend la main à l'horloge de Cotonou (la nuit forcée de l'histoire du Favi, favi.js, une fois finie). */
+export function reprendreLHeure() { H.choisi = false; H.dernier = ''; suivreLHeure(); }
 
 export function setMood(name, parLHeure = false) {
   if (!parLHeure) H.choisi = true; // un clic sur Jour / Soir / Nuit : on cesse de suivre l'horloge

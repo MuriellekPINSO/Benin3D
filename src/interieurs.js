@@ -76,7 +76,7 @@ export function allumerLesPortes() {
   PORTES.n = INTERIEURS.size;
   const pos = [];
   // I.porte est dans la ville, au niveau de la mer — pas dans la pièce, qui est bâtie à 40 m au large (ALT).
-  for (const I of INTERIEURS.values()) for (const P of I.portes || [I]) pos.push(P.porte[0], 2.5, P.porte[1]);
+  for (const I of INTERIEURS.values()) if (!I.sansAmpoule) for (const P of I.portes || [I]) pos.push(P.porte[0], 2.5, P.porte[1]); // sansAmpoule : la cour de Mémé Houéfa (favi.js), filmée de près la nuit
   const cv = document.createElement('canvas'); cv.width = cv.height = 64;
   const cx = cv.getContext('2d'), gr = cx.createRadialGradient(32, 32, 0, 32, 32, 32);
   gr.addColorStop(0, 'rgba(255,246,220,1)'); gr.addColorStop(.22, 'rgba(255,206,130,.9)'); gr.addColorStop(1, 'rgba(255,170,70,0)');
