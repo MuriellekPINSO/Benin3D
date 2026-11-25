@@ -106,6 +106,15 @@
 
 /* Les entrées : la puce de l'accueil, le rond à côté des deux gros boutons, l'icône de la barre du salon. */
 .ac-puce i.histoire { background: #e9c46a; }
+/* La fenêtre d'entrée, venu pour l'histoire : Koffi à la place du choix du personnage (salon.js, majFenetre). */
+#slGenre[hidden], #slAvatars[hidden], .sl-koffi[hidden] { display: none; }
+.sl-koffi { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; padding: 8px 14px 8px 8px; border: 2px solid var(--accent); border-radius: var(--r-md); background: #f6ecd9; }
+.sl-koffi img { flex: none; width: 72px; height: 176px; object-fit: cover; border-radius: 10px; background: #e9e6e1; }
+.sl-koffi b { display: block; font: 800 18px/1.2 var(--font-display); color: var(--ink); }
+.sl-koffi small { display: block; margin-top: 5px; font-size: 13.5px; line-height: 1.4; color: var(--ink-2); }
+.sl-koffi .sl-koffi-apres { margin-top: 8px; font-size: 12px; }
+@media (max-height: 540px) and (orientation: landscape) { .sl-koffi img { width: 56px; height: 137px; } .sl-koffi b { font-size: 16px; } .sl-koffi small { font-size: 12.5px; } }
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 540px) { .salon.histoire #slPersoTitre { display: none; } } /* deux colonnes : la carte de Koffi est à droite, seule */
 .jouer-flottants .jouer-histoire { box-sizing: border-box; width: 46px; min-width: 46px; padding: 0; border-radius: 50%; display: inline-grid; place-items: center; background: #1f2f6e; color: #f5e6b8; }
 .jouer-histoire svg { width: 21px; height: 21px; }
 .sl-ic-histoire { color: #1f2f6e; }

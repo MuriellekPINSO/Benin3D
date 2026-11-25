@@ -1572,6 +1572,9 @@ function majFenetre() {
     $('#slInviteTitre').textContent = 'Le Favi · Chapitre 1 : L’éveil';
     $('#slInviteSous').textContent = 'Une histoire dans Cotonou. Tu es Koffi, 22 ans, zémidjan à Cadjèhoun ; ta grand-mère, Mémé Houéfa, vient de mourir.';
   }
+  // Dans l'histoire, on joue Koffi (incarner) : à la place du choix femme / homme et des tenues, sa photo.
+  $('#slGenre').hidden = $('#slAvatars').hidden = histoire; $('#slKoffi').hidden = !histoire;
+  if (histoire && !$('#slKoffiImg').getAttribute('src')) $('#slKoffiImg').src = `${import.meta.env.BASE_URL}favi/portraits/koffi-pied.jpg`;
   $('#slCreerTxt').textContent = I ? `Rejoindre ${I.de || 'mon ami'}` : histoire ? 'Commencer l’histoire' : village && avecQui === 'ville' ? 'Entrer au Village' : avecQui === 'amis' ? 'Entrer et inviter mes amis' : 'Entrer en ville';
   const aide = I ? '' : avecQui === 'amis' ? 'Tu entres, puis tu envoies le lien sur WhatsApp. Personne d’autre ne peut entrer.' : 'Une fois en ville, « Inviter » envoie un lien à tes amis : ils arrivent juste à côté de toi.';
   $('#slAide').textContent = aide; $('#slAide').hidden = !aide;
