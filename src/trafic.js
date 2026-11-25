@@ -21,7 +21,9 @@ export function buildZems() {
   // 1 200 au lieu de 3 000 (350 au lieu de 800 au téléphone) : ils se traversaient les uns les autres, et ceux de la
   // circulation (« on a toujours un problème de collision des voitures et motos qui deviennent beaucoup : supprime la
   // majorité », Murielle, 27/10). De loin, la moto-taxi en 3D allégée (630 triangles), plus la moto dessinée en code.
-  const n = LITE ? 350 : 1200;
+  // 700 au lieu de 1 200 (200 au lieu de 350 au téléphone) : « réduis aussi le nombre de véhicules qui se faufilent, pour
+  // réduire les affaires de choc » (Murielle, 25/11).
+  const n = LITE ? 200 : 700;
   const loin = TRAFIC_3D.loin, g = loin ? loin.geo : mergeColored(partsZem({ passager: '#2f6fb0' }));
   const mat = new THREE.MeshStandardMaterial({ vertexColors: !loin, map: loin?.map ?? null, roughness: .6, emissive: '#ffcf6a', emissiveIntensity: 0 });
   E.zems = new THREE.InstancedMesh(g, mat, n); E.zems.userData.en3D = !!loin;
@@ -59,8 +61,9 @@ function suivre(z, dt) {
   }
   // Pas de convoi derrière le plus lent : retenu plus de 2 s, il se décale dans sa moitié de chaussée et double
   // (« il n'y a pas d'embouteillages sur la voie, les voies respirent », Murielle, 28/10).
+  // Retenu 4 s (au lieu de 2) avant de doubler : moins de motos qui se faufilent d'une file à l'autre devant le joueur (25/11).
   z.retenu = vise < z.v * .6 ? (z.retenu || 0) + dt : 0;
-  if (z.retenu > 2) {
+  if (z.retenu > 4) {
     z.retenu = 0;
     if (z.P.sens) z.laneVise = THREE.MathUtils.clamp(z.lane + (z.lane > 0 ? -1.6 : 1.6), -(z.P.w - 2) / 2, (z.P.w - 2) / 2);
     else { const max = Math.max(.8, z.P.w / 2 - .5); z.laneVise = z.lane > (.8 + max) / 2 ? Math.max(.6, z.lane - 1.5) : Math.min(max, z.lane + 1.5); }

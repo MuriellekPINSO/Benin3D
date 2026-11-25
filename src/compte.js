@@ -90,6 +90,7 @@ function fenetre() {
     </div>
     <p class="ev-etat momo-etat" id="compteEtat" role="status" aria-live="polite" hidden></p>
     <div class="ev-actions"><button type="submit" class="jouer" id="compteValider"></button><button type="button" class="btn-ghost" id="compteBascule"></button><button type="button" class="btn-ghost" id="compteFermer">Fermer</button></div>
+    <button type="button" class="compte-lien compte-supprimer" id="compteSupprimer" hidden>Supprimer mon compte</button>
   </form>`;
   (document.getElementById('app') || document.body).append(el);
   return el;
@@ -105,6 +106,7 @@ export async function ouvrirCompte() {
     const connecte = C && !C.anonyme;
     $('.compte-formulaire').hidden = connecte;
     $('#compteBascule').hidden = connecte;
+    $('#compteSupprimer').hidden = !connecte;
     $('#compteOubli').hidden = mode !== 'connexion';
     $('#compteMdp').autocomplete = mode === 'connexion' ? 'current-password' : 'new-password';
     if (connecte) {
@@ -148,6 +150,21 @@ export async function ouvrirCompte() {
       await fini(r.user, avant);
     } catch (e) { if (e?.code !== 'auth/popup-closed-by-user' && e?.code !== 'auth/cancelled-popup-request') dire(message(e), 'mal'); }
     occupe(false);
+  };
+  // Supprimer son compte (exigé par l'App Store et Google Play, 25/11) : sa partie effacée de la base, puis le compte. Firebase
+  // ne supprime un compte que si l'on s'est connecté il y a peu : sinon, on le demande d'abord (rien n'est effacé à moitié).
+  $('#compteSupprimer').onclick = async () => {
+    const u = auth?.currentUser; if (!au || !u || u.isAnonymous) return;
+    if (Date.now() - Date.parse(u.metadata?.lastSignInTime || 0) > 4 * 60e3) return dire('Par sécurité, reconnecte-toi d’abord (« Me déconnecter », puis « J’ai déjà un compte ») ; tu pourras alors supprimer ton compte.', 'mal');
+    if (!confirm('Supprimer ton compte ? Ta partie (argent, maison, commerces, progression) sera effacée pour de bon, sur tous tes appareils.')) return;
+    occupe(true); dire('Suppression…');
+    try {
+      const { d, db } = await firebase();
+      for (const k of ['zem_vies', 'zem_progres', 'zem_presence', 'zem_rep', 'zem_defi_departs', 'zem_lp_departs']) await d.remove(d.ref(db, `${k}/${u.uid}`)).catch(() => { });
+      await au.deleteUser(u);
+    } catch (e) { occupe(false); return dire(e?.code === 'auth/requires-recent-login' ? 'Par sécurité, reconnecte-toi d’abord (« Me déconnecter », puis « J’ai déjà un compte ») ; tu pourras alors supprimer ton compte.' : message(e), 'mal'); }
+    for (const k of [...CLES, CLE_T, 'zemrun-classement-envoyes', 'cotonou3d.vie']) ecrire(k, null);
+    dire('Ton compte est supprimé.', 'bien'); setTimeout(() => location.reload(), 1500);
   };
   $('#compteOubli').onclick = async () => {
     const email = $('#compteEmail').value.trim(); if (!email) { $('#compteEmail').focus(); return dire('Écris ton adresse e-mail, puis touche « Mot de passe oublié ? ».', 'mal'); }

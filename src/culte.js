@@ -4,6 +4,7 @@ import { LITE } from './base.js';
 import { bulle, personne } from './discussions.js';
 import { INTERIEURS, declarerInterieur } from './interieurs.js';
 import { K, panneauTexte } from './lieux.js';
+import { piedsNus } from './pieds-nus.js';
 import { poserAssis } from './personnages.js';
 
 // ---------- Entrer dans la cathédrale et dans la mosquée de Zongo ----------
@@ -258,9 +259,14 @@ function mosquee(I) {
   const xs = -2.6, zs = -D / 2 + 5.6;
   K.boite(W / 2 + xs, 1.9, .08, K.tex('claustra', 6, 1), (-W / 2 + xs) / 2, .95, zs).castShadow = false; bloc(I, W / 2 + xs, .2, (-W / 2 + xs) / 2, zs, 1.9);
   K.boite(.08, 1.9, zs + D / 2 - 1.6, K.tex('claustra', 3, 1), xs, .95, (zs - D / 2 + 1.6) / 2 + .8).castShadow = false; bloc(I, .2, zs + D / 2 - 1.6, xs, (zs - D / 2 + 1.6) / 2 + .8, 1.9);
-  K.boite(2.4, .9, .4, boisM, 5, .45, -D / 2 + .45); bloc(I, 2.4, .5, 5, -D / 2 + .45, 1);
-  const tons = ['#2b2b2b', '#6b4426', '#8f2d2a', '#1f3f80', '#d9b44a', '#3a3a3a'];
-  for (let k = 0; k < 14; k++) K.boite(.11, .05, .26, K.mat(tons[k % tons.length]), 3.95 + (k % 7) * .3, k < 7 ? .92 : .5, -D / 2 + .45);
+  // Tout le monde prie pieds nus (pieds-nus.js) : deux étagères pleines, celle des hommes à droite de la porte, celle des
+  // femmes à gauche, de leur côté de la claustra ; les sandales en trop, par paires, au pied des étagères.
+  const tons = ['#2b2b2b', '#6b4426', '#8f2d2a', '#1f3f80', '#d9b44a', '#3a3a3a', '#e8e4da', '#5a3a22'];
+  for (const xe of [5, -5]) {
+    K.boite(2.4, .9, .4, boisM, xe, .45, -D / 2 + .45); bloc(I, 2.4, .5, xe, -D / 2 + .45, 1);
+    for (let k = 0; k < 14; k++) for (const dx of [0, .12]) K.boite(.1, .05, .26, K.mat(tons[(k + (xe < 0 ? 3 : 0)) % tons.length]), xe - 1.12 + (k % 7) * .33 + dx, k < 7 ? .92 : .5, -D / 2 + .45);
+    for (let k = 0; k < 6; k++) for (const dx of [0, .12]) K.boite(.1, .04, .26, K.mat(tons[(k * 3 + 1) % tons.length]), xe - 1.1 + k * .42 + dx, .02, -D / 2 + .95).castShadow = false;
+  }
   for (const s of [-1, 1]) K.boite(1.5, 3.4, .12, K.mat('#2f5f88', { rugosite: .5 }), s * .78, 1.7, -D / 2 + .2).castShadow = false;
   panneauTexte(['SORTIE'], 1.4, .4, 0, 3.8, -D / 2 + .19, 0, { fond: '#1f7a3e', encre: '#ffffff', px: 512, py: 146 });
   // L'imam devant le mihrab ; les rangs des hommes derrière lui ; les femmes au fond. Tous tournés vers la qibla (+z).
@@ -273,6 +279,7 @@ function mosquee(I) {
     bloc(I, 17.6, .9, 0, z + .2, 1.2);
   }
   for (const z of LITE ? [-D / 2 + 2.6] : [-D / 2 + 2.6, -D / 2 + 3.9]) for (let x = -W / 2 + 1.4; x <= xs - .7; x += .85) fideles.push(debout(I, id++, x, z, 0, { femme: true }));
+  piedsNus(imam); for (const f of fideles) piedsNus(f);
   I.culte = { type: 'priere', imam, fideles: fideles.map(p => ({ p, retard: .25 + Math.random() * .6 })), t: 0, etape: -1, attente: [] };
   imam.userData.culte?.('qiyam'); for (const f of fideles) f.userData.culte?.('qiyam');
 }
@@ -303,10 +310,25 @@ export function majCulte(dt) {
 export function declarerCathedrale(porte, dehors) {
   declarerInterieur('cathedrale', { nom: 'la cathédrale Notre-Dame', porte, dehors, w: CW, d: CD, plafond: CH - .5, lampe: 2.6, entree: [0, -CD / 2 + 3, 0], entrer: 'Entrer dans la cathédrale', construire: cathedrale });
 }
+/** Les chaussures du joueur, posées au pied de l'étagère des hommes en entrant (`couleur` : celle des siennes, pieds-nus.js),
+ *  reprises en sortant (null). */
+function deposer(I, couleur) {
+  if (!I.g) return;
+  if (!I.mesChaussures) {
+    const g = new THREE.Group(), cuir = new THREE.MeshStandardMaterial({ color: '#2b2b2b', roughness: .7 }), semelle = new THREE.MeshStandardMaterial({ color: '#d8d2c4', roughness: .9 });
+    for (const dx of [-.07, .07]) {
+      const s = new THREE.Mesh(new THREE.BoxGeometry(.11, .025, .28), semelle); s.position.set(dx, .0125, 0);
+      const d = new THREE.Mesh(new THREE.BoxGeometry(.1, .06, .22), cuir); d.position.set(dx, .055, -.02); g.add(s, d);
+    }
+    g.position.set(3.2, 0, -MD / 2 + 1.1); g.rotation.y = .25; I.g.add(g); I.mesChaussures = { g, cuir };
+  }
+  I.mesChaussures.g.visible = !!couleur;
+  if (couleur) I.mesChaussures.cuir.color.copy(couleur);
+}
 /** La porte de la mosquée de Zongo (lieux-videos.js). */
 // `portes` : [{ porte, dehors }, …], la première d'abord (celle du boulevard : « Aller » y dépose) ; on ressort par celle où
 // l'on est entré (interieurs.js).
 export function declarerMosquee(portes) {
   const [{ porte, dehors }] = portes;
-  declarerInterieur('mosquee-zongo', { nom: 'la mosquée de Zongo', porte, dehors, ...(portes.length > 1 ? { portes } : {}), w: MW, d: MD, plafond: MH - .5, lampe: 2.3, entree: [0, -MD / 2 + 2.6, 0], entrer: 'Entrer dans la mosquée', construire: mosquee });
+  declarerInterieur('mosquee-zongo', { nom: 'la mosquée de Zongo', porte, dehors, ...(portes.length > 1 ? { portes } : {}), w: MW, d: MD, plafond: MH - .5, lampe: 2.3, entree: [0, -MD / 2 + 2.6, 0], entrer: 'Entrer dans la mosquée', construire: mosquee, piedsNus: true, deposer });
 }

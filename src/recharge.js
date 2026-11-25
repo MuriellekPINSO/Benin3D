@@ -1,7 +1,7 @@
 import { joueur } from './firebase.js';
 import { choisir } from './trajets.js';
 import { FORMULES } from './recharge-formules.js';
-import { echecCertain, paiementReel, payerMoMo } from './paiement.js';
+import { DANS_APPLI, echecCertain, paiementReel, payerMoMo } from './paiement.js';
 import { VIE, ecrire, pendantRecharge, rendreVie } from './vie.js';
 
 // ---------- Recharger son compte avec du vrai argent ----------
@@ -54,6 +54,8 @@ function relancer() {
  */
 export function proposerRecharge({ manque = 0, pour = '', puis = null } = {}) {
   if (!VIE.data) return;
+  // Dans l'appli (paiement.js, DANS_APPLI) : pas de recharge ; l'argent se gagne en travaillant.
+  if (DANS_APPLI) { R.ligne(manque > 0 ? `Il te manque ${fmt(manque)}${pour ? ` pour ${pour}` : ''} : gagne-les en travaillant (« Travailler »).` : 'Dans l’appli, ton argent se gagne en travaillant (« Travailler »).'); return; }
   if (!paiementReel()) { R.ligne('La recharge par Mobile Money n’est pas encore disponible sur ce site.'); return; }
   const titre = manque > 0 ? `Il te manque ${fmt(manque)}${pour ? ` pour ${pour}` : ''}. Recharger ton compte ?` : 'Recharger ton compte';
   choisir(titre, FORMULES.map(F => ({

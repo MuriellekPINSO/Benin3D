@@ -11,6 +11,7 @@ import { obstacleArene, retirerVoisins, siegeGradins, voisinsDeGradin } from './
 import { BANCS, dansArbre, dansFoule } from './lieux.js';
 import { personne } from './discussions.js';
 import { INTERIEURS, arriveeDedans, arriveeDehors, cacherInterieurs, limiter, murEntre, ouvrirInterieur, porteProche, profondeurInterieur, siegeProche } from './interieurs.js';
+import { couleurChaussures, piedsNus } from './pieds-nus.js';
 import { A_LOUER, actionsMaison, initMaison, logement, maisonActuelle, majMaison, occupe, quitterMaison, reveil } from './maison.js';
 import { actionsGarage, initGarage, majGarage, quitterGarage } from './garage.js';
 import { E } from './etat.js';
@@ -744,11 +745,13 @@ function dedans(I, parler = true) {
   S.lieu = I; S.y = a.y; S.x = a.x; S.z = a.z; S.cap = a.cap; S.saut = true; S.geste = 'idle'; S.dist = Math.min(S.dist, I.prive ? 3.6 : 4.5);
   document.getElementById('app').classList.add('dedans');
   if (I.bienvenue) ligne(I.bienvenue); // la salle de jeux : où s'asseoir pour voir les jeux
+  if (I.piedsNus) { I.deposer?.(I, couleurChaussures(S.moi)); ligne('Tu laisses tes chaussures à l’entrée, comme tout le monde.'); } // la mosquée (culte.js)
   if (!I.prive && parler) annoncer(`Je suis dans ${I.nom}, venez !`, LIEUX.find(l => l[6] === I.id)?.[0]); // chez soi : on ne l'annonce pas
 }
 function dehors(replacer = true) {
   const I = S.lieu; if (!I) return;
   quitterMaison(); // plus couché ni sous la douche
+  if (I.piedsNus) { I.deposer?.(I, null); ligne('Tu remets tes chaussures.'); }
   S.lieu = null; S.y = 0; S.geste = 'idle'; // assis à table dedans : debout dans la rue
   if (S.distDehors) { S.dist = S.distDehors; S.distDehors = 0; }
   cacherInterieurs(); document.getElementById('app').classList.remove('dedans');
@@ -1129,7 +1132,7 @@ export function majSalon(dt) {
     S.anim = marche ? (court && S.moi?.userData.peut?.('course') ? 'course' : 'marche') : S.geste;
     if (S.tel && !S.telFin && S.geste !== 'telephone' && !S.appel) rangerTelephone(); // on range le téléphone en se levant (pas pendant un appel)
     if (S.appel && S.appel.etat !== 'recu' && S.geste !== 'telephone') { if (S.geste === 'assis') prendreTelephone(); else if ((!S.tel || (S.tel.oreille && S.tel.oreille !== S.moi)) && T.mode === 'pied') telephoneEnMain(0); } // changé de tenue en plein appel : le nouveau corps reprend le téléphone // assis ou relevé pendant l'appel
-    if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); }
+    if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); piedsNus(S.moi, !!S.lieu?.piedsNus); } // pieds nus dans la mosquée, même après un changement de tenue
   }
   // Caméra derrière soi (ou derrière le véhicule), à la distance et l'inclinaison choisies : glisser vers le haut ou
   // le bas, molette, touche V, stick droit de la manette. De très haut, on voit le quartier comme sur une carte.
@@ -1207,7 +1210,7 @@ export function majSalon(dt) {
     A.vitesse = Math.hypot(dx * kk, dz * kk) / Math.max(dt, .001); // à l'arrêt, la position lissée rattrape la dernière reçue et la vitesse tombe à 0
     let da = (e.h || 0) - A.cap; da = Math.atan2(Math.sin(da), Math.cos(da)); A.cap += da * kk;
     const pres = (A.x - S.x) ** 2 + (A.z - S.z) ** 2 < VU * VU;
-    if (A.g) A.g.visible = pres && (e.i || '') === (S.lieu?.id || '') && !enAvion; // dans la même pièce (ou dehors) et assez près ; en avion, on voit l'avion
+    if (A.g) { A.g.visible = pres && (e.i || '') === (S.lieu?.id || '') && !enAvion; piedsNus(A.g, !!INTERIEURS.get(e.i)?.piedsNus); } // dans la même pièce (ou dehors) et assez près ; en avion, on voit l'avion ; pieds nus à la mosquée
     if (enAvion) { A.avion ??= creerAvion(); poserAvion(A.avion, A.x, A.y, A.z, A.cap, e.ta || 0, e.ro || 0); }
     else if (A.avion) { retirerAvion(A.avion); A.avion = null; }
     // Tous les véhicules, ceux qu'on achète aussi : un ami au volant de sa citadine ou de son Roadster marchait à vide
@@ -1580,7 +1583,7 @@ function ouvrir() {
 export function initSalon(data) {
   surAnnonce(t => ligne(t)); // argent gagné ou dépensé, faim : dans le fil du salon
   S.dire = dire; initTrajets(data, { S, ligne, dedans, dehors, bulle, retirerBulle, aller });
-  initMaison({ S, ligne, geste, guide: () => !!guideSalon?.actif() }); // chez soi : se lever, se doucher, cuisiner (maison.js)
+  initMaison({ S, ligne, geste, guide: () => !!guideSalon?.actif(), habiller: () => ouvrirGarderobe(S.modele) }); // chez soi : se lever, se doucher, cuisiner, se changer à l'armoire (maison.js)
   initGarage({ S, ligne }); // le garage à côté de sa porte : sa voiture y dort (garage.js)
   initAkpakpa({ S, T, ligne, choisir }); // Super U, basket, hôtel (akpakpa.js)
   initGarages({ S, T, ligne, choisir }); // accidents, état du véhicule, mécaniciens (garages.js)

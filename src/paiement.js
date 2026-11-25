@@ -6,6 +6,11 @@
 // Sans clé publique (VITE_FEDAPAY_PUBLIC_KEY dans .env.local et sur Vercel), le jeu n'en parle pas.
 const CLE = import.meta.env.VITE_FEDAPAY_PUBLIC_KEY || '';
 export const paiementReel = () => !!CLE;
+// Dans les applis des stores (Android, iPhone : leur coquille Capacitor ajoute « KutonuVibesApp » à l'identité du
+// navigateur, ~/Projects/kutonu-vibes-app), Google et Apple refusent qu'on vende du contenu du jeu par un autre paiement que
+// le leur (25/11) : la recharge, l'ouverture d'un commerce, l'inscription à la course à vélo et l'entrée du concert n'y sont
+// pas proposées. Les habits livrés chez soi (mode.js), des biens réels, restent payables par Mobile Money.
+export const DANS_APPLI = typeof navigator !== 'undefined' && /KutonuVibesApp/.test(navigator.userAgent);
 /** Clé de test (sandbox) : aucun vrai argent ; le joueur paie avec un numéro de test. */
 export const paiementTest = () => CLE.startsWith('pk_sandbox_');
 const MODE = CLE.startsWith('pk_live_') ? 'live' : 'sandbox';
