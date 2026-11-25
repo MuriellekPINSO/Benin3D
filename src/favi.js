@@ -382,7 +382,7 @@ function lit(I) {
   K.boite(.38, .1, .55, '#ffffff', -LIT.long / 2 + .28, .66, 0, g);
   I.obstacles.push([LIT.x, LIT.z, LIT.long / 2 + .06, LIT.larg / 2 + .05, .7]);
 }
-/** Le portrait de Mémé Houéfa : la photo si elle existe (public/favi/portraits/meme.jpg), sinon un portrait dessiné, sépia. */
+/** Le portrait de Mémé Houéfa : la photo si elle existe (public/favi/portraits/meme-cadre.jpg, en 3:4), sinon un portrait dessiné, sépia. */
 function textureMeme() {
   const cv = document.createElement('canvas'); cv.width = 384; cv.height = 512; const c = cv.getContext('2d');
   const fond = c.createLinearGradient(0, 0, 0, 512); fond.addColorStop(0, '#d9c49a'); fond.addColorStop(1, '#a88a5c'); c.fillStyle = fond; c.fillRect(0, 0, 384, 512);
@@ -393,7 +393,7 @@ function textureMeme() {
   c.fillStyle = '#2a1a10'; c.fillRect(160, 245, 18, 6); c.fillRect(206, 245, 18, 6); c.fillRect(178, 300, 28, 5); // les yeux, la bouche, à peine
   c.fillStyle = '#f6f2ea'; c.fillRect(0, 470, 384, 42); c.fillStyle = '#1d1a16'; c.font = '700 26px system-ui, sans-serif'; c.textAlign = 'center'; c.fillText('Mémé Houéfa', 192, 499);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-  if (F.portraits.has('meme')) new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}favi/portraits/meme.jpg`, img => { t.image = img.image; t.needsUpdate = true; }, undefined, () => { });
+  if (F.portraits.has('meme-cadre')) new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}favi/portraits/meme-cadre.jpg`, img => { t.image = img.image; t.needsUpdate = true; }, undefined, () => { });
   return t;
 }
 // Une lueur au sol, en dégradé : les seuils, le bout de la ligne, le pied du Zangbeto.
