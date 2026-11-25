@@ -155,7 +155,11 @@ export async function ouvrirCompte() {
   // ne supprime un compte que si l'on s'est connecté il y a peu : sinon, on le demande d'abord (rien n'est effacé à moitié).
   $('#compteSupprimer').onclick = async () => {
     const u = auth?.currentUser; if (!au || !u || u.isAnonymous) return;
-    if (Date.now() - Date.parse(u.metadata?.lastSignInTime || 0) > 4 * 60e3) return dire('Par sécurité, reconnecte-toi d’abord (« Me déconnecter », puis « J’ai déjà un compte ») ; tu pourras alors supprimer ton compte.', 'mal');
+    // « Récent » se juge avec deux heures de Firebase (le jeton tout juste renouvelé, et la connexion), jamais avec l'horloge
+    // de l'appareil : le Mac des essais avançait de 4 min, et un compte créé à l'instant passait pour trop ancien (25/11).
+    let recent = false;
+    try { const t = await u.getIdTokenResult(true); recent = Date.parse(t.issuedAtTime) - Date.parse(t.authTime) < 4.5 * 60e3; } catch (e) { return dire(message(e), 'mal'); }
+    if (!recent) return dire('Par sécurité, reconnecte-toi d’abord (« Me déconnecter », puis « J’ai déjà un compte ») ; tu pourras alors supprimer ton compte.', 'mal');
     if (!confirm('Supprimer ton compte ? Ta partie (argent, maison, commerces, progression) sera effacée pour de bon, sur tous tes appareils.')) return;
     occupe(true); dire('Suppression…');
     try {
