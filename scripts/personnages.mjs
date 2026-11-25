@@ -57,12 +57,14 @@ export const PERSONNAGES = {
   'pagne-f': { femme: true, mode: true, prompt: `${FEMME}, natural black hair in a short rounded afro, wearing an everyday Cotonou outfit: a simple short-sleeved blouse and a long wrapper skirt in a matching turquoise and orange African wax print, flat leather sandals, ${SANS_LOGO}, ${POSE}` },
   // L'histoire du Favi (favi.js) : faits d'après une photo en pied (sources/personnages/photos/<id>.png), elle-même tirée des
   // croquis de Murielle (Koffi, Ayiké, la guérisseuse) ou des portraits Higgsfield (Agnès, le Chef, le père), le 25/11.
+  // Mains contre les cuisses sur la photo = mains soudées au pantalon après le squelette (un pan de jean suivait le bras) :
+  // ceux-là passent d'abord en T-pose (Tripo image-to-image, template « t_pose », 15 crédits) → photos/tpose/.
   // Rangés dans public/modeles/favi/, chargés seulement quand l'histoire commence, jamais tirés au hasard pour les passants.
-  'favi-koffi': { femme: false, favi: true, image: 'sources/personnages/photos/favi-koffi.png' },
-  'favi-ayike': { femme: true, favi: true, image: 'sources/personnages/photos/favi-ayike.png' },
+  'favi-koffi': { femme: false, favi: true, image: 'sources/personnages/photos/tpose/favi-koffi.png' },
+  'favi-ayike': { femme: true, favi: true, image: 'sources/personnages/photos/tpose/favi-ayike.png' },
   'favi-guerisseuse': { femme: true, favi: true, image: 'sources/personnages/photos/favi-guerisseuse.png' },
   'favi-agnes': { femme: true, favi: true, image: 'sources/personnages/photos/favi-agnes.png' },
-  'favi-chef': { femme: false, favi: true, image: 'sources/personnages/photos/favi-chef.png' },
+  'favi-chef': { femme: false, favi: true, image: 'sources/personnages/photos/tpose/favi-chef.png' },
   'favi-pere': { femme: false, favi: true, image: 'sources/personnages/photos/favi-pere.png' },
   zem: { femme: false, prompt: `A Beninese zemidjan motorcycle taxi driver from Cotonou, dark skin, wearing a bright yellow short-sleeved work shirt with a black registration number printed on the back and chest, dark trousers, plastic sandals, ${POSE}` },
 };
