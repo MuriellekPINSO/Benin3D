@@ -29,8 +29,10 @@ const ANIMS = { idle: 'preset:biped:idle', marche: 'preset:biped:walk', salut: '
 const DANSES = ['danse1', 'danse2', 'acclame'];
 // Les tenues de la boutique n'ont besoin que de quelques animations (cabine, défilé, concert).
 const ANIMS_MODE = ['idle', 'marche', 'salut', 'danse1', 'danse2', 'acclame', 'course'];
-const animsDe = id => PERSONNAGES[id]?.mode ? ANIMS_MODE : Object.keys(ANIMS);
-const sortieDe = id => PERSONNAGES[id]?.mode ? 'public/modeles/mode' : SORTIE;
+// Les personnages de l'histoire du Favi : les gestes de tous les jours, sans danses ni course.
+const ANIMS_FAVI = ['idle', 'marche', 'salut', 'parle', 'telephone', 'assis', 'rire'];
+const animsDe = id => PERSONNAGES[id]?.mode ? ANIMS_MODE : PERSONNAGES[id]?.favi ? ANIMS_FAVI : Object.keys(ANIMS);
+const sortieDe = id => PERSONNAGES[id]?.mode ? 'public/modeles/mode' : PERSONNAGES[id]?.favi ? 'public/modeles/favi' : SORTIE;
 export const PERSONNAGES = {
   vendeuse: { femme: true, prompt: `A Beninese market woman from Cotonou in her forties, dark brown skin, wearing a long fitted dress in a vivid orange, blue and yellow African wax print (pagne), a matching tied headwrap (foulard), simple flip-flop sandals, ${POSE}` },
   jeune: { femme: false, prompt: `A young Beninese man from Cotonou, about twenty years old, dark skin, short black hair with a fade, wearing a green and yellow football jersey, light blue jeans and white sneakers, slim build, ${POSE}` },
@@ -53,6 +55,15 @@ export const PERSONNAGES = {
   'maillot-h': { femme: false, mode: true, prompt: `${HOMME}, wearing a plain football jersey in green with yellow and red trim on the collar and sleeves, black sports shorts, white socks and black sneakers, ${SANS_LOGO}, ${POSE}` },
   'top-f': { femme: true, mode: true, prompt: `${FEMME}, natural black hair in a short rounded afro, wearing a plain mustard yellow fitted short-sleeved top, light blue high-waisted jeans and white sneakers, ${SANS_LOGO}, ${POSE}` },
   'pagne-f': { femme: true, mode: true, prompt: `${FEMME}, natural black hair in a short rounded afro, wearing an everyday Cotonou outfit: a simple short-sleeved blouse and a long wrapper skirt in a matching turquoise and orange African wax print, flat leather sandals, ${SANS_LOGO}, ${POSE}` },
+  // L'histoire du Favi (favi.js) : faits d'après une photo en pied (sources/personnages/photos/<id>.png), elle-même tirée des
+  // croquis de Murielle (Koffi, Ayiké, la guérisseuse) ou des portraits Higgsfield (Agnès, le Chef, le père), le 25/11.
+  // Rangés dans public/modeles/favi/, chargés seulement quand l'histoire commence, jamais tirés au hasard pour les passants.
+  'favi-koffi': { femme: false, favi: true, image: 'sources/personnages/photos/favi-koffi.png' },
+  'favi-ayike': { femme: true, favi: true, image: 'sources/personnages/photos/favi-ayike.png' },
+  'favi-guerisseuse': { femme: true, favi: true, image: 'sources/personnages/photos/favi-guerisseuse.png' },
+  'favi-agnes': { femme: true, favi: true, image: 'sources/personnages/photos/favi-agnes.png' },
+  'favi-chef': { femme: false, favi: true, image: 'sources/personnages/photos/favi-chef.png' },
+  'favi-pere': { femme: false, favi: true, image: 'sources/personnages/photos/favi-pere.png' },
   zem: { femme: false, prompt: `A Beninese zemidjan motorcycle taxi driver from Cotonou, dark skin, wearing a bright yellow short-sleeved work shirt with a black registration number printed on the back and chest, dark trousers, plastic sandals, ${POSE}` },
 };
 
@@ -68,7 +79,8 @@ async function fetchR(url, opts, essais = 6) {
 }
 const api = async (methode, chemin, corps) => {
   if (!cle) throw new Error('TRIPO_API_KEY manquante dans .env.local');
-  const r = await fetchR(BASE + chemin, { method: methode, headers: { Authorization: `Bearer ${cle}`, ...(corps ? { 'Content-Type': 'application/json' } : {}) }, body: corps ? JSON.stringify(corps) : undefined });
+  const form = corps instanceof FormData;
+  const r = await fetchR(BASE + chemin, { method: methode, headers: { Authorization: `Bearer ${cle}`, ...(corps && !form ? { 'Content-Type': 'application/json' } : {}) }, body: form ? corps : corps ? JSON.stringify(corps) : undefined });
   const j = await r.json().catch(() => ({ code: r.status, message: r.statusText }));
   if (j.code !== 0) throw new Error(`Tripo ${chemin} : ${j.code} ${j.message || ''} ${j.suggestion || ''}`.trim());
   return j.data;
@@ -94,7 +106,13 @@ async function fabriquer(id) {
   const noter = (k, t) => { E[k] = t.task_id; E.credits += t.credits_consumed || 0; fs.writeFileSync(fe, JSON.stringify(E, null, 2)); };
   // 1. Le modèle texturé
   if (!E.modele && !E.modele_en_cours) {
-    const { task_id } = await api('POST', '/generation/text-to-model', { prompt: P.prompt, negative_prompt: NEG, model: MODELE, face_limit: 14000, texture: true, pbr: true, texture_quality: 'detailed', texture_version: 'v3.5-20260815', delight: true });
+    const commun = { model: MODELE, face_limit: 14000, texture: true, pbr: true, texture_quality: 'detailed', texture_version: 'v3.5-20260815', delight: true };
+    let task_id;
+    if (P.image) { // d'après une photo en pied
+      const fd = new FormData(); fd.append('file', new Blob([fs.readFileSync(P.image)], { type: 'image/png' }), P.image.split('/').pop());
+      const { file_token } = await api('POST', '/files', fd);
+      ({ task_id } = await api('POST', '/generation/image-to-model', { input: file_token, enable_image_autofix: true, ...commun }));
+    } else ({ task_id } = await api('POST', '/generation/text-to-model', { prompt: P.prompt, negative_prompt: NEG, ...commun }));
     E.modele_en_cours = task_id; fs.writeFileSync(fe, JSON.stringify(E, null, 2));
   }
   if (!E.modele) { const t = await attendre(id, 'modèle', E.modele_en_cours); noter('modele', t); await telecharger(t.output.rendered_image_url, `${SOURCES}/${id}-apercu.webp`); await telecharger(t.output.model_url || t.output.pbr_model_url, `${SOURCES}/${id}-statique.glb`); }
@@ -102,7 +120,7 @@ async function fabriquer(id) {
   if (!E.rig) {
     if (!E.rig_en_cours) {
       const chk = await api('POST', '/animations/rig-check', { input: E.modele }); const c = await attendre(id, 'vérification', chk.task_id);
-      if (c.output && c.output.riggable === false) throw new Error(`${id} : Tripo juge le modèle impossible à animer (${c.output.rig_type})`);
+      if (c.output && c.output.riggable === false && !process.env.FORCER_RIG) throw new Error(`${id} : Tripo juge le modèle impossible à animer (${c.output.rig_type})`);
       const { task_id } = await api('POST', '/animations/rig', { input: E.modele, model: RIG, rig_type: 'biped', spec: 'tripo', out_format: 'glb' });
       E.rig_en_cours = task_id; fs.writeFileSync(fe, JSON.stringify(E, null, 2));
     }

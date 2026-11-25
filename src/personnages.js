@@ -17,7 +17,9 @@ import { actif, fetchActif } from './actifs.js';
 const P = { modeles: {}, pret: false, actifs: new Set(), accessoires: {}, index: {}, danses: null };
 // Rôles : on ne tire pas au hasard le policier ni le zém, ils servent quand on les demande.
 const ROLES = new Set(['policier', 'zem']);
-const TAILLE = { femme: [1.6, 1.7], homme: [1.68, 1.82], ancien: [1.64, 1.72], maman: [1.56, 1.64], 'eleve-garcon': [1.24, 1.38], 'eleve-fille': [1.22, 1.36] };
+const TAILLE = { femme: [1.6, 1.7], homme: [1.68, 1.82], ancien: [1.64, 1.72], maman: [1.56, 1.64], 'eleve-garcon': [1.24, 1.38], 'eleve-fille': [1.22, 1.36],
+  // L'histoire du Favi : chacun sa taille, la même d'une scène à l'autre.
+  'favi-koffi': [1.77, 1.77], 'favi-ayike': [1.66, 1.66], 'favi-guerisseuse': [1.69, 1.69], 'favi-agnes': [1.58, 1.58], 'favi-chef': [1.73, 1.73], 'favi-pere': [1.8, 1.8] };
 const v = new THREE.Vector3(), v2 = new THREE.Vector3();
 
 /** Charge les personnages (en tâche de fond : le jeu marche sans eux). */
@@ -94,6 +96,23 @@ function emprunterAnimations(g, base) {
     g.animations.push(c);
   }
 }
+// Les personnages de l'histoire du Favi (public/modeles/favi/, faits par scripts/personnages.mjs d'après les croquis de Murielle et
+// des portraits Higgsfield) : chargés seulement quand l'histoire commence (favi.js), et des rôles, jamais tirés au hasard (`mode`).
+const ACTEURS = {};
+let INDEX_FAVI = null;
+/** Charge le personnage d'histoire `id` (ex. « favi-koffi ») ; renvoie true quand il est prêt, false s'il manque. */
+export function chargerActeur(id) {
+  if (P.modeles[id]) return Promise.resolve(true);
+  ACTEURS[id] ??= (async () => {
+    INDEX_FAVI ??= fetchActif('modeles/favi/index.json').then(r => (r.ok && /json/.test(r.headers.get('content-type') || '') ? r.json() : {})).catch(() => ({}));
+    const info = (await INDEX_FAVI)[id]; if (!info) return false;
+    const g = await chargeurGLB().loadAsync(actif(`modeles/favi/${id}.glb?v=${info.octets || 0}`));
+    P.modeles[id] = Object.assign(preparer(id, g, info), { mode: true }); return true;
+  })().catch(e => { delete ACTEURS[id]; console.warn('acteur', id, e.message); return false; });
+  return ACTEURS[id];
+}
+/** Le modèle `id` est-il chargé ? */
+export const modeleCharge = id => !!P.modeles[id];
 /** Les danses du concert (danse1, danse2, acclame), dans des fichiers à part : chargées à la première entrée au concert. */
 export function chargerDanses() {
   if (P.danses) return P.danses;

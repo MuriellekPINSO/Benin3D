@@ -6,7 +6,7 @@ import { personne } from './discussions.js';
 import { INTERIEURS, arriveeDedans, arriveeDehors, declarerInterieur, etiquette, lampeIci, ouvrirInterieur } from './interieurs.js';
 import { K, groupeLieu, panneauTexte } from './lieux.js';
 import { chercherPorte } from './maison.js';
-import { poserAssis, personnagesCharges } from './personnages.js';
+import { chargerActeur, modeleCharge, poserAssis, personnagesCharges } from './personnages.js';
 import { creerZangbeto } from './egungun.js';
 import { construireReseau, noeudRelie, noeudsPres, relie } from './carrefours.js';
 import { hauteur, itineraire, longueur } from './conduite.js';
@@ -52,7 +52,12 @@ const PERSONNES = {
   pere: { nom: 'Ton père', couleur: '#7a5a2a', femme: false, graine: 5103 },
   meme: { nom: 'Mémé Houéfa', couleur: '#b8862b', femme: true, age: 'vieux', graine: 5104 },
   koffi: { nom: 'Koffi', couleur: '#1a7d52', femme: false, graine: 5105 },
+  ayike: { nom: 'Ayiké', couleur: '#2a4a9a', femme: true, graine: 5106 },
+  guerisseuse: { nom: 'La guérisseuse', couleur: '#6f8a4a', femme: true, graine: 5107 },
 };
+// Leur vrai corps en 3D (personnages.js, public/modeles/favi/), d'après les croquis de Murielle et les portraits Higgsfield (25/11).
+// Tant qu'il n'est pas chargé, un habitant du jeu fait la doublure (le rôle passé à pnj()).
+const ACTEURS = { koffi: 'favi-koffi', agnes: 'favi-agnes', chef: 'favi-chef', pere: 'favi-pere', ayike: 'favi-ayike', guerisseuse: 'favi-guerisseuse' };
 const PROFILS = {
   debrouillard: { nom: 'Débrouillard', but: 10000, carte: 'Élevé par Mémé Houéfa · presque pas d’argent · un zém fatigué', texte: 'C’est Mémé Houéfa qui t’a élevé. Ton zém tousse, tes poches sont presque vides, mais tu connais chaque rue de Cadjèhoun.' },
   fils: { nom: 'Fils à papa', but: 5000, carte: 'De l’argent · mais ton père travaille pour Horizon Bleu', texte: 'Ton père a bien réussi : il travaille pour Horizon Bleu, la société de M. Dorval. Tu ne manques de rien… sauf de réponses.' },
@@ -393,7 +398,7 @@ function textureMeme() {
   c.fillStyle = '#2a1a10'; c.fillRect(160, 245, 18, 6); c.fillRect(206, 245, 18, 6); c.fillRect(178, 300, 28, 5); // les yeux, la bouche, à peine
   c.fillStyle = '#f6f2ea'; c.fillRect(0, 470, 384, 42); c.fillStyle = '#1d1a16'; c.font = '700 26px system-ui, sans-serif'; c.textAlign = 'center'; c.fillText('Mémé Houéfa', 192, 499);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-  if (F.portraits.has('meme-cadre')) new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}favi/portraits/meme-cadre.jpg`, img => { t.image = img.image; t.needsUpdate = true; }, undefined, () => { });
+  if (F.portraits.has('meme-cadre')) new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}favi/portraits/meme-cadre.jpg`, img => { t.dispose(); t.image = img.image; t.needsUpdate = true; }, undefined, () => { }); // dispose : la place déjà prise sur la carte graphique (le dessin, 384 × 512) n'accepte pas une image d'une autre taille
   return t;
 }
 // Une lueur au sol, en dégradé : les seuils, le bout de la ligne, le pied du Zangbeto.
@@ -407,15 +412,32 @@ function matLueur(couleur, opacite = .7) {
   return new THREE.MeshBasicMaterial({ map: texLueur, color: couleur, transparent: true, opacity: opacite, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
 }
 
-// ---------- Les personnages qui bougent dans la cour (Maman Agnès, le Chef, le père) ----------
+// ---------- Les personnages qui bougent dans la cour (Maman Agnès, le Chef, le père, Ayiké, la guérisseuse) ----------
 function pnj(id, role, x, z, cap) {
   const I = F.maison.I, ancien = F.pnj[id]; if (ancien) retirerPnj(id);
-  const P = PERSONNES[id], g = personne(P.graine, { role, femme: P.femme });
-  if (id === 'agnes') habiller(g);
+  const P = PERSONNES[id], vrai = !!ACTEURS[id] && modeleCharge(ACTEURS[id]), g = personne(P.graine, { role: vrai ? ACTEURS[id] : role, femme: P.femme });
+  if (id === 'agnes' && !vrai) habiller(g); // la doublure prend le foulard ; la vraie Agnès a le sien
   g.position.set(x, 0, z); g.rotation.y = cap; I.g.add(g);
   const ob = [x, z, .3, .3]; I.obstacles.push(ob);
-  return (F.pnj[id] = { id, g, x, z, cap, ob, chemin: [], fin: null, vitesse: 1.15, regarde: true, bulle: null, bulleFin: 0 });
+  return (F.pnj[id] = { id, role, g, x, z, cap, ob, chemin: [], fin: null, vitesse: 1.15, regarde: true, bulle: null, bulleFin: 0, oreille: false });
 }
+/** Charge les vrais personnages de l'histoire (une seule fois) ; dès que Koffi est là, on le devient. */
+function chargerActeurs() {
+  F.acteurs ??= Promise.all(Object.values(ACTEURS).map(chargerActeur));
+  F.acteurs.then(() => { if (!F.actif) return; if (modeleCharge(ACTEURS.koffi)) F.ctx.incarner?.(ACTEURS.koffi); rafraichirActeurs(); });
+  return F.acteurs;
+}
+/** Arrivés en retard : hors d'une scène, les doublures immobiles laissent la place aux vrais personnages, au même endroit. */
+function rafraichirActeurs() {
+  if (!F.actif || F.bloque || F.dlg || !F.maison?.I?.g) return;
+  for (const P of Object.values(F.pnj)) {
+    const vrai = ACTEURS[P.id]; if (!vrai || P.g.userData.modele === vrai || !modeleCharge(vrai) || P.chemin.length) continue;
+    const { id, role, x, z, cap, regarde, oreille } = P, N = pnj(id, role, x, z, cap);
+    N.regarde = regarde; if (oreille) { N.oreille = true; N.g.userData.oreille?.(true); }
+  }
+}
+/** Au téléphone (le Chef) : la main à l'oreille, retenu pour rafraichirActeurs. */
+function oreille(P, on) { P.oreille = on; P.g.userData.oreille?.(on); }
 function retirerPnj(id) {
   const P = F.pnj[id]; if (!P) return;
   F.ctx.retirerBulle(P); P.g.parent?.remove(P.g); P.g.userData.liberer?.();
@@ -688,10 +710,12 @@ async function sceneFunerailles() {
   const j = F.jeton; F.bloque = true; majHud();
   F.ui.voile.classList.add('noir'); F.ui.voile.style.transitionDuration = '0s';
   const titreP = titre('Le Favi', 'Chapitre 1 · L’éveil', 'Cadjèhoun, le jour des funérailles de Mémé Houéfa.', 3.6);
-  // Le temps du titre : les personnages réalistes finissent d'arriver (sinon la famille serait dessinée en code).
-  await Promise.race([personnagesCharges(), pause(7)]); verifier(j);
+  // Le temps du titre : les personnages réalistes finissent d'arriver (sinon la famille serait dessinée en code), Koffi et les siens aussi.
+  await Promise.race([Promise.all([personnagesCharges(), chargerActeurs()]), pause(9)]); verifier(j);
   passer('funerailles'); placerDansCour(0, -4.4, 0); preparerCour(); musique(true);
   pnj('agnes', 'maman', 1.4, 1.1, Math.PI);
+  pnj('ayike', 'etudiante', -4.6, -4.0, Math.PI / 2); // au fond, sous le bord de la bâche
+  pnj('guerisseuse', 'vendeuse', -3.0, .9, Math.PI); // près de la photo, face à la famille
   plan([6.4, 2.3, -6.1], [-.6, 1.1, .4]);
   await titreP; verifier(j);
   await voile(false, 1.4);
@@ -705,6 +729,16 @@ async function sceneFunerailles() {
   await dire('agnes', 'Koffi… Viens, mon fils.', ['Maman Agnès…'], { pnj: A });
   const r = await dire('agnes', 'Houéfa t’a laissé quelque chose. Cherche sous son lit. Mais pas avant la nuit.', ['Pourquoi pas avant la nuit ?', 'D’accord, Maman Agnès.'], { pnj: A });
   if (r === 0) await dire('agnes', 'Certaines choses ne se montrent qu’à la nuit. Patiente.', ['D’accord.'], { pnj: A });
+  // Ayiké, l'amie d'enfance, vient du fond de la bâche (elle tient un étal à Dantokpa : le chapitre 3).
+  const Ay = F.pnj.ayike;
+  if (Ay) {
+    plan([-.5, 1.65, -6.4], [-.5, 1.35, -4.3]); // de dos à la photo : les deux de profil
+    await marcher(Ay, [[-2.2, -4.2], [-1.1, -4.4]]);
+    placerDansCour(0, -4.4, -Math.PI / 2); // Koffi se tourne vers elle
+    await dire('ayike', 'Koffi… Mes condoléances. Mémé Houéfa m’a nourrie plus d’une fois, quand on était petits.', ['Merci d’être venue, Ayiké.'], { pnj: Ay });
+    await dire('ayike', 'Si tu as besoin de quoi que ce soit, tu sais où me trouver : au marché Dantokpa.', ['Je n’oublierai pas.'], { pnj: Ay });
+    marcher(Ay, [[-3.6, -4.1]]).then(() => { Ay.cap = Math.PI / 2; }).catch(() => { }); // elle laisse la place au Chef
+  }
   plan(null);
   await sceneProfil();
 }
@@ -726,11 +760,11 @@ async function sceneOffre() {
   const j = F.jeton; F.bloque = true; passer('offre');
   const fils = F.e.profil === 'fils';
   placerDansCour(0, -4.4, Math.PI); // Koffi se retourne : on entre par le portail
-  const C = pnj('chef', 'bureau', .4, -6.55, Math.PI); C.g.userData.oreille?.(true); C.regarde = false;
+  const C = pnj('chef', 'bureau', .4, -6.55, Math.PI); oreille(C, true); C.regarde = false;
   const Pe = fils ? pnj('pere', 'ancien', -.6, -6.6, Math.PI) : null;
   plan([2.4, 1.6, -3.6], [0, 1.3, -5.9]);
   await dire('chef', 'Oui, oui, Monsieur Dorval, je suis sur place… Je vous rappelle.', ['…'], { pnj: C });
-  C.g.userData.oreille?.(false); C.regarde = true;
+  oreille(C, false); C.regarde = true;
   const marche = [marcher(C, [[.9, -5.6]])]; if (Pe) marche.push(marcher(Pe, [[-.95, -5.7]]));
   await Promise.all(marche); verifier(j);
   plan([-2.7, 1.7, -3.55], [.25, 1.3, -5.2]); // par-dessus l'épaule de Koffi
@@ -740,9 +774,11 @@ async function sceneOffre() {
   await dire('chef', `Comme tu veux. Mais ce soir, la famille attend ${fmt(but())}. Le papier reste dans ma poche. Tu sais où me trouver : ici.`, ['Je trouverai l’argent.'], { pnj: C });
   plan(null);
   if (Pe) { await marcher(Pe, [[-.4, -6.5]]); retirerPnj('pere'); }
-  marcher(C, [[-4.9, -5.6]]).then(() => { C.cap = Math.PI / 2; C.g.userData.oreille?.(true); }).catch(() => { });
+  marcher(C, [[-4.9, -5.6]]).then(() => { C.cap = Math.PI / 2; oreille(C, true); }).catch(() => { });
   verifier(j);
+  retirerPnj('ayike'); retirerPnj('guerisseuse'); // les invitées repartent : la journée commence
   F.e.gagne = 0; passer('jour'); S().cap = 0; S().orbite = 0; F.bloque = false; majHud(); // face à la famille
+  rafraichirActeurs();
   F.ctx.ligne(`Le Favi : gagne ${fmt(but())} avant la nuit. Menu (le rond à droite) → « Travailler » : zémidjan, taxi… Le Chef attend dans la cour, si tu veux signer.`);
 }
 /** Le jour : le Chef attend dans la cour, avec son papier. */
@@ -903,6 +939,7 @@ function lancer() {
   F.jeton++; F.actif = true; F.dedans = false;
   F.avant ??= { auto: heureAutomatique(), moment: app().dataset.moment || 'jour' };
   app().classList.add('favi'); ouvrirMaison(true);
+  chargerActeurs(); // Koffi, Agnès, le Chef… : on devient Koffi dès qu'il est là
   const e = F.e.etape;
   if (['funerailles', 'profil', 'offre'].includes(e)) jouer(e === 'funerailles' || !F.e.profil ? sceneFunerailles : sceneReprise);
   else if (e === 'jour' || e === 'soir') { passer(e); placerDevant(); preparerPnjJour(); F.bloque = false; majHud(); F.ctx.ligne(e === 'jour' ? `Le Favi : gagne ${fmt(but())} avant la nuit (${fmt(F.e.gagne)} déjà).` : 'Le soir tombe : la famille t’attend chez Mémé Houéfa.'); }
@@ -911,7 +948,7 @@ function lancer() {
 // Reprise après le tirage : on revient dans la cour, et le Chef arrive.
 async function sceneReprise() {
   const j = F.jeton; F.bloque = true;
-  await Promise.race([personnagesCharges(), pause(5)]); verifier(j);
+  await Promise.race([Promise.all([personnagesCharges(), chargerActeurs()]), pause(7)]); verifier(j);
   placerDansCour(0, -5.6, 0); passer('offre'); musique(true);
   pnj('agnes', 'maman', 1.4, 1.1, Math.PI);
   await sceneOffre();
@@ -920,12 +957,13 @@ async function sceneReprise() {
 function preparerPnjJour() {
   const I = F.maison.I; if (!I.g) return; // construite à la première entrée (surEntree)
   if (!F.pnj.agnes) pnj('agnes', 'maman', 1.9, 1.0, Math.PI);
-  if (!F.pnj.chef && F.e.etape === 'jour') { const C = pnj('chef', 'bureau', -4.9, -5.6, Math.PI / 2); C.g.userData.oreille?.(true); }
+  if (!F.pnj.chef && F.e.etape === 'jour') { const C = pnj('chef', 'bureau', -4.9, -5.6, Math.PI / 2); oreille(C, true); }
 }
 /** Arrêter l'histoire (on la garde où elle en est) : quitter la ville, ou « Quitter l'histoire ». */
 function arreter() {
   if (!F.actif) return;
   F.jeton++; F.dlg?.annuler(); F.fermerFiche?.(); F.actif = false; F.bloque = false; F.cam = null; F.enScene = false; F.cacherMoi = false; F.chambre = false;
+  F.ctx.incarner?.(null); // on reprend sa propre tenue
   taire(); musique(false); detruireAvenir(); if (F.polaire !== undefined) { controls.maxPolarAngle = F.polaire; F.polaire = undefined; } eteindreLigne(); retirerZangbeto(); F.trace = null;
   for (const id of Object.keys(F.pnj)) retirerPnj(id);
   const U = F.ui; if (U) { U.hud.hidden = true; U.titre.hidden = true; U.voile.classList.remove('noir'); U.fiche.hidden = true; }

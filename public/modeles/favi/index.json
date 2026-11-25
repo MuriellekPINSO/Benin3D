@@ -1,0 +1,98 @@
+{
+ "favi-koffi": {
+  "femme": false,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13312,
+  "octets": 771900,
+  "danses": 0
+ },
+ "favi-pere": {
+  "femme": false,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13226,
+  "octets": 604664,
+  "danses": 0
+ },
+ "favi-ayike": {
+  "femme": true,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13552,
+  "octets": 946848,
+  "danses": 0
+ },
+ "favi-chef": {
+  "femme": false,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13540,
+  "octets": 905444,
+  "danses": 0
+ },
+ "favi-guerisseuse": {
+  "femme": true,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13139,
+  "octets": 615532,
+  "danses": 0
+ },
+ "favi-agnes": {
+  "femme": true,
+  "enfant": false,
+  "animations": [
+   "idle",
+   "marche",
+   "salut",
+   "parle",
+   "telephone",
+   "assis",
+   "rire"
+  ],
+  "triangles": 13636,
+  "octets": 844664,
+  "danses": 0
+ }
+}

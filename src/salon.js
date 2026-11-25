@@ -173,6 +173,18 @@ async function creerAvatar(modele, i) {
   g.userData.jouer ??= () => { };
   return g;
 }
+// L'histoire du Favi (favi.js) : on y est Koffi. Le temps de l'histoire seulement : rien n'est enregistré (ni ici ni dans la vie),
+// et null rend la tenue choisie.
+async function incarner(role) {
+  if (!S.actif) return;
+  if (!role) { if (S.incarne) { S.incarne = null; porter(S.modele, true); } return; }
+  if (S.incarne === role) return;
+  const g = personnage3d(graine(S.canal?.id || S.nom), { role }); if (!g || g.userData.modele !== role) { g?.userData.liberer?.(); return; }
+  S.incarne = role; g.userData.jouer ??= () => { };
+  if (S.moi) { retirerBulle(S); scene.remove(S.moi); S.moi.userData.liberer?.(); }
+  g.position.set(S.x, S.y, S.z); g.rotation.y = S.cap; g.visible = S.moi?.visible ?? true;
+  S.moi = S.g = g; poserMonEtiquette(g); scene.add(g);
+}
 // Son nom en jaune, celui d'un ami venu avec soi (son lien, ou le nôtre) en vert : dans une ville de trente,
 // on le repère d'un coup d'œil.
 // Dessous, en plus petit (`sous`) : son titre à Cotonou et sa série de journées réussies (echelle.js, journee.js), ce que
@@ -905,7 +917,7 @@ async function entrerSalon(code, { ami = '', nouveau = false } = {}) {
   S.reprise = true; // la journée chez le patron reprend à la première sortie (majSalon, metiers.js reprendreJournee)
   if (!personnagesPrets()) personnagesCharges().then(ok => { // arrivés après nous : le personnage animé remplace le dessiné, le sien et ceux des amis
     if (!ok || !S.actif) return;
-    porter(S.modele, true);
+    if (!S.incarne) porter(S.modele, true); // dans l'histoire du Favi, on reste Koffi
     for (const A of S.autres.values()) if (!A.enCours && A.etat) { A.modele = ''; habiller(A); }
   });
 }
@@ -1593,7 +1605,7 @@ function ouvrir() {
 export function initSalon(data) {
   surAnnonce(t => ligne(t)); // argent gagné ou dépensé, faim : dans le fil du salon
   S.dire = dire; initTrajets(data, { S, ligne, dedans, dehors, bulle, retirerBulle, aller });
-  initFavi({ S, T, ligne, dedans, dehors, bulle, retirerBulle, gps }); // l'histoire du Favi (favi.js) ; avant le clavier du salon, qu'elle passe devant pendant ses dialogues
+  initFavi({ S, T, ligne, dedans, dehors, bulle, retirerBulle, gps, incarner }); // l'histoire du Favi (favi.js) ; avant le clavier du salon, qu'elle passe devant pendant ses dialogues
   initMaison({ S, ligne, geste, guide: () => !!guideSalon?.actif() }); // chez soi : se lever, se doucher, cuisiner (maison.js)
   initGarage({ S, ligne }); // le garage à côté de sa porte : sa voiture y dort (garage.js)
   initAkpakpa({ S, T, ligne, choisir }); // Super U, basket, hôtel (akpakpa.js)
