@@ -3,7 +3,7 @@ import { $ } from './base.js';
 import { son } from './audio.js';
 import { creerVehicule, retirerVehicule } from './conduite.js';
 import { personne } from './discussions.js';
-import { echecCertain, paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
+import { DANS_APPLI, echecCertain, paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
 import { EMPLACEMENTS, LOT } from './emplacements.js';
 import { texteToile } from './lieux.js';
 import { poserObstacles } from './rue.js';
@@ -26,7 +26,7 @@ import { MAX_DECOR, reduireImage } from './textures.js';
 // ouverture ; un paiement pas encore confirmé y est gardé pour être vérifié plus tard.
 
 const OUVERTURE_MOMO = false; // true : l'ouverture se paie aussi 100 F en vrai
-const momoOuverture = () => OUVERTURE_MOMO && paiementReel();
+const momoOuverture = () => OUVERTURE_MOMO && paiementReel() && !DANS_APPLI; // pas de MoMo dans l'appli (paiement.js)
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 const JOUR = 864e5, ABSENCE_MAX = 12 * 36e5, RALENTI = 3, VOIR = 140; // à moins de VOIR m, la boutique est construite
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);

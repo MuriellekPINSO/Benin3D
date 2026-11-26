@@ -26,8 +26,10 @@ const N = LITE ? 18 : 40, LOIN = 300, CELL = 150, POIDS = c => (c <= 2 ? 5 : c =
 const TYPES = [ // part de la circulation, vitesse (m/s), demi-longueur et demi-largeur (pour les collisions)
   { id: 'voiture', part: .5, v: [8, 13], hl: 2.15, hw: .9 },
   { id: 'taxi', part: .15, v: [8, 12], hl: 2.15, hw: .9 },
-  { id: 'zem', part: .22, v: [8, 12], hl: 1.05, hw: .42 },
-  { id: 'moto', part: .13, v: [8, 12], hl: 1.05, hw: .42 }, // une moto ordinaire : le conducteur en chemise, pas en gilet de zém
+  // Moins de motos (8 au lieu de 14 sur 40 ; 3 au lieu de 6 sur 18 au téléphone) : ce sont elles qui se faufilent et
+  // qu'on percute (« réduis le nombre de véhicules qui se faufilent, pour réduire les affaires de choc », Murielle, 25/11).
+  { id: 'zem', part: .12, v: [8, 12], hl: 1.05, hw: .42 },
+  { id: 'moto', part: .08, v: [8, 12], hl: 1.05, hw: .42 }, // une moto ordinaire : le conducteur en chemise, pas en gilet de zém
 ];
 const COULEURS = ['#e8e8e4', '#9da3a6', '#1f2326', '#7b2a2a', '#2c4a6e', '#c9c9c4'];
 const C = { pret: false, meshes: new Map(), vehicules: [], grille: null, bouts: null, routes: null, actif: false };

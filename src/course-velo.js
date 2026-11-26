@@ -11,7 +11,7 @@ import { scene } from './scene.js';
 import { chevauchement } from './trafic.js';
 import { T, asseoirSur, pointDeRoute } from './trajets.js';
 import { VIE, depenser, gagner } from './vie.js';
-import { echecCertain, paiementReel, payerMoMo } from './paiement.js';
+import { DANS_APPLI, echecCertain, paiementReel, payerMoMo } from './paiement.js';
 import { jetonJoueur, proposerRecharge } from './recharge.js';
 import { ASPIRATION, DECOMPTE, ELAN, PRIX_JEU, PRIX_MOMO } from './course-velo-regles.js';
 
@@ -150,6 +150,7 @@ function choisirParcours() {
 // course n'est pas partie (fenêtre fermée avant de valider sur le téléphone, réseau coupé) : on le reprend ensuite.
 async function inscrire(P) {
   if (C) arreter();
+  if (DANS_APPLI) return X.ligne('La course à vélo se paie par Mobile Money : elle n’est pas proposée dans l’appli.'); // paiement.js
   if ((VIE.local && !essai().payant) || !paiementReel()) return X.ligne('La course à vélo se paie par Mobile Money : elle n’est pas disponible sur cette copie du jeu.');
   if (!VIE.data || VIE.data.argent < PRIX_JEU) return proposerRecharge({ manque: PRIX_JEU - (VIE.data?.argent || 0), pour: 'l’inscription à la course à vélo', puis: () => inscrire(P) });
   let jt = ''; try { jt = await jeton(); } catch { return X.ligne('Pas de connexion : réessaie dans un instant.'); }

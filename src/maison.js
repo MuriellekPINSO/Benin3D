@@ -39,7 +39,7 @@ const DUREE_DOUCHE = 8, DUREE_CUISSON = 12;
 const H = { S: null, ligne: () => { }, geste: () => { }, eau: null, vapeur: null, brume: null, arreterBruit: null, gobelet: null };
 const fmt = n => `${Math.round(n).toLocaleString('fr-FR')} F`;
 
-export function initMaison(ctx) { H.S = ctx.S; H.ligne = ctx.ligne; H.geste = ctx.geste; H.guide = ctx.guide; }
+export function initMaison(ctx) { H.S = ctx.S; H.ligne = ctx.ligne; H.geste = ctx.geste; H.guide = ctx.guide; H.habiller = ctx.habiller; }
 
 // ---------- La porte : sur une rue du quartier, à une adresse propre à chaque joueur ----------
 // Dans un mur de parcelle pour une maison en cour commune (rue.js y bâtit la clôture), sur la façade d'un
@@ -85,7 +85,7 @@ export function chercherPorte(x0, z0, facade, classes = [4, 5], tous = null) { /
 // Repères au-dessus de la douche et du fourneau, vus à travers les cloisons : la douche de l'appartement est
 // dans la salle de bains, derrière une porte, et on ne la trouvait pas.
 function reperes(I) {
-  for (const [texte, p] of [['Douche', I.douche], ['Cuisine', I.fourneau]]) if (p) { const e = etiquette(texte); e.position.set(p.x, 1.9, p.z); K.racine.add(e); }
+  for (const [texte, p] of [['Douche', I.douche], ['Cuisine', I.fourneau], ['Garde-robe', I.armoire]]) if (p) { const e = etiquette(texte); e.position.set(p.x, 1.9, p.z); K.racine.add(e); }
 }
 // Portail bleu dans le mur de la parcelle (repère local : la rue vers +z), numéro de lot peint à la main.
 function portail(P) {
@@ -267,6 +267,12 @@ function cour(I) {
   K.cyl(.18, .2, .04, 12, '#2b2f33', -5.55, .02, 1.25); K.cyl(.02, .02, 1.1, 6, '#2b2f33', -5.55, .57, 1.25); K.cyl(.22, .22, .08, 16, K.mat('#e9e6de'), -5.55, 1.15, 1.32).rotation.x = Math.PI / 2; meuble(I, .45, .45, -5.55, 1.25); // ventilateur
   table(I, .6, .5, -2.0, 4.45, '#8a6a4a'); chaise(I, -2.0, 3.8, 0, '#c23b2a');
   K.boite(.8, .45, .5, bleu, -3.15, .23, 4.65); meuble(I, .8, .5, -3.15, 4.65, .5); // cantine métallique
+  // L'armoire, contre le mur de la cour, entre la fenêtre et la porte : on s'y change (« avoir ma garde-robe et changer
+  // d'habit dans ma chambre », Murielle, 25/11). Deux battants, un miroir sur celui de droite.
+  K.boite(1, 1.9, .5, bois, -3.05, .95, .97); meuble(I, 1, .5, -3.05, .97, 1.9);
+  K.boite(.02, 1.75, .01, '#3d2a1a', -3.05, .95, 1.225); for (const dx of [-.06, .06]) K.boite(.02, .14, .03, '#c9a227', -3.05 + dx, 1.05, 1.24);
+  K.boite(.32, 1.2, .01, K.mat('#cfe3ee', { rugosite: .05, metal: .2 }), -2.8, 1.1, 1.228).castShadow = false;
+  I.armoire = { x: -3.05, z: 1.6, cap: Math.PI };
   panneauTexte(['ALLEZ', 'LES GUÉPARDS !'], .9, .65, -5.86, 1.75, 2.1, Math.PI / 2, { fond: '#1f7a3e', encre: '#fcd116', px: 512, py: 370, police: '800 96px system-ui, sans-serif' });
   // La douche (nord-est) : cabine à ciel ouvert, seau et gobelet, rideau de pagne.
   cloison(I, .2, 1.9, 3.9, -4.05, 2, enduit); cloison(I, .9, .2, 5.55, -3.1, 2, enduit);
@@ -327,7 +333,7 @@ function appartement(I, { w = I.w, d = I.d, baie = false } = {}) {
   // Chambre : grand lit, chevets, armoire, climatiseur, fenêtre et rideaux.
   lit(I, { x: -4.95, z: -2.2, a: Math.PI / 2, larg: 1.6, long: 2, vue: Math.PI, leve: [-4.6, -.85, Math.PI / 2] });
   for (const z of [-3.3, -1.1]) { K.boite(.4, .5, .4, bois, -5.7, .25, z); meuble(I, .4, .4, -5.7, z, .5); K.cyl(.1, .14, .3, 12, '#f1e6c8', -5.7, .65, z); }
-  K.boite(1.8, 2.1, .6, bois, -4, 1.05, -4.1); meuble(I, 1.8, .6, -4, -4.1, 2.1);
+  K.boite(1.8, 2.1, .6, bois, -4, 1.05, -4.1); meuble(I, 1.8, .6, -4, -4.1, 2.1); I.armoire = { x: -4, z: -3.3, cap: Math.PI }; // on s'y change (actionsMaison)
   K.boite(.2, .3, .9, '#f4f4f2', -5.85, 2.3, -2.2);
   K.boite(1.4, 1.1, .02, jour, -2.9, 1.6, -D / 2 + .14).castShadow = false; for (const s of [-1, 1]) K.boite(.4, 1.6, .03, K.tex('pagneWax', .5, 1), -2.9 + s * .85, 1.55, -D / 2 + .17);
   // Salle de bains : douche vitrée, lavabo, toilettes.
@@ -372,7 +378,7 @@ function villa(I) {
   for (const o of I.obstacles.slice(n.o)) o[0] += DX_VILLA;
   for (const c of I.sieges.slice(n.s)) c.x += DX_VILLA;
   I.douche.x += DX_VILLA; I.fourneau.x += DX_VILLA; I.fourneau.marmite = [I.fourneau.marmite[0] + DX_VILLA, I.fourneau.marmite[1], I.fourneau.marmite[2]];
-  I.lit.x += DX_VILLA; I.lit.leve = [I.lit.leve[0] + DX_VILLA, I.lit.leve[1], I.lit.leve[2]];
+  I.lit.x += DX_VILLA; I.lit.leve = [I.lit.leve[0] + DX_VILLA, I.lit.leve[1], I.lit.leve[2]]; I.armoire.x += DX_VILLA;
   // Le jardin : de x = 3 (la baie) à x = 9 (la clôture).
   const x0 = 6 + DX_VILLA, x1 = I.w / 2, D = I.d, cx = (x0 + x1) / 2, Lj = x1 - x0;
   const enduit = K.mat('#efe6d6', { rugosite: .95 }), herbe = K.mat('#5f8f3e', { rugosite: 1 }), dalle = K.tex('carrelageClair', 2, 3);
@@ -571,6 +577,7 @@ export function actionsMaison() {
   if (T.plat && !T.repas && S.anim !== 'assis') out.push({ texte: 'S’asseoir pour manger', f: () => H.geste('assis') });
   if (pres(I.douche, 1.9)) out.push({ texte: 'Se doucher', f: doucher });
   if (pres(I.fourneau, 1.9) && !T.plat) out.push({ texte: 'Cuisiner', f: cuisiner });
+  if (pres(I.armoire, 1.5) && H.habiller) out.push({ texte: 'Changer de tenue', f: () => { S.cap = I.armoire.cap; H.habiller(); } }); // face à l'armoire, la garde-robe s'ouvre
   // Pas tout de suite après le lever : E, E recouchait le joueur.
   if (pres(I.lit, 2.2) && performance.now() - (S.leveT || 0) > 4000) out.push({ texte: 'Se coucher', f: () => { coucher(I); H.ligne('Petite sieste… Avance pour te lever.'); } });
   return out;

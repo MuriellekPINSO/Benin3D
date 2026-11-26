@@ -2026,3 +2026,10 @@ button.ff-ligne:hover { border-color: var(--accent); }
 .vj-grille button.ligne { border-color: #d9a521; background: color-mix(in srgb, #f2b705 30%, var(--panel-solid)); }
 .vj-fin { margin: 0; padding: 12px 14px; border-radius: var(--r-md); font: 800 17px/1.3 var(--font-display); background: var(--chip); border: 2px solid var(--line); }
 .vj-fin.gagne, .vj-fin.forfait { background: color-mix(in srgb, #f2b705 22%, var(--panel-solid)); border-color: #d9a521; }
+
+/* Dans l'appli Android ou iPhone (main.js) : ni « Installer », ni « Sans téléchargement », ni la recharge par Mobile Money
+   (les stores refusent un autre paiement que le leur pour le contenu du jeu, 25/11). */
+html.appli #acInstaller, html.appli .ac-son, html.appli #vhRecharger { display: none !important; }
+/* Ni la connexion Google : refusée par Google dans une appli (vue web), et Apple exigerait alors « Se connecter avec Apple ». */
+html.appli #compteGoogle, html.appli .compte-ou { display: none !important; }
+.compte-supprimer { display: block; margin: 14px auto 0; color: #b3261e; }

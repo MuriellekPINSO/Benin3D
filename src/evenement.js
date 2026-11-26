@@ -12,7 +12,7 @@ import { fouleCorps, fouleTete, fouleTissus } from './lieux.js';
 import { chargerDanses, chargerPersonnages, personnage3d, personnagesPrets } from './personnages.js';
 import { fouleAnimee } from './foule-reelle.js';
 import { LITE } from './base.js';
-import { echecCertain, paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
+import { DANS_APPLI, echecCertain, paiementReel, paiementTest, payerMoMo, verifierTransaction } from './paiement.js';
 import { avatarPorte } from './mode.js';
 import { sourceMedia } from './actifs.js';
 
@@ -274,7 +274,7 @@ const attenteGardee = () => { try { const v = localStorage.getItem(CLE_ATTENTE);
 /** Fenêtre d'entrée : le prix pris sur la cagnotte du jeu, ou payé par MoMo. Entrée offerte : on entre. */
 function ouvrir() {
   if (PRIX_ENTREE <= 0 || billetDuJour()) { garderBillet(); return entrer(); }
-  const el = $('#evenement'), P = JEU.prog, assez = (P?.cagnotte || 0) >= PRIX_ENTREE, momo = paiementReel();
+  const el = $('#evenement'), P = JEU.prog, assez = (P?.cagnotte || 0) >= PRIX_ENTREE, momo = paiementReel() && !DANS_APPLI; // pas de MoMo dans l'appli (paiement.js)
   el.querySelector('.ev-solde').textContent = `Ta cagnotte : ${fmtF(P?.cagnotte || 0)}`;
   el.querySelector('#evPayer').disabled = !assez;
   el.querySelector('.ev-manque').hidden = assez;

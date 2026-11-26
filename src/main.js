@@ -1,4 +1,5 @@
 import './style.css';
+import { DANS_APPLI } from './paiement.js';
 import { initEvenement, majConcertDehors } from './evenement.js';
 import { initCinema } from './cinema.js';
 import { initMultijoueur, majMultijoueur } from './multijoueur.js';
@@ -55,6 +56,9 @@ import { demarrerStats } from './statistiques.js';
 import { initZones } from './zones.js';
 import { initLeger } from './leger.js';
 import { buildBuildings, buildContainers, buildFoam, buildPalms, buildRoads, buildShips, buildSurfaces, buildingMeshes } from './ville.js';
+// Dans l'appli Android ou iPhone (paiement.js, DANS_APPLI) : la classe « appli » cache ce qui n'a de sens que sur le site
+// (« Installer », « Sans téléchargement », la recharge par Mobile Money).
+if (DANS_APPLI) document.documentElement.classList.add('appli');
 
 // ---------- Boucle ----------
 // Le rendu soigné (rendu-soigne.js : l'ombre des recoins, les halos), sur ordinateur seulement, une fois la ville montée.
