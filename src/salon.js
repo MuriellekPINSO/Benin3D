@@ -18,7 +18,7 @@ import { firebase, joueur } from './firebase.js';
 import { compte } from './compte.js';
 import { startFlight } from './interface.js';
 import { JEU } from './jeu.js';
-import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personnagesPrets, telephone3d } from './personnages.js';
+import { chargerDanses, chargerTenue, personnage3d, personnagesCharges, personnagesPrets, preterCourse, telephone3d } from './personnages.js';
 import { chargerVrai, placesDe, retirerRuban, stationLaPlusProche, surRoute } from './conduite.js';
 import { dansBatiment, dansLEau, eauIci, obstaclesPres, profondeurRue } from './rue.js';
 import { hauteurSol } from './sols.js';
@@ -180,7 +180,7 @@ async function incarner(role) {
   if (!role) { if (S.incarne) { S.incarne = null; porter(S.modele, true); } return; }
   if (S.incarne === role) return;
   const g = personnage3d(graine(S.canal?.id || S.nom), { role }); if (!g || g.userData.modele !== role) { g?.userData.liberer?.(); return; }
-  S.incarne = role; g.userData.jouer ??= () => { };
+  S.incarne = role; g.userData.jouer ??= () => { }; preterCourse(role); // tenir la flèche fait courir : la course d'une tenue
   if (S.moi) { retirerBulle(S); scene.remove(S.moi); S.moi.userData.liberer?.(); }
   g.position.set(S.x, S.y, S.z); g.rotation.y = S.cap; g.visible = S.moi?.visible ?? true;
   S.moi = S.g = g; poserMonEtiquette(g); scene.add(g);
@@ -1145,7 +1145,7 @@ export function majSalon(dt) {
     S.anim = marche ? (court && S.moi?.userData.peut?.('course') ? 'course' : 'marche') : S.geste;
     if (S.tel && !S.telFin && S.geste !== 'telephone' && !S.appel) rangerTelephone(); // on range le téléphone en se levant (pas pendant un appel)
     if (S.appel && S.appel.etat !== 'recu' && S.geste !== 'telephone') { if (S.geste === 'assis') prendreTelephone(); else if ((!S.tel || (S.tel.oreille && S.tel.oreille !== S.moi)) && T.mode === 'pied') telephoneEnMain(0); } // changé de tenue en plein appel : le nouveau corps reprend le téléphone // assis ou relevé pendant l'appel
-    if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer(S.anim); }
+    if (S.moi) { S.moi.visible = true; S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.allure?.(Math.abs(v)); S.moi.userData.jouer(S.anim); }
   }
   // Caméra derrière soi (ou derrière le véhicule), à la distance et l'inclinaison choisies : glisser vers le haut ou
   // le bas, molette, touche V, stick droit de la manette. De très haut, on voit le quartier comme sur une carte.
@@ -1236,7 +1236,7 @@ export function majSalon(dt) {
       const Vd = e.sur === S.R?.id ? T.veh : vehiculeAmi(S.autres.get(e.sur)); // dans sa voiture, qu'elle roule ou soit garée
       if (Vd) asseoirSur(A.g, Vd, placeAmi(e.sur, A.id)); else { A.g.position.set(A.x, ey, A.z); A.g.rotation.y = A.cap; }
     }
-    else if (A.g) { A.g.userData.velo?.(null); A.g.position.set(A.x, typeof e.y === 'number' ? e.y : 0, A.z); A.g.rotation.y = A.cap; A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? (e.a === 'course' && A.g.userData.peut?.('course') ? 'course' : 'marche') : ANIMS.has(e.a) ? e.a : 'idle'); } // l'ami qui court, court aussi chez soi
+    else if (A.g) { A.g.userData.velo?.(null); A.g.position.set(A.x, typeof e.y === 'number' ? e.y : 0, A.z); A.g.rotation.y = A.cap; A.g.userData.allure?.(A.vitesse ?? 0); A.g.userData.jouer(Math.hypot(dx, dz) > .2 ? (e.a === 'course' && A.g.userData.peut?.('course') ? 'course' : 'marche') : ANIMS.has(e.a) ? e.a : 'idle'); } // l'ami qui court, court aussi chez soi
     const G = vehiculeGareDe(A, !S.lieu && Array.isArray(e.gv) && VEH_GARES.includes(e.gv[0]) && e.gv.slice(1, 4).every(Number.isFinite) ? e.gv : null, couleurValide(e.vc));
     if (G) {
       G.g.visible = (G.x - S.x) ** 2 + (G.z - S.z) ** 2 < VU * VU;

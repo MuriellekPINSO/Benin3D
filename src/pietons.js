@@ -107,7 +107,7 @@ export function majPietons(st, dt) {
       if (lat === null) { p.s = s0; p.sens = -p.sens; p.case = Math.round(s0); } else p.cible = lat; // demi-tour devant le mur
     }
     if (p.cible !== undefined) p.lat += (p.cible - p.lat) * Math.min(1, dt * 2.5);
-    const r = pose(C, p.s, p.lat, tmp); p.m.position.set(r.x, r.y, r.z); regarder(p.m, p.sens * r.dx, p.sens * r.dz);
+    const r = pose(C, p.s, p.lat, tmp); p.m.position.set(r.x, r.y, r.z); regarder(p.m, p.sens * r.dx, p.sens * r.dz); p.m.userData.allure?.(p.v);
     return true;
   });
   // Passages piétons : ils traversent d'un trottoir à l'autre, puis s'en vont.
@@ -125,7 +125,7 @@ export function majPietons(st, dt) {
     else if (bloque) p.m.userData.jouer('idle');
     else p.lat += p.dir * p.v * dt;
     if ((Math.sign(p.lat) === p.dir && Math.abs(p.lat) > p.hw + 1.6) || p.s < st.s - 40) { retirer(p); return false; } // arrivé sur l'autre bas-côté
-    const q = pose(C, p.s, p.lat, tmp); p.m.position.set(q.x, q.y, q.z); regarder(p.m, p.dir * -q.dz, p.dir * q.dx);
+    const q = pose(C, p.s, p.lat, tmp); p.m.position.set(q.x, q.y, q.z); regarder(p.m, p.dir * -q.dz, p.dir * q.dx); p.m.userData.allure?.(p.v);
     // Le zém qui fonce sur le passage piéton au rouge : accident. Au vert, le piéton s'écarte d'un bond.
     if (Math.abs(p.s - st.s) < 1.3 && Math.abs(p.lat - latJ) < .9 && st.v <= 2 && p.s > st.s) { st.s = Math.max(st.s - .2, p.s - 1.3); st.v = Math.min(st.v, 0); } // au pas : le zém s'arrête devant lui
     if (!p.touche && Math.abs(p.s - st.s) < 1.3 && Math.abs(p.lat - latJ) < .9 && st.v > 2) {

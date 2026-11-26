@@ -567,7 +567,7 @@ export function majTrajets(dt, av, tour) {
     const A = T.trans; A.t += dt; const k = Math.min(1, A.t / A.duree);
     S.x = A.de[0] + (A.vers[0] - A.de[0]) * k; S.z = A.de[1] + (A.vers[1] - A.de[1]) * k; S.cap = Math.atan2(A.vers[0] - A.de[0], A.vers[1] - A.de[1]) || S.cap; S.anim = 'marche';
     if (A.ya !== undefined) S.y = A.ya + (A.yb - A.ya) * k;
-    if (S.moi) { S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.jouer('marche'); }
+    if (S.moi) { S.moi.position.set(S.x, S.y, S.z); S.moi.rotation.y = S.cap; S.moi.userData.allure?.(Math.hypot(A.vers[0] - A.de[0], A.vers[1] - A.de[1]) / A.duree); S.moi.userData.jouer('marche'); }
     if (k >= 1) { T.trans = null; A.fin(); }
     return { x: S.x, y: S.y, z: S.z, cap: S.cap, dist: 6, haut: 2.6 };
   }

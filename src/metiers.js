@@ -509,7 +509,7 @@ function missionClients() {
 }
 function marcher(p, vers, dt, v = 1.4) {
   const dx = vers[0] - p.position.x, dz = vers[1] - p.position.z, d = Math.hypot(dx, dz); if (d < .15) return true;
-  const k = Math.min(1, v * dt / d); p.position.x += dx * k; p.position.z += dz * k; p.rotation.y = Math.atan2(dx, dz); p.userData.jouer('marche'); return false;
+  const k = Math.min(1, v * dt / d); p.position.x += dx * k; p.position.z += dz * k; p.rotation.y = Math.atan2(dx, dz); p.userData.allure?.(v); p.userData.jouer('marche'); return false;
 }
 
 // ---------- Tokpa-tokpa : la ligne Godomey – Calavi ----------

@@ -170,6 +170,37 @@ export function poserAssis(p, x, y, z, cap, dossier = 0) {
   p.position.set(x + Math.sin(cap) * recul, A ? y + A.fesses : y - .005, z + Math.cos(cap) * recul); p.rotation.y = cap;
 }
 
+// Allure : la vitesse à laquelle le pied d'appui recule sous le corps quand la marche (ou la course) joue à vitesse 1,
+// en hauteurs du modèle par seconde. personnage3d en tire le rythme des pas pour la vitesse réelle (userData.allure).
+// « Ils ne marchent pas proprement » (Murielle, 26/11) : le joueur avançait à 1,7 m/s sur des pas faits pour ≈ 1,1 m/s,
+// et courait à 5,2 m/s sur ≈ 3 m/s : les pieds glissaient sur le sol (0,7 m/s mesurés sous Koffi, 0,2 après).
+function mesurerAllure(scene, clip, hauteur) {
+  const pieds = [scene.getObjectByName('L_Foot'), scene.getObjectByName('R_Foot')]; if (!clip || !pieds[0] || !pieds[1]) return 0;
+  const mixer = new THREE.AnimationMixer(scene), a = mixer.clipAction(clip); a.play();
+  const N = 120, dt = clip.duration / N, T = [[], []], vit = [];
+  for (let i = 0; i <= N; i++) { a.time = i * dt; mixer.update(0); scene.updateMatrixWorld(true); pieds.forEach((o, k) => T[k].push(o.getWorldPosition(new THREE.Vector3()))); }
+  mixer.stopAllAction(); mixer.uncacheRoot(scene);
+  const bas = T.map(l => Math.min(...l.map(p => p.y)));
+  for (let i = 1; i <= N; i++) {
+    const k = T[0][i].y < T[1][i].y ? 0 : 1; // le pied d'appui : le plus bas des deux, posé au sol
+    if (T[k][i].y - bas[k] < hauteur * .012) vit.push(Math.hypot(T[k][i].x - T[k][i - 1].x, T[k][i].z - T[k][i - 1].z) / dt);
+  }
+  if (vit.length <= 8) return 0;
+  vit.sort((x, y) => x - y); return vit[vit.length >> 1] / hauteur;
+}
+/** Les acteurs de l'histoire n'ont pas de course : celui qu'on joue (Koffi) prend celle d'une tenue de la boutique, du même
+ *  genre (même squelette de 41 os, le bassin remis à son échelle). Sans elle, il « courait » avec sa marche, les pieds glissant. */
+export async function preterCourse(id) {
+  const M = P.modeles[id]; if (!M || M.clips.course || !M.hipRepos) return;
+  const tenue = M.femme ? 'urbaine-f' : 'tshirt-h';
+  let src = Object.values(P.modeles).find(m => m.mode && m.clips.course && m.femme === M.femme && m.hipRepos);
+  if (!src && await chargerTenue(tenue).catch(() => false)) src = P.modeles[tenue];
+  if (!src?.clips.course || !src.hipRepos) return;
+  const c = src.clips.course.clone(), a = src.hipRepos, b = M.hipRepos, k = b.length() / (a.length() || 1);
+  for (const t of c.tracks) if (t.name.endsWith('Hip.position')) { const v = t.values; for (let i = 0; i < v.length; i += 3) { v[i] = b.x + (v[i] - a.x) * k; v[i + 1] = b.y + (v[i + 1] - a.y) * k; v[i + 2] = b.z + (v[i + 2] - a.z) * k; } }
+  M.allure.course = mesurerAllure(M.scene, c, M.hauteur); M.clips.course = c;
+}
+
 // Mesures faites une fois par modèle : hauteur en position d'attente, sens du regard (des pieds
 // vers les orteils), hauteur du bassin assis.
 function preparer(id, g, info) {
@@ -202,7 +233,8 @@ function preparer(id, g, info) {
     assis = { t: tMin, bassin: b, ...mesurerAssis(scene, b, rot, hauteur) };
   }
   mixer.stopAllAction(); mixer.uncacheRoot(scene);
-  return { id, scene, clips, hauteur, sol, rot, assis, crane, hipRepos, femme: !!info.femme, enfant: !!info.enfant };
+  const allure = {}; for (const nom of ['marche', 'course']) { const a = mesurerAllure(scene, clips[nom], hauteur); if (a) allure[nom] = a; }
+  return { id, scene, clips, hauteur, sol, rot, assis, crane, hipRepos, allure, femme: !!info.femme, enfant: !!info.enfant };
 }
 
 function choisirId(i, femme, role, enfant = false) {
@@ -264,6 +296,8 @@ export function personnage3d(i, { assise = false, femme = null, role = null, enf
   if (!manuel) P.actifs.add(E); // manuel : animé par son propriétaire (userData.maj), ex. la cabine d'essayage
   g.userData = {
     tete: E.tete, main: E.main, femme: M.femme, graine: i, modele: id, haut: 1.15, jouer, peut: nom => !!(actions[nom] || M.clips[nom]), // peut('course') : seuls les modèles des joueurs savent courir
+    // Les pas au rythme du déplacement (v en m/s) : les pieds restent posés au lieu de glisser (preparer, « Allure »).
+    allure: v => { for (const nom of ['marche', 'course']) { const a = actions[nom], n = (M.allure?.[nom] || 0) * taille; if (a && n) a.timeScale = v > .05 ? THREE.MathUtils.clamp(v / n, .5, 2.5) : 1; } },
     assise: assise && M.assis?.pieds ? { fesses: M.assis.fesses * ech, pieds: M.assis.pieds * ech, dos: M.assis.dos * ech } : null, // sous le bassin, en mètres (poserAssis)
     maj: dt => { mixer.update(dt); if (E.velo !== null) poserVelo(E, E.velo); else if (E.culte) poserCulte(E); else if (E.oreille && E.courante !== 'telephone') poserOreille(E); suivre(E); },
     // Messe et prière (culte.js) : 'debout', 'qiyam', 'ruku', 'sujud', 'jalsa', 'orant', 'mains-jointes' ; null rend l'animation.

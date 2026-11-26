@@ -452,7 +452,7 @@ function majPnj(dt) {
     if (P.chemin.length) {
       const [tx, tz] = P.chemin[0], dx = tx - P.x, dz = tz - P.z, d = Math.hypot(dx, dz), pas = P.vitesse * dt;
       if (d <= pas) { P.x = tx; P.z = tz; P.chemin.shift(); if (!P.chemin.length) { P.g.userData.jouer?.('idle'); const f = P.fin; P.fin = null; f?.(); } }
-      else { P.x += dx / d * pas; P.z += dz / d * pas; P.cap = tourner(P.cap, Math.atan2(dx, dz), dt * 7); P.g.userData.jouer?.('marche'); }
+      else { P.x += dx / d * pas; P.z += dz / d * pas; P.cap = tourner(P.cap, Math.atan2(dx, dz), dt * 7); P.g.userData.allure?.(P.vitesse); P.g.userData.jouer?.('marche'); }
     } else if (P.regarde && I && s.lieu === I) { const lx = s.x - I.centre[0] - P.x, lz = s.z - I.centre[1] - P.z; if (Math.hypot(lx, lz) < 6) P.cap = tourner(P.cap, Math.atan2(lx, lz), dt * 3); }
     P.g.position.set(P.x, 0, P.z); P.g.rotation.y = P.cap; P.ob[0] = P.x; P.ob[1] = P.z;
     if (P.bulle && now > P.bulleFin) F.ctx.retirerBulle(P);
